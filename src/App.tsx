@@ -128,7 +128,7 @@ export default function App() {
             selection.indices.length > 0 && (
               <button
                 onClick={clear}
-                className="absolute bottom-2 left-2 text-[11px] font-mono bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-2 py-1 rounded hover:bg-neutral-800"
+                className="absolute bottom-2 right-2 text-[11px] font-mono bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-2 py-1 rounded hover:bg-neutral-800"
               >
                 clear selection ({selection.indices.length.toLocaleString()})
               </button>

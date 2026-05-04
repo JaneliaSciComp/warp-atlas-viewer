@@ -289,7 +289,7 @@ export function BrainViewer({ data, filter, selection, onSelect }: Props) {
           (top-down) horizontal sections; the arrow shows where the anterior
           end of the brain points on screen. */}
       <div
-        className="absolute bottom-2 right-2 flex bg-neutral-900/85 border border-neutral-700 rounded font-mono overflow-hidden"
+        className="absolute bottom-2 left-2 flex bg-neutral-900/85 border border-neutral-700 rounded font-mono overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {(
