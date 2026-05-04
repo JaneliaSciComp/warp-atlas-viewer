@@ -26,9 +26,15 @@ export function DetailPanel({ data, selection }: Props) {
 
   const geneRows: Array<{ gene: string; v: number }> = [];
   for (let g = 0; g < stats.geneMeans.length; g++) {
-    geneRows.push({ gene: data.geneNames[g], v: stats.geneMeans[g] });
+    // Only include genes with non-zero mean expression in the selection;
+    // bars at zero are visual noise.
+    if (stats.geneMeans[g] > 0) {
+      geneRows.push({ gene: data.geneNames[g], v: stats.geneMeans[g] });
+    }
   }
   geneRows.sort((a, b) => b.v - a.v);
+  // Give each bar enough vertical room that its label is never collapsed.
+  const geneChartHeight = Math.max(80, geneRows.length * 16 + 40);
 
   const stimRows: Array<{ stim: string; v: number }> = [];
   for (let s = 0; s < stats.stimulusMeans.length; s++) {
@@ -73,7 +79,10 @@ export function DetailPanel({ data, selection }: Props) {
 
       <section className="mb-4">
         <h3 className="text-xs font-semibold text-neutral-700 mb-1">Gene expression</h3>
-        <div style={{ width: '100%', height: 360 }}>
+        {geneRows.length === 0 ? (
+          <div className="text-xs text-neutral-500 italic">No gene expression in selection.</div>
+        ) : (
+        <div style={{ width: '100%', height: geneChartHeight }}>
           <ResponsiveContainer>
             <BarChart layout="vertical" data={geneRows} margin={{ top: 4, right: 8, left: 4, bottom: 18 }}>
               <XAxis
@@ -86,6 +95,7 @@ export function DetailPanel({ data, selection }: Props) {
                 dataKey="gene"
                 tick={{ fontSize: 10, fill: '#262626', fontFamily: 'ui-monospace' }}
                 width={70}
+                interval={0}
               />
               <Tooltip
                 contentStyle={{ fontSize: 11, fontFamily: 'ui-monospace' }}
@@ -95,6 +105,7 @@ export function DetailPanel({ data, selection }: Props) {
             </BarChart>
           </ResponsiveContainer>
         </div>
+        )}
       </section>
 
       <section className="mb-4">
