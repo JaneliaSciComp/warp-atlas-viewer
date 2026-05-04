@@ -74,8 +74,12 @@ export default function App() {
 
   const layout = useMemo(
     () => ({
-      gridTemplateColumns: '1fr 360px',
-      gridTemplateRows: '1fr 280px',
+      // minmax(0, 1fr) lets the column actually shrink below its
+      // content's intrinsic size; plain `1fr` defaults to
+      // minmax(auto, 1fr) which pins the min to min-content and breaks
+      // horizontal resize once the window goes below the initial width.
+      gridTemplateColumns: 'minmax(0, 1fr) 360px',
+      gridTemplateRows: 'minmax(0, 1fr) 280px',
     }),
     [],
   );
@@ -97,12 +101,12 @@ export default function App() {
 
   return (
     <div
-      className="h-full grid"
+      className="h-full w-full grid overflow-hidden"
       style={layout}
     >
       {/* Top-left: 3D viewer + filter controls + legend */}
-      <div className="relative flex flex-col min-h-0 row-start-1 col-start-1">
-        <div className="relative flex-1 min-h-0">
+      <div className="relative flex flex-col min-h-0 min-w-0 row-start-1 col-start-1">
+        <div className="relative flex-1 min-h-0 min-w-0">
           <BrainViewer
             data={data}
             filter={filter}
@@ -122,13 +126,16 @@ export default function App() {
       </div>
 
       {/* Right column: detail panel spans both rows */}
-      <div className="row-start-1 row-span-2 col-start-2 min-h-0">
+      <div className="row-start-1 row-span-2 col-start-2 min-h-0 min-w-0">
         <DetailPanel data={data} selection={selection} />
       </div>
 
       {/* Bottom-left split: filters + UMAP */}
-      <div className="row-start-2 col-start-1 grid min-h-0" style={{ gridTemplateColumns: '1fr 1fr' }}>
-        <div className="flex flex-col bg-neutral-800 min-h-0">
+      <div
+        className="row-start-2 col-start-1 grid min-h-0 min-w-0"
+        style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)' }}
+      >
+        <div className="flex flex-col bg-neutral-800 min-h-0 min-w-0">
           <FilterControls data={data} filter={filter} setFilter={setFilter} />
           <div className="flex-1 p-3 text-[11px] font-mono text-neutral-400 overflow-y-auto">
             <div className="mb-1 text-neutral-500">Tips</div>
