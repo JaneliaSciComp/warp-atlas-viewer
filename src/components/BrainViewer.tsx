@@ -250,28 +250,29 @@ export function BrainViewer({ data, filter, selection, onSelect }: Props) {
         {data.count.toLocaleString()} neurons {data.source === 'mock' ? '(mock)' : ''}
       </div>
       {/* orientation toggle — bottom-right corner. Both views are dorsal
-          (top-down) horizontal sections; the labels describe where the
-          anterior end of the brain points on screen. */}
+          (top-down) horizontal sections; the arrow shows where the anterior
+          end of the brain points on screen. */}
       <div
-        className="absolute bottom-2 right-2 flex bg-neutral-900/85 border border-neutral-700 rounded text-[11px] font-mono overflow-hidden"
+        className="absolute bottom-2 right-2 flex bg-neutral-900/85 border border-neutral-700 rounded font-mono overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {(
           [
-            { id: 'portrait', label: 'anterior ↑' },
-            { id: 'landscape', label: 'anterior ←' },
-          ] as Array<{ id: Orientation; label: string }>
+            { id: 'portrait', label: '↑', aria: 'anterior up' },
+            { id: 'landscape', label: '←', aria: 'anterior left' },
+          ] as Array<{ id: Orientation; label: string; aria: string }>
         ).map((o) => (
           <button
             key={o.id}
             onClick={() => setOrientation(o.id)}
             className={
-              'px-2 py-1 ' +
+              'px-3 py-1 text-base leading-none ' +
               (orientation === o.id
                 ? 'bg-neutral-100 text-neutral-900'
                 : 'text-neutral-300 hover:bg-neutral-700')
             }
-            aria-label={`orientation: ${o.label}`}
+            aria-label={`orientation: ${o.aria}`}
+            title={`orientation: ${o.aria}`}
           >
             {o.label}
           </button>
