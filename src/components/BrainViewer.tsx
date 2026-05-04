@@ -138,13 +138,16 @@ function PointCloud({
 
 export function BrainViewer({ data, filter, selection, onSelect }: Props) {
   const [hover, setHover] = useState<{ i: number; x: number; y: number } | null>(null);
-  const [orientation, setOrientation] = useState<Orientation>('portrait');
+  const [orientation, setOrientation] = useState<Orientation>('landscape');
   const pickRef = useRef<PickState>({ pos: null, hovered: -1 });
 
   const camPosition = useMemo(() => {
     const { min, max } = data.bounds;
     const span = Math.max(max[0] - min[0], max[1] - min[1], max[2] - min[2]);
-    return [span * 1.0, span * 0.8, span * 1.4] as [number, number, number];
+    // Straight-on dorsal view: camera directly above the brain looking
+    // down -z. Distance picked so the brain comfortably fills a landscape
+    // panel; portrait users can wheel out.
+    return [0, 0, span * 0.95] as [number, number, number];
   }, [data]);
 
   // Track the pointer-down position so we can distinguish a click (no
