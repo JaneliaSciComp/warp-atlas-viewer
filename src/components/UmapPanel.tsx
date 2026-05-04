@@ -34,11 +34,19 @@ export function UmapPanel({ data, filter, selection, onSelect }: Props) {
   // Reusable color buffer mirroring 3D viewer coloring rules.
   const buffers = useMemo(() => allocColoring(data.count), [data]);
 
-  // Map UMAP → pixel coords.
+  // Map UMAP → pixel coords with the data's natural aspect ratio
+  // preserved. On wide screens the embedding gets letterboxed (centered
+  // with empty bands on the long sides) instead of being stretched —
+  // distances between clusters stay honest.
   const project = useCallback(
     (x: number, y: number, w: number, h: number) => {
-      const px = ((x - umapBounds.xmin) / (umapBounds.xmax - umapBounds.xmin)) * w;
-      const py = h - ((y - umapBounds.ymin) / (umapBounds.ymax - umapBounds.ymin)) * h;
+      const dataW = umapBounds.xmax - umapBounds.xmin;
+      const dataH = umapBounds.ymax - umapBounds.ymin;
+      const scale = Math.min(w / dataW, h / dataH);
+      const offsetX = (w - dataW * scale) / 2;
+      const offsetY = (h - dataH * scale) / 2;
+      const px = offsetX + (x - umapBounds.xmin) * scale;
+      const py = offsetY + (umapBounds.ymax - y) * scale;
       return [px, py];
     },
     [umapBounds],
