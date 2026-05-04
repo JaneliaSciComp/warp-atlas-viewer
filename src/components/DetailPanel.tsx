@@ -24,15 +24,18 @@ export function DetailPanel({ data, selection }: Props) {
     );
   }
 
-  const geneRows: Array<{ gene: string; v: number }> = [];
+  const allExpressedRows: Array<{ gene: string; v: number }> = [];
   for (let g = 0; g < stats.geneMeans.length; g++) {
     // Only include genes with non-zero mean expression in the selection;
     // bars at zero are visual noise.
     if (stats.geneMeans[g] > 0) {
-      geneRows.push({ gene: data.geneNames[g], v: stats.geneMeans[g] });
+      allExpressedRows.push({ gene: data.geneNames[g], v: stats.geneMeans[g] });
     }
   }
-  geneRows.sort((a, b) => b.v - a.v);
+  allExpressedRows.sort((a, b) => b.v - a.v);
+  const GENE_BAR_LIMIT = 20;
+  const geneRows = allExpressedRows.slice(0, GENE_BAR_LIMIT);
+  const truncatedGenes = allExpressedRows.length - geneRows.length;
   // Give each bar enough vertical room that its label is never collapsed.
   const geneChartHeight = Math.max(80, geneRows.length * 16 + 40);
 
@@ -105,6 +108,11 @@ export function DetailPanel({ data, selection }: Props) {
             </BarChart>
           </ResponsiveContainer>
         </div>
+        )}
+        {truncatedGenes > 0 && (
+          <div className="text-[10px] text-neutral-500 font-mono mt-0.5">
+            top {GENE_BAR_LIMIT} shown · +{truncatedGenes} more expressed
+          </div>
         )}
       </section>
 
