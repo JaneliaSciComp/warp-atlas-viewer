@@ -88,10 +88,11 @@ export function applyColoring(
           const c = viridis(v);
           r = c[0]; g = c[1]; b = c[2];
           // Sparse-gene populations are tiny relative to 274k cells; full
-          // alpha + an expression-scaled size boost (same idea as the
-          // co-coding view) so the few expressers actually pop.
+          // alpha + an expression-scaled size gradient (faintest cells
+          // slightly smaller than background, brightest 2x) so the
+          // population reads with both color and size cues.
           alpha = 1.0;
-          size = BASE_SIZE * (1.5 + 0.6 * v);
+          size = BASE_SIZE * (0.9 + 1.2 * v);
         }
         break;
       }
