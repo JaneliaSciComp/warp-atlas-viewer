@@ -92,7 +92,10 @@ export function applyColoring(
       }
       case 'cluster': {
         if (filter.selectedCluster < 0 || clusterIds[i] !== filter.selectedCluster) {
-          r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2]; alpha = DIM_ALPHA;
+          // Slightly brighter dim than the global default — at 0.10 the
+          // anatomical context is barely readable while the magenta
+          // cluster pops; this lets the brain shape stay visible.
+          r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2]; alpha = 0.20;
         } else {
           // Always magenta — consistent visual signature for "the selected
           // cluster" across cluster picks.
