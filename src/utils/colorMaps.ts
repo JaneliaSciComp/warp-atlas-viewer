@@ -1,0 +1,100 @@
+// Viridis sampled at 32 stops, then linearly interpolated.
+const VIRIDIS_STOPS: Array<[number, number, number]> = [
+  [0.267, 0.005, 0.329], [0.282, 0.094, 0.418], [0.279, 0.175, 0.483],
+  [0.263, 0.243, 0.524], [0.237, 0.305, 0.541], [0.207, 0.372, 0.553],
+  [0.180, 0.435, 0.557], [0.156, 0.498, 0.557], [0.135, 0.557, 0.553],
+  [0.115, 0.617, 0.541], [0.121, 0.679, 0.516], [0.180, 0.731, 0.480],
+  [0.286, 0.784, 0.428], [0.426, 0.829, 0.357], [0.594, 0.866, 0.270],
+  [0.769, 0.890, 0.176], [0.929, 0.906, 0.099], [0.993, 0.906, 0.144],
+];
+
+export function viridis(t: number): [number, number, number] {
+  if (t <= 0) return VIRIDIS_STOPS[0];
+  if (t >= 1) return VIRIDIS_STOPS[VIRIDIS_STOPS.length - 1];
+  const x = t * (VIRIDIS_STOPS.length - 1);
+  const i = Math.floor(x);
+  const f = x - i;
+  const a = VIRIDIS_STOPS[i];
+  const b = VIRIDIS_STOPS[i + 1];
+  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+}
+
+// Tableau10-style qualitative palette, extended to 16 for region count.
+export const REGION_PALETTE: Array<[number, number, number]> = [
+  [0.298, 0.447, 0.690], // blue
+  [0.867, 0.518, 0.322], // orange
+  [0.333, 0.659, 0.408], // green
+  [0.769, 0.306, 0.322], // red
+  [0.506, 0.447, 0.702], // purple
+  [0.576, 0.471, 0.376], // brown
+  [0.855, 0.545, 0.765], // pink
+  [0.549, 0.549, 0.549], // gray
+  [0.800, 0.725, 0.455], // yellow-tan
+  [0.392, 0.710, 0.804], // cyan
+  [0.945, 0.769, 0.486], // sand
+  [0.612, 0.788, 0.451], // lime
+  [0.420, 0.624, 0.529], // teal
+  [0.722, 0.376, 0.443], // rose
+  [0.467, 0.408, 0.671], // violet
+  [0.353, 0.502, 0.412], // forest
+];
+
+export function regionColor(idx: number): [number, number, number] {
+  return REGION_PALETTE[((idx % REGION_PALETTE.length) + REGION_PALETTE.length) % REGION_PALETTE.length];
+}
+
+/**
+ * Bivariate colormap with cool/warm contrast. Both g (gene), a (activity)
+ * in [0,1]. Returns
+ *   (0,0) → dark gray  (background — most of the brain)
+ *   (1,0) → blue       (gene-positive only)
+ *   (0,1) → green      (stim-correlated only)
+ *   (1,1) → red        (co-coding cells — the interesting hits)
+ *
+ * Single-axis populations get cool colors (blue, green); the rare
+ * co-coding cells get a complementary warm (red), so they pop out against
+ * a sea of green stim-responders rather than getting lost in it (the
+ * earlier red+magenta scheme failed because magenta sat too close to red
+ * in hue).
+ *
+ * Along the gene-positive ramp (g=1, a varying) the path is blue →
+ * magenta → red, which interpolates cleanly because the green channel
+ * stays at base.
+ */
+export function bivariate(g: number, a: number): [number, number, number] {
+  const base = 0.16;
+  const r = base + (1 - base) * g * a;
+  const gg = base + (1 - base) * a * (1 - g);
+  const b = base + (1 - base) * g * (1 - a);
+  return [Math.min(1, r), Math.min(1, gg), Math.min(1, b)];
+}
+
+export function rgbToHex(c: [number, number, number]): string {
+  const to = (x: number) => Math.max(0, Math.min(255, Math.round(x * 255)))
+    .toString(16)
+    .padStart(2, '0');
+  return `#${to(c[0])}${to(c[1])}${to(c[2])}`;
+}
+
+/** A small bivariate LUT painted to a canvas, returned as a data URL. */
+export function bivariateLegendDataUrl(size: number = 64): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const img = ctx.createImageData(size, size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const g = x / (size - 1);
+      const a = 1 - y / (size - 1);
+      const c = bivariate(g, a);
+      const idx = (y * size + x) * 4;
+      img.data[idx] = Math.round(c[0] * 255);
+      img.data[idx + 1] = Math.round(c[1] * 255);
+      img.data[idx + 2] = Math.round(c[2] * 255);
+      img.data[idx + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return canvas.toDataURL();
+}

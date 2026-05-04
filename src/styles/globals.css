@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* recharts axis text — DetailPanel is on a light background. */
+.recharts-cartesian-axis-tick text,
+.recharts-legend-item-text {
+  fill: #262626 !important;
+  color: #262626 !important;
+  font-size: 11px;
+}
+.recharts-cartesian-grid line {
+  stroke: #d4d4d4;
+}
+.recharts-tooltip-wrapper {
+  outline: none;
+}
+
+/* tooltip used by BrainViewer */
+.neuron-tooltip {
+  position: fixed;
+  pointer-events: none;
+  background: rgba(20, 20, 20, 0.92);
+  border: 1px solid #404040;
+  color: #e5e5e5;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  padding: 6px 8px;
+  border-radius: 3px;
+  white-space: pre;
+  z-index: 100;
+}
+
+select,
+button {
+  font-size: 12px;
+}
