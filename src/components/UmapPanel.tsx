@@ -9,11 +9,37 @@ interface Props {
   onSelect: (indices: Uint32Array, source: 'umap') => void;
 }
 
+interface Viewport {
+  /** Scale multiplier on top of the natural fit-to-panel scale. 1 = fit. */
+  zoom: number;
+  /** Pan offset in panel pixels (added to the projected pixel position). */
+  panX: number;
+  panY: number;
+}
+
+const INITIAL_VIEWPORT: Viewport = { zoom: 1, panX: 0, panY: 0 };
+
 export function UmapPanel({ data, filter, selection, onSelect }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 400, h: 200 });
-  const [drag, setDrag] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
+  const [viewport, setViewport] = useState<Viewport>(INITIAL_VIEWPORT);
+  // Refs mirroring viewport so handlers (which capture closures) and the
+  // wheel listener (passive: false on the DOM node) see the latest values
+  // without re-binding.
+  const viewportRef = useRef(viewport);
+  viewportRef.current = viewport;
+
+  // Drag state distinguishes "select" (left button) from "pan" (right or
+  // middle button); pan also fires on shift+left for users without a
+  // multi-button mouse.
+  const [drag, setDrag] = useState<
+    | { kind: 'select'; x0: number; y0: number; x1: number; y1: number }
+    | { kind: 'pan'; lastX: number; lastY: number }
+    | null
+  >(null);
+  const dragRef = useRef(drag);
+  dragRef.current = drag;
 
   // Compute UMAP bounds once.
   const umapBounds = useMemo(() => {
@@ -34,17 +60,16 @@ export function UmapPanel({ data, filter, selection, onSelect }: Props) {
   // Reusable color buffer mirroring 3D viewer coloring rules.
   const buffers = useMemo(() => allocColoring(data.count), [data]);
 
-  // Map UMAP → pixel coords with the data's natural aspect ratio
-  // preserved. On wide screens the embedding gets letterboxed (centered
-  // with empty bands on the long sides) instead of being stretched —
-  // distances between clusters stay honest.
+  // UMAP → pixel coords. Uniform-scale fit-to-panel + viewport zoom + pan.
+  // Both the renderer and the box-select use this so they stay in sync.
   const project = useCallback(
-    (x: number, y: number, w: number, h: number) => {
+    (x: number, y: number, w: number, h: number, vp: Viewport) => {
       const dataW = umapBounds.xmax - umapBounds.xmin;
       const dataH = umapBounds.ymax - umapBounds.ymin;
-      const scale = Math.min(w / dataW, h / dataH);
-      const offsetX = (w - dataW * scale) / 2;
-      const offsetY = (h - dataH * scale) / 2;
+      const baseScale = Math.min(w / dataW, h / dataH);
+      const scale = baseScale * vp.zoom;
+      const offsetX = (w - dataW * scale) / 2 + vp.panX;
+      const offsetY = (h - dataH * scale) / 2 + vp.panY;
       const px = offsetX + (x - umapBounds.xmin) * scale;
       const py = offsetY + (umapBounds.ymax - y) * scale;
       return [px, py];
@@ -82,22 +107,23 @@ export function UmapPanel({ data, filter, selection, onSelect }: Props) {
 
     applyColoring(data, filter, selection, buffers);
 
-    // Draw points using fillRect for speed at 238k. 1.5px squares.
     const colors = buffers.colors;
     const alphas = buffers.alphas;
+    const dotSize = Math.max(1.2, 1.5 * Math.sqrt(viewport.zoom));
     for (let i = 0; i < data.count; i++) {
       const a = alphas[i];
       if (a < 0.05) continue;
-      const [px, py] = project(data.umap[i * 2], data.umap[i * 2 + 1], size.w, size.h);
+      const [px, py] = project(data.umap[i * 2], data.umap[i * 2 + 1], size.w, size.h, viewport);
+      // Skip points outside the panel; minor speedup at high zoom.
+      if (px < -2 || py < -2 || px > size.w + 2 || py > size.h + 2) continue;
       const r = Math.round(colors[i * 3] * 255);
       const g = Math.round(colors[i * 3 + 1] * 255);
       const b = Math.round(colors[i * 3 + 2] * 255);
       ctx.fillStyle = `rgba(${r},${g},${b},${a.toFixed(2)})`;
-      ctx.fillRect(px, py, 1.5, 1.5);
+      ctx.fillRect(px, py, dotSize, dotSize);
     }
 
-    // Draw drag rectangle on top
-    if (drag) {
+    if (drag && drag.kind === 'select') {
       ctx.strokeStyle = '#ffffff';
       ctx.setLineDash([4, 2]);
       ctx.lineWidth = 1;
@@ -109,28 +135,90 @@ export function UmapPanel({ data, filter, selection, onSelect }: Props) {
       );
       ctx.setLineDash([]);
     }
-  }, [data, filter, selection, buffers, size, project, drag]);
+  }, [data, filter, selection, buffers, size, viewport, project, drag]);
 
-  // Drag-to-select
+  // Wheel: zoom anchored at the cursor so the data point under the mouse
+  // stays put. Native non-passive listener (React's onWheel is passive in
+  // React 17+, so preventDefault has no effect).
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const vp = viewportRef.current;
+      const factor = Math.exp(-e.deltaY * 0.0015);
+      const newZoom = Math.max(0.25, Math.min(40, vp.zoom * factor));
+      const ratio = newZoom / vp.zoom;
+      // Anchor: keep the point under the cursor fixed during zoom.
+      // px_new = (panX_new) + (px_old - panX_old) * ratio  (approx — see
+      // derivation below). Solving so cursor stays put:
+      //   panX_new = mx - ratio * (mx - panX_old_with_centering)
+      // We treat the natural-fit centering as part of the offset by using
+      // the same project() math: the easier route is to back out the data
+      // point under the cursor at the OLD viewport and re-project at the
+      // NEW viewport, then shift pan by the delta.
+      const dataW = umapBounds.xmax - umapBounds.xmin;
+      const dataH = umapBounds.ymax - umapBounds.ymin;
+      const baseScale = Math.min(size.w / dataW, size.h / dataH);
+      const oldScale = baseScale * vp.zoom;
+      const oldOffsetX = (size.w - dataW * oldScale) / 2 + vp.panX;
+      const oldOffsetY = (size.h - dataH * oldScale) / 2 + vp.panY;
+      const dataX = (mx - oldOffsetX) / oldScale + umapBounds.xmin;
+      const dataY = umapBounds.ymax - (my - oldOffsetY) / oldScale;
+      const newScale = baseScale * newZoom;
+      const newCenterOffX = (size.w - dataW * newScale) / 2;
+      const newCenterOffY = (size.h - dataH * newScale) / 2;
+      const newPanX = mx - (dataX - umapBounds.xmin) * newScale - newCenterOffX;
+      const newPanY = my - (umapBounds.ymax - dataY) * newScale - newCenterOffY;
+      setViewport({ zoom: newZoom, panX: newPanX, panY: newPanY });
+    };
+    canvas.addEventListener('wheel', handleWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', handleWheel);
+  }, [umapBounds, size]);
+
   const onDown = (e: React.PointerEvent) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    setDrag({ x0: x, y0: y, x1: x, y1: y });
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    // Right button (2) or middle button (1) or shift+left → pan.
+    const isPan = e.button === 2 || e.button === 1 || e.shiftKey;
+    if (isPan) {
+      setDrag({ kind: 'pan', lastX: x, lastY: y });
+    } else {
+      setDrag({ kind: 'select', x0: x, y0: y, x1: x, y1: y });
+    }
   };
   const onMove = (e: React.PointerEvent) => {
-    if (!drag) return;
+    const d = dragRef.current;
+    if (!d) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setDrag({ ...drag, x1: e.clientX - rect.left, y1: e.clientY - rect.top });
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    if (d.kind === 'pan') {
+      const dx = x - d.lastX;
+      const dy = y - d.lastY;
+      setViewport((vp) => ({ ...vp, panX: vp.panX + dx, panY: vp.panY + dy }));
+      setDrag({ kind: 'pan', lastX: x, lastY: y });
+    } else {
+      setDrag({ ...d, x1: x, y1: y });
+    }
   };
   const onUp = (e: React.PointerEvent) => {
-    if (!drag) return;
+    const d = dragRef.current;
+    if (!d) return;
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    const x0 = Math.min(drag.x0, drag.x1);
-    const x1 = Math.max(drag.x0, drag.x1);
-    const y0 = Math.min(drag.y0, drag.y1);
-    const y1 = Math.max(drag.y0, drag.y1);
+    if (d.kind === 'pan') {
+      setDrag(null);
+      return;
+    }
+    const x0 = Math.min(d.x0, d.x1);
+    const x1 = Math.max(d.x0, d.x1);
+    const y0 = Math.min(d.y0, d.y1);
+    const y1 = Math.max(d.y0, d.y1);
     setDrag(null);
     if (x1 - x0 < 3 || y1 - y0 < 3) {
       onSelect(new Uint32Array(0), 'umap');
@@ -138,11 +226,14 @@ export function UmapPanel({ data, filter, selection, onSelect }: Props) {
     }
     const out: number[] = [];
     for (let i = 0; i < data.count; i++) {
-      const [px, py] = project(data.umap[i * 2], data.umap[i * 2 + 1], size.w, size.h);
+      const [px, py] = project(data.umap[i * 2], data.umap[i * 2 + 1], size.w, size.h, viewport);
       if (px >= x0 && px <= x1 && py >= y0 && py <= y1) out.push(i);
     }
     onSelect(new Uint32Array(out), 'umap');
   };
+
+  const resetView = () => setViewport(INITIAL_VIEWPORT);
+  const zoomedIn = viewport.zoom !== 1 || viewport.panX !== 0 || viewport.panY !== 0;
 
   return (
     <div ref={containerRef} className="relative w-full h-full bg-neutral-900 border-t border-l border-neutral-700">
@@ -151,11 +242,20 @@ export function UmapPanel({ data, filter, selection, onSelect }: Props) {
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}
-        className="block cursor-crosshair"
+        onContextMenu={(e) => e.preventDefault()}
+        className={'block ' + (drag?.kind === 'pan' ? 'cursor-grabbing' : 'cursor-crosshair')}
       />
       <div className="absolute top-1 left-2 text-[10px] text-neutral-400 font-mono pointer-events-none">
-        t-SNE — drag to select
+        t-SNE — drag to select • right-drag or shift+drag to pan • wheel to zoom
       </div>
+      {zoomedIn && (
+        <button
+          onClick={resetView}
+          className="absolute top-1 right-2 text-[10px] font-mono bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-1.5 py-0.5 rounded hover:bg-neutral-800"
+        >
+          reset view
+        </button>
+      )}
     </div>
   );
 }
