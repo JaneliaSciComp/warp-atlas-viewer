@@ -11,7 +11,10 @@ interface Props {
   data: NeuronDataset;
   filter: FilterState;
   selection: SelectionState;
-  onSelect: (indices: Uint32Array, source: 'cluster' | 'region' | '3d') => void;
+  /** Single-neuron focus, separate from the group selection. */
+  focusedNeuron: number | null;
+  /** Click on a neuron sets focus; click on empty space sets to null. */
+  onFocus: (i: number | null) => void;
 }
 
 interface PickState {
@@ -28,6 +31,7 @@ function PointCloud({
   data,
   filter,
   selection,
+  focusedNeuron,
   pickRef,
   onHoverChange,
   orientation,
@@ -35,6 +39,7 @@ function PointCloud({
   data: NeuronDataset;
   filter: FilterState;
   selection: SelectionState;
+  focusedNeuron: number | null;
   pickRef: React.MutableRefObject<PickState>;
   onHoverChange: (i: number) => void;
   orientation: Orientation;
@@ -67,10 +72,21 @@ function PointCloud({
 
   useEffect(() => {
     applyColoring(data, filter, selection, buffers);
+    // Stamp the focused neuron on top of whatever group coloring chose
+    // for it: full alpha, brightened, big enough to be unmistakable
+    // even when the surrounding group is dimmed.
+    if (focusedNeuron != null && focusedNeuron >= 0 && focusedNeuron < data.count) {
+      const i = focusedNeuron;
+      buffers.colors[i * 3] = Math.min(1, buffers.colors[i * 3] * 1.2 + 0.25);
+      buffers.colors[i * 3 + 1] = Math.min(1, buffers.colors[i * 3 + 1] * 1.2 + 0.25);
+      buffers.colors[i * 3 + 2] = Math.min(1, buffers.colors[i * 3 + 2] * 1.2 + 0.25);
+      buffers.alphas[i] = 1.0;
+      buffers.sizes[i] = Math.max(buffers.sizes[i], 7) * 2.5;
+    }
     (geometry.attributes.instColor as THREE.BufferAttribute).needsUpdate = true;
     (geometry.attributes.instAlpha as THREE.BufferAttribute).needsUpdate = true;
     (geometry.attributes.instSize as THREE.BufferAttribute).needsUpdate = true;
-  }, [data, filter, selection, buffers, geometry]);
+  }, [data, filter, selection, focusedNeuron, buffers, geometry]);
 
   const ndcRef = useRef(new THREE.Vector3());
 
@@ -136,7 +152,7 @@ function PointCloud({
   );
 }
 
-export function BrainViewer({ data, filter, selection, onSelect }: Props) {
+export function BrainViewer({ data, filter, selection, focusedNeuron, onFocus }: Props) {
   const [hover, setHover] = useState<{ i: number; x: number; y: number } | null>(null);
   const [orientation, setOrientation] = useState<Orientation>('landscape');
   const pickRef = useRef<PickState>({ pos: null, hovered: -1 });
@@ -224,15 +240,15 @@ export function BrainViewer({ data, filter, selection, onSelect }: Props) {
   const onClickDiv = (e: React.MouseEvent<HTMLDivElement>) => {
     if (draggedRef.current) {
       // Suppress the click that closes a drag-rotate so it doesn't get
-      // interpreted as "select this neuron".
+      // interpreted as "focus this neuron".
       draggedRef.current = false;
       return;
     }
     const i = pickRef.current.hovered;
-    if (i >= 0) {
-      onSelect(new Uint32Array([i]), '3d');
-      e.stopPropagation();
-    }
+    // Click on a neuron → focus it. Click on empty space → unfocus.
+    // Either way the group selection is left alone.
+    onFocus(i >= 0 ? i : null);
+    e.stopPropagation();
   };
 
   // useFrame in PointCloud calls this when the hovered index changes; we
@@ -268,6 +284,7 @@ export function BrainViewer({ data, filter, selection, onSelect }: Props) {
           data={data}
           filter={filter}
           selection={selection}
+          focusedNeuron={focusedNeuron}
           pickRef={pickRef}
           onHoverChange={handleHoverChange}
           orientation={orientation}

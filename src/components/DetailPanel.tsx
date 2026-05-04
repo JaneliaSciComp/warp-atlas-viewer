@@ -8,10 +8,20 @@ import type { NeuronDataset, SelectionState } from '../data/types';
 interface Props {
   data: NeuronDataset;
   selection: SelectionState;
+  /** Single-neuron focus, takes precedence over the group selection. */
+  focusedNeuron: number | null;
 }
 
-export function DetailPanel({ data, selection }: Props) {
-  const stats = useMemo(() => computeStats(data, selection.indices), [data, selection]);
+export function DetailPanel({ data, selection, focusedNeuron }: Props) {
+  // When a neuron is focused, the detail view shows just that cell;
+  // otherwise it falls back to the group selection (t-SNE, cluster,
+  // region). Empty-handed = the prompt below.
+  const indicesToShow = useMemo(() => {
+    if (focusedNeuron != null) return new Uint32Array([focusedNeuron]);
+    return selection.indices;
+  }, [focusedNeuron, selection.indices]);
+  const stats = useMemo(() => computeStats(data, indicesToShow), [data, indicesToShow]);
+  const isFocused = focusedNeuron != null;
 
   if (!stats) {
     return (
@@ -58,8 +68,14 @@ export function DetailPanel({ data, selection }: Props) {
   return (
     <div className="h-full p-3 bg-neutral-100 text-neutral-800 overflow-y-auto border-l border-neutral-300">
       <h2 className="text-sm font-semibold mb-2 text-neutral-900">
-        Selection ({selection.indices.length.toLocaleString()} neuron
-        {selection.indices.length === 1 ? '' : 's'})
+        {isFocused ? (
+          <>Focused neuron <span className="font-mono">#{focusedNeuron}</span></>
+        ) : (
+          <>
+            Selection ({selection.indices.length.toLocaleString()} neuron
+            {selection.indices.length === 1 ? '' : 's'})
+          </>
+        )}
       </h2>
 
       <section className="mb-3 text-xs font-mono text-neutral-700 space-y-0.5">

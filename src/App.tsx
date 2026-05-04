@@ -20,6 +20,12 @@ export default function App() {
   const { data, error } = useNeuronData();
   const [filter, setFilter] = useState<FilterState>(INITIAL_FILTER);
   const { selection, setIndices, clear } = useSelection();
+  // Single-neuron focus is independent of the group selection so a
+  // t-SNE drag can persist while the user clicks through individual
+  // neurons. Click on a neuron → focus it (DetailPanel shows just that
+  // cell). Click on empty space → unfocus (DetailPanel reverts to the
+  // group). Clear button clears both.
+  const [focusedNeuron, setFocusedNeuron] = useState<number | null>(null);
 
   // Mirror selection.source into a ref so we can read it inside the
   // filter-derived selection effect WITHOUT making it a dep — adding it
@@ -70,10 +76,6 @@ export default function App() {
     clear,
   ]);
 
-  const handle3DSelect = useCallback(
-    (indices: Uint32Array) => setIndices(indices, '3d'),
-    [setIndices],
-  );
   const handleUmapSelect = useCallback(
     (indices: Uint32Array) => {
       if (indices.length === 0) clear();
@@ -81,6 +83,10 @@ export default function App() {
     },
     [setIndices, clear],
   );
+  const handleClearAll = useCallback(() => {
+    clear();
+    setFocusedNeuron(null);
+  }, [clear]);
 
   const layout = useMemo(
     () => ({
@@ -121,24 +127,25 @@ export default function App() {
             data={data}
             filter={filter}
             selection={selection}
-            onSelect={handle3DSelect}
+            focusedNeuron={focusedNeuron}
+            onFocus={setFocusedNeuron}
           />
           <ColorLegend data={data} filter={filter} />
-          {(selection.source === '3d' || selection.source === 'umap') &&
-            selection.indices.length > 0 && (
-              <button
-                onClick={clear}
-                className="absolute bottom-2 right-2 text-[11px] font-mono bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-2 py-1 rounded hover:bg-neutral-800"
-              >
-                clear selection ({selection.indices.length.toLocaleString()})
-              </button>
-            )}
+          {(focusedNeuron != null ||
+            (selection.source === 'umap' && selection.indices.length > 0)) && (
+            <button
+              onClick={handleClearAll}
+              className="absolute bottom-2 right-2 text-[11px] font-mono bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-2 py-1 rounded hover:bg-neutral-800"
+            >
+              clear selection
+            </button>
+          )}
         </div>
       </div>
 
       {/* Right column: detail panel spans both rows */}
       <div className="row-start-1 row-span-2 col-start-2 min-h-0 min-w-0">
-        <DetailPanel data={data} selection={selection} />
+        <DetailPanel data={data} selection={selection} focusedNeuron={focusedNeuron} />
       </div>
 
       {/* Bottom-left split: filters + UMAP */}
