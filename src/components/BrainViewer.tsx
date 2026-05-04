@@ -150,6 +150,36 @@ export function BrainViewer({ data, filter, selection, onSelect }: Props) {
     return [0, 0, span * 0.95] as [number, number, number];
   }, [data]);
 
+  // Count of cells visibly highlighted (i.e. not rendered with the dim
+  // background style) in the current view. Region mode without an
+  // isolate filter shows nothing — the whole brain is colored equally.
+  const highlightCount = useMemo(() => {
+    if (selection.indices.length > 0) return selection.indices.length;
+    const G = data.geneNames.length;
+    const S = data.stimulusNames.length;
+    if (filter.colorMode === 'gene') {
+      let n = 0;
+      for (let i = 0; i < data.count; i++) {
+        if (data.geneCounts[i * G + filter.selectedGene] > 0) n++;
+      }
+      return n;
+    }
+    if (filter.colorMode === 'bivariate') {
+      // Anything that lights up: gene+ OR strongly stim-correlated.
+      // (gray-only background = !gene+ AND r ≤ 0.30.)
+      let n = 0;
+      const STIM_LO = 0.30;
+      for (let i = 0; i < data.count; i++) {
+        if (
+          data.geneBinary[i * G + filter.selectedGene] === 1 ||
+          data.stimulusCorr[i * S + filter.selectedStimulus] > STIM_LO
+        ) n++;
+      }
+      return n;
+    }
+    return 0;
+  }, [data, filter.colorMode, filter.selectedGene, filter.selectedStimulus, selection.indices]);
+
   // Track the pointer-down position so we can distinguish a click (no
   // movement) from a drag (rotate / pan). Without this, a drag-rotate
   // ending over a neuron fires the same DOM click event a true click
@@ -249,8 +279,11 @@ export function BrainViewer({ data, filter, selection, onSelect }: Props) {
           {tooltip}
         </div>
       )}
-      <div className="absolute top-2 left-2 text-xs text-neutral-400 font-mono pointer-events-none">
-        {data.count.toLocaleString()} neurons {data.source === 'mock' ? '(mock)' : ''}
+      <div className="absolute top-2 left-2 text-xs text-neutral-400 font-mono pointer-events-none leading-tight">
+        <div>{data.count.toLocaleString()} neurons {data.source === 'mock' ? '(mock)' : ''}</div>
+        {highlightCount > 0 && (
+          <div>{highlightCount.toLocaleString()} highlighted</div>
+        )}
       </div>
       {/* orientation toggle — bottom-right corner. Both views are dorsal
           (top-down) horizontal sections; the arrow shows where the anterior

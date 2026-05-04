@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
-import type { FilterState } from './data/types';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import type { FilterState, SelectionState } from './data/types';
 import { useNeuronData } from './hooks/useNeuronData';
 import { useSelection } from './hooks/useSelection';
 import { BrainViewer } from './components/BrainViewer';
@@ -21,11 +21,21 @@ export default function App() {
   const [filter, setFilter] = useState<FilterState>(INITIAL_FILTER);
   const { selection, setIndices, clear } = useSelection();
 
-  // When the filter mode picks an actionable handle (cluster or region),
+  // Mirror selection.source into a ref so we can read it inside the
+  // filter-derived selection effect WITHOUT making it a dep — adding it
+  // as a dep caused the effect to re-fire whenever the user clicked a
+  // neuron (source: cluster → 3d), which immediately reverted the
+  // single-cell selection back to the whole cluster.
+  const selectionSourceRef = useRef<SelectionState['source']>(null);
+  useEffect(() => {
+    selectionSourceRef.current = selection.source;
+  }, [selection.source]);
+
+  // When the filter picks an actionable handle (cluster or region),
   // reflect it as the active selection so the detail panel updates.
   // Filter-derived selections must NOT outlive the filter that produced them
   // (e.g. a cluster pick should not still be highlighting cells once the
-  // user has switched to Bivariate mode). User-explicit selections (3D
+  // user has switched to Co-coding mode). User-explicit selections (3D
   // click, t-SNE box-drag) are preserved across filter changes.
   useEffect(() => {
     if (!data) return;
@@ -47,7 +57,8 @@ export default function App() {
     }
     // No filter-derived handle is active. Clear any stale filter-derived
     // selection (cluster/region) but leave 3D/t-SNE selections in place.
-    if (selection.source === 'cluster' || selection.source === 'region') {
+    const src = selectionSourceRef.current;
+    if (src === 'cluster' || src === 'region') {
       clear();
     }
   }, [
@@ -55,7 +66,6 @@ export default function App() {
     filter.colorMode,
     filter.selectedCluster,
     filter.isolatedRegion,
-    selection.source,
     setIndices,
     clear,
   ]);
@@ -114,14 +124,15 @@ export default function App() {
             onSelect={handle3DSelect}
           />
           <ColorLegend data={data} filter={filter} />
-          {selection.indices.length > 0 && (
-            <button
-              onClick={clear}
-              className="absolute bottom-2 left-2 text-[11px] font-mono bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-2 py-1 rounded hover:bg-neutral-800"
-            >
-              clear selection ({selection.indices.length.toLocaleString()})
-            </button>
-          )}
+          {(selection.source === '3d' || selection.source === 'umap') &&
+            selection.indices.length > 0 && (
+              <button
+                onClick={clear}
+                className="absolute bottom-2 left-2 text-[11px] font-mono bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-2 py-1 rounded hover:bg-neutral-800"
+              >
+                clear selection ({selection.indices.length.toLocaleString()})
+              </button>
+            )}
         </div>
       </div>
 
