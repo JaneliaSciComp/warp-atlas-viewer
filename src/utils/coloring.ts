@@ -83,7 +83,10 @@ export function applyColoring(
       case 'gene': {
         const v = geneCounts[i * G + filter.selectedGene] / geneMax;
         if (v <= 0) {
-          r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2]; alpha = DIM_ALPHA;
+          // Match the cluster-mode dim alpha (0.20) so non-expressers
+          // read with the same anatomical-context brightness across
+          // modes.
+          r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2]; alpha = 0.20;
         } else {
           const c = viridis(v);
           r = c[0]; g = c[1]; b = c[2];
@@ -128,6 +131,11 @@ export function applyColoring(
             alpha = 1.0;
             size = BASE_SIZE * (1.5 + 0.6 * av);  // up to 2.1x at high a
           }
+        }
+        // Gene-negative cells (background and stim-only) shrink slightly
+        // so the gene+ population reads as "the foreground" by size too.
+        if (ge === 0) {
+          size *= 0.8;
         }
         break;
       }
