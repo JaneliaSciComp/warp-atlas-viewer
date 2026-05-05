@@ -60,6 +60,7 @@ export function FilterControls({ data, filter, setFilter }: Props) {
           value={filter.selectedStimulus}
           onChange={(v) => update({ selectedStimulus: v })}
           options={data.stimulusNames.map((s, i) => ({ value: i, label: s }))}
+          arrows
         />
       )}
       {showCluster && (
@@ -93,6 +94,7 @@ export function FilterControls({ data, filter, setFilter }: Props) {
               .map((r, i) => ({ value: i, label: r }))
               .sort((a, b) => a.label.localeCompare(b.label)),
           ]}
+          arrows
         />
       </div>
 
