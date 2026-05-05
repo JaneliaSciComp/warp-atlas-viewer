@@ -1,14 +1,23 @@
 import { useEffect, useState } from 'react';
 import type { NeuronDataset } from '../data/types';
-import { loadNeuronDataset } from '../data/dataLoader';
+import { loadNeuronDataset, type LoadProgress } from '../data/dataLoader';
 
-export function useNeuronData(): { data: NeuronDataset | null; error: string | null } {
+interface UseNeuronData {
+  data: NeuronDataset | null;
+  error: string | null;
+  progress: LoadProgress | null;
+}
+
+export function useNeuronData(): UseNeuronData {
   const [data, setData] = useState<NeuronDataset | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<LoadProgress | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    loadNeuronDataset().then(
+    loadNeuronDataset((p) => {
+      if (!cancelled) setProgress(p);
+    }).then(
       (ds) => {
         if (!cancelled) setData(ds);
       },
@@ -21,5 +30,5 @@ export function useNeuronData(): { data: NeuronDataset | null; error: string | n
     };
   }, []);
 
-  return { data, error };
+  return { data, error, progress };
 }

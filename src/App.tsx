@@ -17,7 +17,7 @@ const INITIAL_FILTER: FilterState = {
 };
 
 export default function App() {
-  const { data, error } = useNeuronData();
+  const { data, error, progress } = useNeuronData();
   const [filter, setFilter] = useState<FilterState>(INITIAL_FILTER);
   const { selection, setIndices, clear } = useSelection();
   // Single-neuron focus is independent of the group selection so a
@@ -108,9 +108,25 @@ export default function App() {
     );
   }
   if (!data) {
+    const fmtMB = (b: number) => (b / 1024 / 1024).toFixed(1);
+    const pct = progress ? Math.round(progress.fraction * 100) : 0;
+    const knownTotal = progress && progress.totalBytes > 0;
     return (
-      <div className="h-full flex items-center justify-center text-neutral-400 font-mono text-sm">
-        Loading WARP atlas…
+      <div className="h-full flex flex-col items-center justify-center gap-3 text-neutral-300 font-mono text-sm">
+        <div>Loading WARP atlas…</div>
+        <div className="w-72 h-1.5 bg-neutral-800 rounded overflow-hidden border border-neutral-700">
+          <div
+            className="h-full bg-neutral-200 transition-[width] duration-150"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <div className="text-[11px] text-neutral-500">
+          {progress
+            ? knownTotal
+              ? `${pct}% · ${fmtMB(progress.receivedBytes)} / ${fmtMB(progress.totalBytes)} MB`
+              : `${fmtMB(progress.receivedBytes)} MB received`
+            : 'starting…'}
+        </div>
       </div>
     );
   }
