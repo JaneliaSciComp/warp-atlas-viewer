@@ -84,12 +84,36 @@ If `./preprocessed/neurons.json` is missing (e.g. you skipped step 2 to demo the
 
 ### Production build
 
+There are two flavours of build, depending on what you want.
+
+**`npm run build`** — JS/CSS bundle only. Outputs to `./dist/`. The
+preprocessed binaries are *not* copied; the bundle expects them to be
+served at `./preprocessed/` relative to `index.html`. Use this if you're
+managing the data files separately.
+
+**`npm run bundle`** — fully self-contained static bundle. Runs `npm
+run build`, then copies `./preprocessed/` into `./dist/preprocessed/`.
+The result (~211 MB) is a single directory you can `tar`/`zip`/`rsync`
+to any static host. `index.html` uses relative paths everywhere, so it
+works at any deploy URL — `https://example.com/`,
+`https://example.com/warp/`, etc. — without reconfiguration.
+
 ```bash
-npm run build       # outputs to ./dist
-npm run preview     # serves the built bundle locally for sanity check
+npm run bundle      # full self-contained bundle in ./dist
 ```
 
-The preprocessed binaries need to be served alongside `dist/`; copy `./preprocessed/` next to it on whatever host you deploy to.
+Sanity-check it locally:
+
+```bash
+npx serve dist      # or any static-file server, then open the URL it prints
+```
+
+> Note: opening `dist/index.html` directly via `file://` will not work — the
+> browser blocks `fetch()` of local files. Always serve over HTTP.
+
+`npm run preview` also works for the JS-only build (`npm run build`),
+but you'd need to put `preprocessed/` next to `dist/` for it to find
+the data.
 
 ## Project layout
 

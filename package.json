@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "bundle": "bash scripts/bundle.sh",
     "preview": "vite preview"
   },
   "dependencies": {
