@@ -33,6 +33,27 @@ export function FilterControls({ data, filter, setFilter }: Props) {
           arrows
         />
       )}
+      {filter.colorMode === 'gene' && (
+        <label className="flex items-center gap-1 text-xs">
+          <span className="text-neutral-400">Scale</span>
+          <div className="flex border border-neutral-700 rounded overflow-hidden">
+            {(['log', 'linear'] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => update({ geneScale: s })}
+                className={
+                  'px-2 py-1 font-mono ' +
+                  (filter.geneScale === s
+                    ? 'bg-neutral-100 text-neutral-900'
+                    : 'bg-neutral-900 text-neutral-300 hover:bg-neutral-700')
+                }
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </label>
+      )}
       {showStimulus && (
         <Select
           label="Stimulus"

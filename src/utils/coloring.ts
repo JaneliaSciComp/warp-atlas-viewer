@@ -1,5 +1,5 @@
 import type { NeuronDataset, FilterState, SelectionState } from '../data/types';
-import { regionColor, viridis, bivariate } from './colorMaps';
+import { regionColor, plasma, bivariate } from './colorMaps';
 
 const DIM_RGB: [number, number, number] = [0.30, 0.30, 0.32];
 const DIM_ALPHA = 0.10;
@@ -38,16 +38,15 @@ export function applyColoring(
   const G = ds.geneNames.length;
   const S = ds.stimulusNames.length;
 
-  // Precompute gene max for the (continuous) Gene color mode only.
-  let geneMax = 0;
-  if (filter.colorMode === 'gene') {
-    const g = filter.selectedGene;
-    for (let i = 0; i < count; i++) {
-      const v = geneCounts[i * G + g];
-      if (v > geneMax) geneMax = v;
-    }
-    if (geneMax === 0) geneMax = 1;
-  }
+  // Gene mode uses an ABSOLUTE scale on raw FISH spot counts — no
+  // per-gene normalization. Each spot is a literal mRNA molecule, so
+  // counts are directly comparable across cells and genes; dividing
+  // by a per-gene max would impose a relative scale that doesn't
+  // reflect the underlying biology. 1000 is the upper anchor (≈ the
+  // dataset's practical ceiling); cells above it saturate.
+  const GENE_MAX_SPOTS = 1000;
+  const GENE_LOG_DEN = Math.log(1 + GENE_MAX_SPOTS);
+  const useLog = filter.geneScale !== 'linear';
 
   // Bivariate mode uses fixed thresholds — no per-frame data scan needed.
   // Gene axis is the dataset's curated binary call (BinaryGenes_All).
@@ -66,6 +65,15 @@ export function applyColoring(
   // selected one. For larger group selections, dim non-members so the
   // selected group reads as a coherent shape.
   const dimNonSelected = selSet !== null && selSet.size > 50;
+  // Only USER-explicit selections (3D click, t-SNE drag) deserve a
+  // brightness/size boost. Filter-derived selections (region isolate,
+  // cluster pick) already get their visual signature from the mode's
+  // own coloring rules (region-isolation dim, cluster-magenta override),
+  // so boosting *every* cell in a filter selection just makes the
+  // anatomical-context cells overwhelm the actual signal — e.g. in gene
+  // mode + isolate region, the non-expressing region cells drown out
+  // the viridis gene-expression colors.
+  const isUserSelection = selection.source === '3d' || selection.source === 'umap';
 
   const isolatedRegion = filter.isolatedRegion;
 
@@ -81,14 +89,25 @@ export function applyColoring(
         break;
       }
       case 'gene': {
-        const v = geneCounts[i * G + filter.selectedGene] / geneMax;
-        if (v <= 0) {
-          // Match the cluster-mode dim alpha (0.20) so non-expressers
-          // read with the same anatomical-context brightness across
-          // modes.
-          r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2]; alpha = 0.20;
+        const raw = geneCounts[i * G + filter.selectedGene];
+        const v = useLog
+          ? Math.min(1, Math.log(1 + raw) / GENE_LOG_DEN)
+          : Math.min(1, raw / GENE_MAX_SPOTS);
+        if (raw <= 0) {
+          // Faint background; gene mode has continuous viridis signal
+          // layered on top, so the non-expressers need to read as a
+          // light shadow rather than a filled-in grey. (Cluster mode
+          // can use a brighter dim because the magenta selection is
+          // dominant; here the expressers compete with the backdrop.)
+          r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2]; alpha = 0.10;
+          // When isolating a region, lift in-region non-expressers a bit
+          // above the out-of-region floor so the region's anatomical
+          // outline reads through the viridis expressers.
+          if (filter.isolatedRegion >= 0 && regionIds[i] === filter.isolatedRegion) {
+            alpha = 0.6;
+          }
         } else {
-          const c = viridis(v);
+          const c = plasma(v);
           r = c[0]; g = c[1]; b = c[2];
           // Sparse-gene populations are tiny relative to 274k cells; full
           // alpha + an expression-scaled size gradient (faintest cells
@@ -101,16 +120,22 @@ export function applyColoring(
       }
       case 'cluster': {
         if (filter.selectedCluster < 0 || clusterIds[i] !== filter.selectedCluster) {
-          // Slightly brighter dim than the global default — at 0.10 the
-          // anatomical context is barely readable while the magenta
-          // cluster pops; this lets the brain shape stay visible.
-          r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2]; alpha = 0.20;
+          // Same faint background as gene mode — the bright cluster
+          // cells carry the signal; the rest is anatomical context.
+          r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2]; alpha = 0.10;
+          // When isolating a region, lift the in-region non-cluster
+          // cells so the anatomical region reads through the cluster
+          // dots. Mirrors the gene-mode treatment.
+          if (filter.isolatedRegion >= 0 && regionIds[i] === filter.isolatedRegion) {
+            alpha = 0.6;
+          }
         } else {
-          // Always magenta — consistent visual signature for "the selected
-          // cluster" across cluster picks.
-          r = 0.95; g = 0.15; b = 0.75;
-          alpha = 0.95;
-          size = BASE_SIZE * 1.2;
+          // Vivid yellow (plasma's top stop), slightly larger so the
+          // cluster pops on the dark backdrop the same way gene-mode
+          // expressers do.
+          r = 0.94; g = 0.97; b = 0.13;
+          alpha = 1.0;
+          size = BASE_SIZE * 1.4;
         }
         break;
       }
@@ -119,7 +144,10 @@ export function applyColoring(
         const rawA = stimulusCorr[i * S + filter.selectedStimulus];
         const av = Math.max(0, Math.min(1, (rawA - STIM_LO) / STIM_RANGE));
         if (ge === 0 && av <= 0) {
-          r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2]; alpha = DIM_ALPHA;
+          // Co-coding has four chroma layers (gray/blue/green/red)
+          // competing for attention; push the neutral background well
+          // into the floor so the colored layers dominate.
+          r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2]; alpha = 0.06;
         } else {
           const c = bivariate(ge, av);
           r = c[0]; g = c[1]; b = c[2];
@@ -130,6 +158,11 @@ export function applyColoring(
           if (ge === 1 && av > 0) {
             alpha = 1.0;
             size = BASE_SIZE * (1.5 + 0.6 * av);  // up to 2.1x at high a
+          } else if (ge === 0) {
+            // Green cells (stim-correlated only) are context for the
+            // co-coding population — push them a bit more transparent
+            // so the red gene+/stim+ hits read as the foreground.
+            alpha = 0.5;
           }
         }
         // Gene-negative cells (background and stim-only) shrink slightly
@@ -147,8 +180,13 @@ export function applyColoring(
     }
 
     // Active selection: highlight selected, dim the rest if the group is
-    // large enough that dimming aids comprehension.
-    if (selSet) {
+    // large enough that dimming aids comprehension. Only user-explicit
+    // selections drive any of this — for filter-derived selections
+    // (cluster, region) the mode's own case branch already picked the
+    // right per-cell colour, and an extra dim-the-rest pass would just
+    // clobber boosts the case branch put down (e.g. the in-region
+    // non-cluster alpha-0.60 lift in cluster mode).
+    if (selSet && isUserSelection) {
       if (selSet.has(i)) {
         r = Math.min(1, r * 1.15 + 0.15);
         g = Math.min(1, g * 1.15 + 0.15);

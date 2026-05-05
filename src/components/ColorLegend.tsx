@@ -1,5 +1,5 @@
 import type { NeuronDataset, FilterState } from '../data/types';
-import { regionColor, viridis, rgbToHex } from '../utils/colorMaps';
+import { regionColor, plasma, rgbToHex } from '../utils/colorMaps';
 
 interface Props {
   data: NeuronDataset;
@@ -25,19 +25,35 @@ export function ColorLegend({ data, filter }: Props) {
     );
   }
   if (filter.colorMode === 'gene') {
-    const ramp = Array.from({ length: 8 }, (_, i) => viridis(i / 7));
+    // Continuous plasma gradient over the absolute FISH spot count.
+    // Tick marks (and their layout) follow the active scale: log-spaced
+    // for log mode, evenly-spaced for linear.
+    const N = 16;
+    const stops = Array.from({ length: N }, (_, i) => rgbToHex(plasma(i / (N - 1))));
+    const gradient = `linear-gradient(to right, ${stops.join(', ')})`;
+    const isLog = filter.geneScale !== 'linear';
+    const ticks = isLog ? [0, 1, 10, 100, 1000] : [0, 250, 500, 750, 1000];
+    const maxLog = Math.log(1 + 1000);
+    const tickPos = (t: number) =>
+      isLog ? (Math.log(1 + t) / maxLog) * 100 : (t / 1000) * 100;
     return (
       <div className="absolute top-2 right-2 bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200">
         <div className="text-neutral-400 mb-1">Gene: {data.geneNames[filter.selectedGene]}</div>
-        <div className="flex">
-          {ramp.map((c, i) => (
-            <div key={i} className="w-4 h-3" style={{ background: rgbToHex(c) }} />
-          ))}
+        <div className="relative w-32">
+          <div className="h-3 border border-neutral-700" style={{ background: gradient }} />
+          <div className="relative h-3 mt-0.5 text-[9px] text-neutral-400">
+            {ticks.map((t) => (
+              <span
+                key={t}
+                className="absolute -translate-x-1/2"
+                style={{ left: `${Math.min(100, Math.max(0, tickPos(t)))}%` }}
+              >
+                {t}
+              </span>
+            ))}
+          </div>
         </div>
-        <div className="flex justify-between text-[9px] text-neutral-400 mt-0.5">
-          <span>0</span>
-          <span>max</span>
-        </div>
+        <div className="text-[9px] text-neutral-500 mt-3">spot count ({isLog ? 'log' : 'linear'})</div>
       </div>
     );
   }
@@ -48,7 +64,7 @@ export function ColorLegend({ data, filter }: Props) {
         <div className="text-neutral-400 mb-1">Cluster</div>
         {picked ? (
           <div className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-3 rounded-sm" style={{ background: '#f226bf' }} />
+            <span className="inline-block w-3 h-3 rounded-sm" style={{ background: '#f0f921' }} />
             <span>{data.clusterNames[filter.selectedCluster]}</span>
           </div>
         ) : (

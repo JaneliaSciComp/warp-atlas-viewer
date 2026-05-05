@@ -42,6 +42,7 @@ export interface NeuronDataset {
 }
 
 export type ColorMode = 'region' | 'gene' | 'cluster' | 'bivariate';
+export type GeneScale = 'log' | 'linear';
 
 export interface FilterState {
   colorMode: ColorMode;
@@ -49,6 +50,8 @@ export interface FilterState {
   selectedStimulus: number; // index into stimulusNames
   selectedCluster: number; // index into clusterNames, -1 = none
   isolatedRegion: number; // index into regionNames, -1 = show all
+  /** How gene-mode raw FISH spot counts map to the plasma palette. */
+  geneScale: GeneScale;
 }
 
 export interface SelectionState {

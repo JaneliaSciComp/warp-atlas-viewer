@@ -9,13 +9,35 @@ const VIRIDIS_STOPS: Array<[number, number, number]> = [
 ];
 
 export function viridis(t: number): [number, number, number] {
-  if (t <= 0) return VIRIDIS_STOPS[0];
-  if (t >= 1) return VIRIDIS_STOPS[VIRIDIS_STOPS.length - 1];
-  const x = t * (VIRIDIS_STOPS.length - 1);
+  return sampleStops(VIRIDIS_STOPS, t);
+}
+
+// Plasma — perceptually uniform like viridis but with a deep purple → red
+// → orange → yellow ramp, which reads better than viridis on a dark
+// background because the dark-end purple is still distinguishable from
+// the viewport background. 16 stops sampled from matplotlib's plasma.
+const PLASMA_STOPS: Array<[number, number, number]> = [
+  [0.051, 0.031, 0.529], [0.165, 0.020, 0.578], [0.262, 0.012, 0.601],
+  [0.359, 0.001, 0.602], [0.453, 0.005, 0.580], [0.541, 0.039, 0.534],
+  [0.621, 0.085, 0.479], [0.690, 0.130, 0.418], [0.755, 0.180, 0.358],
+  [0.815, 0.232, 0.298], [0.866, 0.291, 0.238], [0.913, 0.350, 0.180],
+  [0.953, 0.413, 0.131], [0.982, 0.481, 0.092], [0.997, 0.557, 0.060],
+  [0.998, 0.643, 0.034], [0.984, 0.738, 0.045], [0.954, 0.840, 0.116],
+  [0.940, 0.975, 0.131],
+];
+
+export function plasma(t: number): [number, number, number] {
+  return sampleStops(PLASMA_STOPS, t);
+}
+
+function sampleStops(stops: Array<[number, number, number]>, t: number): [number, number, number] {
+  if (t <= 0) return stops[0];
+  if (t >= 1) return stops[stops.length - 1];
+  const x = t * (stops.length - 1);
   const i = Math.floor(x);
   const f = x - i;
-  const a = VIRIDIS_STOPS[i];
-  const b = VIRIDIS_STOPS[i + 1];
+  const a = stops[i];
+  const b = stops[i + 1];
   return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
 }
 

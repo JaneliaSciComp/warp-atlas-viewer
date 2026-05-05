@@ -14,6 +14,7 @@ const INITIAL_FILTER: FilterState = {
   selectedStimulus: 0,
   selectedCluster: -1,
   isolatedRegion: -1,
+  geneScale: 'log',
 };
 
 export default function App() {
