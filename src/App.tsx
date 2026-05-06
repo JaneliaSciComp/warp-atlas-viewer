@@ -96,6 +96,12 @@ export default function App() {
     clear();
     setFocusedNeuron(null);
   }, [clear]);
+  // Resets filters only. The user's 3D-click focus and t-SNE drag
+  // selection are independent and must survive a filter reset — there's
+  // a separate "clear selection" button for those.
+  const handleResetFilters = useCallback(() => {
+    setFilter(INITIAL_FILTER);
+  }, []);
 
   const layout = useMemo(
     () => ({
@@ -215,7 +221,12 @@ export default function App() {
         style={{ gridTemplateColumns: 'minmax(0, 1fr) 320px' }}
       >
         <div className="flex flex-col bg-neutral-800 min-h-0 min-w-0">
-          <FilterControls data={data} filter={filter} setFilter={setFilter} />
+          <FilterControls
+            data={data}
+            filter={filter}
+            setFilter={setFilter}
+            onReset={handleResetFilters}
+          />
           <div className="flex-1 p-3 text-[11px] font-mono text-neutral-400 overflow-y-auto">
             <div className="mb-1 text-neutral-500">Tips</div>
             <ul className="list-disc list-inside space-y-0.5">

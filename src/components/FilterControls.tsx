@@ -4,6 +4,7 @@ interface Props {
   data: NeuronDataset;
   filter: FilterState;
   setFilter: (f: FilterState) => void;
+  onReset: () => void;
 }
 
 const COLOR_SCHEMES: Array<{ value: ColorMode; label: string }> = [
@@ -15,7 +16,7 @@ const COLOR_SCHEMES: Array<{ value: ColorMode; label: string }> = [
 
 const ALL_OPTION = { value: -1, label: 'all' } as const;
 
-export function FilterControls({ data, filter, setFilter }: Props) {
+export function FilterControls({ data, filter, setFilter, onReset }: Props) {
   const update = (patch: Partial<FilterState>) => setFilter({ ...filter, ...patch });
 
   return (
@@ -27,6 +28,7 @@ export function FilterControls({ data, filter, setFilter }: Props) {
       <TranscriptomicsCard data={data} filter={filter} update={update} />
       <CrossSep />
       <ActivityCard data={data} filter={filter} update={update} />
+      <ResetButton onReset={onReset} />
     </div>
   );
 }
@@ -55,6 +57,21 @@ function CrossSep() {
     >
       ×
     </span>
+  );
+}
+
+function ResetButton({ onReset }: { onReset: () => void }) {
+  // Sits at the end of the row, slightly offset by ml-auto so it floats
+  // to the right when there's space and tucks under the cards on a wrap.
+  return (
+    <button
+      onClick={onReset}
+      title="reset all filters to defaults"
+      className="self-stretch flex items-center gap-1 px-2.5 ml-auto text-xs font-mono text-neutral-300 bg-neutral-900/60 border border-neutral-700 rounded hover:bg-neutral-700 hover:text-neutral-100"
+    >
+      <span aria-hidden className="text-base leading-none">↺</span>
+      reset
+    </button>
   );
 }
 
