@@ -20,15 +20,22 @@ export function FilterControls({ data, filter, setFilter, onReset }: Props) {
   const update = (patch: Partial<FilterState>) => setFilter({ ...filter, ...patch });
 
   return (
-    <div className="flex flex-wrap items-stretch gap-x-2 gap-y-2 p-3 bg-neutral-800 border-t border-neutral-700">
-      <ColorsCard filter={filter} update={update} />
-      <CrossSep />
-      <AnatomyCard data={data} filter={filter} update={update} />
-      <CrossSep />
-      <TranscriptomicsCard data={data} filter={filter} update={update} />
-      <CrossSep />
-      <ActivityCard data={data} filter={filter} update={update} />
-      <ResetButton onReset={onReset} />
+    <div className="flex flex-col gap-2 p-3 bg-neutral-800 border-t border-neutral-700">
+      <div className="flex items-center gap-2">
+        <span className="text-xs uppercase tracking-wider text-neutral-400 font-mono">
+          Filters
+        </span>
+        <ResetButton onReset={onReset} />
+      </div>
+      <div className="flex flex-wrap items-stretch gap-x-2 gap-y-2">
+        <ColorsCard filter={filter} update={update} />
+        <CrossSep />
+        <AnatomyCard data={data} filter={filter} update={update} />
+        <CrossSep />
+        <TranscriptomicsCard data={data} filter={filter} update={update} />
+        <CrossSep />
+        <ActivityCard data={data} filter={filter} update={update} />
+      </div>
     </div>
   );
 }
@@ -41,7 +48,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
       <div className="text-[10px] uppercase tracking-wider text-neutral-500 font-mono">
         {title}
       </div>
-      <div className="flex flex-wrap items-center gap-2">{children}</div>
+      <div className="flex flex-col items-start gap-1.5">{children}</div>
     </div>
   );
 }
@@ -61,13 +68,11 @@ function CrossSep() {
 }
 
 function ResetButton({ onReset }: { onReset: () => void }) {
-  // Sits at the end of the row, slightly offset by ml-auto so it floats
-  // to the right when there's space and tucks under the cards on a wrap.
   return (
     <button
       onClick={onReset}
       title="reset all filters to defaults"
-      className="self-stretch flex items-center gap-1 px-2.5 ml-auto text-xs font-mono text-neutral-300 bg-neutral-900/60 border border-neutral-700 rounded hover:bg-neutral-700 hover:text-neutral-100"
+      className="flex items-center gap-1 px-2 py-0.5 text-xs font-mono text-neutral-300 bg-neutral-900/60 border border-neutral-700 rounded hover:bg-neutral-700 hover:text-neutral-100"
     >
       <span aria-hidden className="text-base leading-none">↺</span>
       reset

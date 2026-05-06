@@ -221,20 +221,21 @@ export default function App() {
         className="row-start-2 col-start-1 grid min-h-0 min-w-0"
         style={{ gridTemplateColumns: 'minmax(0, 1fr) 320px' }}
       >
-        <div className="flex flex-col bg-neutral-800 min-h-0 min-w-0">
+        <div className="flex flex-col bg-neutral-800 min-h-0 min-w-0 overflow-y-auto">
           <FilterControls
             data={data}
             filter={filter}
             setFilter={setFilter}
             onReset={handleResetFilters}
           />
-          <div className="flex-1 p-3 text-[11px] font-mono text-neutral-400 overflow-y-auto">
+          <div className="p-3 text-[11px] font-mono text-neutral-400">
             <div className="mb-1 text-neutral-500">Tips</div>
             <ul className="list-disc list-inside space-y-0.5">
-              <li>orbit: drag • zoom: wheel • pan: right-drag</li>
-              <li>hover a point for ID, region, top genes</li>
+              <li>3D: drag to orbit, wheel to zoom, right-drag to pan</li>
+              <li>3D: hover for ID, region, top genes; click to focus</li>
               <li>t-SNE: drag to box-select, links to 3D view</li>
-              <li>Cluster mode + dropdown: pull a functional group</li>
+              <li>t-SNE: right-drag or shift+drag to pan, wheel to zoom</li>
+              <li>Subtype filter: pull a functional cluster as a group</li>
               <li>Co-coding: cells that both express a gene and track a stimulus</li>
             </ul>
           </div>

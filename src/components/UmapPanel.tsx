@@ -238,9 +238,7 @@ export function UmapPanel({ data, filter, selection, onSelect }: Props) {
   return (
     <div className="relative w-full h-full bg-neutral-900 border-t border-l border-neutral-700 flex flex-col">
       <div className="flex items-center justify-between gap-2 px-2 py-1 text-[10px] text-neutral-400 font-mono flex-shrink-0">
-        <span className="truncate">
-          t-SNE — drag to select • right-drag or shift+drag to pan • wheel to zoom
-        </span>
+        <span className="truncate">t-SNE</span>
         {zoomedIn && (
           <button
             onClick={resetView}

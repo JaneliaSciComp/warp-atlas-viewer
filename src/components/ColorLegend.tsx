@@ -57,7 +57,7 @@ export function ColorLegend({ data, filter, rightOffset = 8 }: Props) {
     const tickPos = (t: number) =>
       isLog ? (Math.log(1 + t) / maxLog) * 100 : (t / maxVal) * 100;
     const title = useRichness
-      ? `Gene richness (out of ${G})`
+      ? 'Gene richness'
       : `Gene: ${data.geneNames[filter.selectedGene]}`;
     const axisLabel = useRichness
       ? `# genes expressed (${isLog ? 'log' : 'linear'})`
@@ -71,15 +71,29 @@ export function ColorLegend({ data, filter, rightOffset = 8 }: Props) {
         <div className="relative w-32">
           <div className="h-3 border border-neutral-700" style={{ background: gradient }} />
           <div className="relative h-3 mt-0.5 text-[9px] text-neutral-400">
-            {ticks.map((t) => (
-              <span
-                key={t}
-                className="absolute -translate-x-1/2"
-                style={{ left: `${Math.min(100, Math.max(0, tickPos(t)))}%` }}
-              >
-                {t}
-              </span>
-            ))}
+            {ticks.map((t, idx) => {
+              // Anchor the first/last tick label to the bar edge instead
+              // of centering it, so e.g. "1000" doesn't overflow past
+              // the gradient's right edge into the legend's border.
+              const transform =
+                idx === 0
+                  ? 'translateX(0)'
+                  : idx === ticks.length - 1
+                    ? 'translateX(-100%)'
+                    : 'translateX(-50%)';
+              return (
+                <span
+                  key={t}
+                  className="absolute"
+                  style={{
+                    left: `${Math.min(100, Math.max(0, tickPos(t)))}%`,
+                    transform,
+                  }}
+                >
+                  {t}
+                </span>
+              );
+            })}
           </div>
         </div>
         <div className="text-[9px] text-neutral-500 mt-3">{axisLabel}</div>
