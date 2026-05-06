@@ -4,13 +4,20 @@ import { regionColor, plasma, rgbToHex } from '../utils/colorMaps';
 interface Props {
   data: NeuronDataset;
   filter: FilterState;
+  /** Right-edge offset in px, lets the parent push the legend left when
+   *  the floating detail panel is open. */
+  rightOffset?: number;
 }
 
-export function ColorLegend({ data, filter }: Props) {
+export function ColorLegend({ data, filter, rightOffset = 8 }: Props) {
+  const positionStyle = { top: 8, right: rightOffset } as const;
 
   if (filter.colorMode === 'region') {
     return (
-      <div className="absolute top-2 right-2 bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200 max-h-72 overflow-y-auto">
+      <div
+        style={positionStyle}
+        className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200 max-h-72 overflow-y-auto transition-[right] duration-200"
+      >
         <div className="text-neutral-400 mb-1">Brain region</div>
         {data.regionNames.map((r, i) => (
           <div key={i} className="flex items-center gap-1.5">
@@ -37,7 +44,10 @@ export function ColorLegend({ data, filter }: Props) {
     const tickPos = (t: number) =>
       isLog ? (Math.log(1 + t) / maxLog) * 100 : (t / 1000) * 100;
     return (
-      <div className="absolute top-2 right-2 bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200">
+      <div
+        style={positionStyle}
+        className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200 transition-[right] duration-200"
+      >
         <div className="text-neutral-400 mb-1">Gene: {data.geneNames[filter.selectedGene]}</div>
         <div className="relative w-32">
           <div className="h-3 border border-neutral-700" style={{ background: gradient }} />
@@ -60,7 +70,10 @@ export function ColorLegend({ data, filter }: Props) {
   if (filter.colorMode === 'cluster') {
     const picked = filter.selectedCluster >= 0;
     return (
-      <div className="absolute top-2 right-2 bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200">
+      <div
+        style={positionStyle}
+        className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200 transition-[right] duration-200"
+      >
         <div className="text-neutral-400 mb-1">Cluster</div>
         {picked ? (
           <div className="flex items-center gap-1.5">
@@ -86,7 +99,10 @@ export function ColorLegend({ data, filter }: Props) {
   const GENE_NEG = 'linear-gradient(to right, rgb(41,41,41), rgb(41,255,41))';
   const GENE_POS = 'linear-gradient(to right, rgb(41,41,255), rgb(255,41,41))';
   return (
-    <div className="absolute top-2 right-2 bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200">
+    <div
+      style={positionStyle}
+      className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200 transition-[right] duration-200"
+    >
       <div className="text-neutral-400 mb-1.5">
         {geneName} × {stimName}
       </div>

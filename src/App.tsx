@@ -17,10 +17,15 @@ const INITIAL_FILTER: FilterState = {
   geneScale: 'log',
 };
 
+const DETAIL_PANEL_WIDTH = 360;
+
 export default function App() {
   const { data, error, progress } = useNeuronData();
   const [filter, setFilter] = useState<FilterState>(INITIAL_FILTER);
   const { selection, setIndices, clear } = useSelection();
+  // The detail panel floats over the right edge of the viewer and can be
+  // hidden when not in use to give the brain viewer / t-SNE the full width.
+  const [detailOpen, setDetailOpen] = useState(true);
   // Single-neuron focus is independent of the group selection so a
   // t-SNE drag can persist while the user clicks through individual
   // neurons. Click on a neuron → focus it (DetailPanel shows just that
@@ -95,11 +100,16 @@ export default function App() {
       // content's intrinsic size; plain `1fr` defaults to
       // minmax(auto, 1fr) which pins the min to min-content and breaks
       // horizontal resize once the window goes below the initial width.
-      gridTemplateColumns: 'minmax(0, 1fr) 360px',
+      gridTemplateColumns: 'minmax(0, 1fr)',
       gridTemplateRows: 'minmax(0, 1fr) 352px',
     }),
     [],
   );
+
+  // When the detail panel is open it floats over the right edge of the
+  // brain viewer; nudge any right-anchored UI (legend, clear button) inside
+  // the brain viewer left so it isn't covered.
+  const rightInset = detailOpen ? DETAIL_PANEL_WIDTH + 8 : 8;
 
   if (error) {
     return (
@@ -137,9 +147,11 @@ export default function App() {
       className="h-full w-full grid overflow-hidden"
       style={layout}
     >
-      {/* Top-left: 3D viewer + filter controls + legend */}
-      <div className="relative flex flex-col min-h-0 min-w-0 row-start-1 col-start-1">
-        <div className="relative flex-1 min-h-0 min-w-0">
+      {/* Top: 3D viewer + legend + floating detail panel. The aside is
+          anchored inside this container so it spans exactly the brain
+          viewer row — leaving the t-SNE / filters bar fully usable. */}
+      <div className="relative min-h-0 min-w-0 row-start-1 col-start-1">
+        <div className="absolute inset-0">
           <BrainViewer
             data={data}
             filter={filter}
@@ -147,25 +159,54 @@ export default function App() {
             focusedNeuron={focusedNeuron}
             onFocus={setFocusedNeuron}
           />
-          <ColorLegend data={data} filter={filter} />
+          <ColorLegend data={data} filter={filter} rightOffset={rightInset} />
           {(focusedNeuron != null ||
             (selection.source === 'umap' && selection.indices.length > 0)) && (
             <button
               onClick={handleClearAll}
-              className="absolute bottom-2 right-2 text-[11px] font-mono bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-2 py-1 rounded hover:bg-neutral-800"
+              style={{ right: rightInset }}
+              className="absolute bottom-2 text-[11px] font-mono bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-2 py-1 rounded hover:bg-neutral-800 transition-[right] duration-200"
             >
               clear selection
             </button>
           )}
         </div>
+
+        {/* Floating detail panel — slides off-screen to the right when hidden. */}
+        <aside
+          aria-hidden={!detailOpen}
+          style={{ width: DETAIL_PANEL_WIDTH }}
+          className={
+            'absolute top-0 right-0 bottom-0 z-20 shadow-2xl transition-transform duration-200 ease-in-out ' +
+            (detailOpen ? 'translate-x-0' : 'translate-x-full')
+          }
+        >
+          <button
+            onClick={() => setDetailOpen(false)}
+            title="hide details"
+            aria-label="hide details panel"
+            className="absolute top-1.5 right-2 z-10 w-6 h-6 flex items-center justify-center text-lg leading-none text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200 rounded"
+          >
+            ×
+          </button>
+          <DetailPanel data={data} selection={selection} focusedNeuron={focusedNeuron} />
+        </aside>
+
+        {/* Tab to reopen the panel when it's hidden, vertically centered on
+            the brain viewer row. */}
+        {!detailOpen && (
+          <button
+            onClick={() => setDetailOpen(true)}
+            title="show details"
+            aria-label="show details panel"
+            className="absolute top-1/2 -translate-y-1/2 right-0 z-30 bg-neutral-900/90 border border-r-0 border-neutral-700 text-neutral-200 py-3 px-1.5 rounded-l text-xs font-mono hover:bg-neutral-800"
+          >
+            ‹
+          </button>
+        )}
       </div>
 
-      {/* Right column: detail panel spans both rows */}
-      <div className="row-start-1 row-span-2 col-start-2 min-h-0 min-w-0">
-        <DetailPanel data={data} selection={selection} focusedNeuron={focusedNeuron} />
-      </div>
-
-      {/* Bottom-left split: filters + UMAP */}
+      {/* Bottom split: filters + t-SNE */}
       <div
         className="row-start-2 col-start-1 grid min-h-0 min-w-0"
         style={{ gridTemplateColumns: 'minmax(0, 1fr) 320px' }}

@@ -26,7 +26,7 @@ export function DetailPanel({ data, selection, focusedNeuron }: Props) {
   if (!stats) {
     return (
       <div className="h-full p-4 bg-neutral-100 text-neutral-700 overflow-y-auto border-l border-neutral-300">
-        <h2 className="text-sm font-semibold mb-2 text-neutral-900">Detail</h2>
+        <h2 className="text-sm font-semibold mb-2 text-neutral-900 pr-7">Detail</h2>
         <p className="text-xs text-neutral-500">
           Click a neuron or select a cluster/region to see details.
         </p>
@@ -67,7 +67,7 @@ export function DetailPanel({ data, selection, focusedNeuron }: Props) {
 
   return (
     <div className="h-full p-3 bg-neutral-100 text-neutral-800 overflow-y-auto border-l border-neutral-300">
-      <h2 className="text-sm font-semibold mb-2 text-neutral-900">
+      <h2 className="text-sm font-semibold mb-2 text-neutral-900 pr-7">
         {isFocused ? (
           <>Focused neuron <span className="font-mono">#{focusedNeuron}</span></>
         ) : (
