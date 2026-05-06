@@ -62,7 +62,9 @@ export function cellPasses(
   const geneActive = filter.txMode === 'gene' && !filter.geneAll;
   const clusterActive = filter.txMode === 'subtype' && !filter.clusterAll;
   const passesTx = geneActive
-    ? ds.geneBinary[i * G + filter.selectedGene] === 1
+    ? filter.geneStrict
+      ? ds.geneBinary[i * G + filter.selectedGene] === 1
+      : ds.geneCounts[i * G + filter.selectedGene] > 0
     : clusterActive
       ? ds.clusterIds[i] === filter.selectedCluster
       : true;
@@ -121,6 +123,15 @@ export function applyColoring(
 
   const useLog = filter.geneScale !== 'linear';
   const isolatedRegion = filter.isolatedRegion;
+  // The Gene color scheme paints by a single gene's expression when a
+  // specific gene is in focus via Transcriptomics; otherwise it paints
+  // by transcriptomic richness (# of panel genes the cell expresses by
+  // the curated binary call), so picking Color=Gene with no specific
+  // gene tells you something instead of falling back to whichever gene
+  // happens to be the persistent index.
+  const useRichness =
+    filter.txMode === 'subtype' || (filter.txMode === 'gene' && filter.geneAll);
+  const RICHNESS_LOG_DEN = Math.log(1 + G);
 
   // Build a fast lookup of selected indices.
   const selSet = selection.indices.length > 0 ? new Set<number>(Array.from(selection.indices)) : null;
@@ -155,15 +166,33 @@ export function applyColoring(
           break;
         }
         case 'gene': {
-          const raw = geneCounts[i * G + filter.selectedGene];
-          const v = useLog
-            ? Math.min(1, Math.log(1 + raw) / GENE_LOG_DEN)
-            : Math.min(1, raw / GENE_MAX_SPOTS);
+          // Two sub-modes: per-cell richness when no single gene is in
+          // focus, otherwise the classic single-gene plasma over raw
+          // FISH spot counts.
+          let raw: number;
+          let v: number;
+          if (useRichness) {
+            // Count binary-positive genes for this cell. ~G ops per cell;
+            // for G=41 and ~274k cells this is ~11M Uint8 reads — well
+            // under a frame budget and avoids carrying a precomputed
+            // sidecar.
+            let n = 0;
+            const base = i * G;
+            for (let j = 0; j < G; j++) n += geneBinary[base + j];
+            raw = n;
+            v = useLog
+              ? Math.log(1 + n) / RICHNESS_LOG_DEN
+              : n / G;
+          } else {
+            raw = geneCounts[i * G + filter.selectedGene];
+            v = useLog
+              ? Math.min(1, Math.log(1 + raw) / GENE_LOG_DEN)
+              : Math.min(1, raw / GENE_MAX_SPOTS);
+          }
           if (raw <= 0) {
-            // Non-expresser inside the in-set: same faint backdrop as
-            // the old gene scheme so plasma expressers still pop. When
-            // a region is isolated, lift the in-region non-expressers
-            // a notch so the region's outline reads through.
+            // Cell expresses nothing on this axis: faint backdrop. Lift
+            // in-region cells when a region is isolated so the region's
+            // outline still reads through the plasma foreground.
             r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2];
             alpha = isolatedRegion >= 0 ? LIFT_ALPHA : 0.10;
           } else {

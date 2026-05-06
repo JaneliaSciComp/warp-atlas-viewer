@@ -16,6 +16,7 @@ const INITIAL_FILTER: FilterState = {
   txMode: 'gene',
   selectedGene: 0,
   geneAll: true,
+  geneStrict: true,
   selectedCluster: 0,
   clusterAll: true,
   selectedStimulus: 0,

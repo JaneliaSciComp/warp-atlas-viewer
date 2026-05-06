@@ -67,6 +67,14 @@ export interface FilterState {
    *  is trivially true (no transcriptomic constraint). Coloring still
    *  uses selectedGene. */
   geneAll: boolean;
+  /** When txMode === 'gene' and geneAll is false, controls which
+   *  predicate the gene filter uses:
+   *    true  → curated binary call (geneBinary[i*G+sel] === 1)
+   *    false → any detected expression (geneCounts[i*G+sel] > 0)
+   *  The binary call is the dataset's curated, conservative
+   *  classification; "any spots" is more permissive and matches the
+   *  classic "raw > 0" reading of FISH counts. */
+  geneStrict: boolean;
   /** Always 0..C-1. Persists like selectedGene. */
   selectedCluster: number;
   /** Mirror of geneAll for the subtype branch. */

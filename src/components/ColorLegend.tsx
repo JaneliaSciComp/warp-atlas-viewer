@@ -32,23 +32,42 @@ export function ColorLegend({ data, filter, rightOffset = 8 }: Props) {
     );
   }
   if (filter.colorMode === 'gene') {
-    // Continuous plasma gradient over the absolute FISH spot count.
-    // Tick marks (and their layout) follow the active scale: log-spaced
-    // for log mode, evenly-spaced for linear.
+    // Two sub-modes: richness (number of panel genes expressed per cell)
+    // when no specific gene is in focus, otherwise the classic plasma
+    // gradient over absolute FISH spot count for the selected gene.
+    const useRichness =
+      filter.txMode === 'subtype' || (filter.txMode === 'gene' && filter.geneAll);
     const N = 16;
     const stops = Array.from({ length: N }, (_, i) => rgbToHex(plasma(i / (N - 1))));
     const gradient = `linear-gradient(to right, ${stops.join(', ')})`;
     const isLog = filter.geneScale !== 'linear';
-    const ticks = isLog ? [0, 1, 10, 100, 1000] : [0, 250, 500, 750, 1000];
-    const maxLog = Math.log(1 + 1000);
+    const G = data.geneNames.length;
+    const maxVal = useRichness ? G : 1000;
+    // Pick reasonable ticks for either mode. For richness G is small
+    // (e.g. 41) so we just snap at fractions of G; for spot-count we
+    // keep the existing canonical anchors.
+    const ticks = useRichness
+      ? isLog
+        ? [0, 1, Math.round(G / 4), Math.round(G / 2), G]
+        : [0, Math.round(G / 4), Math.round(G / 2), Math.round((3 * G) / 4), G]
+      : isLog
+        ? [0, 1, 10, 100, 1000]
+        : [0, 250, 500, 750, 1000];
+    const maxLog = Math.log(1 + maxVal);
     const tickPos = (t: number) =>
-      isLog ? (Math.log(1 + t) / maxLog) * 100 : (t / 1000) * 100;
+      isLog ? (Math.log(1 + t) / maxLog) * 100 : (t / maxVal) * 100;
+    const title = useRichness
+      ? `Gene richness (out of ${G})`
+      : `Gene: ${data.geneNames[filter.selectedGene]}`;
+    const axisLabel = useRichness
+      ? `# genes expressed (${isLog ? 'log' : 'linear'})`
+      : `spot count (${isLog ? 'log' : 'linear'})`;
     return (
       <div
         style={positionStyle}
         className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200 transition-[right] duration-200"
       >
-        <div className="text-neutral-400 mb-1">Gene: {data.geneNames[filter.selectedGene]}</div>
+        <div className="text-neutral-400 mb-1">{title}</div>
         <div className="relative w-32">
           <div className="h-3 border border-neutral-700" style={{ background: gradient }} />
           <div className="relative h-3 mt-0.5 text-[9px] text-neutral-400">
@@ -63,7 +82,7 @@ export function ColorLegend({ data, filter, rightOffset = 8 }: Props) {
             ))}
           </div>
         </div>
-        <div className="text-[9px] text-neutral-500 mt-3">spot count ({isLog ? 'log' : 'linear'})</div>
+        <div className="text-[9px] text-neutral-500 mt-3">{axisLabel}</div>
       </div>
     );
   }

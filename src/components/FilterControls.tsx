@@ -178,18 +178,34 @@ function TranscriptomicsCard({
         ]}
       />
       {filter.txMode === 'gene' ? (
-        <Select
-          label="gene"
-          value={geneValue}
-          onChange={onGeneChange}
-          options={[
-            ALL_OPTION,
-            ...data.geneNames
-              .map((g, i) => ({ value: i, label: g }))
-              .sort((a, b) => a.label.localeCompare(b.label)),
-          ]}
-          arrows
-        />
+        <>
+          <Select
+            label="gene"
+            value={geneValue}
+            onChange={onGeneChange}
+            options={[
+              ALL_OPTION,
+              ...data.geneNames
+                .map((g, i) => ({ value: i, label: g }))
+                .sort((a, b) => a.label.localeCompare(b.label)),
+            ]}
+            arrows
+          />
+          {!filter.geneAll && (
+            <label
+              className="flex items-center gap-1 text-xs text-neutral-300 cursor-pointer select-none"
+              title="checked: curated binary call (geneBinary === 1). unchecked: any detected expression (raw spot count > 0)."
+            >
+              <input
+                type="checkbox"
+                checked={filter.geneStrict}
+                onChange={(e) => update({ geneStrict: e.target.checked })}
+                className="accent-neutral-300"
+              />
+              binary call
+            </label>
+          )}
+        </>
       ) : (
         <Select
           label="cluster"
