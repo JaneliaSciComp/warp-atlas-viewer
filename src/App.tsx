@@ -96,7 +96,7 @@ export default function App() {
       // minmax(auto, 1fr) which pins the min to min-content and breaks
       // horizontal resize once the window goes below the initial width.
       gridTemplateColumns: 'minmax(0, 1fr) 360px',
-      gridTemplateRows: 'minmax(0, 1fr) 280px',
+      gridTemplateRows: 'minmax(0, 1fr) 352px',
     }),
     [],
   );
@@ -168,7 +168,7 @@ export default function App() {
       {/* Bottom-left split: filters + UMAP */}
       <div
         className="row-start-2 col-start-1 grid min-h-0 min-w-0"
-        style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)' }}
+        style={{ gridTemplateColumns: 'minmax(0, 1fr) 320px' }}
       >
         <div className="flex flex-col bg-neutral-800 min-h-0 min-w-0">
           <FilterControls data={data} filter={filter} setFilter={setFilter} />

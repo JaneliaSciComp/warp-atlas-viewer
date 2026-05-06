@@ -236,26 +236,30 @@ export function UmapPanel({ data, filter, selection, onSelect }: Props) {
   const zoomedIn = viewport.zoom !== 1 || viewport.panX !== 0 || viewport.panY !== 0;
 
   return (
-    <div ref={containerRef} className="relative w-full h-full bg-neutral-900 border-t border-l border-neutral-700">
-      <canvas
-        ref={canvasRef}
-        onPointerDown={onDown}
-        onPointerMove={onMove}
-        onPointerUp={onUp}
-        onContextMenu={(e) => e.preventDefault()}
-        className={'block ' + (drag?.kind === 'pan' ? 'cursor-grabbing' : 'cursor-crosshair')}
-      />
-      <div className="absolute top-1 left-2 text-[10px] text-neutral-400 font-mono pointer-events-none">
-        t-SNE — drag to select • right-drag or shift+drag to pan • wheel to zoom
+    <div className="relative w-full h-full bg-neutral-900 border-t border-l border-neutral-700 flex flex-col">
+      <div className="flex items-center justify-between gap-2 px-2 py-1 text-[10px] text-neutral-400 font-mono flex-shrink-0">
+        <span className="truncate">
+          t-SNE — drag to select • right-drag or shift+drag to pan • wheel to zoom
+        </span>
+        {zoomedIn && (
+          <button
+            onClick={resetView}
+            className="flex-shrink-0 font-mono bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-1.5 py-0.5 rounded hover:bg-neutral-800"
+          >
+            reset view
+          </button>
+        )}
       </div>
-      {zoomedIn && (
-        <button
-          onClick={resetView}
-          className="absolute top-1 right-2 text-[10px] font-mono bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-1.5 py-0.5 rounded hover:bg-neutral-800"
-        >
-          reset view
-        </button>
-      )}
+      <div ref={containerRef} className="relative flex-1 min-h-0 min-w-0">
+        <canvas
+          ref={canvasRef}
+          onPointerDown={onDown}
+          onPointerMove={onMove}
+          onPointerUp={onUp}
+          onContextMenu={(e) => e.preventDefault()}
+          className={'block ' + (drag?.kind === 'pan' ? 'cursor-grabbing' : 'cursor-crosshair')}
+        />
+      </div>
     </div>
   );
 }
