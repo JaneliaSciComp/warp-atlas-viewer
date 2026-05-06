@@ -48,6 +48,29 @@ export type GeneScale = 'log' | 'linear';
  *  without losing the previously picked gene/cluster. */
 export type TxMode = 'gene' | 'subtype';
 
+/**
+ * INVARIANT — visible-state-only rendering:
+ *
+ * The current rendering must be 100% described by the fields that the
+ * user can currently see in the bottom-panel UI. Several fields below
+ * (selectedGene, selectedCluster, selectedStimulus, geneScale,
+ * geneStrict) PERSIST across UI flips for ergonomics — when the user
+ * toggles between Single-gene/Subtype or "all"/specific, we keep their
+ * prior pick so they don't lose it. That persistence is fine ONLY as
+ * long as those fields don't influence rendering when they're hidden.
+ *
+ * Rule for any code path that reads one of these fields:
+ *   1. Check the visibility predicate first (e.g. for selectedGene:
+ *      txMode === 'gene' && !geneAll). If the field is hidden, fall
+ *      back to an explicit alternative — gene scheme falls back to
+ *      richness; stim scheme falls back to max-across-stimuli.
+ *   2. The legend must reflect that fallback so the user can read what
+ *      the visualization is showing without inspecting state they
+ *      can't see.
+ *
+ * Adding a new code path that reads selectedGene/Cluster/Stimulus
+ * outside its visibility window is the bug class to watch for.
+ */
 export interface FilterState {
   // ── Colors ────────────────────────────────────────────────────────
   colorMode: ColorMode;

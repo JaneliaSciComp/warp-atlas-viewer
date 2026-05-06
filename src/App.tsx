@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import type { FilterState, SelectionState } from './data/types';
 import { useNeuronData } from './hooks/useNeuronData';
 import { useSelection } from './hooks/useSelection';
@@ -39,52 +39,29 @@ export default function App() {
   // group). Clear button clears both.
   const [focusedNeuron, setFocusedNeuron] = useState<number | null>(null);
 
-  // Mirror selection.source into a ref so we can read it inside the
-  // filter-derived selection effect WITHOUT making it a dep — adding it
-  // as a dep caused the effect to re-fire whenever the user clicked a
-  // neuron (source: cluster → 3d), which immediately reverted the
-  // single-cell selection back to the whole cluster.
-  const selectionSourceRef = useRef<SelectionState['source']>(null);
-  useEffect(() => {
-    selectionSourceRef.current = selection.source;
-  }, [selection.source]);
-
-  // When any non-color filter is constraining (anatomy / transcriptomics
-  // / activity), reflect the intersection of every active predicate as
-  // the active selection so the detail panel updates. Filter-derived
-  // selections must NOT outlive the filters that produced them — when
-  // every filter goes back to "all", drop the filter-derived selection
-  // but leave 3D/t-SNE selections in place.
-  useEffect(() => {
-    if (!data) return;
+  // The selection state is USER-EXPLICIT only (3D click → focused
+  // neuron handled separately; t-SNE drag → setIndices(_, 'umap')).
+  // We never write a filter-derived selection back into it, so the
+  // user's gesture survives every filter change — order of operations
+  // is commutative (anatomy → drag and drag → anatomy land in the
+  // same state).
+  //
+  // For the DetailPanel we still want to display the filter
+  // intersection when the user hasn't selected anything, so derive an
+  // "effective" selection: user selection wins; otherwise fall back to
+  // the filter intersection if any filter is active; otherwise empty.
+  const effectiveSelection = useMemo<SelectionState>(() => {
+    if (!data) return selection;
+    if (selection.indices.length > 0) return selection;
     if (anyFilterActive(filter)) {
       const out: number[] = [];
       for (let i = 0; i < data.count; i++) {
         if (cellInSet(data, filter, i)) out.push(i);
       }
-      setIndices(new Uint32Array(out), 'filter');
-      return;
+      return { indices: new Uint32Array(out), source: 'filter' };
     }
-    if (selectionSourceRef.current === 'filter') {
-      clear();
-    }
-  }, [
-    data,
-    // colorMode and geneScale are pure visual choices and don't affect
-    // cellInSet; listing every predicate-relevant field instead of the
-    // whole filter avoids redundant setIndices() calls when the user
-    // just changes the color scheme.
-    filter.isolatedRegion,
-    filter.txMode,
-    filter.selectedGene,
-    filter.geneAll,
-    filter.selectedCluster,
-    filter.clusterAll,
-    filter.selectedStimulus,
-    filter.stimulusAll,
-    setIndices,
-    clear,
-  ]);
+    return selection;
+  }, [data, selection, filter]);
 
   const handleUmapSelect = useCallback(
     (indices: Uint32Array) => {
@@ -170,8 +147,7 @@ export default function App() {
             onFocus={setFocusedNeuron}
           />
           <ColorLegend data={data} filter={filter} rightOffset={rightInset} />
-          {(focusedNeuron != null ||
-            (selection.source === 'umap' && selection.indices.length > 0)) && (
+          {(focusedNeuron != null || selection.indices.length > 0) && (
             <button
               onClick={handleClearAll}
               style={{ right: rightInset }}
@@ -199,7 +175,7 @@ export default function App() {
           >
             ×
           </button>
-          <DetailPanel data={data} selection={selection} focusedNeuron={focusedNeuron} />
+          <DetailPanel data={data} selection={effectiveSelection} focusedNeuron={focusedNeuron} />
         </aside>
 
         {/* Tab to reopen the panel when it's hidden, vertically centered on

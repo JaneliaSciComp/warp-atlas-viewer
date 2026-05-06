@@ -113,17 +113,18 @@ Validate each of the four old "color modes" can still be reached, and looks like
 - Add Transcriptomics=Single gene → a gene. DetailPanel updates to the smaller intersection. Add Activity → a stim. Updates again.
 - Pass if DetailPanel count shrinks monotonically as filters are added.
 
-### D2. Returning all filters to "all" clears the filter-derived selection
-- Setup: continue from D1. Click the ↺ reset button (or set every filter back to "all" manually).
-- Expected: DetailPanel empties (no "selection" displayed); the t-SNE panel has no visible selection rectangle; the brain has no highlighted subset.
-- Pass if no selection lingers after all filters are "all".
+### D2. Returning all filters to "all" drops the filter-derived selection
+- Setup: continue from D1, but make sure no t-SNE drag / 3D click is active. Click the ↺ reset button (or set every filter back to "all" manually).
+- Expected: DetailPanel empties (no filter intersection to fall back to); the brain shows the bare Highlight scheme.
+- Pass if the DetailPanel clears.
+- Variant: with a t-SNE drag selection ALREADY in place, do the same. The DetailPanel should keep showing the t-SNE selection — it's user-explicit and isn't tied to filters.
 
-### D3. 3D/UMAP selection is preserved across filter changes
-- Setup: All filters "all". Drag-select a cluster of cells in the t-SNE panel. The selected cells should highlight (brightness/size boost) in the 3D viewer.
-- Now change Anatomy → some region.
-- Expected: the t-SNE selection should persist (same cells still highlighted in 3D and in t-SNE), even as the filter intersection becomes the dominant rendering. Visually, the user-selected cells remain "boosted" wherever they fall.
-- Pass if the t-SNE selection survives an Anatomy filter change.
-- Repeat with: 3D click on a cell (single-neuron focus). Change a filter. Focused neuron stays focused.
+### D3. User selection is independent of filters; order of operations doesn't matter
+- Setup A (drag-then-filter): All filters "all". Drag-select a cluster of cells in the t-SNE panel — they highlight (brightness/size boost) in the 3D viewer. Now add Anatomy → some region.
+- Setup B (filter-then-drag): Reset everything. Add Anatomy → that same region first, then drag-select the same cluster of cells in t-SNE.
+- Expected (both setups): identical end state. The t-SNE box-selected cells are highlighted with the user-selection boost (visible in both 3D and t-SNE). The anatomy filter applies to the rest of the brain (out-of-region cells dim). DetailPanel shows the t-SNE selection (it wins over the filter intersection).
+- Now repeat the comparison with a 3D click instead of a t-SNE drag. Click a neuron (single-neuron focus); add a filter. Focused neuron persists. Reverse: filter first, then click — same end state.
+- Pass if every order-of-operations pairing reaches the same final visualization and DetailPanel content.
 
 ### D4. Filter-derived selection does NOT get the user-selection brightness boost
 - Setup: Anatomy → a region with many cells; Color=Region.
