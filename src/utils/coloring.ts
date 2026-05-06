@@ -4,7 +4,7 @@ import { regionColor, plasma } from './colorMaps';
 const DIM_RGB: [number, number, number] = [0.30, 0.30, 0.32];
 const DIM_ALPHA = 0.10;
 const LIFT_ALPHA = 0.50;
-const BASE_SIZE = 7.0;
+const BASE_SIZE = 8.5;
 const HIGHLIGHT_BOOST_SIZE = 1.5;
 
 /** Stim-correlation thresholds. r ≥ STIM_LO is the standard "stimulus
@@ -206,7 +206,6 @@ export function applyColoring(
             const c = plasma(v);
             r = c[0]; g = c[1]; b = c[2];
             alpha = 1.0;
-            size = BASE_SIZE * (0.9 + 1.2 * v);
           }
           break;
         }
@@ -219,11 +218,9 @@ export function applyColoring(
             r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2];
             alpha = isolatedRegion >= 0 ? LIFT_ALPHA : 0.10;
           } else {
-            // Vivid yellow (plasma's top stop), enlarged so the cluster
-            // pops on the dark backdrop.
+            // Vivid yellow (plasma's top stop).
             r = 0.94; g = 0.97; b = 0.13;
             alpha = 1.0;
-            size = BASE_SIZE * 1.4;
           }
           break;
         }
@@ -256,7 +253,6 @@ export function applyColoring(
             const c = plasma(v);
             r = c[0]; g = c[1]; b = c[2];
             alpha = 1.0;
-            size = BASE_SIZE * (0.9 + 1.2 * v);
           }
           break;
         }
