@@ -209,19 +209,14 @@ export function applyColoring(
           }
           break;
         }
-        case 'cluster': {
-          if (clusterIds[i] !== filter.selectedCluster) {
-            // Non-cluster cell. With the cluster filter active we'd
-            // never reach here; without it, this is anatomical context
-            // for the highlighted cluster. Lift in-region cells when a
-            // region is isolated so the region's outline reads through.
-            r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2];
-            alpha = isolatedRegion >= 0 ? LIFT_ALPHA : 0.10;
-          } else {
-            // Vivid yellow (plasma's top stop).
-            r = 0.94; g = 0.97; b = 0.13;
-            alpha = 1.0;
-          }
+        case 'highlight': {
+          // Every in-set cell paints the same vivid yellow. With no
+          // filters active that's the whole brain; the scheme becomes
+          // useful in combination with one or more filters — it's the
+          // "show me what passes the filters" view, with no further
+          // visual encoding overlaid.
+          r = 0.94; g = 0.97; b = 0.13;
+          alpha = 1.0;
           break;
         }
         case 'stim': {

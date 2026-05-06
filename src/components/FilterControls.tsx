@@ -8,9 +8,9 @@ interface Props {
 }
 
 const COLOR_SCHEMES: Array<{ value: ColorMode; label: string }> = [
+  { value: 'highlight', label: 'Highlight' },
   { value: 'region', label: 'Region' },
   { value: 'gene', label: 'Gene' },
-  { value: 'cluster', label: 'Cluster' },
   { value: 'stim', label: 'Stim correlation' },
 ];
 

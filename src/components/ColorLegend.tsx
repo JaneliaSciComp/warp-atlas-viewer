@@ -100,22 +100,17 @@ export function ColorLegend({ data, filter, rightOffset = 8 }: Props) {
       </div>
     );
   }
-  if (filter.colorMode === 'cluster') {
-    const picked = filter.selectedCluster >= 0;
+  if (filter.colorMode === 'highlight') {
     return (
       <div
         style={positionStyle}
         className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200 transition-[right] duration-200"
       >
-        <div className="text-neutral-400 mb-1">Cluster</div>
-        {picked ? (
-          <div className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-3 rounded-sm" style={{ background: '#f0f921' }} />
-            <span>{data.clusterNames[filter.selectedCluster]}</span>
-          </div>
-        ) : (
-          <span className="text-neutral-500">— pick a cluster —</span>
-        )}
+        <div className="text-neutral-400 mb-1">Highlight</div>
+        <div className="flex items-center gap-1.5">
+          <span className="inline-block w-3 h-3 rounded-sm" style={{ background: '#f0f921' }} />
+          <span>cells passing filters</span>
+        </div>
       </div>
     );
   }

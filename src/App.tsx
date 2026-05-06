@@ -10,7 +10,7 @@ import { ColorLegend } from './components/ColorLegend';
 import { anyFilterActive, cellInSet } from './utils/coloring';
 
 const INITIAL_FILTER: FilterState = {
-  colorMode: 'region',
+  colorMode: 'highlight',
   geneScale: 'log',
   isolatedRegion: -1,
   txMode: 'gene',

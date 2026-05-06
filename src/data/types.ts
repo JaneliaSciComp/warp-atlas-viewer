@@ -41,7 +41,7 @@ export interface NeuronDataset {
   source: 'mock' | 'real';
 }
 
-export type ColorMode = 'region' | 'gene' | 'cluster' | 'stim';
+export type ColorMode = 'highlight' | 'region' | 'gene' | 'stim';
 export type GeneScale = 'log' | 'linear';
 /** Which sub-filter the Transcriptomics panel exposes. The inactive
  *  sub-filter's index is preserved so the user can flip back to it
