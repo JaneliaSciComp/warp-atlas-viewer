@@ -236,7 +236,7 @@ export default function App() {
               <li>t-SNE: drag to box-select, links to 3D view</li>
               <li>t-SNE: right-drag or shift+drag to pan, wheel to zoom</li>
               <li>Subtype filter: pull a functional cluster as a group</li>
-              <li>Co-coding: cells that both express a gene and track a stimulus</li>
+              <li>Co-coding: Color=Stim correlation × single-gene filter</li>
             </ul>
           </div>
         </div>

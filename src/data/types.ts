@@ -41,7 +41,7 @@ export interface NeuronDataset {
   source: 'mock' | 'real';
 }
 
-export type ColorMode = 'region' | 'gene' | 'cluster' | 'bivariate';
+export type ColorMode = 'region' | 'gene' | 'cluster' | 'stim';
 export type GeneScale = 'log' | 'linear';
 /** Which sub-filter the Transcriptomics panel exposes. The inactive
  *  sub-filter's index is preserved so the user can flip back to it
@@ -60,8 +60,7 @@ export interface FilterState {
   // ── Transcriptomics filter ────────────────────────────────────────
   txMode: TxMode;
   /** Always 0..G-1. Persists across txMode flips and "all" picks so
-   *  color schemes that read it (gene, bivariate) always have a
-   *  meaningful index. */
+   *  color schemes that read it always have a meaningful index. */
   selectedGene: number;
   /** When txMode === 'gene' and geneAll is true, the gene predicate
    *  is trivially true (no transcriptomic constraint). Coloring still

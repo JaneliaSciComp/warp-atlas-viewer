@@ -1,5 +1,5 @@
 import type { NeuronDataset, FilterState, SelectionState } from '../data/types';
-import { regionColor, plasma, bivariate } from './colorMaps';
+import { regionColor, plasma } from './colorMaps';
 
 const DIM_RGB: [number, number, number] = [0.30, 0.30, 0.32];
 const DIM_ALPHA = 0.10;
@@ -9,7 +9,7 @@ const HIGHLIGHT_BOOST_SIZE = 1.5;
 
 /** Stim-correlation thresholds. r ≥ STIM_LO is the standard "stimulus
  *  responsive" floor in zebrafish calcium imaging; r ≥ STIM_HI ≈ q97
- *  reaches full saturation in the bivariate palette. The activity
+ *  reaches full saturation in the stim palette. The activity
  *  filter predicate uses STIM_LO as its cutoff. */
 const STIM_LO = 0.30;
 const STIM_HI = 0.65;
@@ -132,6 +132,13 @@ export function applyColoring(
   const useRichness =
     filter.txMode === 'subtype' || (filter.txMode === 'gene' && filter.geneAll);
   const RICHNESS_LOG_DEN = Math.log(1 + G);
+  // Mirror of the gene-richness fallback for the Stim correlation
+  // scheme: when no specific stimulus is in focus, paint each cell by
+  // its MAX correlation across all stimuli ("most responsive to
+  // anything") rather than silently using whichever stim happens to be
+  // the persistent index. Mean would be washed out by uncorrelated
+  // stims; max keeps the responsive-cell map crisp.
+  const useStimMax = filter.stimulusAll;
 
   // Build a fast lookup of selected indices.
   const selSet = selection.indices.length > 0 ? new Set<number>(Array.from(selection.indices)) : null;
@@ -220,34 +227,37 @@ export function applyColoring(
           }
           break;
         }
-        case 'bivariate': {
-          const ge = geneBinary[i * G + filter.selectedGene]; // 0 or 1
-          const rawA = stimulusCorr[i * S + filter.selectedStimulus];
-          const av = Math.max(0, Math.min(1, (rawA - STIM_LO) / STIM_RANGE));
-          if (ge === 0 && av <= 0) {
-            // Bivariate has four chroma layers competing for attention;
-            // push the neutral cells well into the floor so the colored
-            // layers dominate.
-            r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2]; alpha = 0.06;
-          } else {
-            const c = bivariate(ge, av);
-            r = c[0]; g = c[1]; b = c[2];
-            // Co-coding cells (gene+ AND stim-correlated) are biologically
-            // rare and the whole point of this view. Enlarge and saturate
-            // them so they punch through the surrounding green/blue field.
-            if (ge === 1 && av > 0) {
-              alpha = 1.0;
-              size = BASE_SIZE * (1.5 + 0.6 * av);
-            } else if (ge === 0) {
-              // Green cells (stim-only) are context for the co-coding
-              // population — push them more transparent so the red
-              // gene+/stim+ hits read as foreground.
-              alpha = 0.5;
+        case 'stim': {
+          // 1D plasma over normalized stim correlation, anchored at the
+          // standard zebrafish-calcium thresholds: r ≤ STIM_LO is the
+          // "stim-unresponsive" floor (faint backdrop), r ≥ STIM_HI ≈ q97
+          // saturates plasma's bright end. Co-coding emerges by composing
+          // this scheme with a single-gene filter — the gene predicate
+          // drops gene-negative cells, leaving only gene+ cells painted
+          // by their stim correlation.
+          let rawA: number;
+          if (useStimMax) {
+            // Per-cell max across all stimuli; ~S ops per cell.
+            const base = i * S;
+            let m = stimulusCorr[base];
+            for (let j = 1; j < S; j++) {
+              const c = stimulusCorr[base + j];
+              if (c > m) m = c;
             }
+            rawA = m;
+          } else {
+            rawA = stimulusCorr[i * S + filter.selectedStimulus];
           }
-          // Gene-negative cells shrink slightly so the gene+ population
-          // reads as "the foreground" by size too.
-          if (ge === 0) size *= 0.8;
+          const v = Math.max(0, Math.min(1, (rawA - STIM_LO) / STIM_RANGE));
+          if (v <= 0) {
+            r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2];
+            alpha = isolatedRegion >= 0 ? LIFT_ALPHA : 0.10;
+          } else {
+            const c = plasma(v);
+            r = c[0]; g = c[1]; b = c[2];
+            alpha = 1.0;
+            size = BASE_SIZE * (0.9 + 1.2 * v);
+          }
           break;
         }
       }

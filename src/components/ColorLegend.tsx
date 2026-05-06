@@ -119,59 +119,50 @@ export function ColorLegend({ data, filter, rightOffset = 8 }: Props) {
       </div>
     );
   }
-  // bivariate
-  // Two stacked 1D ramps — one per gene+/gene- group — instead of a 2D
-  // colormap. The gene axis is binary in the data, so a 2D map would
-  // imply a continuous interior that no cell ever takes. CSS linear
-  // gradients are exact here because each band is linear in r.
-  const geneName = data.geneNames[filter.selectedGene];
-  const stimName = data.stimulusNames[filter.selectedStimulus];
-  // Endpoint colors come from the bivariate() function:
-  //   gene-:  (0,0)=gray  → (0,1)=green
-  //   gene+:  (1,0)=blue  → (1,1)=red
-  const GENE_NEG = 'linear-gradient(to right, rgb(41,41,41), rgb(41,255,41))';
-  const GENE_POS = 'linear-gradient(to right, rgb(41,41,255), rgb(255,41,41))';
+  // stim correlation — 1D plasma from STIM_LO to STIM_HI, mirroring the
+  // gene scheme's structure. Co-coding falls out by composing this with
+  // a single-gene filter. When no specific stimulus is in focus, the
+  // scheme aggregates as max-across-stimuli (mirror of gene richness).
+  const stimTitle = filter.stimulusAll
+    ? 'Stim: max across all'
+    : `Stim: ${data.stimulusNames[filter.selectedStimulus]}`;
+  const N = 16;
+  const stops = Array.from({ length: N }, (_, i) => rgbToHex(plasma(i / (N - 1))));
+  const gradient = `linear-gradient(to right, ${stops.join(', ')})`;
+  const ticks = [0.30, 0.50, 0.65];
+  const tickPos = (t: number) => ((t - 0.30) / (0.65 - 0.30)) * 100;
   return (
     <div
       style={positionStyle}
       className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200 transition-[right] duration-200"
     >
-      <div className="text-neutral-400 mb-1.5">
-        {geneName} × {stimName}
-      </div>
-
-      {/* Two horizontal bands: gene+ on top, gene- below. */}
-      <div className="flex flex-col gap-1 mb-1">
-        <div className="flex items-center gap-1.5">
-          <span className="text-neutral-300 w-10">gene+</span>
-          <div
-            className="h-4 w-32 border border-neutral-700"
-            style={{ background: GENE_POS }}
-            title="gene-positive cells: blue (uncorrelated) → red (highly stim-correlated)"
-          />
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-neutral-300 w-10">gene−</span>
-          <div
-            className="h-4 w-32 border border-neutral-700"
-            style={{ background: GENE_NEG }}
-            title="gene-negative cells: gray (uncorrelated) → green (highly stim-correlated)"
-          />
-        </div>
-        {/* Shared x axis: ticks + label */}
-        <div className="flex justify-between text-[9px] text-neutral-400 ml-[2.875rem] w-32">
-          <span>r ≤ 0.30</span>
-          <span>r ≥ 0.65</span>
-        </div>
-        <div className="text-[9px] text-neutral-400 text-center ml-[2.875rem] w-32">
-          stim correlation →
+      <div className="text-neutral-400 mb-1">{stimTitle}</div>
+      <div className="relative w-32">
+        <div className="h-3 border border-neutral-700" style={{ background: gradient }} />
+        <div className="relative h-3 mt-0.5 text-[9px] text-neutral-400">
+          {ticks.map((t, idx) => {
+            const transform =
+              idx === 0
+                ? 'translateX(0)'
+                : idx === ticks.length - 1
+                  ? 'translateX(-100%)'
+                  : 'translateX(-50%)';
+            return (
+              <span
+                key={t}
+                className="absolute"
+                style={{
+                  left: `${Math.min(100, Math.max(0, tickPos(t)))}%`,
+                  transform,
+                }}
+              >
+                {t.toFixed(2)}
+              </span>
+            );
+          })}
         </div>
       </div>
-
-      {/* Punchline: which color = which biology */}
-      <div className="border-t border-neutral-700 pt-1 mt-1 text-[9px] text-neutral-400 leading-tight">
-        <span className="text-red-400 font-semibold">red</span> = co-coding (gene+ AND stim+)
-      </div>
+      <div className="text-[9px] text-neutral-500 mt-3">stim correlation r</div>
     </div>
   );
 }

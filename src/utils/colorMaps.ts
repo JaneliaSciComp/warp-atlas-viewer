@@ -65,58 +65,9 @@ export function regionColor(idx: number): [number, number, number] {
   return REGION_PALETTE[((idx % REGION_PALETTE.length) + REGION_PALETTE.length) % REGION_PALETTE.length];
 }
 
-/**
- * Bivariate colormap with cool/warm contrast. Both g (gene), a (activity)
- * in [0,1]. Returns
- *   (0,0) → dark gray  (background — most of the brain)
- *   (1,0) → blue       (gene-positive only)
- *   (0,1) → green      (stim-correlated only)
- *   (1,1) → red        (co-coding cells — the interesting hits)
- *
- * Single-axis populations get cool colors (blue, green); the rare
- * co-coding cells get a complementary warm (red), so they pop out against
- * a sea of green stim-responders rather than getting lost in it (the
- * earlier red+magenta scheme failed because magenta sat too close to red
- * in hue).
- *
- * Along the gene-positive ramp (g=1, a varying) the path is blue →
- * magenta → red, which interpolates cleanly because the green channel
- * stays at base.
- */
-export function bivariate(g: number, a: number): [number, number, number] {
-  const base = 0.16;
-  const r = base + (1 - base) * g * a;
-  const gg = base + (1 - base) * a * (1 - g);
-  const b = base + (1 - base) * g * (1 - a);
-  return [Math.min(1, r), Math.min(1, gg), Math.min(1, b)];
-}
-
 export function rgbToHex(c: [number, number, number]): string {
   const to = (x: number) => Math.max(0, Math.min(255, Math.round(x * 255)))
     .toString(16)
     .padStart(2, '0');
   return `#${to(c[0])}${to(c[1])}${to(c[2])}`;
-}
-
-/** A small bivariate LUT painted to a canvas, returned as a data URL. */
-export function bivariateLegendDataUrl(size: number = 64): string {
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
-  const img = ctx.createImageData(size, size);
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const g = x / (size - 1);
-      const a = 1 - y / (size - 1);
-      const c = bivariate(g, a);
-      const idx = (y * size + x) * 4;
-      img.data[idx] = Math.round(c[0] * 255);
-      img.data[idx + 1] = Math.round(c[1] * 255);
-      img.data[idx + 2] = Math.round(c[2] * 255);
-      img.data[idx + 3] = 255;
-    }
-  }
-  ctx.putImageData(img, 0, 0);
-  return canvas.toDataURL();
 }

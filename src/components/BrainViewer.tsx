@@ -180,21 +180,33 @@ export function BrainViewer({ data, filter, selection, focusedNeuron, onFocus }:
       }
       return n;
     }
-    if (filter.colorMode === 'bivariate') {
-      // Anything that lights up: gene+ OR strongly stim-correlated.
-      // (gray-only background = !gene+ AND r ≤ 0.30.)
+    if (filter.colorMode === 'stim') {
+      // Anything that lights up: cells whose stim correlation is above
+      // the responsive floor (r > 0.30); below that the scheme paints
+      // them as background dim. When no stim is in focus, mirror
+      // applyColoring's max-across-stimuli aggregation.
       let n = 0;
       const STIM_LO = 0.30;
+      const useMax = filter.stimulusAll;
       for (let i = 0; i < data.count; i++) {
-        if (
-          data.geneBinary[i * G + filter.selectedGene] === 1 ||
-          data.stimulusCorr[i * S + filter.selectedStimulus] > STIM_LO
-        ) n++;
+        let r: number;
+        if (useMax) {
+          const base = i * S;
+          let m = data.stimulusCorr[base];
+          for (let j = 1; j < S; j++) {
+            const c = data.stimulusCorr[base + j];
+            if (c > m) m = c;
+          }
+          r = m;
+        } else {
+          r = data.stimulusCorr[i * S + filter.selectedStimulus];
+        }
+        if (r > STIM_LO) n++;
       }
       return n;
     }
     return 0;
-  }, [data, filter.colorMode, filter.selectedGene, filter.selectedStimulus, selection.indices]);
+  }, [data, filter.colorMode, filter.selectedGene, filter.selectedStimulus, filter.stimulusAll, selection.indices]);
 
   // Track the pointer-down position so we can distinguish a click (no
   // movement) from a drag (rotate / pan). Without this, a drag-rotate

@@ -11,7 +11,7 @@ const COLOR_SCHEMES: Array<{ value: ColorMode; label: string }> = [
   { value: 'region', label: 'Region' },
   { value: 'gene', label: 'Gene' },
   { value: 'cluster', label: 'Cluster' },
-  { value: 'bivariate', label: 'Co-coding' },
+  { value: 'stim', label: 'Stim correlation' },
 ];
 
 const ALL_OPTION = { value: -1, label: 'all' } as const;
