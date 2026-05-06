@@ -43,20 +43,45 @@ export interface NeuronDataset {
 
 export type ColorMode = 'region' | 'gene' | 'cluster' | 'bivariate';
 export type GeneScale = 'log' | 'linear';
+/** Which sub-filter the Transcriptomics panel exposes. The inactive
+ *  sub-filter's index is preserved so the user can flip back to it
+ *  without losing the previously picked gene/cluster. */
+export type TxMode = 'gene' | 'subtype';
 
 export interface FilterState {
+  // ── Colors ────────────────────────────────────────────────────────
   colorMode: ColorMode;
-  selectedGene: number; // index into geneNames
-  selectedStimulus: number; // index into stimulusNames
-  selectedCluster: number; // index into clusterNames, -1 = none
-  isolatedRegion: number; // index into regionNames, -1 = show all
-  /** How gene-mode raw FISH spot counts map to the plasma palette. */
+  /** How gene-scheme raw FISH spot counts map to the plasma palette. */
   geneScale: GeneScale;
+
+  // ── Anatomy filter ────────────────────────────────────────────────
+  isolatedRegion: number; // index into regionNames, -1 = show all
+
+  // ── Transcriptomics filter ────────────────────────────────────────
+  txMode: TxMode;
+  /** Always 0..G-1. Persists across txMode flips and "all" picks so
+   *  color schemes that read it (gene, bivariate) always have a
+   *  meaningful index. */
+  selectedGene: number;
+  /** When txMode === 'gene' and geneAll is true, the gene predicate
+   *  is trivially true (no transcriptomic constraint). Coloring still
+   *  uses selectedGene. */
+  geneAll: boolean;
+  /** Always 0..C-1. Persists like selectedGene. */
+  selectedCluster: number;
+  /** Mirror of geneAll for the subtype branch. */
+  clusterAll: boolean;
+
+  // ── Activity filter ───────────────────────────────────────────────
+  selectedStimulus: number; // index into stimulusNames, persistent
+  stimulusAll: boolean;
 }
 
 export interface SelectionState {
   /** Indices of selected neurons. Empty = none. */
   indices: Uint32Array;
-  /** Whether selection came from 3D viewer or UMAP. */
-  source: '3d' | 'umap' | 'cluster' | 'region' | null;
+  /** Whether selection came from 3D viewer, UMAP, or the bottom-panel
+   *  filters. Filter-derived selections collapse to 'filter' regardless
+   *  of which combination of predicates produced them. */
+  source: '3d' | 'umap' | 'filter' | null;
 }

@@ -6,43 +6,85 @@ interface Props {
   setFilter: (f: FilterState) => void;
 }
 
-const MODES: Array<{ id: ColorMode; label: string }> = [
-  { id: 'region', label: 'Region' },
-  { id: 'gene', label: 'Gene' },
-  { id: 'cluster', label: 'Cluster' },
-  { id: 'bivariate', label: 'Co-coding' },
+const COLOR_SCHEMES: Array<{ value: ColorMode; label: string }> = [
+  { value: 'region', label: 'Region' },
+  { value: 'gene', label: 'Gene' },
+  { value: 'cluster', label: 'Cluster' },
+  { value: 'bivariate', label: 'Co-coding' },
 ];
+
+const ALL_OPTION = { value: -1, label: 'all' } as const;
 
 export function FilterControls({ data, filter, setFilter }: Props) {
   const update = (patch: Partial<FilterState>) => setFilter({ ...filter, ...patch });
 
-  const showGene = filter.colorMode === 'gene' || filter.colorMode === 'bivariate';
-  const showStimulus = filter.colorMode === 'bivariate';
-  const showCluster = filter.colorMode === 'cluster';
+  return (
+    <div className="flex flex-wrap items-stretch gap-x-2 gap-y-2 p-3 bg-neutral-800 border-t border-neutral-700">
+      <ColorsCard filter={filter} update={update} />
+      <CrossSep />
+      <AnatomyCard data={data} filter={filter} update={update} />
+      <CrossSep />
+      <TranscriptomicsCard data={data} filter={filter} update={update} />
+      <CrossSep />
+      <ActivityCard data={data} filter={filter} update={update} />
+    </div>
+  );
+}
 
-  const modeSelects = (
-    <>
-      {showGene && (
-        <Select
-          label="Gene"
-          value={filter.selectedGene}
-          onChange={(v) => update({ selectedGene: v })}
-          options={data.geneNames
-            .map((g, i) => ({ value: i, label: g }))
-            .sort((a, b) => a.label.localeCompare(b.label))}
-          arrows
-        />
-      )}
+// ── Cards ────────────────────────────────────────────────────────────
+
+function Card({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5 px-2.5 py-2 bg-neutral-900/60 border border-neutral-700 rounded">
+      <div className="text-[10px] uppercase tracking-wider text-neutral-500 font-mono">
+        {title}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">{children}</div>
+    </div>
+  );
+}
+
+function CrossSep() {
+  // self-stretch + flex centers the × vertically against whatever card
+  // height the row settles on. aria-hidden because the × is decorative —
+  // the card titles already convey "and these compose".
+  return (
+    <span
+      aria-hidden
+      className="self-stretch flex items-center text-neutral-500 text-lg font-mono select-none"
+    >
+      ×
+    </span>
+  );
+}
+
+function ColorsCard({
+  filter,
+  update,
+}: {
+  filter: FilterState;
+  update: (p: Partial<FilterState>) => void;
+}) {
+  const schemeOptions = COLOR_SCHEMES.map((s, i) => ({ value: i, label: s.label }));
+  const currentIdx = COLOR_SCHEMES.findIndex((s) => s.value === filter.colorMode);
+  return (
+    <Card title="Colors">
+      <Select
+        label="scheme"
+        value={currentIdx}
+        onChange={(v) => update({ colorMode: COLOR_SCHEMES[v].value })}
+        options={schemeOptions}
+      />
       {filter.colorMode === 'gene' && (
         <label className="flex items-center gap-1 text-xs">
-          <span className="text-neutral-400">Scale</span>
+          <span className="text-neutral-400">scale</span>
           <div className="flex border border-neutral-700 rounded overflow-hidden">
             {(['log', 'linear'] as const).map((s) => (
               <button
                 key={s}
                 onClick={() => update({ geneScale: s })}
                 className={
-                  'px-2 py-1 font-mono ' +
+                  'px-2 py-1 font-mono text-xs ' +
                   (filter.geneScale === s
                     ? 'bg-neutral-100 text-neutral-900'
                     : 'bg-neutral-900 text-neutral-300 hover:bg-neutral-700')
@@ -54,22 +96,90 @@ export function FilterControls({ data, filter, setFilter }: Props) {
           </div>
         </label>
       )}
-      {showStimulus && (
+    </Card>
+  );
+}
+
+function AnatomyCard({
+  data,
+  filter,
+  update,
+}: {
+  data: NeuronDataset;
+  filter: FilterState;
+  update: (p: Partial<FilterState>) => void;
+}) {
+  return (
+    <Card title="Anatomy">
+      <Select
+        label="region"
+        value={filter.isolatedRegion}
+        onChange={(v) => update({ isolatedRegion: v })}
+        options={[
+          ALL_OPTION,
+          ...data.regionNames
+            .map((r, i) => ({ value: i, label: r }))
+            .sort((a, b) => a.label.localeCompare(b.label)),
+        ]}
+        arrows
+      />
+    </Card>
+  );
+}
+
+function TranscriptomicsCard({
+  data,
+  filter,
+  update,
+}: {
+  data: NeuronDataset;
+  filter: FilterState;
+  update: (p: Partial<FilterState>) => void;
+}) {
+  // The "all" sentinel maps to the matching *All flag, leaving the
+  // persistent index alone so flipping txMode (or coming back from
+  // "all") doesn't lose the previously picked gene/cluster.
+  const onGeneChange = (v: number) => {
+    if (v < 0) update({ geneAll: true });
+    else update({ geneAll: false, selectedGene: v });
+  };
+  const onClusterChange = (v: number) => {
+    if (v < 0) update({ clusterAll: true });
+    else update({ clusterAll: false, selectedCluster: v });
+  };
+  const geneValue = filter.geneAll ? -1 : filter.selectedGene;
+  const clusterValue = filter.clusterAll ? -1 : filter.selectedCluster;
+
+  return (
+    <Card title="Transcriptomics">
+      <KindToggle
+        value={filter.txMode}
+        onChange={(m) => update({ txMode: m })}
+        options={[
+          { value: 'gene', label: 'Single gene' },
+          { value: 'subtype', label: 'Subtype' },
+        ]}
+      />
+      {filter.txMode === 'gene' ? (
         <Select
-          label="Stimulus"
-          value={filter.selectedStimulus}
-          onChange={(v) => update({ selectedStimulus: v })}
-          options={data.stimulusNames.map((s, i) => ({ value: i, label: s }))}
+          label="gene"
+          value={geneValue}
+          onChange={onGeneChange}
+          options={[
+            ALL_OPTION,
+            ...data.geneNames
+              .map((g, i) => ({ value: i, label: g }))
+              .sort((a, b) => a.label.localeCompare(b.label)),
+          ]}
           arrows
         />
-      )}
-      {showCluster && (
+      ) : (
         <Select
-          label="Cluster"
-          value={filter.selectedCluster}
-          onChange={(v) => update({ selectedCluster: v })}
+          label="cluster"
+          value={clusterValue}
+          onChange={onClusterChange}
           options={[
-            { value: -1, label: '— none —' },
+            ALL_OPTION,
             ...data.clusterNames
               .map((c, i) => ({ value: i, label: c }))
               .sort((a, b) => a.label.localeCompare(b.label)),
@@ -77,50 +187,67 @@ export function FilterControls({ data, filter, setFilter }: Props) {
           arrows
         />
       )}
-    </>
+    </Card>
   );
+}
 
+function ActivityCard({
+  data,
+  filter,
+  update,
+}: {
+  data: NeuronDataset;
+  filter: FilterState;
+  update: (p: Partial<FilterState>) => void;
+}) {
+  const onChange = (v: number) => {
+    if (v < 0) update({ stimulusAll: true });
+    else update({ stimulusAll: false, selectedStimulus: v });
+  };
+  const value = filter.stimulusAll ? -1 : filter.selectedStimulus;
   return (
-    <div className="flex flex-col gap-2 p-3 bg-neutral-800 border-t border-neutral-700">
-      {/* Row 1: always-available region isolation */}
-      <div className="flex flex-wrap items-center gap-3">
-        <Select
-          label="Isolate region"
-          value={filter.isolatedRegion}
-          onChange={(v) => update({ isolatedRegion: v })}
-          options={[
-            { value: -1, label: '— all —' },
-            ...data.regionNames
-              .map((r, i) => ({ value: i, label: r }))
-              .sort((a, b) => a.label.localeCompare(b.label)),
-          ]}
-          arrows
-        />
-      </div>
+    <Card title="Activity">
+      <Select
+        label="stimulus"
+        value={value}
+        onChange={onChange}
+        options={[
+          ALL_OPTION,
+          ...data.stimulusNames.map((s, i) => ({ value: i, label: s })),
+        ]}
+        arrows
+      />
+    </Card>
+  );
+}
 
-      {/* Row 2: color mode toggle */}
-      <div className="flex items-center gap-1">
-        <span className="text-xs text-neutral-400 mr-1">Color</span>
-        {MODES.map((m) => (
-          <button
-            key={m.id}
-            onClick={() => update({ colorMode: m.id })}
-            className={
-              'px-2.5 py-1 text-xs font-mono border rounded ' +
-              (filter.colorMode === m.id
-                ? 'bg-neutral-100 text-neutral-900 border-neutral-100'
-                : 'bg-neutral-900 text-neutral-300 border-neutral-700 hover:bg-neutral-700')
-            }
-          >
-            {m.label}
-          </button>
-        ))}
-      </div>
+// ── Reusable controls ────────────────────────────────────────────────
 
-      {/* Row 3: mode-specific selects (only shown when relevant) */}
-      {(showGene || showStimulus || showCluster) && (
-        <div className="flex flex-wrap items-center gap-3">{modeSelects}</div>
-      )}
+function KindToggle<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T;
+  onChange: (v: T) => void;
+  options: Array<{ value: T; label: string }>;
+}) {
+  return (
+    <div className="flex border border-neutral-700 rounded overflow-hidden text-xs">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          onClick={() => onChange(o.value)}
+          className={
+            'px-2 py-1 font-mono ' +
+            (value === o.value
+              ? 'bg-neutral-100 text-neutral-900'
+              : 'bg-neutral-900 text-neutral-300 hover:bg-neutral-700')
+          }
+        >
+          {o.label}
+        </button>
+      ))}
     </div>
   );
 }
@@ -139,7 +266,8 @@ function Select({
   arrows?: boolean;
 }) {
   // Step relative to the (display-sorted) option order. Wraps at boundaries
-  // so cycling never dead-ends.
+  // so cycling never dead-ends. The "all" sentinel is just another option
+  // in the list as far as cycling is concerned.
   const step = (delta: number) => {
     if (options.length === 0) return;
     let i = options.findIndex((o) => o.value === value);
@@ -185,3 +313,4 @@ function Select({
     </label>
   );
 }
+

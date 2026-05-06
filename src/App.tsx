@@ -7,14 +7,19 @@ import { DetailPanel } from './components/DetailPanel';
 import { FilterControls } from './components/FilterControls';
 import { UmapPanel } from './components/UmapPanel';
 import { ColorLegend } from './components/ColorLegend';
+import { anyFilterActive, cellInSet } from './utils/coloring';
 
 const INITIAL_FILTER: FilterState = {
   colorMode: 'region',
-  selectedGene: 0,
-  selectedStimulus: 0,
-  selectedCluster: -1,
-  isolatedRegion: -1,
   geneScale: 'log',
+  isolatedRegion: -1,
+  txMode: 'gene',
+  selectedGene: 0,
+  geneAll: true,
+  selectedCluster: 0,
+  clusterAll: true,
+  selectedStimulus: 0,
+  stimulusAll: true,
 };
 
 const DETAIL_PANEL_WIDTH = 360;
@@ -43,41 +48,39 @@ export default function App() {
     selectionSourceRef.current = selection.source;
   }, [selection.source]);
 
-  // When the filter picks an actionable handle (cluster or region),
-  // reflect it as the active selection so the detail panel updates.
-  // Filter-derived selections must NOT outlive the filter that produced them
-  // (e.g. a cluster pick should not still be highlighting cells once the
-  // user has switched to Co-coding mode). User-explicit selections (3D
-  // click, t-SNE box-drag) are preserved across filter changes.
+  // When any non-color filter is constraining (anatomy / transcriptomics
+  // / activity), reflect the intersection of every active predicate as
+  // the active selection so the detail panel updates. Filter-derived
+  // selections must NOT outlive the filters that produced them — when
+  // every filter goes back to "all", drop the filter-derived selection
+  // but leave 3D/t-SNE selections in place.
   useEffect(() => {
     if (!data) return;
-    if (filter.colorMode === 'cluster' && filter.selectedCluster >= 0) {
+    if (anyFilterActive(filter)) {
       const out: number[] = [];
       for (let i = 0; i < data.count; i++) {
-        if (data.clusterIds[i] === filter.selectedCluster) out.push(i);
+        if (cellInSet(data, filter, i)) out.push(i);
       }
-      setIndices(new Uint32Array(out), 'cluster');
+      setIndices(new Uint32Array(out), 'filter');
       return;
     }
-    if (filter.isolatedRegion >= 0) {
-      const out: number[] = [];
-      for (let i = 0; i < data.count; i++) {
-        if (data.regionIds[i] === filter.isolatedRegion) out.push(i);
-      }
-      setIndices(new Uint32Array(out), 'region');
-      return;
-    }
-    // No filter-derived handle is active. Clear any stale filter-derived
-    // selection (cluster/region) but leave 3D/t-SNE selections in place.
-    const src = selectionSourceRef.current;
-    if (src === 'cluster' || src === 'region') {
+    if (selectionSourceRef.current === 'filter') {
       clear();
     }
   }, [
     data,
-    filter.colorMode,
-    filter.selectedCluster,
+    // colorMode and geneScale are pure visual choices and don't affect
+    // cellInSet; listing every predicate-relevant field instead of the
+    // whole filter avoids redundant setIndices() calls when the user
+    // just changes the color scheme.
     filter.isolatedRegion,
+    filter.txMode,
+    filter.selectedGene,
+    filter.geneAll,
+    filter.selectedCluster,
+    filter.clusterAll,
+    filter.selectedStimulus,
+    filter.stimulusAll,
     setIndices,
     clear,
   ]);
