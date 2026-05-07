@@ -90,9 +90,7 @@ export function ColorLegend({ data, filter, settings }: Props) {
     const title = useRichness
       ? 'Gene richness'
       : `Gene: ${data.geneNames[filter.selectedGene]}`;
-    const axisLabel = useRichness
-      ? '# genes expressed'
-      : `spot count (${isLog ? 'log' : 'linear'})`;
+    const axisLabel = useRichness ? '# genes expressed' : 'mRNA spot count';
     return (
       <div
         style={positionStyle}
