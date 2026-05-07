@@ -11,6 +11,10 @@ interface Props {
   settings: SettingsState;
   setSettings: (s: SettingsState) => void;
   onReset: () => void;
+  /** Apply a preset view (Help-tab "reproduce a finding" buttons).
+   *  Caller is expected to base this on INITIAL_FILTER and clear any
+   *  user-explicit selections so the preset starts from a clean state. */
+  applyView: (preset: Partial<FilterState>) => void;
 }
 
 const COLOR_SCHEMES: Array<{ value: ColorMode; label: string }> = [
@@ -29,7 +33,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'help', label: 'Help' },
 ];
 
-export function FilterControls({ data, filter, setFilter, settings, setSettings, onReset }: Props) {
+export function FilterControls({ data, filter, setFilter, settings, setSettings, onReset, applyView }: Props) {
   const update = (patch: Partial<FilterState>) => setFilter({ ...filter, ...patch });
   const [tab, setTab] = useState<Tab>('filters');
 
@@ -72,7 +76,7 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
         {tab === 'settings' && (
           <SettingsTab settings={settings} setSettings={setSettings} />
         )}
-        {tab === 'help' && <HelpTab />}
+        {tab === 'help' && <HelpTab data={data} applyView={applyView} />}
       </div>
     </div>
   );
@@ -299,7 +303,118 @@ function NumberRow({
   );
 }
 
-function HelpTab() {
+/** A "reproduce this finding" preset for the Help tab. References the
+ *  dataset by name (cluster/gene name strings, stimulus indices) so
+ *  presets stay valid if cluster IDs shift between dataset versions. */
+interface FindingPreset {
+  title: string;
+  /** Figure / abstract reference shown next to the button. */
+  figure: string;
+  /** One-line description of what the user should look for. */
+  description: string;
+  colorMode?: ColorMode;
+  /** Cluster name (e.g. 'pou4f2_cckb'). Resolved against data.clusterNames. */
+  cluster?: string;
+  /** Gene name (e.g. 'otpa'). Resolved against data.geneNames. */
+  gene?: string;
+  /** Stimulus indices (0..7) — these are stable across dataset versions. */
+  stimuli?: number[];
+}
+
+const FINDINGS: FindingPreset[] = [
+  {
+    title: 'pou4f2_cckb dimming-light response',
+    figure: 'Figure 5F · abstract',
+    description:
+      'Tectal pou4f2_cckb subtype is positively correlated with the dark-flash stimulus — the cckb-pou4f2 luminance-coding population highlighted in the abstract.',
+    colorMode: 'stim',
+    cluster: 'pou4f2_cckb',
+    stimuli: [5],
+  },
+  {
+    title: 'pvalb7_eomesa task-related neurons',
+    figure: 'Figure 4D-E · abstract',
+    description:
+      'Hippocampal-like pvalb7+/eomesa+ population in the dorsal pallium with task-structured calcium activity.',
+    colorMode: 'highlight',
+    cluster: 'pvalb7_eomesa',
+  },
+  {
+    title: 'calb2a_nefma — forward visual motion',
+    figure: 'Figure 3C',
+    description:
+      'Hindbrain calb2a_nefma cells respond strongest to forward visual motion (the swim-eliciting stimulus).',
+    colorMode: 'stim',
+    cluster: 'calb2a_nefma',
+    stimuli: [0],
+  },
+  {
+    title: 'calb2a_gfra1a — luminance & looming',
+    figure: 'Figure 3C',
+    description:
+      'Tectal calb2a_gfra1a cells respond preferentially to the last four stimuli (light flash, dark flash, right loom, left loom).',
+    colorMode: 'stim',
+    cluster: 'calb2a_gfra1a',
+    stimuli: [4, 5, 6, 7],
+  },
+  {
+    title: 'pou4f2_cckb_chata — dark and bright flashes',
+    figure: 'Figure 3D',
+    description:
+      'Tectal pou4f2_cckb_chata cells respond to both bright and dark flashes — combined via OR logic so cells that pass either count.',
+    colorMode: 'stim',
+    cluster: 'pou4f2_cckb_chata',
+    stimuli: [4, 5],
+  },
+  {
+    title: 'otpa expression — motor-coding cells',
+    figure: 'Figure 3G',
+    description:
+      'Brain map of otpa transcript counts. otpa is enriched in cells whose activity correlates with swimming.',
+    colorMode: 'gene',
+    gene: 'otpa',
+  },
+  {
+    title: 'gad1b_tph2_gfra1a — anti-correlated raphe',
+    figure: 'Figure 5D',
+    description:
+      'Dorsal-raphe gad1b_tph2_gfra1a cells are negatively correlated with forward visual motion / swimming. Cells with the strongest negative r appear dim.',
+    colorMode: 'stim',
+    cluster: 'gad1b_tph2_gfra1a',
+    stimuli: [0],
+  },
+];
+
+function buildPresetFilter(p: FindingPreset, data: NeuronDataset): Partial<FilterState> | null {
+  const out: Partial<FilterState> = {};
+  if (p.colorMode) out.colorMode = p.colorMode;
+  if (p.cluster) {
+    const idx = data.clusterNames.indexOf(p.cluster);
+    if (idx < 0) return null;
+    out.txMode = 'subtype';
+    out.selectedCluster = idx;
+    out.clusterAll = false;
+  }
+  if (p.gene) {
+    const idx = data.geneNames.indexOf(p.gene);
+    if (idx < 0) return null;
+    out.txMode = 'gene';
+    out.selectedGene = idx;
+    out.geneAll = false;
+  }
+  if (p.stimuli && p.stimuli.length > 0) {
+    out.selectedStimuli = [...p.stimuli].sort((a, b) => a - b);
+  }
+  return out;
+}
+
+function HelpTab({
+  data,
+  applyView,
+}: {
+  data: NeuronDataset;
+  applyView: (preset: Partial<FilterState>) => void;
+}) {
   return (
     <div className="flex flex-col gap-4 pb-3 text-xs font-mono text-neutral-300 max-w-2xl">
       <section className="flex flex-col gap-1">
@@ -377,6 +492,56 @@ function HelpTab() {
           <li>Co-expression view: set <span className="text-neutral-200">Colors → Stim correlation</span>, pick a stimulus in <span className="text-neutral-200">Visual Stimuli</span>, and pick a single gene in <span className="text-neutral-200">Transcriptomics</span> — the remaining cells are gene-positive, coloured by how strongly they respond to the stimulus.</li>
           <li>Click any cell to fill in the details panel: per-gene spot counts, mean ΔF/F trace with each stimulus's on-window shaded, and a per-stimulus correlation bar chart.</li>
         </ol>
+      </section>
+
+      <section className="flex flex-col gap-1">
+        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+          Reproduce a finding from the preprint
+        </div>
+        <p className="text-neutral-400 leading-snug">
+          Each button sets the filters/colour scheme to reproduce a
+          specific finding from the{' '}
+          <a
+            href="https://www.biorxiv.org/content/10.64898/2026.02.07.704095v1"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-yellow-300 hover:underline"
+          >
+            WARP preprint
+          </a>
+          . Selections (lasso / focused cell) are cleared so the preset
+          starts fresh.
+        </p>
+        <ul className="flex flex-col gap-1.5 mt-1">
+          {FINDINGS.map((f) => {
+            const preset = buildPresetFilter(f, data);
+            const enabled = preset != null;
+            return (
+              <li key={f.title} className="flex flex-col gap-0.5">
+                <div className="flex items-baseline gap-2">
+                  <button
+                    onClick={() => preset && applyView(preset)}
+                    disabled={!enabled}
+                    className={
+                      'text-left px-2 py-0.5 rounded border font-mono text-xs ' +
+                      (enabled
+                        ? 'border-neutral-700 bg-neutral-900/60 text-neutral-200 hover:bg-neutral-700 hover:border-neutral-500'
+                        : 'border-neutral-800 text-neutral-600 cursor-default')
+                    }
+                  >
+                    {f.title}
+                  </button>
+                  <span className="text-[10px] text-neutral-500 font-mono">
+                    {f.figure}
+                  </span>
+                </div>
+                <p className="text-[11px] text-neutral-400 leading-snug ml-1">
+                  {f.description}
+                </p>
+              </li>
+            );
+          })}
+        </ul>
       </section>
 
       <section className="flex flex-col gap-1">

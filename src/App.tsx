@@ -198,6 +198,18 @@ export default function App() {
     setFilter(INITIAL_FILTER);
   }, []);
 
+  // Help-tab "reproduce a finding" buttons jump straight into a preset
+  // view: replace the filter (no merge — leftover state from prior
+  // exploration would muddy the reproduction), and clear the
+  // user-explicit selections so the preset's filter-derived intersection
+  // is what's shown rather than an unrelated lasso/focus from before.
+  const handleApplyView = useCallback((preset: Partial<FilterState>) => {
+    setFilter({ ...INITIAL_FILTER, ...preset });
+    setFocusedNeuron(null);
+    setLassoPoly(null);
+    clear();
+  }, [clear]);
+
   // Outer 2-column grid: main content on the left, detail panel on the
   // right (full screen height) when open. minmax(0, 1fr) lets the main
   // column actually shrink below its content's intrinsic size — plain
@@ -322,6 +334,7 @@ export default function App() {
                   settings={settings}
                   setSettings={setSettings}
                   onReset={handleResetFilters}
+                  applyView={handleApplyView}
                 />
               </div>
               <UmapPanel
