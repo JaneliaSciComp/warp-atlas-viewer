@@ -210,6 +210,8 @@ export default function App() {
                 filter={filter}
                 settings={settings}
                 selection={selection}
+                focusedNeuron={focusedNeuron}
+                onFocus={setFocusedNeuron}
                 onSelect={handleUmapSelect}
               />
             </div>

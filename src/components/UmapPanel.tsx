@@ -7,6 +7,11 @@ interface Props {
   filter: FilterState;
   settings: SettingsState;
   selection: SelectionState;
+  /** Single-neuron focus, mirrored from the 3D viewer. Click in
+   *  t-SNE → focus; click empty space → unfocus. The lasso selection
+   *  is independent and survives focus changes. */
+  focusedNeuron: number | null;
+  onFocus: (i: number | null) => void;
   onSelect: (indices: Uint32Array, source: 'umap') => void;
 }
 
@@ -34,7 +39,7 @@ function pointInPolygon(x: number, y: number, poly: Array<[number, number]>): bo
   return inside;
 }
 
-export function UmapPanel({ data, filter, settings, selection, onSelect }: Props) {
+export function UmapPanel({ data, filter, settings, selection, focusedNeuron, onFocus, onSelect }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 400, h: 200 });
@@ -138,6 +143,25 @@ export function UmapPanel({ data, filter, settings, selection, onSelect }: Props
       ctx.fillRect(px, py, dotSize, dotSize);
     }
 
+    // Focused-neuron marker: a small white ring drawn on top of the
+    // scatter so the cell stands out regardless of color scheme.
+    if (focusedNeuron != null && focusedNeuron >= 0 && focusedNeuron < data.count) {
+      const [px, py] = project(
+        data.umap[focusedNeuron * 2],
+        data.umap[focusedNeuron * 2 + 1],
+        size.w,
+        size.h,
+        viewport,
+      );
+      if (px >= -10 && py >= -10 && px <= size.w + 10 && py <= size.h + 10) {
+        ctx.beginPath();
+        ctx.arc(px + dotSize / 2, py + dotSize / 2, 6, 0, Math.PI * 2);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+    }
+
     if (drag && drag.kind === 'select' && drag.pts.length > 1) {
       const pts = drag.pts;
       ctx.beginPath();
@@ -156,7 +180,7 @@ export function UmapPanel({ data, filter, settings, selection, onSelect }: Props
       ctx.stroke();
       ctx.setLineDash([]);
     }
-  }, [data, filter, settings, selection, buffers, size, viewport, project, drag]);
+  }, [data, filter, settings, selection, focusedNeuron, buffers, size, viewport, project, drag]);
 
   // Wheel: zoom anchored at the cursor so the data point under the mouse
   // stays put. Native non-passive listener (React's onWheel is passive in
@@ -245,13 +269,9 @@ export function UmapPanel({ data, filter, settings, selection, onSelect }: Props
     }
     const pts = d.pts;
     setDrag(null);
-    // Need at least a triangle to enclose anything; treat tiny lassos
-    // (clicks or near-clicks) as "clear selection".
-    if (pts.length < 3) {
-      onSelect(new Uint32Array(0), 'umap');
-      return;
-    }
-    // Bounding box for a quick reject before the polygon test.
+    // Bounding box: distinguishes a tap (≤ 3 px in either dimension)
+    // from a real lasso. A tap also captures the case of < 3 vertices
+    // since you can't have an enclosing polygon below that.
     let bxmin = pts[0][0], bxmax = pts[0][0];
     let bymin = pts[0][1], bymax = pts[0][1];
     for (let p = 1; p < pts.length; p++) {
@@ -259,8 +279,28 @@ export function UmapPanel({ data, filter, settings, selection, onSelect }: Props
       if (px < bxmin) bxmin = px; else if (px > bxmax) bxmax = px;
       if (py < bymin) bymin = py; else if (py > bymax) bymax = py;
     }
-    if (bxmax - bxmin < 3 || bymax - bymin < 3) {
-      onSelect(new Uint32Array(0), 'umap');
+    const isTap = pts.length < 3 || (bxmax - bxmin < 3 && bymax - bymin < 3);
+    if (isTap) {
+      // Click handling: find the nearest neuron within ~16 px and
+      // focus it (mirrors the 3D viewer's click-to-focus). If nothing
+      // is close enough, treat the empty click as "unfocus" — the
+      // lasso selection stays put either way.
+      const cx = pts[0][0], cy = pts[0][1];
+      const PIX_THRESH_SQ = 16 * 16;
+      let nearest = -1;
+      let nearestDist = PIX_THRESH_SQ;
+      for (let i = 0; i < data.count; i++) {
+        const [px, py] = project(data.umap[i * 2], data.umap[i * 2 + 1], size.w, size.h, viewport);
+        if (px < cx - 16 || px > cx + 16 || py < cy - 16 || py > cy + 16) continue;
+        const dx = px - cx;
+        const dy = py - cy;
+        const ds = dx * dx + dy * dy;
+        if (ds < nearestDist) {
+          nearestDist = ds;
+          nearest = i;
+        }
+      }
+      onFocus(nearest >= 0 ? nearest : null);
       return;
     }
     const out: number[] = [];
