@@ -509,8 +509,7 @@ function HelpTab({
           >
             WARP preprint
           </a>
-          . Selections (lasso / focused cell) are cleared so the preset
-          starts fresh.
+          . Selections (lasso / focused cell) are cleared.
         </p>
         <ul className="flex flex-col gap-1.5 mt-1">
           {FINDINGS.map((f) => {
