@@ -104,15 +104,22 @@ export interface FilterState {
 
   // ── Activity filter ───────────────────────────────────────────────
   /** Indices of stimuli the user has toggled ON in the Activity panel.
-   *  Sorted, unique. Two cases mean "no activity filter": an empty
-   *  array (nothing selected) and a full array (every stimulus
-   *  selected) — both end up as "any cell qualifies", so we treat
-   *  them identically. Anything in between is a real filter: cell
-   *  passes iff it's stim-correlated to at least one of the selected
-   *  stimuli. The Stim color scheme reads the same array — empty/full
-   *  → max across every stimulus, otherwise max across the selected. */
+   *  Sorted, unique. An empty array means "no activity filter"
+   *  (every cell qualifies); any non-empty selection is a real
+   *  filter combined according to `stimLogic`. The Stim color scheme
+   *  reads the same array — empty/full → max across every stimulus,
+   *  otherwise max across the selected. */
   selectedStimuli: number[];
+  /** How multi-stimulus selections combine in the Activity filter:
+   *    'or'  → cell passes iff it's stim-correlated to AT LEAST ONE
+   *            selected stimulus (above settings.stimLo)
+   *    'and' → cell passes iff it's stim-correlated to EVERY selected
+   *            stimulus
+   *  Only matters when `selectedStimuli.length >= 2`. */
+  stimLogic: StimLogic;
 }
+
+export type StimLogic = 'or' | 'and';
 
 /** User-tunable rendering parameters that aren't filters per se —
  *  e.g. the calcium-imaging thresholds that anchor the Stim color

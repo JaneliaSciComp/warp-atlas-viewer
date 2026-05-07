@@ -61,16 +61,23 @@ export function cellPasses(
       : true;
 
   // Activity filter: an empty selection means "don't filter by activity
-  // at all". Any non-empty selection (including the full set) is a real
-  // filter — cell passes iff at least one of the chosen stimuli is
-  // above the user-tunable responsive floor (settings.stimLo).
+  // at all". Any non-empty selection is a real filter — combined per
+  // `stimLogic`: 'or' passes if at least one of the chosen stimuli is
+  // above the user-tunable responsive floor (settings.stimLo); 'and'
+  // requires every chosen stimulus to clear the floor.
   const stims = filter.selectedStimuli;
   const stimActive = stims.length > 0;
   let passesStim = true;
   if (stimActive) {
-    passesStim = false;
-    for (let k = 0; k < stims.length; k++) {
-      if (ds.stimulusCorr[i * S + stims[k]] >= settings.stimLo) { passesStim = true; break; }
+    if (filter.stimLogic === 'and') {
+      for (let k = 0; k < stims.length; k++) {
+        if (ds.stimulusCorr[i * S + stims[k]] < settings.stimLo) { passesStim = false; break; }
+      }
+    } else {
+      passesStim = false;
+      for (let k = 0; k < stims.length; k++) {
+        if (ds.stimulusCorr[i * S + stims[k]] >= settings.stimLo) { passesStim = true; break; }
+      }
     }
   }
 

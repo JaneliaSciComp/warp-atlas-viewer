@@ -599,6 +599,7 @@ function ActivityCard({
     update({ selectedStimuli: Array.from(next).sort((a, b) => a - b) });
   };
   const hasSel = filter.selectedStimuli.length > 0;
+  const logicMeaningful = filter.selectedStimuli.length >= 2;
   return (
     <Card title="Visual Stimuli">
       <div className="grid grid-cols-4 gap-1">
@@ -629,18 +630,38 @@ function ActivityCard({
           );
         })}
       </div>
-      <button
-        onClick={() => update({ selectedStimuli: [] })}
-        disabled={!hasSel}
+      <div
         className={
-          'text-[10px] font-mono ' +
-          (hasSel
-            ? 'text-neutral-300 hover:text-neutral-100'
-            : 'text-neutral-600 cursor-default')
+          'flex items-center gap-3 ' +
+          (logicMeaningful ? 'opacity-100' : 'opacity-50')
+        }
+        title={
+          logicMeaningful
+            ? 'OR: cells responsive to any selected stimulus. AND: cells responsive to every selected stimulus.'
+            : 'Combine logic for multi-stimulus selections (only matters with 2+ stimuli toggled on).'
         }
       >
-        clear
-      </button>
+        <KindToggle
+          value={filter.stimLogic}
+          onChange={(v) => update({ stimLogic: v })}
+          options={[
+            { value: 'or', label: 'OR' },
+            { value: 'and', label: 'AND' },
+          ]}
+        />
+        <button
+          onClick={() => update({ selectedStimuli: [] })}
+          disabled={!hasSel}
+          className={
+            'ml-2 text-[10px] font-mono ' +
+            (hasSel
+              ? 'text-neutral-300 hover:text-neutral-100'
+              : 'text-neutral-600 cursor-default')
+          }
+        >
+          clear
+        </button>
+      </div>
     </Card>
   );
 }
