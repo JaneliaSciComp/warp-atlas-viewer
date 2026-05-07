@@ -242,7 +242,7 @@ function NumberRow({
             const v = parseFloat(e.target.value);
             if (Number.isFinite(v)) onChange(v);
           }}
-          className="bg-neutral-900 border border-neutral-700 rounded pl-2 pr-1 py-0.5 text-neutral-200 w-24 font-mono text-right"
+          className="bg-neutral-900 border border-neutral-700 rounded px-2 py-0.5 text-neutral-200 w-20 font-mono text-right [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
       </span>
     </label>
