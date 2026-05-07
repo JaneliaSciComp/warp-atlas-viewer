@@ -164,7 +164,7 @@ export function UmapPanel({ data, filter, settings, selection, focusedNeuron, on
         ctx.beginPath();
         ctx.arc(px, py, Math.max(6, radius + 2), 0, Math.PI * 2);
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 1;
         ctx.stroke();
       }
     }

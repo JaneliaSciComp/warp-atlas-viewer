@@ -75,20 +75,84 @@ function PointCloud({
   useEffect(() => {
     applyColoring(data, filter, settings, selection, buffers);
     // Stamp the focused neuron on top of whatever group coloring chose
-    // for it: full alpha, brightened, big enough to be unmistakable
-    // even when the surrounding group is dimmed.
+    // for it: full alpha, brightened, so it stays visible inside a
+    // dimmed group. The ring marker (below) handles the actual focus
+    // indicator — we don't bump the cell size.
     if (focusedNeuron != null && focusedNeuron >= 0 && focusedNeuron < data.count) {
       const i = focusedNeuron;
       buffers.colors[i * 3] = Math.min(1, buffers.colors[i * 3] * 1.2 + 0.25);
       buffers.colors[i * 3 + 1] = Math.min(1, buffers.colors[i * 3 + 1] * 1.2 + 0.25);
       buffers.colors[i * 3 + 2] = Math.min(1, buffers.colors[i * 3 + 2] * 1.2 + 0.25);
       buffers.alphas[i] = 1.0;
-      buffers.sizes[i] = Math.max(buffers.sizes[i], 7) * 2.5;
     }
     (geometry.attributes.instColor as THREE.BufferAttribute).needsUpdate = true;
     (geometry.attributes.instAlpha as THREE.BufferAttribute).needsUpdate = true;
     (geometry.attributes.instSize as THREE.BufferAttribute).needsUpdate = true;
   }, [data, filter, settings, selection, focusedNeuron, buffers, geometry]);
+
+  // Focused-neuron ring marker. Mirrors the t-SNE white outline: a
+  // hollow circle that grows with the cell up close and floors at a
+  // visible minimum when the cell shrinks at distance.
+  const markerGeometry = useMemo(() => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3), 3));
+    g.setDrawRange(0, 0);
+    return g;
+  }, []);
+
+  const markerMaterial = useMemo(() => {
+    return new THREE.ShaderMaterial({
+      vertexShader: `
+        uniform float pixelRatio;
+        uniform float baseSize;
+        void main() {
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          gl_Position = projectionMatrix * mvPosition;
+          float dist = -mvPosition.z;
+          float cellSize = baseSize * pixelRatio * (160.0 / max(dist, 40.0));
+          // Same recipe as the t-SNE ring: at least a visible floor,
+          // otherwise track the cell with a small buffer.
+          gl_PointSize = max(14.0 * pixelRatio, cellSize + 6.0 * pixelRatio);
+        }
+      `,
+      fragmentShader: `
+        precision mediump float;
+        void main() {
+          vec2 c = gl_PointCoord - vec2(0.5);
+          float r = length(c);
+          // Hollow ring with a soft 1.5-px-ish edge on either side.
+          float outer = smoothstep(0.50, 0.46, r);
+          float inner = smoothstep(0.40, 0.44, r);
+          float a = outer * inner;
+          if (a < 0.02) discard;
+          gl_FragColor = vec4(1.0, 1.0, 1.0, a);
+        }
+      `,
+      transparent: true,
+      depthWrite: false,
+      depthTest: false,
+      uniforms: {
+        pixelRatio: { value: gl.getPixelRatio() },
+        baseSize: { value: settings.pointSize },
+      },
+    });
+  }, [gl]);
+
+  useEffect(() => {
+    markerMaterial.uniforms.baseSize.value = settings.pointSize;
+  }, [markerMaterial, settings.pointSize]);
+
+  useEffect(() => {
+    if (focusedNeuron == null || focusedNeuron < 0 || focusedNeuron >= data.count) {
+      markerGeometry.setDrawRange(0, 0);
+      return;
+    }
+    const i = focusedNeuron;
+    const pos = markerGeometry.attributes.position as THREE.BufferAttribute;
+    pos.setXYZ(0, data.positions[i * 3], data.positions[i * 3 + 1], data.positions[i * 3 + 2]);
+    pos.needsUpdate = true;
+    markerGeometry.setDrawRange(0, 1);
+  }, [focusedNeuron, data, markerGeometry]);
 
   const ndcRef = useRef(new THREE.Vector3());
 
@@ -150,6 +214,7 @@ function PointCloud({
   return (
     <group rotation={[0, 0, orientation === 'landscape' ? Math.PI / 2 : 0]}>
       <points geometry={geometry} material={material} />
+      <points geometry={markerGeometry} material={markerMaterial} renderOrder={2} />
     </group>
   );
 }
