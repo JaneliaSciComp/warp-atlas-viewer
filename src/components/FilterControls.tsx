@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { NeuronDataset, FilterState, ColorMode, SettingsState } from '../data/types';
+import type { NeuronDataset, FilterState, ColorMode, SettingsState, Orientation } from '../data/types';
 import { DEFAULT_SETTINGS } from '../data/types';
 
 import { STIM_ICONS, STIM_LABELS } from '../utils/stimAssets';
@@ -92,7 +92,8 @@ function SettingsTab({
     settings.stimLo !== DEFAULT_SETTINGS.stimLo ||
     settings.stimHi !== DEFAULT_SETTINGS.stimHi ||
     settings.geneMaxSpots !== DEFAULT_SETTINGS.geneMaxSpots ||
-    settings.pointSize !== DEFAULT_SETTINGS.pointSize;
+    settings.pointSize !== DEFAULT_SETTINGS.pointSize ||
+    settings.orientation !== DEFAULT_SETTINGS.orientation;
   return (
     <div className="flex flex-col gap-4 text-[11px] font-mono text-neutral-300 max-w-md">
       <button
@@ -176,6 +177,54 @@ function SettingsTab({
           onChange={(v) => update({ pointSize: v })}
         />
       </section>
+
+      <section className="flex flex-col gap-2">
+        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+          Brain orientation
+        </div>
+        <p className="text-neutral-500 text-[10px] leading-tight">
+          How the brain is rotated in the 3D viewer. Both options are
+          dorsal (top-down) views; the arrow indicates where the
+          anterior end of the brain points on screen.
+        </p>
+        <OrientationToggle
+          value={settings.orientation}
+          onChange={(o) => update({ orientation: o })}
+        />
+      </section>
+    </div>
+  );
+}
+
+function OrientationToggle({
+  value,
+  onChange,
+}: {
+  value: Orientation;
+  onChange: (o: Orientation) => void;
+}) {
+  const opts: Array<{ id: Orientation; label: string; aria: string }> = [
+    { id: 'portrait', label: '↑', aria: 'anterior up' },
+    { id: 'landscape', label: '←', aria: 'anterior left' },
+  ];
+  return (
+    <div className="flex border border-neutral-700 rounded overflow-hidden self-start font-mono">
+      {opts.map((o) => (
+        <button
+          key={o.id}
+          onClick={() => onChange(o.id)}
+          aria-label={`orientation: ${o.aria}`}
+          title={`anterior ${o.aria.replace('anterior ', '')}`}
+          className={
+            'px-3 py-1 text-base leading-none ' +
+            (value === o.id
+              ? 'bg-neutral-100 text-neutral-900'
+              : 'bg-neutral-900 text-neutral-300 hover:bg-neutral-700')
+          }
+        >
+          {o.label}
+        </button>
+      ))}
     </div>
   );
 }

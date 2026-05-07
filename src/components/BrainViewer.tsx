@@ -2,7 +2,7 @@ import { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
-import type { NeuronDataset, FilterState, SelectionState, SettingsState } from '../data/types';
+import type { NeuronDataset, FilterState, SelectionState, SettingsState, Orientation } from '../data/types';
 import { allocColoring, applyColoring } from '../utils/coloring';
 import vertSrc from '../shaders/neuron.vert.glsl?raw';
 import fragSrc from '../shaders/neuron.frag.glsl?raw';
@@ -25,7 +25,6 @@ interface PickState {
   hovered: number;
 }
 
-export type Orientation = 'portrait' | 'landscape';
 
 /** Inner R3F component: owns the Points object and shader updates. */
 function PointCloud({
@@ -157,7 +156,7 @@ function PointCloud({
 
 export function BrainViewer({ data, filter, settings, selection, focusedNeuron, onFocus }: Props) {
   const [hover, setHover] = useState<{ i: number; x: number; y: number } | null>(null);
-  const [orientation, setOrientation] = useState<Orientation>('landscape');
+  const orientation: Orientation = settings.orientation;
   const pickRef = useRef<PickState>({ pos: null, hovered: -1 });
 
   const camPosition = useMemo(() => {
@@ -328,35 +327,6 @@ export function BrainViewer({ data, filter, settings, selection, focusedNeuron, 
         {highlightCount > 0 && (
           <div>{highlightCount.toLocaleString()} highlighted</div>
         )}
-      </div>
-      {/* orientation toggle — bottom-right corner. Both views are dorsal
-          (top-down) horizontal sections; the arrow shows where the anterior
-          end of the brain points on screen. */}
-      <div
-        className="absolute bottom-2 left-2 flex bg-neutral-900/85 border border-neutral-700 rounded font-mono overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {(
-          [
-            { id: 'portrait', label: '↑', aria: 'anterior up' },
-            { id: 'landscape', label: '←', aria: 'anterior left' },
-          ] as Array<{ id: Orientation; label: string; aria: string }>
-        ).map((o) => (
-          <button
-            key={o.id}
-            onClick={() => setOrientation(o.id)}
-            className={
-              'px-3 py-1 text-base leading-none ' +
-              (orientation === o.id
-                ? 'bg-neutral-100 text-neutral-900'
-                : 'text-neutral-300 hover:bg-neutral-700')
-            }
-            aria-label={`orientation: ${o.aria}`}
-            title={`orientation: ${o.aria}`}
-          >
-            {o.label}
-          </button>
-        ))}
       </div>
     </div>
   );
