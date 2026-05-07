@@ -60,12 +60,12 @@ export function cellPasses(
       ? ds.clusterIds[i] === filter.selectedCluster
       : true;
 
-  // Activity filter: empty selectedStimuli OR a full set both mean
-  // "no constraint". Anything in between is a real filter — cell
-  // passes iff at least one of the chosen stimuli is above the
-  // user-tunable responsive floor (settings.stimLo).
+  // Activity filter: an empty selection means "don't filter by activity
+  // at all". Any non-empty selection (including the full set) is a real
+  // filter — cell passes iff at least one of the chosen stimuli is
+  // above the user-tunable responsive floor (settings.stimLo).
   const stims = filter.selectedStimuli;
-  const stimActive = stims.length > 0 && stims.length < S;
+  const stimActive = stims.length > 0;
   let passesStim = true;
   if (stimActive) {
     passesStim = false;
@@ -89,12 +89,10 @@ export function cellInSet(
 }
 
 /** True iff at least one filter dimension is constraining. The activity
- *  filter only counts as active when between 1 and S-1 stimuli are
- *  toggled on — empty and full sets both mean "no constraint". */
+ *  filter is active whenever any stimulus is toggled on; an empty
+ *  selection means "no constraint". */
 export function anyFilterActive(ds: NeuronDataset, filter: FilterState): boolean {
-  const stimsActive =
-    filter.selectedStimuli.length > 0 &&
-    filter.selectedStimuli.length < ds.stimulusNames.length;
+  const stimsActive = filter.selectedStimuli.length > 0;
   return (
     filter.isolatedRegion >= 0 ||
     (filter.txMode === 'gene' && !filter.geneAll) ||
