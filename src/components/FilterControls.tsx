@@ -342,7 +342,7 @@ function HelpTab() {
           Mouse
         </div>
         <ul className="list-disc list-inside space-y-0.5 text-neutral-400 leading-snug">
-          <li><span className="text-neutral-200">3D</span>: drag to orbit · wheel to zoom · right-drag to pan · hover for ID/region/top genes · click a cell to focus it in the details panel</li>
+          <li><span className="text-neutral-200">3D</span>: drag to orbit · wheel to zoom · hover for ID/region/top genes · click a cell to focus it in the details panel (right-drag to pan can be enabled in Settings)</li>
           <li><span className="text-neutral-200">t-SNE</span>: drag to lasso-select · click a cell to focus · right-drag or shift+drag to pan · wheel to zoom</li>
         </ul>
       </section>
@@ -362,7 +362,7 @@ function HelpTab() {
           <li><span className="text-neutral-200">Colors</span> — how the visible cells are coloured (by region, by gene expression, by stimulus correlation, or just highlighted)</li>
           <li><span className="text-neutral-200">Anatomy</span> — isolate one of 16 brain regions</li>
           <li><span className="text-neutral-200">Transcriptomics</span> — keep only cells expressing a single gene, or cells belonging to a single functional subtype (e.g. <span className="text-neutral-200">pou4f2_cckb</span>)</li>
-          <li><span className="text-neutral-200">Visual Stimuli</span> — keep only cells whose calcium response correlates with one or more of the 8 stimuli (correlation threshold is in the Settings tab)</li>
+          <li><span className="text-neutral-200">Visual Stimuli</span> — keep only cells whose calcium response correlates with the selected stimuli; the <span className="text-neutral-200">OR / AND</span> toggle picks whether <em>any one</em> match is enough (default) or <em>every</em> selected stimulus must clear the threshold (correlation threshold is in the Settings tab)</li>
         </ul>
       </section>
 
@@ -386,7 +386,7 @@ function HelpTab() {
         <ul className="list-disc list-inside space-y-0.5 text-neutral-400 leading-snug">
           <li>The activity-trace x-axis is in seconds; one 134-second cycle contains all 8 stimuli back-to-back.</li>
           <li><span className="text-neutral-200">Gene richness:</span> in the <span className="text-neutral-200">Gene expression</span> colour scheme, if no single gene is pinned in <span className="text-neutral-200">Transcriptomics</span> (gene set to "all", or you're in Subtype mode), each cell is coloured by how many of the 41 panel genes it expresses. Pin a gene to switch to the classic single-gene FISH spot-count map.</li>
-          <li><span className="text-neutral-200">Stim correlation, max across selected:</span> with the <span className="text-neutral-200">Stim correlation</span> colour scheme, picking exactly one stimulus paints by that stimulus's Pearson r. With zero stimuli picked (or all of them) the cell is coloured by its <em>max</em> correlation across every stimulus; with a subset picked, max across just those.</li>
+          <li><span className="text-neutral-200">Stim correlation, max across selected:</span> with the <span className="text-neutral-200">Stim correlation</span> colour scheme, picking exactly one stimulus paints by that stimulus's Pearson r. With nothing picked the cell is coloured by its <em>max</em> correlation across every stimulus; with two or more picked, by max across just the selected set (independent of the OR/AND filter logic).</li>
         </ul>
       </section>
     </div>
