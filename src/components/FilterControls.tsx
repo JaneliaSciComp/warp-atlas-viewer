@@ -34,8 +34,8 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
   const [tab, setTab] = useState<Tab>('filters');
 
   return (
-    <div className="flex flex-col bg-neutral-800 border-t border-neutral-700">
-      <div className="flex border-b border-neutral-700 px-2 pt-1">
+    <div className="flex flex-col h-full min-h-0 bg-neutral-800 border-t border-neutral-700">
+      <div className="flex-shrink-0 flex border-b border-neutral-700 px-2 pt-1">
         {TABS.map((t) => {
           const active = tab === t.id;
           return (
@@ -54,7 +54,7 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
           );
         })}
       </div>
-      <div className="p-3">
+      <div className="flex-1 min-h-0 overflow-y-auto p-3">
         {tab === 'filters' && (
           <div className="flex flex-col gap-2">
             <ResetButton onReset={onReset} />

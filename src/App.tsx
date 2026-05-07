@@ -313,7 +313,7 @@ export default function App() {
               className="row-start-2 col-start-1 grid min-h-0 min-w-0"
               style={{ gridTemplateColumns: 'minmax(0, 1fr) 320px' }}
             >
-              <div className="flex flex-col bg-neutral-800 min-h-0 min-w-0 overflow-y-auto">
+              <div className="flex flex-col bg-neutral-800 min-h-0 min-w-0 overflow-hidden">
                 <FilterControls
                   data={data}
                   filter={filter}
