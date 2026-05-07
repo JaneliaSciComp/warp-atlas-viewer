@@ -1,5 +1,31 @@
 import type { NeuronDataset, FilterState, ColorMode } from '../data/types';
 
+// Stimulus icons, one per dataset stimulus index. Vite serves these as
+// hashed asset URLs in dev and prod. Order is significant: the index in
+// this array maps directly to the dataset's stimulus index.
+import stim1Url from '../../images/stim1_motion_fwd.svg';
+import stim2Url from '../../images/stim2_motion_back.svg';
+import stim3Url from '../../images/stim3_motion_right.svg';
+import stim4Url from '../../images/stim4_motion_left.svg';
+import stim5Url from '../../images/stim5_dark.svg';
+import stim6Url from '../../images/stim6_bright.svg';
+import stim7Url from '../../images/stim7_loom_right.svg';
+import stim8Url from '../../images/stim8_loom_left.svg';
+const STIM_ICONS = [stim1Url, stim2Url, stim3Url, stim4Url, stim5Url, stim6Url, stim7Url, stim8Url];
+// Human-readable stimulus labels parsed from the SVG filenames; used
+// for tooltips on the toggle buttons since the dataset's stimulusNames
+// are generic ("stim_1" through "stim_8"). Order matches STIM_ICONS.
+const STIM_LABELS = [
+  'motion forward',
+  'motion backward',
+  'motion right',
+  'motion left',
+  'dark',
+  'bright',
+  'loom right',
+  'loom left',
+];
+
 interface Props {
   data: NeuronDataset;
   filter: FilterState;
@@ -238,23 +264,56 @@ function ActivityCard({
   filter: FilterState;
   update: (p: Partial<FilterState>) => void;
 }) {
-  const onChange = (v: number) => {
-    if (v < 0) update({ stimulusAll: true });
-    else update({ stimulusAll: false, selectedStimulus: v });
+  const sel = new Set(filter.selectedStimuli);
+  const toggle = (idx: number) => {
+    const next = new Set(sel);
+    if (next.has(idx)) next.delete(idx);
+    else next.add(idx);
+    update({ selectedStimuli: Array.from(next).sort((a, b) => a - b) });
   };
-  const value = filter.stimulusAll ? -1 : filter.selectedStimulus;
+  const hasSel = filter.selectedStimuli.length > 0;
   return (
-    <Card title="Activity">
-      <Select
-        label="stimulus"
-        value={value}
-        onChange={onChange}
-        options={[
-          ALL_OPTION,
-          ...data.stimulusNames.map((s, i) => ({ value: i, label: s })),
-        ]}
-        arrows
-      />
+    <Card title="Visual Stimuli">
+      <div className="grid grid-cols-4 gap-1">
+        {data.stimulusNames.map((name, i) => {
+          const pressed = sel.has(i);
+          const icon = STIM_ICONS[i];
+          const label = STIM_LABELS[i] ?? name;
+          return (
+            <button
+              key={i}
+              onClick={() => toggle(i)}
+              title={label}
+              aria-pressed={pressed}
+              aria-label={`toggle ${label}`}
+              className={
+                'w-8 h-8 rounded border flex items-center justify-center transition-[border-color,box-shadow,opacity] ' +
+                (pressed
+                  ? 'border-yellow-300 ring-1 ring-yellow-300/60 opacity-100'
+                  : 'border-neutral-700 opacity-50 hover:opacity-90')
+              }
+            >
+              {icon ? (
+                <img src={icon} alt="" draggable={false} className="w-6 h-6" />
+              ) : (
+                <span className="text-[9px] text-neutral-300 font-mono">{i + 1}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      <button
+        onClick={() => update({ selectedStimuli: [] })}
+        disabled={!hasSel}
+        className={
+          'text-[10px] font-mono ' +
+          (hasSel
+            ? 'text-neutral-300 hover:text-neutral-100'
+            : 'text-neutral-600 cursor-default')
+        }
+      >
+        clear
+      </button>
     </Card>
   );
 }

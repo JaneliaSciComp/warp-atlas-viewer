@@ -69,9 +69,19 @@ export function cellPasses(
       ? ds.clusterIds[i] === filter.selectedCluster
       : true;
 
-  const passesStim =
-    filter.stimulusAll ||
-    ds.stimulusCorr[i * S + filter.selectedStimulus] >= STIM_LO;
+  // Activity filter: empty selectedStimuli OR a full set both mean
+  // "no constraint". Anything in between is a real filter — cell
+  // passes iff at least one of the chosen stimuli is above STIM_LO
+  // for it.
+  const stims = filter.selectedStimuli;
+  const stimActive = stims.length > 0 && stims.length < S;
+  let passesStim = true;
+  if (stimActive) {
+    passesStim = false;
+    for (let k = 0; k < stims.length; k++) {
+      if (ds.stimulusCorr[i * S + stims[k]] >= STIM_LO) { passesStim = true; break; }
+    }
+  }
 
   return { inRegion, passesTx, passesStim };
 }
@@ -86,13 +96,18 @@ export function cellInSet(
   return p.inRegion && p.passesTx && p.passesStim;
 }
 
-/** True iff at least one filter dimension is constraining (not "all"). */
-export function anyFilterActive(filter: FilterState): boolean {
+/** True iff at least one filter dimension is constraining. The activity
+ *  filter only counts as active when between 1 and S-1 stimuli are
+ *  toggled on — empty and full sets both mean "no constraint". */
+export function anyFilterActive(ds: NeuronDataset, filter: FilterState): boolean {
+  const stimsActive =
+    filter.selectedStimuli.length > 0 &&
+    filter.selectedStimuli.length < ds.stimulusNames.length;
   return (
     filter.isolatedRegion >= 0 ||
     (filter.txMode === 'gene' && !filter.geneAll) ||
     (filter.txMode === 'subtype' && !filter.clusterAll) ||
-    !filter.stimulusAll
+    stimsActive
   );
 }
 
@@ -132,13 +147,21 @@ export function applyColoring(
   const useRichness =
     filter.txMode === 'subtype' || (filter.txMode === 'gene' && filter.geneAll);
   const RICHNESS_LOG_DEN = Math.log(1 + G);
-  // Mirror of the gene-richness fallback for the Stim correlation
-  // scheme: when no specific stimulus is in focus, paint each cell by
-  // its MAX correlation across all stimuli ("most responsive to
-  // anything") rather than silently using whichever stim happens to be
-  // the persistent index. Mean would be washed out by uncorrelated
-  // stims; max keeps the responsive-cell map crisp.
-  const useStimMax = filter.stimulusAll;
+  // Stim color scheme: when exactly one stimulus is selected we paint
+  // by that stimulus's correlation; otherwise (zero, all, or 2..S-1
+  // selected) we paint by max across the relevant set. Mean would be
+  // washed out by uncorrelated stims; max keeps the responsive-cell
+  // map crisp. Empty selection and full selection both mean "max
+  // across all" — the same way the activity filter treats them as
+  // "no constraint".
+  const stimSel = filter.selectedStimuli;
+  const useStimMax = stimSel.length !== 1;
+  const stimMaxIndices: number[] | null =
+    !useStimMax
+      ? null
+      : stimSel.length > 0 && stimSel.length < S
+        ? stimSel
+        : null; // null → max over every stimulus index 0..S-1
 
   // Build a fast lookup of selected indices.
   const selSet = selection.indices.length > 0 ? new Set<number>(Array.from(selection.indices)) : null;
@@ -228,8 +251,10 @@ export function applyColoring(
           // drops gene-negative cells, leaving only gene+ cells painted
           // by their stim correlation.
           let rawA: number;
-          if (useStimMax) {
-            // Per-cell max across all stimuli; ~S ops per cell.
+          if (!useStimMax) {
+            rawA = stimulusCorr[i * S + stimSel[0]];
+          } else if (stimMaxIndices === null) {
+            // Max over every stimulus index 0..S-1.
             const base = i * S;
             let m = stimulusCorr[base];
             for (let j = 1; j < S; j++) {
@@ -238,7 +263,14 @@ export function applyColoring(
             }
             rawA = m;
           } else {
-            rawA = stimulusCorr[i * S + filter.selectedStimulus];
+            // Max over the user-selected subset.
+            const base = i * S;
+            let m = stimulusCorr[base + stimMaxIndices[0]];
+            for (let k = 1; k < stimMaxIndices.length; k++) {
+              const c = stimulusCorr[base + stimMaxIndices[k]];
+              if (c > m) m = c;
+            }
+            rawA = m;
           }
           const v = Math.max(0, Math.min(1, (rawA - STIM_LO) / STIM_RANGE));
           if (v <= 0) {

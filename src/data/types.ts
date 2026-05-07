@@ -103,8 +103,15 @@ export interface FilterState {
   clusterAll: boolean;
 
   // ── Activity filter ───────────────────────────────────────────────
-  selectedStimulus: number; // index into stimulusNames, persistent
-  stimulusAll: boolean;
+  /** Indices of stimuli the user has toggled ON in the Activity panel.
+   *  Sorted, unique. Two cases mean "no activity filter": an empty
+   *  array (nothing selected) and a full array (every stimulus
+   *  selected) — both end up as "any cell qualifies", so we treat
+   *  them identically. Anything in between is a real filter: cell
+   *  passes iff it's stim-correlated to at least one of the selected
+   *  stimuli. The Stim color scheme reads the same array — empty/full
+   *  → max across every stimulus, otherwise max across the selected. */
+  selectedStimuli: number[];
 }
 
 export interface SelectionState {

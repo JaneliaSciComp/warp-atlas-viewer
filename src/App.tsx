@@ -19,8 +19,7 @@ const INITIAL_FILTER: FilterState = {
   geneStrict: true,
   selectedCluster: 0,
   clusterAll: true,
-  selectedStimulus: 0,
-  stimulusAll: true,
+  selectedStimuli: [],
 };
 
 const DETAIL_PANEL_WIDTH = 360;
@@ -53,7 +52,7 @@ export default function App() {
   const effectiveSelection = useMemo<SelectionState>(() => {
     if (!data) return selection;
     if (selection.indices.length > 0) return selection;
-    if (anyFilterActive(filter)) {
+    if (anyFilterActive(data, filter)) {
       const out: number[] = [];
       for (let i = 0; i < data.count; i++) {
         if (cellInSet(data, filter, i)) out.push(i);

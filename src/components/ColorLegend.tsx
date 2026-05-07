@@ -102,11 +102,17 @@ export function ColorLegend({ data, filter }: Props) {
   }
   // stim correlation — 1D plasma from STIM_LO to STIM_HI, mirroring the
   // gene scheme's structure. Co-coding falls out by composing this with
-  // a single-gene filter. When no specific stimulus is in focus, the
-  // scheme aggregates as max-across-stimuli (mirror of gene richness).
-  const stimTitle = filter.stimulusAll
-    ? 'Stim: max across all'
-    : `Stim: ${data.stimulusNames[filter.selectedStimulus]}`;
+  // a single-gene filter. The scheme follows the Activity panel's
+  // selection: empty/full → max across every stimulus; one toggle →
+  // that stim's correlation; a 2..S-1 subset → max across the subset.
+  const sel = filter.selectedStimuli;
+  const S = data.stimulusNames.length;
+  const stimTitle =
+    sel.length === 1
+      ? `Stim: ${data.stimulusNames[sel[0]]}`
+      : sel.length === 0 || sel.length === S
+        ? 'Stim: max across all'
+        : `Stim: max across ${sel.length}`;
   const N = 16;
   const stops = Array.from({ length: N }, (_, i) => rgbToHex(plasma(i / (N - 1))));
   const gradient = `linear-gradient(to right, ${stops.join(', ')})`;

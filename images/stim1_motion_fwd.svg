@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16.81 16.64">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: rgba(234, 72, 74, .3);
+        stroke: #221f1f;
+        stroke-width: .5px;
+      }
+
+      .cls-1, .cls-2 {
+        stroke-miterlimit: 10;
+      }
+
+      .cls-2 {
+        fill: none;
+        stroke: #fff;
+        stroke-width: 1.8px;
+      }
+
+      .cls-3 {
+        fill: #221f1f;
+      }
+
+      .cls-3, .cls-4 {
+        stroke-width: 0px;
+      }
+
+      .cls-4 {
+        fill: #fff;
+      }
+    </style>
+  </defs>
+  <rect class="cls-4" y="-.21" width="17.07" height="17.07"/>
+  <g>
+    <g>
+      <rect class="cls-1" x="1.33" y="1.24" width="14.05" height="14.05" transform="translate(.09 16.62) rotate(-90)"/>
+      <rect class="cls-3" x="7.48" y="6.1" width="1.75" height="14.05" transform="translate(-4.77 21.47) rotate(-90)"/>
+      <rect class="cls-3" x="7.48" y="2.9" width="1.75" height="14.05" transform="translate(-1.57 18.28) rotate(-90)"/>
+      <rect class="cls-3" x="7.48" y="-.3" width="1.75" height="14.05" transform="translate(1.62 15.08) rotate(-90)"/>
+      <rect class="cls-3" x="7.48" y="-3.49" width="1.75" height="14.05" transform="translate(4.82 11.88) rotate(-90)"/>
+    </g>
+    <g>
+      <line class="cls-4" x1="8.23" y1="13.16" x2="8.23" y2="4"/>
+      <g>
+        <line class="cls-2" x1="8.23" y1="13.16" x2="8.23" y2="9.17"/>
+        <polygon class="cls-4" points="11.82 10.22 8.23 4 4.64 10.22 11.82 10.22"/>
+      </g>
+    </g>
+  </g>
+</svg>

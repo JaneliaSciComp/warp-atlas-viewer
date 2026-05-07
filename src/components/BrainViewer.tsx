@@ -181,16 +181,21 @@ export function BrainViewer({ data, filter, selection, focusedNeuron, onFocus }:
       return n;
     }
     if (filter.colorMode === 'stim') {
-      // Anything that lights up: cells whose stim correlation is above
-      // the responsive floor (r > 0.30); below that the scheme paints
-      // them as background dim. When no stim is in focus, mirror
-      // applyColoring's max-across-stimuli aggregation.
+      // Cells that light up: those above the responsive floor (r > 0.30)
+      // for whichever stimulus the scheme is keying off of. Mirrors
+      // applyColoring: a single selected stim → that one; anything else
+      // (zero, all, or a subset) → max across the corresponding set.
+      const sel = filter.selectedStimuli;
+      const useMax = sel.length !== 1;
+      const maxSet =
+        !useMax ? null : sel.length > 0 && sel.length < S ? sel : null;
       let n = 0;
       const STIM_LO = 0.30;
-      const useMax = filter.stimulusAll;
       for (let i = 0; i < data.count; i++) {
         let r: number;
-        if (useMax) {
+        if (!useMax) {
+          r = data.stimulusCorr[i * S + sel[0]];
+        } else if (maxSet === null) {
           const base = i * S;
           let m = data.stimulusCorr[base];
           for (let j = 1; j < S; j++) {
@@ -199,14 +204,20 @@ export function BrainViewer({ data, filter, selection, focusedNeuron, onFocus }:
           }
           r = m;
         } else {
-          r = data.stimulusCorr[i * S + filter.selectedStimulus];
+          const base = i * S;
+          let m = data.stimulusCorr[base + maxSet[0]];
+          for (let k = 1; k < maxSet.length; k++) {
+            const c = data.stimulusCorr[base + maxSet[k]];
+            if (c > m) m = c;
+          }
+          r = m;
         }
         if (r > STIM_LO) n++;
       }
       return n;
     }
     return 0;
-  }, [data, filter.colorMode, filter.selectedGene, filter.selectedStimulus, filter.stimulusAll, selection.indices]);
+  }, [data, filter.colorMode, filter.selectedGene, filter.selectedStimuli, selection.indices]);
 
   // Track the pointer-down position so we can distinguish a click (no
   // movement) from a drag (rotate / pan). Without this, a drag-rotate
