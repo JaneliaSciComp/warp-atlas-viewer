@@ -106,7 +106,7 @@ export function ColorLegend({ data, filter, rightOffset = 8 }: Props) {
         style={positionStyle}
         className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200 transition-[right] duration-200"
       >
-        <div className="text-neutral-400 mb-1">Highlight</div>
+        <div className="text-neutral-400 mb-1">Simple</div>
         <div className="flex items-center gap-1.5">
           <span className="inline-block w-3 h-3 rounded-sm" style={{ background: '#f0f921' }} />
           <span>cells passing filters</span>
