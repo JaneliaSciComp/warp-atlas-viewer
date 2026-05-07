@@ -73,13 +73,10 @@ export default function App() {
     },
     [setIndices, clear],
   );
-  const handleClearAll = useCallback(() => {
-    clear();
-    setFocusedNeuron(null);
-  }, [clear]);
-  // Resets filters only. The user's 3D-click focus and t-SNE drag
-  // selection are independent and must survive a filter reset — there's
-  // a separate "clear selection" button for those.
+  // Resets filters only. The user's 3D-click focus (cleared by
+  // clicking empty space in the 3D viewer) and t-SNE drag selection
+  // (cleared via the "clear" button in the t-SNE panel header) are
+  // independent and must survive a filter reset.
   const handleResetFilters = useCallback(() => {
     setFilter(INITIAL_FILTER);
   }, []);
@@ -171,14 +168,6 @@ export default function App() {
                 onFocus={setFocusedNeuron}
               />
               <ColorLegend data={data} filter={filter} settings={settings} />
-              {(focusedNeuron != null || selection.indices.length > 0) && (
-                <button
-                  onClick={handleClearAll}
-                  className="absolute bottom-2 right-2 text-[11px] font-mono bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-2 py-1 rounded hover:bg-neutral-800"
-                >
-                  clear selection
-                </button>
-              )}
             </div>
             <button
               onClick={() => setBottomOpen((o) => !o)}

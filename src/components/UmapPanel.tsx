@@ -238,16 +238,26 @@ export function UmapPanel({ data, filter, settings, selection, onSelect }: Props
 
   return (
     <div className="relative w-full h-full bg-neutral-900 border-t border-l border-neutral-700 flex flex-col">
-      <div className="flex items-center justify-between gap-2 px-2 py-1 text-[10px] text-neutral-400 font-mono flex-shrink-0">
+      <div className="flex items-center justify-between gap-2 px-2 py-1 min-h-8 text-[10px] text-neutral-400 font-mono flex-shrink-0">
         <span className="truncate">t-SNE</span>
-        {zoomedIn && (
-          <button
-            onClick={resetView}
-            className="flex-shrink-0 font-mono bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-1.5 py-0.5 rounded hover:bg-neutral-800"
-          >
-            reset view
-          </button>
-        )}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {selection.source === 'umap' && selection.indices.length > 0 && (
+            <button
+              onClick={() => onSelect(new Uint32Array(0), 'umap')}
+              className="font-mono bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-1.5 py-0.5 rounded hover:bg-neutral-800"
+            >
+              clear selection
+            </button>
+          )}
+          {zoomedIn && (
+            <button
+              onClick={resetView}
+              className="font-mono bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-1.5 py-0.5 rounded hover:bg-neutral-800"
+            >
+              reset view
+            </button>
+          )}
+        </div>
       </div>
       <div ref={containerRef} className="relative flex-1 min-h-0 min-w-0">
         <canvas
