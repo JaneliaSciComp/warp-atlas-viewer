@@ -129,7 +129,12 @@ export function UmapPanel({ data, filter, settings, selection, focusedNeuron, on
 
     const colors = buffers.colors;
     const alphas = buffers.alphas;
-    const dotSize = Math.max(1.2, 1.5 * Math.sqrt(viewport.zoom));
+    // Dot size scales with the user-configured cell point size and
+    // grows with zoom so dense regions stay readable as you zoom in.
+    // Clamped to 1px floor so cells never disappear entirely.
+    const dotSize = Math.max(1, settings.pointSize * 0.18 * Math.sqrt(viewport.zoom));
+    const radius = dotSize / 2;
+    const TWO_PI = Math.PI * 2;
     for (let i = 0; i < data.count; i++) {
       const a = alphas[i];
       if (a < 0.05) continue;
@@ -140,7 +145,9 @@ export function UmapPanel({ data, filter, settings, selection, focusedNeuron, on
       const g = Math.round(colors[i * 3 + 1] * 255);
       const b = Math.round(colors[i * 3 + 2] * 255);
       ctx.fillStyle = `rgba(${r},${g},${b},${a.toFixed(2)})`;
-      ctx.fillRect(px, py, dotSize, dotSize);
+      ctx.beginPath();
+      ctx.arc(px + radius, py + radius, radius, 0, TWO_PI);
+      ctx.fill();
     }
 
     // Focused-neuron marker: a small white ring drawn on top of the
