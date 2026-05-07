@@ -206,32 +206,27 @@ export default function App() {
             column collapses (gridTemplateColumns drops to '1fr') so the
             main column reclaims the width. */}
         {detailOpen && (
-          <aside className="relative min-h-0 min-w-0 border-l border-neutral-700 bg-neutral-50">
-            <button
-              onClick={() => setDetailOpen(false)}
-              title="hide details"
-              aria-label="hide details panel"
-              className="absolute top-1.5 right-2 z-10 w-6 h-6 flex items-center justify-center text-lg leading-none text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200 rounded"
-            >
-              ×
-            </button>
+          <aside className="relative min-h-0 min-w-0 border-l border-neutral-800 bg-neutral-900">
             <DetailPanel data={data} selection={effectiveSelection} focusedNeuron={focusedNeuron} />
           </aside>
         )}
       </div>
 
-      {/* Tab to reopen the panel when it's hidden, vertically centered
-          on the viewport's right edge. */}
-      {!detailOpen && (
-        <button
-          onClick={() => setDetailOpen(true)}
-          title="show details"
-          aria-label="show details panel"
-          className="absolute top-1/2 -translate-y-1/2 right-0 z-30 bg-neutral-900/90 border border-r-0 border-neutral-700 text-neutral-200 py-3 px-1.5 rounded-l text-xs font-mono hover:bg-neutral-800"
-        >
-          ‹
-        </button>
-      )}
+      {/* Tab handle for the detail panel: when open it sits on the
+          panel's left edge pointing right (click to close); when closed
+          it sits on the viewport's right edge pointing left (click to
+          open). Both are absolutely positioned against the outer
+          container so they line up vertically regardless of where the
+          panel boundary is. */}
+      <button
+        onClick={() => setDetailOpen((o) => !o)}
+        title={detailOpen ? 'hide details' : 'show details'}
+        aria-label={detailOpen ? 'hide details panel' : 'show details panel'}
+        style={detailOpen ? { right: DETAIL_PANEL_WIDTH } : { right: 0 }}
+        className="absolute top-1/2 -translate-y-1/2 z-30 bg-neutral-900/90 border border-r-0 border-neutral-700 text-neutral-200 py-3 px-1.5 rounded-l text-xs font-mono hover:bg-neutral-800"
+      >
+        {detailOpen ? '›' : '‹'}
+      </button>
     </div>
   );
 }

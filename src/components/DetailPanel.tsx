@@ -25,8 +25,8 @@ export function DetailPanel({ data, selection, focusedNeuron }: Props) {
 
   if (!stats) {
     return (
-      <div className="h-full p-4 bg-neutral-100 text-neutral-700 overflow-y-auto border-l border-neutral-300">
-        <h2 className="text-sm font-semibold mb-2 text-neutral-900 pr-7">Detail</h2>
+      <div className="h-full p-4 bg-neutral-900 text-neutral-300 overflow-y-auto">
+        <h2 className="text-sm font-semibold mb-2 text-neutral-100 pr-7">Detail</h2>
         <p className="text-xs text-neutral-500">
           Click a neuron or select a cluster/region to see details.
         </p>
@@ -65,9 +65,25 @@ export function DetailPanel({ data, selection, focusedNeuron }: Props) {
   }
   const stimWindows = data.stimulusWindowsSec ?? [];
 
+  // Recharts theming: ticks/labels in light gray for legibility on
+  // dark; reference lines a notch darker so they don't compete with
+  // data; tooltip styled as a dark popover.
+  const TICK_FILL = '#e5e5e5';
+  const LABEL_FILL = '#e5e5e5';
+  const REF_STROKE = '#525252';
+  const TOOLTIP_STYLE = {
+    fontSize: 11,
+    fontFamily: 'ui-monospace',
+    backgroundColor: '#171717',
+    border: '1px solid #404040',
+    color: '#e5e5e5',
+  } as const;
+  const TOOLTIP_CURSOR_LINE = { stroke: '#404040', strokeWidth: 1 };
+  const TOOLTIP_CURSOR_FILL = { fill: '#404040', fillOpacity: 0.4 };
+
   return (
-    <div className="h-full p-3 bg-neutral-100 text-neutral-800 overflow-y-auto border-l border-neutral-300">
-      <h2 className="text-sm font-semibold mb-2 text-neutral-900 pr-7">
+    <div className="h-full p-3 bg-neutral-900 text-neutral-200 overflow-y-auto">
+      <h2 className="text-sm font-semibold mb-2 text-neutral-100 pr-7">
         {isFocused ? (
           <>Focused neuron <span className="font-mono">#{focusedNeuron}</span></>
         ) : (
@@ -78,7 +94,7 @@ export function DetailPanel({ data, selection, focusedNeuron }: Props) {
         )}
       </h2>
 
-      <section className="mb-3 text-xs font-mono text-neutral-700 space-y-0.5">
+      <section className="mb-3 text-xs font-mono text-neutral-300 space-y-0.5">
         <div>
           <span className="text-neutral-500">regions:</span>{' '}
           {topItems(stats.regionCounts, data.regionNames, 3)}
@@ -97,7 +113,7 @@ export function DetailPanel({ data, selection, focusedNeuron }: Props) {
       </section>
 
       <section className="mb-4">
-        <h3 className="text-xs font-semibold text-neutral-700 mb-1">Gene expression</h3>
+        <h3 className="text-xs font-semibold text-neutral-300 mb-1">Gene expression</h3>
         {geneRows.length === 0 ? (
           <div className="text-xs text-neutral-500 italic">No gene expression in selection.</div>
         ) : (
@@ -106,21 +122,24 @@ export function DetailPanel({ data, selection, focusedNeuron }: Props) {
             <BarChart layout="vertical" data={geneRows} margin={{ top: 4, right: 8, left: 4, bottom: 18 }}>
               <XAxis
                 type="number"
-                tick={{ fontSize: 10, fill: '#262626' }}
-                label={{ value: 'mean spot count', position: 'insideBottom', offset: -2, fontSize: 10, fill: '#525252' }}
+                tick={{ fontSize: 10, fill: TICK_FILL }}
+                stroke={REF_STROKE}
+                label={{ value: 'mean spot count', position: 'insideBottom', offset: -2, fontSize: 10, fill: LABEL_FILL }}
               />
               <YAxis
                 type="category"
                 dataKey="gene"
-                tick={{ fontSize: 10, fill: '#262626', fontFamily: 'ui-monospace' }}
+                tick={{ fontSize: 10, fill: TICK_FILL, fontFamily: 'ui-monospace' }}
+                stroke={REF_STROKE}
                 width={70}
                 interval={0}
               />
               <Tooltip
-                contentStyle={{ fontSize: 11, fontFamily: 'ui-monospace' }}
+                contentStyle={TOOLTIP_STYLE}
+                cursor={TOOLTIP_CURSOR_FILL}
                 formatter={(v: number) => v.toFixed(2)}
               />
-              <Bar dataKey="v" fill="#2563eb" />
+              <Bar dataKey="v" fill="#60a5fa" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -133,7 +152,7 @@ export function DetailPanel({ data, selection, focusedNeuron }: Props) {
       </section>
 
       <section className="mb-4">
-        <h3 className="text-xs font-semibold text-neutral-700 mb-1">
+        <h3 className="text-xs font-semibold text-neutral-300 mb-1">
           Activity (mean ΔF/F across stimulus presentations)
         </h3>
         <div style={{ width: '100%', height: 130 }}>
@@ -143,37 +162,43 @@ export function DetailPanel({ data, selection, focusedNeuron }: Props) {
                 dataKey="t"
                 type="number"
                 domain={['dataMin', 'dataMax']}
-                tick={{ fontSize: 9, fill: '#262626' }}
-                label={{ value: 'time (s)', position: 'insideBottom', offset: -2, fontSize: 10, fill: '#525252' }}
+                tick={{ fontSize: 9, fill: TICK_FILL }}
+                stroke={REF_STROKE}
+                label={{ value: 'time (s)', position: 'insideBottom', offset: -2, fontSize: 10, fill: LABEL_FILL }}
               />
-              <YAxis tick={{ fontSize: 9, fill: '#262626' }} width={32} />
-              <ReferenceLine y={0} stroke="#a3a3a3" strokeDasharray="2 2" />
+              <YAxis
+                tick={{ fontSize: 9, fill: TICK_FILL }}
+                stroke={REF_STROKE}
+                width={32}
+              />
+              <ReferenceLine y={0} stroke={REF_STROKE} strokeDasharray="2 2" />
               {stimWindows.map(([on, off], s) => (
                 <ReferenceArea
                   key={s}
                   x1={on}
                   x2={off}
-                  fill="#fca5a5"
-                  fillOpacity={0.35}
+                  fill="#f87171"
+                  fillOpacity={0.18}
                   ifOverflow="visible"
                 />
               ))}
               <Tooltip
-                contentStyle={{ fontSize: 11, fontFamily: 'ui-monospace' }}
+                contentStyle={TOOLTIP_STYLE}
+                cursor={TOOLTIP_CURSOR_LINE}
                 formatter={(v: number) => v.toFixed(3)}
                 labelFormatter={(t: number) => `t=${t.toFixed(1)} s`}
               />
-              <Line type="monotone" dataKey="y" stroke="#dc2626" strokeWidth={1.4} dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="y" stroke="#fca5a5" strokeWidth={1.4} dot={false} isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
         <div className="text-[10px] text-neutral-500 font-mono mt-0.5">
-          Pink bands = stimulus on-windows ({stimWindows.length} stimuli per cycle).
+          Red bands = stimulus on-windows ({stimWindows.length} stimuli per cycle).
         </div>
       </section>
 
       <section>
-        <h3 className="text-xs font-semibold text-neutral-700 mb-1">
+        <h3 className="text-xs font-semibold text-neutral-300 mb-1">
           Stimulus correlation (mean Pearson r)
         </h3>
         <div style={{ width: '100%', height: 150 }}>
@@ -181,21 +206,23 @@ export function DetailPanel({ data, selection, focusedNeuron }: Props) {
             <BarChart data={stimRows} margin={{ top: 4, right: 8, left: 4, bottom: 18 }}>
               <XAxis
                 dataKey="stim"
-                tick={{ fontSize: 10, fill: '#262626', fontFamily: 'ui-monospace' }}
-                label={{ value: 'stimulus', position: 'insideBottom', offset: -2, fontSize: 10, fill: '#525252' }}
+                tick={{ fontSize: 10, fill: TICK_FILL, fontFamily: 'ui-monospace' }}
+                stroke={REF_STROKE}
+                label={{ value: 'stimulus', position: 'insideBottom', offset: -2, fontSize: 10, fill: LABEL_FILL }}
               />
               <YAxis
-                tick={{ fontSize: 9, fill: '#262626' }}
+                tick={{ fontSize: 9, fill: TICK_FILL }}
+                stroke={REF_STROKE}
                 width={36}
                 domain={['auto', 'auto']}
-                label={{ value: 'r', position: 'insideLeft', angle: -90, fontSize: 10, fill: '#525252' }}
               />
-              <ReferenceLine y={0} stroke="#a3a3a3" strokeDasharray="2 2" />
+              <ReferenceLine y={0} stroke={REF_STROKE} strokeDasharray="2 2" />
               <Tooltip
-                contentStyle={{ fontSize: 11, fontFamily: 'ui-monospace' }}
+                contentStyle={TOOLTIP_STYLE}
+                cursor={TOOLTIP_CURSOR_FILL}
                 formatter={(v: number) => v.toFixed(3)}
               />
-              <Bar dataKey="v" fill="#0891b2" />
+              <Bar dataKey="v" fill="#22d3ee" />
             </BarChart>
           </ResponsiveContainer>
         </div>

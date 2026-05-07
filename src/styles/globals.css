@@ -17,15 +17,15 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* recharts axis text — DetailPanel is on a light background. */
+/* recharts axis text — DetailPanel is now on a dark background. */
 .recharts-cartesian-axis-tick text,
 .recharts-legend-item-text {
-  fill: #262626 !important;
-  color: #262626 !important;
+  fill: #e5e5e5 !important;
+  color: #e5e5e5 !important;
   font-size: 11px;
 }
 .recharts-cartesian-grid line {
-  stroke: #d4d4d4;
+  stroke: #404040;
 }
 .recharts-tooltip-wrapper {
   outline: none;
