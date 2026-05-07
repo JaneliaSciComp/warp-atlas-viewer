@@ -95,7 +95,7 @@ function SettingsTab({
     settings.pointSize !== DEFAULT_SETTINGS.pointSize ||
     settings.orientation !== DEFAULT_SETTINGS.orientation;
   return (
-    <div className="flex flex-col gap-4 text-[11px] font-mono text-neutral-300 max-w-md">
+    <div className="flex flex-col gap-6 pb-3 text-xs font-mono text-neutral-300 max-w-2xl">
       <button
         onClick={reset}
         disabled={!dirty}
@@ -115,7 +115,7 @@ function SettingsTab({
         <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
           Stim correlation cutoffs
         </div>
-        <p className="text-neutral-500 text-[10px] leading-tight">
+        <p className="text-neutral-400 leading-snug">
           Pearson r thresholds for stimulus correlation. Cells below the
           floor are treated as non-responsive (dim in the Stim color
           scheme; rejected by the Activity filter). Cells above the
@@ -143,7 +143,7 @@ function SettingsTab({
         <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
           Gene plasma ceiling
         </div>
-        <p className="text-neutral-500 text-[10px] leading-tight">
+        <p className="text-neutral-400 leading-snug">
           Upper anchor for the Gene scheme's plasma palette (raw FISH
           spot count). Cells above this value saturate. Tune to match
           the practical ceiling of the dataset's probe panel.
@@ -162,7 +162,7 @@ function SettingsTab({
         <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
           Cell point size
         </div>
-        <p className="text-neutral-500 text-[10px] leading-tight">
+        <p className="text-neutral-400 leading-snug">
           Base point size in pixels for the 3D viewer and t-SNE
           scatter. Bump up on high-DPI screens or when cells look
           undersized; user-selected cells still get an extra ×1.5
@@ -182,7 +182,7 @@ function SettingsTab({
         <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
           Brain orientation
         </div>
-        <p className="text-neutral-500 text-[10px] leading-tight">
+        <p className="text-neutral-400 leading-snug">
           How the brain is rotated in the 3D viewer. Both options are
           dorsal (top-down) views; the arrow indicates where the
           anterior end of the brain points on screen.
@@ -208,7 +208,7 @@ function OrientationToggle({
     { id: 'landscape', label: '←', aria: 'anterior left' },
   ];
   return (
-    <div className="flex border border-neutral-700 rounded overflow-hidden self-start font-mono">
+    <div className="flex border border-neutral-700 rounded overflow-hidden self-start font-mono ml-3">
       {opts.map((o) => (
         <button
           key={o.id}
@@ -245,7 +245,7 @@ function NumberRow({
   onChange: (v: number) => void;
 }) {
   return (
-    <label className="flex items-center justify-between gap-3">
+    <label className="flex items-center justify-between gap-3 pl-3">
       <span className="text-neutral-300">{label}</span>
       <span className="flex items-center gap-2">
         <input
@@ -276,16 +276,94 @@ function NumberRow({
 
 function HelpTab() {
   return (
-    <div className="text-[11px] font-mono text-neutral-400">
-      <div className="mb-1 text-neutral-500">Tips</div>
-      <ul className="list-disc list-inside space-y-0.5">
-        <li>3D: drag to orbit, wheel to zoom, right-drag to pan</li>
-        <li>3D: hover for ID, region, top genes; click to focus</li>
-        <li>t-SNE: drag to lasso-select, links to 3D view</li>
-        <li>t-SNE: right-drag or shift+drag to pan, wheel to zoom</li>
-        <li>Subtype filter: pull a functional cluster as a group</li>
-        <li>Co-coding: Color=Stim correlation × single-gene filter</li>
-      </ul>
+    <div className="flex flex-col gap-4 pb-3 text-xs font-mono text-neutral-300 max-w-2xl">
+      <section className="flex flex-col gap-1">
+        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+          What you're looking at
+        </div>
+        <p className="text-neutral-400 leading-snug">
+          ~274,000 neurons from the larval-zebrafish WARP atlas (
+          <a
+            href="https://www.biorxiv.org/content/10.64898/2026.02.07.704095v1"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-yellow-300 hover:underline"
+          >
+            preprint
+          </a>
+          ), each one mapped to (1) a 3D position in the brain,
+          (2) expression counts for 41 genes, (3) one of 333
+          molecularly-defined subtypes, and (4) a calcium response
+          to 8 visual stimuli. The 3D viewer and the t-SNE show the
+          same cells in two spaces — anything you select in one is
+          highlighted in the other.
+        </p>
+      </section>
+
+      <section className="flex flex-col gap-1">
+        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+          Panels
+        </div>
+        <ul className="list-disc list-inside space-y-0.5 text-neutral-400 leading-snug">
+          <li><span className="text-neutral-200">3D viewer</span> — anatomical view; legend top-right</li>
+          <li><span className="text-neutral-200">t-SNE</span> (bottom right) — cells grouped by transcriptomic similarity</li>
+          <li><span className="text-neutral-200">Details</span> (right edge, click the ‹ handle to toggle) — populated when you click a cell or lasso a group</li>
+          <li><span className="text-neutral-200">Filters / Settings / Help</span> — this strip; the <span className="inline-block -translate-y-[3px]">⌄</span> handle at the bottom edge of the 3D viewer hides it</li>
+        </ul>
+      </section>
+
+      <section className="flex flex-col gap-1">
+        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+          Mouse
+        </div>
+        <ul className="list-disc list-inside space-y-0.5 text-neutral-400 leading-snug">
+          <li><span className="text-neutral-200">3D</span>: drag to orbit · wheel to zoom · right-drag to pan · hover for ID/region/top genes · click a cell to focus it in the details panel</li>
+          <li><span className="text-neutral-200">t-SNE</span>: drag to lasso-select · click a cell to focus · right-drag or shift+drag to pan · wheel to zoom</li>
+        </ul>
+      </section>
+
+      <section className="flex flex-col gap-1">
+        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+          Filtering
+        </div>
+        <p className="text-neutral-400 leading-snug">
+          The four cards in the Filters tab combine with logical AND
+          (that's what the <span className="text-neutral-200">×</span>{' '}
+          between them means): a cell has to pass every active card
+          to stay visible. A card set to <span className="text-neutral-200">all</span>{' '}
+          (or with nothing selected) doesn't filter anything out.
+        </p>
+        <ul className="list-disc list-inside space-y-0.5 text-neutral-400 leading-snug">
+          <li><span className="text-neutral-200">Colors</span> — how the visible cells are coloured (by region, by gene expression, by stimulus correlation, or just highlighted)</li>
+          <li><span className="text-neutral-200">Anatomy</span> — isolate one of 16 brain regions</li>
+          <li><span className="text-neutral-200">Transcriptomics</span> — keep only cells expressing a single gene, or cells belonging to a single functional subtype (e.g. <span className="text-neutral-200">pou4f2_cckb</span>)</li>
+          <li><span className="text-neutral-200">Visual Stimuli</span> — keep only cells whose calcium response correlates with one or more of the 8 stimuli (correlation threshold is in the Settings tab)</li>
+        </ul>
+      </section>
+
+      <section className="flex flex-col gap-1">
+        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+          Try this first
+        </div>
+        <ol className="list-decimal list-inside space-y-0.5 text-neutral-400 leading-snug">
+          <li>Set <span className="text-neutral-200">Colors → Region</span> and orbit the 3D viewer to see the anatomy.</li>
+          <li>Switch <span className="text-neutral-200">Colors → Gene expression</span> and step through genes with the ‹ › arrows.</li>
+          <li>In <span className="text-neutral-200">Transcriptomics</span> flip to <span className="text-neutral-200">Subtype</span> and pick e.g. <span className="text-neutral-200">pou4f2_cckb</span> — most of the cluster lands in the optic tectum.</li>
+          <li>Co-expression view: set <span className="text-neutral-200">Colors → Stim correlation</span>, pick a stimulus in <span className="text-neutral-200">Visual Stimuli</span>, and pick a single gene in <span className="text-neutral-200">Transcriptomics</span> — the remaining cells are gene-positive, coloured by how strongly they respond to the stimulus.</li>
+          <li>Click any cell to fill in the details panel: per-gene spot counts, mean ΔF/F trace with each stimulus's on-window shaded, and a per-stimulus correlation bar chart.</li>
+        </ol>
+      </section>
+
+      <section className="flex flex-col gap-1">
+        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+          Notes
+        </div>
+        <ul className="list-disc list-inside space-y-0.5 text-neutral-400 leading-snug">
+          <li>The activity-trace x-axis is in seconds; one 134-second cycle contains all 8 stimuli back-to-back.</li>
+          <li><span className="text-neutral-200">Gene richness:</span> in the <span className="text-neutral-200">Gene expression</span> colour scheme, if no single gene is pinned in <span className="text-neutral-200">Transcriptomics</span> (gene set to "all", or you're in Subtype mode), each cell is coloured by how many of the 41 panel genes it expresses. Pin a gene to switch to the classic single-gene FISH spot-count map.</li>
+          <li><span className="text-neutral-200">Stim correlation, max across selected:</span> with the <span className="text-neutral-200">Stim correlation</span> colour scheme, picking exactly one stimulus paints by that stimulus's Pearson r. With zero stimuli picked (or all of them) the cell is coloured by its <em>max</em> correlation across every stimulus; with a subset picked, max across just those.</li>
+        </ul>
+      </section>
     </div>
   );
 }
