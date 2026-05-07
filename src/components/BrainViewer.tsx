@@ -238,18 +238,22 @@ export function BrainViewer({
   const orientation: Orientation = settings.orientation;
   const pickRef = useRef<PickState>({ pos: null, hovered: -1 });
 
-  const camPosition = useMemo(() => {
-    if (initialCamera) return initialCamera.pos;
+  // Default camera position derived from the data bounds — straight-on
+  // dorsal view with the brain comfortably filling a landscape panel.
+  // Used both as the camera's initial position and as the "reset"
+  // target when the user toggles brain orientation in Settings.
+  const defaultCamPosition = useMemo(() => {
     const { min, max } = data.bounds;
     const span = Math.max(max[0] - min[0], max[1] - min[1], max[2] - min[2]);
-    // Straight-on dorsal view: camera directly above the brain looking
-    // down -z. Distance picked so the brain comfortably fills a landscape
-    // panel; portrait users can wheel out.
     return [0, 0, span * 0.95] as [number, number, number];
+  }, [data]);
+  const camPosition = useMemo(() => {
+    if (initialCamera) return initialCamera.pos;
+    return defaultCamPosition;
     // initialCamera intentionally only consulted on first mount; we
     // don't want a remote URL update yanking the camera mid-interaction.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
+  }, [defaultCamPosition]);
 
   // Count of cells visibly highlighted (i.e. not rendered with the dim
   // background style) in the current view. Region mode without an
@@ -399,7 +403,12 @@ export function BrainViewer({
           orientation={orientation}
         />
         <OrbitControls makeDefault enableDamping dampingFactor={0.1} />
-        <CameraSync initialCamera={initialCamera ?? null} onCameraChange={onCameraChange} />
+        <CameraSync
+          initialCamera={initialCamera ?? null}
+          onCameraChange={onCameraChange}
+          orientation={orientation}
+          defaultCamPosition={defaultCamPosition}
+        />
       </Canvas>
       {tooltip && hover && (
         <div className="neuron-tooltip" style={{ left: hover.x + 14, top: hover.y + 14 }}>
@@ -425,9 +434,13 @@ export function BrainViewer({
 function CameraSync({
   initialCamera,
   onCameraChange,
+  orientation,
+  defaultCamPosition,
 }: {
   initialCamera: CameraState | null;
   onCameraChange?: (cam: CameraState) => void;
+  orientation: Orientation;
+  defaultCamPosition: [number, number, number];
 }) {
   const camera = useThree((s) => s.camera);
   // OrbitControls wires itself in via makeDefault; useThree exposes it
@@ -453,6 +466,24 @@ function CameraSync({
     }
     restoredRef.current = true;
   }, [controls, camera, initialCamera]);
+
+  // Reset the camera whenever the user flips brain orientation in
+  // Settings. The world `<group>` rotates by 90° around Z, which
+  // would otherwise leave the user staring at the brain from a stale
+  // angle; resetting to the default top-down view is the only sane
+  // landing for the new orientation. Skips the very first run so we
+  // don't clobber an URL-restored camera on mount.
+  const orientationMountRef = useRef(true);
+  useEffect(() => {
+    if (orientationMountRef.current) {
+      orientationMountRef.current = false;
+      return;
+    }
+    if (!controls) return;
+    camera.position.set(...defaultCamPosition);
+    controls.target.set(0, 0, 0);
+    controls.update();
+  }, [orientation, controls, camera, defaultCamPosition]);
 
   useFrame(() => {
     if (!controls || !onCameraChange) return;
