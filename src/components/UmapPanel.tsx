@@ -146,7 +146,7 @@ export function UmapPanel({ data, filter, settings, selection, focusedNeuron, on
       const b = Math.round(colors[i * 3 + 2] * 255);
       ctx.fillStyle = `rgba(${r},${g},${b},${a.toFixed(2)})`;
       ctx.beginPath();
-      ctx.arc(px + radius, py + radius, radius, 0, TWO_PI);
+      ctx.arc(px, py, radius, 0, TWO_PI);
       ctx.fill();
     }
 
@@ -162,7 +162,7 @@ export function UmapPanel({ data, filter, settings, selection, focusedNeuron, on
       );
       if (px >= -10 && py >= -10 && px <= size.w + 10 && py <= size.h + 10) {
         ctx.beginPath();
-        ctx.arc(px + dotSize / 2, py + dotSize / 2, 6, 0, Math.PI * 2);
+        ctx.arc(px, py, Math.max(6, radius + 2), 0, Math.PI * 2);
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 1.5;
         ctx.stroke();
@@ -202,7 +202,7 @@ export function UmapPanel({ data, filter, settings, selection, focusedNeuron, on
       const my = e.clientY - rect.top;
       const vp = viewportRef.current;
       const factor = Math.exp(-e.deltaY * 0.0015);
-      const newZoom = Math.max(0.25, Math.min(40, vp.zoom * factor));
+      const newZoom = Math.max(0.25, Math.min(1000, vp.zoom * factor));
       const ratio = newZoom / vp.zoom;
       // Anchor: keep the point under the cursor fixed during zoom.
       // px_new = (panX_new) + (px_old - panX_old) * ratio  (approx — see
