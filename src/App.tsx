@@ -1,5 +1,6 @@
 import { useMemo, useState, useCallback } from 'react';
-import type { FilterState, SelectionState } from './data/types';
+import type { FilterState, SelectionState, SettingsState } from './data/types';
+import { DEFAULT_SETTINGS } from './data/types';
 import { useNeuronData } from './hooks/useNeuronData';
 import { useSelection } from './hooks/useSelection';
 import { BrainViewer } from './components/BrainViewer';
@@ -27,6 +28,7 @@ const DETAIL_PANEL_WIDTH = 360;
 export default function App() {
   const { data, error, progress } = useNeuronData();
   const [filter, setFilter] = useState<FilterState>(INITIAL_FILTER);
+  const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
   const { selection, setIndices, clear } = useSelection();
   // The detail panel floats over the right edge of the viewer and can be
   // hidden when not in use to give the brain viewer / t-SNE the full width.
@@ -55,12 +57,12 @@ export default function App() {
     if (anyFilterActive(data, filter)) {
       const out: number[] = [];
       for (let i = 0; i < data.count; i++) {
-        if (cellInSet(data, filter, i)) out.push(i);
+        if (cellInSet(data, filter, settings, i)) out.push(i);
       }
       return { indices: new Uint32Array(out), source: 'filter' };
     }
     return selection;
-  }, [data, selection, filter]);
+  }, [data, selection, filter, settings]);
 
   const handleUmapSelect = useCallback(
     (indices: Uint32Array) => {
@@ -146,11 +148,12 @@ export default function App() {
               <BrainViewer
                 data={data}
                 filter={filter}
+                settings={settings}
                 selection={selection}
                 focusedNeuron={focusedNeuron}
                 onFocus={setFocusedNeuron}
               />
-              <ColorLegend data={data} filter={filter} />
+              <ColorLegend data={data} filter={filter} settings={settings} />
               {(focusedNeuron != null || selection.indices.length > 0) && (
                 <button
                   onClick={handleClearAll}
@@ -172,12 +175,15 @@ export default function App() {
                 data={data}
                 filter={filter}
                 setFilter={setFilter}
+                settings={settings}
+                setSettings={setSettings}
                 onReset={handleResetFilters}
               />
             </div>
             <UmapPanel
               data={data}
               filter={filter}
+              settings={settings}
               selection={selection}
               onSelect={handleUmapSelect}
             />

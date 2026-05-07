@@ -1,12 +1,13 @@
-import type { NeuronDataset, FilterState } from '../data/types';
+import type { NeuronDataset, FilterState, SettingsState } from '../data/types';
 import { regionColor, plasma, rgbToHex } from '../utils/colorMaps';
 
 interface Props {
   data: NeuronDataset;
   filter: FilterState;
+  settings: SettingsState;
 }
 
-export function ColorLegend({ data, filter }: Props) {
+export function ColorLegend({ data, filter, settings }: Props) {
   const positionStyle = { top: 8, right: 8 } as const;
 
   if (filter.colorMode === 'region') {
@@ -39,17 +40,50 @@ export function ColorLegend({ data, filter }: Props) {
     const gradient = `linear-gradient(to right, ${stops.join(', ')})`;
     const isLog = filter.geneScale !== 'linear';
     const G = data.geneNames.length;
-    const maxVal = useRichness ? G : 1000;
+    const maxSpots = Math.max(1, settings.geneMaxSpots);
+    const maxVal = useRichness ? G : maxSpots;
     // Pick reasonable ticks for either mode. For richness G is small
-    // (e.g. 41) so we just snap at fractions of G; for spot-count we
-    // keep the existing canonical anchors.
+    // (~41) so we snap at fractions of G; for spot count we use
+    // powers of 10 in log mode (clipped at the configured ceiling)
+    // and quartiles in linear.
+    //
+    // Keep at most 4 ticks total so labels never overlap on the
+    // narrow legend bar. Build the full set (0, every power of 10
+    // ≤ ceiling, ceiling), then trim: first drop any intermediate
+    // tick whose log-space position is within 12% of the ceiling
+    // (e.g. when ceiling=1100 the 1000 tick crowds the 1100 tick),
+    // then if still > 4, keep 0, the ceiling, and the two largest
+    // intermediate powers of 10.
+    const maxLogLocal = Math.log(1 + maxSpots);
+    const logPos = (t: number) => (Math.log(1 + t) / maxLogLocal) * 100;
+    let logSpotTicks: number[] = [0];
+    for (let p = 1; p < maxSpots; p *= 10) logSpotTicks.push(p);
+    logSpotTicks.push(maxSpots);
+    while (
+      logSpotTicks.length > 2 &&
+      logPos(logSpotTicks[logSpotTicks.length - 1]) -
+        logPos(logSpotTicks[logSpotTicks.length - 2]) <
+        12
+    ) {
+      logSpotTicks.splice(logSpotTicks.length - 2, 1);
+    }
+    if (logSpotTicks.length > 4) {
+      const interior = logSpotTicks.slice(1, -1);
+      logSpotTicks = [0, ...interior.slice(-2), maxSpots];
+    }
+    // Cap every tick row at 4 so labels never collide on the narrow
+    // bar. For the 5-tick patterns we drop the second-to-last entry
+    // (the one that crowds the ceiling label).
+    const richnessLogTicks = [0, 1, Math.round(G / 4), G];
+    const richnessLinearTicks = [0, Math.round(G / 4), Math.round(G / 2), G];
+    const linearSpotTicks = [0, Math.round(maxSpots / 4), Math.round(maxSpots / 2), maxSpots];
     const ticks = useRichness
       ? isLog
-        ? [0, 1, Math.round(G / 4), Math.round(G / 2), G]
-        : [0, Math.round(G / 4), Math.round(G / 2), Math.round((3 * G) / 4), G]
+        ? richnessLogTicks
+        : richnessLinearTicks
       : isLog
-        ? [0, 1, 10, 100, 1000]
-        : [0, 250, 500, 750, 1000];
+        ? logSpotTicks
+        : linearSpotTicks;
     const maxLog = Math.log(1 + maxVal);
     const tickPos = (t: number) =>
       isLog ? (Math.log(1 + t) / maxLog) * 100 : (t / maxVal) * 100;
@@ -57,7 +91,7 @@ export function ColorLegend({ data, filter }: Props) {
       ? 'Gene richness'
       : `Gene: ${data.geneNames[filter.selectedGene]}`;
     const axisLabel = useRichness
-      ? `# genes expressed (${isLog ? 'log' : 'linear'})`
+      ? '# genes expressed'
       : `spot count (${isLog ? 'log' : 'linear'})`;
     return (
       <div
@@ -116,8 +150,15 @@ export function ColorLegend({ data, filter }: Props) {
   const N = 16;
   const stops = Array.from({ length: N }, (_, i) => rgbToHex(plasma(i / (N - 1))));
   const gradient = `linear-gradient(to right, ${stops.join(', ')})`;
-  const ticks = [0.30, 0.50, 0.65];
-  const tickPos = (t: number) => ((t - 0.30) / (0.65 - 0.30)) * 100;
+  // Use the user-configured stim cutoffs as the bar's anchor points.
+  // The mid tick is the simple average; if stimHi <= stimLo the divisor
+  // collapses, so guard against it.
+  const stimLo = settings.stimLo;
+  const stimHi = settings.stimHi;
+  const stimRange = Math.max(0.001, stimHi - stimLo);
+  const stimMid = (stimLo + stimHi) / 2;
+  const ticks = [stimLo, stimMid, stimHi];
+  const tickPos = (t: number) => ((t - stimLo) / stimRange) * 100;
   return (
     <div
       style={positionStyle}

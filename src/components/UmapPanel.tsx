@@ -1,10 +1,11 @@
 import { useEffect, useRef, useMemo, useCallback, useState } from 'react';
-import type { NeuronDataset, FilterState, SelectionState } from '../data/types';
+import type { NeuronDataset, FilterState, SelectionState, SettingsState } from '../data/types';
 import { allocColoring, applyColoring } from '../utils/coloring';
 
 interface Props {
   data: NeuronDataset;
   filter: FilterState;
+  settings: SettingsState;
   selection: SelectionState;
   onSelect: (indices: Uint32Array, source: 'umap') => void;
 }
@@ -19,7 +20,7 @@ interface Viewport {
 
 const INITIAL_VIEWPORT: Viewport = { zoom: 1, panX: 0, panY: 0 };
 
-export function UmapPanel({ data, filter, selection, onSelect }: Props) {
+export function UmapPanel({ data, filter, settings, selection, onSelect }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 400, h: 200 });
@@ -105,7 +106,7 @@ export function UmapPanel({ data, filter, selection, onSelect }: Props) {
     ctx.fillStyle = '#0a0a0a';
     ctx.fillRect(0, 0, size.w, size.h);
 
-    applyColoring(data, filter, selection, buffers);
+    applyColoring(data, filter, settings, selection, buffers);
 
     const colors = buffers.colors;
     const alphas = buffers.alphas;
@@ -135,7 +136,7 @@ export function UmapPanel({ data, filter, selection, onSelect }: Props) {
       );
       ctx.setLineDash([]);
     }
-  }, [data, filter, selection, buffers, size, viewport, project, drag]);
+  }, [data, filter, settings, selection, buffers, size, viewport, project, drag]);
 
   // Wheel: zoom anchored at the cursor so the data point under the mouse
   // stays put. Native non-passive listener (React's onWheel is passive in

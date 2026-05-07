@@ -2,7 +2,7 @@ import { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
-import type { NeuronDataset, FilterState, SelectionState } from '../data/types';
+import type { NeuronDataset, FilterState, SelectionState, SettingsState } from '../data/types';
 import { allocColoring, applyColoring } from '../utils/coloring';
 import vertSrc from '../shaders/neuron.vert.glsl?raw';
 import fragSrc from '../shaders/neuron.frag.glsl?raw';
@@ -10,6 +10,7 @@ import fragSrc from '../shaders/neuron.frag.glsl?raw';
 interface Props {
   data: NeuronDataset;
   filter: FilterState;
+  settings: SettingsState;
   selection: SelectionState;
   /** Single-neuron focus, separate from the group selection. */
   focusedNeuron: number | null;
@@ -30,6 +31,7 @@ export type Orientation = 'portrait' | 'landscape';
 function PointCloud({
   data,
   filter,
+  settings,
   selection,
   focusedNeuron,
   pickRef,
@@ -38,6 +40,7 @@ function PointCloud({
 }: {
   data: NeuronDataset;
   filter: FilterState;
+  settings: SettingsState;
   selection: SelectionState;
   focusedNeuron: number | null;
   pickRef: React.MutableRefObject<PickState>;
@@ -71,7 +74,7 @@ function PointCloud({
   }, [gl]);
 
   useEffect(() => {
-    applyColoring(data, filter, selection, buffers);
+    applyColoring(data, filter, settings, selection, buffers);
     // Stamp the focused neuron on top of whatever group coloring chose
     // for it: full alpha, brightened, big enough to be unmistakable
     // even when the surrounding group is dimmed.
@@ -86,7 +89,7 @@ function PointCloud({
     (geometry.attributes.instColor as THREE.BufferAttribute).needsUpdate = true;
     (geometry.attributes.instAlpha as THREE.BufferAttribute).needsUpdate = true;
     (geometry.attributes.instSize as THREE.BufferAttribute).needsUpdate = true;
-  }, [data, filter, selection, focusedNeuron, buffers, geometry]);
+  }, [data, filter, settings, selection, focusedNeuron, buffers, geometry]);
 
   const ndcRef = useRef(new THREE.Vector3());
 
@@ -152,7 +155,7 @@ function PointCloud({
   );
 }
 
-export function BrainViewer({ data, filter, selection, focusedNeuron, onFocus }: Props) {
+export function BrainViewer({ data, filter, settings, selection, focusedNeuron, onFocus }: Props) {
   const [hover, setHover] = useState<{ i: number; x: number; y: number } | null>(null);
   const [orientation, setOrientation] = useState<Orientation>('landscape');
   const pickRef = useRef<PickState>({ pos: null, hovered: -1 });
@@ -190,7 +193,7 @@ export function BrainViewer({ data, filter, selection, focusedNeuron, onFocus }:
       const maxSet =
         !useMax ? null : sel.length > 0 && sel.length < S ? sel : null;
       let n = 0;
-      const STIM_LO = 0.30;
+      const STIM_LO = settings.stimLo;
       for (let i = 0; i < data.count; i++) {
         let r: number;
         if (!useMax) {
@@ -217,7 +220,7 @@ export function BrainViewer({ data, filter, selection, focusedNeuron, onFocus }:
       return n;
     }
     return 0;
-  }, [data, filter.colorMode, filter.selectedGene, filter.selectedStimuli, selection.indices]);
+  }, [data, filter.colorMode, filter.selectedGene, filter.selectedStimuli, settings.stimLo, selection.indices]);
 
   // Track the pointer-down position so we can distinguish a click (no
   // movement) from a drag (rotate / pan). Without this, a drag-rotate
@@ -306,6 +309,7 @@ export function BrainViewer({ data, filter, selection, focusedNeuron, onFocus }:
         <PointCloud
           data={data}
           filter={filter}
+          settings={settings}
           selection={selection}
           focusedNeuron={focusedNeuron}
           pickRef={pickRef}

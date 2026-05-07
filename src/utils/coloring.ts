@@ -1,24 +1,14 @@
-import type { NeuronDataset, FilterState, SelectionState } from '../data/types';
+import type { NeuronDataset, FilterState, SelectionState, SettingsState } from '../data/types';
 import { regionColor, plasma } from './colorMaps';
 
 const DIM_RGB: [number, number, number] = [0.30, 0.30, 0.32];
 const DIM_ALPHA = 0.10;
 const LIFT_ALPHA = 0.50;
-const BASE_SIZE = 8.5;
 const HIGHLIGHT_BOOST_SIZE = 1.5;
 
-/** Stim-correlation thresholds. r ≥ STIM_LO is the standard "stimulus
- *  responsive" floor in zebrafish calcium imaging; r ≥ STIM_HI ≈ q97
- *  reaches full saturation in the stim palette. The activity
- *  filter predicate uses STIM_LO as its cutoff. */
-const STIM_LO = 0.30;
-const STIM_HI = 0.65;
-const STIM_RANGE = STIM_HI - STIM_LO;
-
-/** Gene scheme uses an ABSOLUTE scale on raw FISH spot counts — no
- *  per-gene normalization. 1000 is the dataset's practical ceiling. */
-const GENE_MAX_SPOTS = 1000;
-const GENE_LOG_DEN = Math.log(1 + GENE_MAX_SPOTS);
+// Stim correlation thresholds, the gene plasma ceiling, and the base
+// point size all live in SettingsState (see types.ts:DEFAULT_SETTINGS)
+// so the user can tune them from the Settings tab.
 
 export interface ColoringResult {
   colors: Float32Array; // length n*3
@@ -51,6 +41,7 @@ export interface CellPredicates {
 export function cellPasses(
   ds: NeuronDataset,
   filter: FilterState,
+  settings: SettingsState,
   i: number,
 ): CellPredicates {
   const G = ds.geneNames.length;
@@ -71,15 +62,15 @@ export function cellPasses(
 
   // Activity filter: empty selectedStimuli OR a full set both mean
   // "no constraint". Anything in between is a real filter — cell
-  // passes iff at least one of the chosen stimuli is above STIM_LO
-  // for it.
+  // passes iff at least one of the chosen stimuli is above the
+  // user-tunable responsive floor (settings.stimLo).
   const stims = filter.selectedStimuli;
   const stimActive = stims.length > 0 && stims.length < S;
   let passesStim = true;
   if (stimActive) {
     passesStim = false;
     for (let k = 0; k < stims.length; k++) {
-      if (ds.stimulusCorr[i * S + stims[k]] >= STIM_LO) { passesStim = true; break; }
+      if (ds.stimulusCorr[i * S + stims[k]] >= settings.stimLo) { passesStim = true; break; }
     }
   }
 
@@ -90,9 +81,10 @@ export function cellPasses(
 export function cellInSet(
   ds: NeuronDataset,
   filter: FilterState,
+  settings: SettingsState,
   i: number,
 ): boolean {
-  const p = cellPasses(ds, filter, i);
+  const p = cellPasses(ds, filter, settings, i);
   return p.inRegion && p.passesTx && p.passesStim;
 }
 
@@ -128,6 +120,7 @@ export function anyFilterActive(ds: NeuronDataset, filter: FilterState): boolean
 export function applyColoring(
   ds: NeuronDataset,
   filter: FilterState,
+  settings: SettingsState,
   selection: SelectionState,
   out: ColoringResult,
 ): void {
@@ -138,6 +131,16 @@ export function applyColoring(
 
   const useLog = filter.geneScale !== 'linear';
   const isolatedRegion = filter.isolatedRegion;
+  // Stim cutoffs come from user settings; STIM_RANGE is derived. We
+  // tolerate stimHi <= stimLo by clamping the divisor to something
+  // small but positive so plasma still maps without dividing by zero.
+  const stimLo = settings.stimLo;
+  const stimRange = Math.max(0.001, settings.stimHi - settings.stimLo);
+  // Gene scheme anchors and the per-cell base size also come from
+  // settings.
+  const geneMaxSpots = Math.max(1, settings.geneMaxSpots);
+  const geneLogDen = Math.log(1 + geneMaxSpots);
+  const baseSize = settings.pointSize;
   // The Gene color scheme paints by a single gene's expression when a
   // specific gene is in focus via Transcriptomics; otherwise it paints
   // by transcriptomic richness (# of panel genes the cell expresses by
@@ -177,9 +180,9 @@ export function applyColoring(
   const isUserSelection = selection.source === '3d' || selection.source === 'umap';
 
   for (let i = 0; i < count; i++) {
-    let r = 0, g = 0, b = 0, alpha = 0.85, size = BASE_SIZE;
+    let r = 0, g = 0, b = 0, alpha = 0.85, size = baseSize;
 
-    const p = cellPasses(ds, filter, i);
+    const p = cellPasses(ds, filter, settings, i);
     const inSet = p.inRegion && p.passesTx && p.passesStim;
 
     if (!inSet) {
@@ -216,8 +219,8 @@ export function applyColoring(
           } else {
             raw = geneCounts[i * G + filter.selectedGene];
             v = useLog
-              ? Math.min(1, Math.log(1 + raw) / GENE_LOG_DEN)
-              : Math.min(1, raw / GENE_MAX_SPOTS);
+              ? Math.min(1, Math.log(1 + raw) / geneLogDen)
+              : Math.min(1, raw / geneMaxSpots);
           }
           if (raw <= 0) {
             // Cell expresses nothing on this axis: faint backdrop. Lift
@@ -244,8 +247,8 @@ export function applyColoring(
         }
         case 'stim': {
           // 1D plasma over normalized stim correlation, anchored at the
-          // standard zebrafish-calcium thresholds: r ≤ STIM_LO is the
-          // "stim-unresponsive" floor (faint backdrop), r ≥ STIM_HI ≈ q97
+          // user-configurable thresholds in SettingsState: r ≤ stimLo is
+          // the "stim-unresponsive" floor (faint backdrop), r ≥ stimHi
           // saturates plasma's bright end. Co-coding emerges by composing
           // this scheme with a single-gene filter — the gene predicate
           // drops gene-negative cells, leaving only gene+ cells painted
@@ -272,7 +275,7 @@ export function applyColoring(
             }
             rawA = m;
           }
-          const v = Math.max(0, Math.min(1, (rawA - STIM_LO) / STIM_RANGE));
+          const v = Math.max(0, Math.min(1, (rawA - stimLo) / stimRange));
           if (v <= 0) {
             r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2];
             alpha = isolatedRegion >= 0 ? LIFT_ALPHA : 0.10;

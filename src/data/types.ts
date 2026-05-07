@@ -114,6 +114,39 @@ export interface FilterState {
   selectedStimuli: number[];
 }
 
+/** User-tunable rendering parameters that aren't filters per se —
+ *  e.g. the calcium-imaging thresholds that anchor the Stim color
+ *  scheme and the activity filter. Lives in its own state slot
+ *  (separate from FilterState) so "reset filters" doesn't clobber it
+ *  and the Settings tab has a clean home for its controls. */
+export interface SettingsState {
+  /** Below this correlation, cells are "non-responsive" and dimmed
+   *  by the Stim scheme; the Activity filter also requires a cell to
+   *  exceed this floor for at least one selected stimulus. Default
+   *  0.30 — the conventional zebrafish-imaging responsive floor. */
+  stimLo: number;
+  /** Above this correlation, the Stim scheme's plasma palette is
+   *  saturated. Default 0.65 — roughly the 97th percentile of
+   *  positive correlations in typical datasets. */
+  stimHi: number;
+  /** Upper anchor for the Gene scheme's plasma palette (raw FISH spot
+   *  count). Cells expressing more than this saturate at the bright
+   *  end. Different probes / datasets have different practical
+   *  ceilings; 1000 is a sensible default. */
+  geneMaxSpots: number;
+  /** Base 3D point size (pixels) for every cell, used by both the 3D
+   *  viewer and the t-SNE scatter. Display-density preference; raise
+   *  on high-DPI screens or when cells look too small. */
+  pointSize: number;
+}
+
+export const DEFAULT_SETTINGS: SettingsState = {
+  stimLo: 0.30,
+  stimHi: 0.65,
+  geneMaxSpots: 1000,
+  pointSize: 8.5,
+};
+
 export interface SelectionState {
   /** Indices of selected neurons. Empty = none. */
   indices: Uint32Array;

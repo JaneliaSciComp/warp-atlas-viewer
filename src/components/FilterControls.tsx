@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import type { NeuronDataset, FilterState, ColorMode } from '../data/types';
+import type { NeuronDataset, FilterState, ColorMode, SettingsState } from '../data/types';
+import { DEFAULT_SETTINGS } from '../data/types';
 
 // Stimulus icons, one per dataset stimulus index. Vite serves these as
 // hashed asset URLs in dev and prod. Order is significant: the index in
@@ -31,6 +32,8 @@ interface Props {
   data: NeuronDataset;
   filter: FilterState;
   setFilter: (f: FilterState) => void;
+  settings: SettingsState;
+  setSettings: (s: SettingsState) => void;
   onReset: () => void;
 }
 
@@ -50,7 +53,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'help', label: 'Help' },
 ];
 
-export function FilterControls({ data, filter, setFilter, onReset }: Props) {
+export function FilterControls({ data, filter, setFilter, settings, setSettings, onReset }: Props) {
   const update = (patch: Partial<FilterState>) => setFilter({ ...filter, ...patch });
   const [tab, setTab] = useState<Tab>('filters');
 
@@ -90,18 +93,159 @@ export function FilterControls({ data, filter, setFilter, onReset }: Props) {
             </div>
           </div>
         )}
-        {tab === 'settings' && <SettingsTab />}
+        {tab === 'settings' && (
+          <SettingsTab settings={settings} setSettings={setSettings} />
+        )}
         {tab === 'help' && <HelpTab />}
       </div>
     </div>
   );
 }
 
-function SettingsTab() {
+function SettingsTab({
+  settings,
+  setSettings,
+}: {
+  settings: SettingsState;
+  setSettings: (s: SettingsState) => void;
+}) {
+  const update = (patch: Partial<SettingsState>) =>
+    setSettings({ ...settings, ...patch });
+  const reset = () => setSettings(DEFAULT_SETTINGS);
+  const dirty =
+    settings.stimLo !== DEFAULT_SETTINGS.stimLo ||
+    settings.stimHi !== DEFAULT_SETTINGS.stimHi ||
+    settings.geneMaxSpots !== DEFAULT_SETTINGS.geneMaxSpots ||
+    settings.pointSize !== DEFAULT_SETTINGS.pointSize;
   return (
-    <div className="text-[11px] font-mono text-neutral-500 italic">
-      No settings yet.
+    <div className="flex flex-col gap-4 text-[11px] font-mono text-neutral-300 max-w-md">
+      <button
+        onClick={reset}
+        disabled={!dirty}
+        title="reset all settings to defaults"
+        className={
+          'self-start flex items-center gap-1 px-2 py-0.5 text-xs font-mono rounded border ' +
+          (dirty
+            ? 'text-neutral-300 bg-neutral-900/60 border-neutral-700 hover:bg-neutral-700 hover:text-neutral-100'
+            : 'text-neutral-600 border-neutral-800 cursor-default')
+        }
+      >
+        <span aria-hidden className="text-base leading-none">↺</span>
+        reset settings
+      </button>
+
+      <section className="flex flex-col gap-2">
+        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+          Stim correlation cutoffs
+        </div>
+        <p className="text-neutral-500 text-[10px] leading-tight">
+          Pearson r thresholds for stimulus correlation. Cells below the
+          floor are treated as non-responsive (dim in the Stim color
+          scheme; rejected by the Activity filter). Cells above the
+          saturation point map to plasma's bright end.
+        </p>
+        <NumberRow
+          label="responsive floor (r ≥)"
+          value={settings.stimLo}
+          min={-1}
+          max={settings.stimHi - 0.01}
+          step={0.05}
+          onChange={(v) => update({ stimLo: v })}
+        />
+        <NumberRow
+          label="saturation (r ≥)"
+          value={settings.stimHi}
+          min={settings.stimLo + 0.01}
+          max={1}
+          step={0.05}
+          onChange={(v) => update({ stimHi: v })}
+        />
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+          Gene plasma ceiling
+        </div>
+        <p className="text-neutral-500 text-[10px] leading-tight">
+          Upper anchor for the Gene scheme's plasma palette (raw FISH
+          spot count). Cells above this value saturate. Tune to match
+          the practical ceiling of the dataset's probe panel.
+        </p>
+        <NumberRow
+          label="max spot count"
+          value={settings.geneMaxSpots}
+          min={50}
+          max={5000}
+          step={50}
+          onChange={(v) => update({ geneMaxSpots: v })}
+        />
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+          Cell point size
+        </div>
+        <p className="text-neutral-500 text-[10px] leading-tight">
+          Base point size in pixels for the 3D viewer and t-SNE
+          scatter. Bump up on high-DPI screens or when cells look
+          undersized; user-selected cells still get an extra ×1.5
+          boost on top.
+        </p>
+        <NumberRow
+          label="point size (px)"
+          value={settings.pointSize}
+          min={2}
+          max={20}
+          step={0.5}
+          onChange={(v) => update({ pointSize: v })}
+        />
+      </section>
     </div>
+  );
+}
+
+function NumberRow({
+  label,
+  value,
+  min,
+  max,
+  step,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <label className="flex items-center justify-between gap-3">
+      <span className="text-neutral-300">{label}</span>
+      <span className="flex items-center gap-2">
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => onChange(parseFloat(e.target.value))}
+          className="w-32 accent-yellow-300"
+        />
+        <input
+          type="number"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => {
+            const v = parseFloat(e.target.value);
+            if (Number.isFinite(v)) onChange(v);
+          }}
+          className="bg-neutral-900 border border-neutral-700 rounded pl-2 pr-1 py-0.5 text-neutral-200 w-24 font-mono text-right"
+        />
+      </span>
+    </label>
   );
 }
 
