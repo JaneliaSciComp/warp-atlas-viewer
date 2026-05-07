@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import type { FilterState, SelectionState, SettingsState } from './data/types';
 import { DEFAULT_SETTINGS } from './data/types';
 import { useNeuronData } from './hooks/useNeuronData';
@@ -9,6 +9,19 @@ import { FilterControls } from './components/FilterControls';
 import { UmapPanel } from './components/UmapPanel';
 import { ColorLegend } from './components/ColorLegend';
 import { anyFilterActive, cellInSet } from './utils/coloring';
+import {
+  decodeHash,
+  encodeHash,
+  diffFilter,
+  diffSettings,
+  roundCamera,
+  roundViewport,
+  viewportIsDefault,
+  roundLasso,
+  type CameraState,
+  type UmapViewport,
+} from './utils/urlState';
+import { cellsInPolygon } from './utils/polygon';
 import janeliaLogoUrl from '../images/janelia_logo.png';
 
 const INITIAL_FILTER: FilterState = {
@@ -26,21 +39,119 @@ const INITIAL_FILTER: FilterState = {
 
 const DETAIL_PANEL_WIDTH = 360;
 
+// Read the URL hash exactly once at module load. Subsequent updates go
+// through history.replaceState so the in-app state is always the source
+// of truth and the URL just mirrors it.
+const INITIAL_URL_STATE =
+  typeof window !== 'undefined' ? decodeHash(window.location.hash) : null;
+
 export default function App() {
   const { data, error, progress } = useNeuronData();
-  const [filter, setFilter] = useState<FilterState>(INITIAL_FILTER);
-  const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
+  const [filter, setFilter] = useState<FilterState>(() => ({
+    ...INITIAL_FILTER,
+    ...(INITIAL_URL_STATE?.filter ?? {}),
+  }));
+  const [settings, setSettings] = useState<SettingsState>(() => ({
+    ...DEFAULT_SETTINGS,
+    ...(INITIAL_URL_STATE?.settings ?? {}),
+  }));
   const { selection, setIndices, clear } = useSelection();
   // The detail panel floats over the right edge of the viewer and can be
   // hidden when not in use to give the brain viewer / t-SNE the full width.
-  const [detailOpen, setDetailOpen] = useState(true);
-  const [bottomOpen, setBottomOpen] = useState(true);
+  const [detailOpen, setDetailOpen] = useState(INITIAL_URL_STATE?.detail ?? true);
+  const [bottomOpen, setBottomOpen] = useState(INITIAL_URL_STATE?.bottom ?? true);
   // Single-neuron focus is independent of the group selection so a
   // t-SNE drag can persist while the user clicks through individual
   // neurons. Click on a neuron → focus it (DetailPanel shows just that
   // cell). Click on empty space → unfocus (DetailPanel reverts to the
   // group). Clear button clears both.
-  const [focusedNeuron, setFocusedNeuron] = useState<number | null>(null);
+  const [focusedNeuron, setFocusedNeuron] = useState<number | null>(
+    INITIAL_URL_STATE?.focusedNeuron ?? null,
+  );
+
+  // Camera + t-SNE viewport are read continuously during interaction.
+  // We keep them in refs (not React state) so they don't trigger
+  // re-renders, and use a debounced URL writer that reads from these
+  // refs alongside the React state.
+  const cameraRef = useRef<CameraState | null>(INITIAL_URL_STATE?.camera ?? null);
+  const umapRef = useRef<UmapViewport | null>(INITIAL_URL_STATE?.umap ?? null);
+
+  // Lasso polygon (in t-SNE data coords) for the current selection.
+  // Persisting the polygon — not the index list — keeps share URLs
+  // tiny: a typical lasso is 30-150 vertices regardless of how many
+  // cells fall inside.
+  const [lassoPoly, setLassoPoly] = useState<Float32Array | null>(null);
+
+  // Restore lasso selection from URL once data is loaded: re-run
+  // point-in-polygon over the persisted vertices to derive indices.
+  const selectionRestoredRef = useRef(false);
+  useEffect(() => {
+    if (selectionRestoredRef.current) return;
+    if (!data) return;
+    const lasso = INITIAL_URL_STATE?.lasso;
+    if (lasso && lasso.length >= 6 && lasso.length % 2 === 0) {
+      const poly = new Float32Array(lasso);
+      const indices = cellsInPolygon(data.umap, data.count, poly);
+      if (indices.length > 0) {
+        setIndices(indices, 'umap');
+        setLassoPoly(poly);
+      }
+    }
+    selectionRestoredRef.current = true;
+  }, [data, setIndices]);
+
+  // Debounced URL writer. Re-runs after every render so any state
+  // change (including ref-driven camera/umap updates routed via
+  // scheduleUrlWrite below) is captured. 50 ms is short enough that a
+  // single click feels instant, long enough to coalesce camera-drag
+  // bursts (OrbitControls 'change' fires 30-60×/sec while orbiting).
+  const URL_DEBOUNCE_MS = 50;
+  const urlTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleUrlWrite = useCallback(() => {
+    if (urlTimerRef.current) clearTimeout(urlTimerRef.current);
+    urlTimerRef.current = setTimeout(() => {
+      urlTimerRef.current = null;
+      const filterDiff = diffFilter(filter, INITIAL_FILTER);
+      const settingsDiff = diffSettings(settings, DEFAULT_SETTINGS);
+      const cam = cameraRef.current ? roundCamera(cameraRef.current) : undefined;
+      const umap = umapRef.current && !viewportIsDefault(umapRef.current)
+        ? roundViewport(umapRef.current)
+        : undefined;
+      const lasso = lassoPoly ? roundLasso(lassoPoly) : undefined;
+      const hash = encodeHash({
+        filter: Object.keys(filterDiff).length > 0 ? filterDiff : undefined,
+        settings: Object.keys(settingsDiff).length > 0 ? settingsDiff : undefined,
+        focusedNeuron: focusedNeuron ?? undefined,
+        detail: detailOpen ? undefined : false,
+        bottom: bottomOpen ? undefined : false,
+        camera: cam,
+        umap,
+        lasso,
+      });
+      const target = `${window.location.pathname}${window.location.search}${hash}`;
+      window.history.replaceState(null, '', target);
+    }, URL_DEBOUNCE_MS);
+  }, [filter, settings, focusedNeuron, detailOpen, bottomOpen, lassoPoly]);
+  // Schedule a URL write whenever React state changes.
+  useEffect(() => {
+    scheduleUrlWrite();
+  }, [scheduleUrlWrite]);
+  // Camera + t-SNE viewport changes go through refs; they call
+  // scheduleUrlWrite directly so the URL still picks them up.
+  const handleCameraChange = useCallback(
+    (cam: CameraState) => {
+      cameraRef.current = cam;
+      scheduleUrlWrite();
+    },
+    [scheduleUrlWrite],
+  );
+  const handleUmapViewportChange = useCallback(
+    (vp: UmapViewport) => {
+      umapRef.current = vp;
+      scheduleUrlWrite();
+    },
+    [scheduleUrlWrite],
+  );
 
   // The selection state is USER-EXPLICIT only (3D click → focused
   // neuron handled separately; t-SNE drag → setIndices(_, 'umap')).
@@ -67,9 +178,14 @@ export default function App() {
   }, [data, selection, filter, settings]);
 
   const handleUmapSelect = useCallback(
-    (indices: Uint32Array) => {
-      if (indices.length === 0) clear();
-      else setIndices(indices, 'umap');
+    (indices: Uint32Array, polygon: Float32Array | null) => {
+      if (indices.length === 0) {
+        clear();
+        setLassoPoly(null);
+      } else {
+        setIndices(indices, 'umap');
+        setLassoPoly(polygon);
+      }
     },
     [setIndices, clear],
   );
@@ -166,6 +282,8 @@ export default function App() {
                 selection={selection}
                 focusedNeuron={focusedNeuron}
                 onFocus={setFocusedNeuron}
+                initialCamera={INITIAL_URL_STATE?.camera ?? null}
+                onCameraChange={handleCameraChange}
               />
               <ColorLegend data={data} filter={filter} settings={settings} />
             </div>
@@ -213,6 +331,8 @@ export default function App() {
                 focusedNeuron={focusedNeuron}
                 onFocus={setFocusedNeuron}
                 onSelect={handleUmapSelect}
+                initialViewport={INITIAL_URL_STATE?.umap ?? null}
+                onViewportChange={handleUmapViewportChange}
               />
             </div>
           )}

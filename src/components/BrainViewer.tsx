@@ -3,6 +3,7 @@ import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import type { NeuronDataset, FilterState, SelectionState, SettingsState, Orientation } from '../data/types';
+import type { CameraState } from '../utils/urlState';
 import { allocColoring, applyColoring } from '../utils/coloring';
 import vertSrc from '../shaders/neuron.vert.glsl?raw';
 import fragSrc from '../shaders/neuron.frag.glsl?raw';
@@ -16,6 +17,10 @@ interface Props {
   focusedNeuron: number | null;
   /** Click on a neuron sets focus; click on empty space sets to null. */
   onFocus: (i: number | null) => void;
+  /** Camera position + orbit target restored from URL on first mount. */
+  initialCamera?: CameraState | null;
+  /** Fired whenever the user moves/orbits/zooms the camera. */
+  onCameraChange?: (cam: CameraState) => void;
 }
 
 interface PickState {
@@ -219,18 +224,31 @@ function PointCloud({
   );
 }
 
-export function BrainViewer({ data, filter, settings, selection, focusedNeuron, onFocus }: Props) {
+export function BrainViewer({
+  data,
+  filter,
+  settings,
+  selection,
+  focusedNeuron,
+  onFocus,
+  initialCamera,
+  onCameraChange,
+}: Props) {
   const [hover, setHover] = useState<{ i: number; x: number; y: number } | null>(null);
   const orientation: Orientation = settings.orientation;
   const pickRef = useRef<PickState>({ pos: null, hovered: -1 });
 
   const camPosition = useMemo(() => {
+    if (initialCamera) return initialCamera.pos;
     const { min, max } = data.bounds;
     const span = Math.max(max[0] - min[0], max[1] - min[1], max[2] - min[2]);
     // Straight-on dorsal view: camera directly above the brain looking
     // down -z. Distance picked so the brain comfortably fills a landscape
     // panel; portrait users can wheel out.
     return [0, 0, span * 0.95] as [number, number, number];
+    // initialCamera intentionally only consulted on first mount; we
+    // don't want a remote URL update yanking the camera mid-interaction.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
   // Count of cells visibly highlighted (i.e. not rendered with the dim
@@ -381,6 +399,7 @@ export function BrainViewer({ data, filter, settings, selection, focusedNeuron, 
           orientation={orientation}
         />
         <OrbitControls makeDefault enableDamping dampingFactor={0.1} />
+        <CameraSync initialCamera={initialCamera ?? null} onCameraChange={onCameraChange} />
       </Canvas>
       {tooltip && hover && (
         <div className="neuron-tooltip" style={{ left: hover.x + 14, top: hover.y + 14 }}>
@@ -395,6 +414,70 @@ export function BrainViewer({ data, filter, settings, selection, focusedNeuron, 
       </div>
     </div>
   );
+}
+
+/** Reads/writes the OrbitControls + camera state so App can mirror it
+ *  to the URL hash. Restores `initialCamera` once on mount; thereafter
+ *  polls the camera each frame and fires `onCameraChange` only after
+ *  a few idle frames so the URL update lands when the user has truly
+ *  stopped moving (covers the OrbitControls damping settle without
+ *  spamming a write per frame). */
+function CameraSync({
+  initialCamera,
+  onCameraChange,
+}: {
+  initialCamera: CameraState | null;
+  onCameraChange?: (cam: CameraState) => void;
+}) {
+  const camera = useThree((s) => s.camera);
+  // OrbitControls wires itself in via makeDefault; useThree exposes it
+  // on .controls. The drei type uses any here to avoid a public-API
+  // dependency on OrbitControlsImpl.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const controls = useThree((s) => s.controls) as any;
+  const restoredRef = useRef(false);
+  const lastRef = useRef<CameraState | null>(null);
+  const idleFramesRef = useRef(0);
+  const dirtyRef = useRef(false);
+  // ~3 frames at 60fps ≈ 50 ms — long enough to outlast any frame
+  // hitches from OrbitControls' damping but short enough to feel
+  // immediate.
+  const IDLE_FRAMES = 3;
+
+  useEffect(() => {
+    if (!controls || restoredRef.current) return;
+    if (initialCamera) {
+      camera.position.set(...initialCamera.pos);
+      controls.target.set(...initialCamera.target);
+      controls.update();
+    }
+    restoredRef.current = true;
+  }, [controls, camera, initialCamera]);
+
+  useFrame(() => {
+    if (!controls || !onCameraChange) return;
+    const pos: [number, number, number] = [camera.position.x, camera.position.y, camera.position.z];
+    const target: [number, number, number] = [controls.target.x, controls.target.y, controls.target.z];
+    const last = lastRef.current;
+    const moved =
+      !last ||
+      pos[0] !== last.pos[0] || pos[1] !== last.pos[1] || pos[2] !== last.pos[2] ||
+      target[0] !== last.target[0] || target[1] !== last.target[1] || target[2] !== last.target[2];
+    if (moved) {
+      lastRef.current = { pos, target };
+      idleFramesRef.current = 0;
+      dirtyRef.current = true;
+      return;
+    }
+    if (!dirtyRef.current) return;
+    idleFramesRef.current++;
+    if (idleFramesRef.current >= IDLE_FRAMES) {
+      onCameraChange({ pos, target });
+      dirtyRef.current = false;
+    }
+  });
+
+  return null;
 }
 
 function buildTooltip(data: NeuronDataset, i: number): string {

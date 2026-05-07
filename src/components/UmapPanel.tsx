@@ -1,5 +1,6 @@
 import { useEffect, useRef, useMemo, useCallback, useState } from 'react';
 import type { NeuronDataset, FilterState, SelectionState, SettingsState } from '../data/types';
+import type { UmapViewport } from '../utils/urlState';
 import { allocColoring, applyColoring } from '../utils/coloring';
 
 interface Props {
@@ -12,7 +13,13 @@ interface Props {
    *  is independent and survives focus changes. */
   focusedNeuron: number | null;
   onFocus: (i: number | null) => void;
-  onSelect: (indices: Uint32Array, source: 'umap') => void;
+  /** Fires when the lasso closes (with the polygon in t-SNE data
+   *  coords) or the selection is cleared (empty indices, null poly). */
+  onSelect: (indices: Uint32Array, polygon: Float32Array | null) => void;
+  /** Viewport state restored from URL on first mount. */
+  initialViewport?: UmapViewport | null;
+  /** Fired on every viewport change so App can mirror it to the URL. */
+  onViewportChange?: (vp: UmapViewport) => void;
 }
 
 interface Viewport {
@@ -39,16 +46,38 @@ function pointInPolygon(x: number, y: number, poly: Array<[number, number]>): bo
   return inside;
 }
 
-export function UmapPanel({ data, filter, settings, selection, focusedNeuron, onFocus, onSelect }: Props) {
+export function UmapPanel({
+  data,
+  filter,
+  settings,
+  selection,
+  focusedNeuron,
+  onFocus,
+  onSelect,
+  initialViewport,
+  onViewportChange,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 400, h: 200 });
-  const [viewport, setViewport] = useState<Viewport>(INITIAL_VIEWPORT);
+  const [viewport, setViewport] = useState<Viewport>(initialViewport ?? INITIAL_VIEWPORT);
   // Refs mirroring viewport so handlers (which capture closures) and the
   // wheel listener (passive: false on the DOM node) see the latest values
   // without re-binding.
   const viewportRef = useRef(viewport);
   viewportRef.current = viewport;
+  // Mirror viewport changes up to App so the URL hash can track them.
+  // Skip the very first effect tick so we don't fire a no-op write back
+  // on mount with the URL-restored value.
+  const viewportEmittedRef = useRef(false);
+  useEffect(() => {
+    if (!onViewportChange) return;
+    if (!viewportEmittedRef.current) {
+      viewportEmittedRef.current = true;
+      return;
+    }
+    onViewportChange(viewport);
+  }, [viewport, onViewportChange]);
 
   // Drag state distinguishes "select" (left button) from "pan" (right or
   // middle button); pan also fires on shift+left for users without a
@@ -316,7 +345,23 @@ export function UmapPanel({ data, filter, settings, selection, focusedNeuron, on
       if (px < bxmin || px > bxmax || py < bymin || py > bymax) continue;
       if (pointInPolygon(px, py, pts)) out.push(i);
     }
-    onSelect(new Uint32Array(out), 'umap');
+    // Capture the polygon in t-SNE data coords too — App round-trips
+    // it through the URL hash, way smaller than serializing thousands
+    // of indices. Inverse of project()'s pixel mapping:
+    //   px = offsetX + (x - xmin) * scale
+    //   py = offsetY + (ymax - y) * scale
+    const dataW = umapBounds.xmax - umapBounds.xmin;
+    const dataH = umapBounds.ymax - umapBounds.ymin;
+    const baseScale = Math.min(size.w / dataW, size.h / dataH);
+    const scale = baseScale * viewport.zoom;
+    const offsetX = (size.w - dataW * scale) / 2 + viewport.panX;
+    const offsetY = (size.h - dataH * scale) / 2 + viewport.panY;
+    const dataPoly = new Float32Array(pts.length * 2);
+    for (let p = 0; p < pts.length; p++) {
+      dataPoly[p * 2] = (pts[p][0] - offsetX) / scale + umapBounds.xmin;
+      dataPoly[p * 2 + 1] = umapBounds.ymax - (pts[p][1] - offsetY) / scale;
+    }
+    onSelect(new Uint32Array(out), dataPoly);
   };
 
   const resetView = () => setViewport(INITIAL_VIEWPORT);
@@ -329,7 +374,7 @@ export function UmapPanel({ data, filter, settings, selection, focusedNeuron, on
         <div className="flex items-center gap-2 flex-shrink-0">
           {selection.source === 'umap' && selection.indices.length > 0 && (
             <button
-              onClick={() => onSelect(new Uint32Array(0), 'umap')}
+              onClick={() => onSelect(new Uint32Array(0), null)}
               className="font-mono bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-1.5 py-0.5 rounded hover:bg-neutral-800"
             >
               clear selection
