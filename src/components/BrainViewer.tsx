@@ -309,9 +309,9 @@ export function BrainViewer({
   }, [data, filter.colorMode, filter.selectedGene, filter.selectedStimuli, settings.stimLo, selection.indices]);
 
   // Track the pointer-down position so we can distinguish a click (no
-  // movement) from a drag (rotate / pan). Without this, a drag-rotate
-  // ending over a neuron fires the same DOM click event a true click
-  // would, and the user accidentally selects that neuron.
+  // movement) from a drag-rotate. Without this, a drag-rotate ending
+  // over a neuron fires the same DOM click event a true click would,
+  // and the user accidentally selects that neuron.
   const downRef = useRef<{ x: number; y: number } | null>(null);
   const draggedRef = useRef(false);
   const DRAG_THRESHOLD_PX = 4;
@@ -402,7 +402,7 @@ export function BrainViewer({
           onHoverChange={handleHoverChange}
           orientation={orientation}
         />
-        <OrbitControls makeDefault enableDamping dampingFactor={0.1} />
+        <OrbitControls makeDefault enableDamping dampingFactor={0.1} enablePan={settings.enablePan} />
         <CameraSync
           initialCamera={initialCamera ?? null}
           onCameraChange={onCameraChange}

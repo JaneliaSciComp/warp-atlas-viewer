@@ -93,7 +93,8 @@ function SettingsTab({
     settings.stimHi !== DEFAULT_SETTINGS.stimHi ||
     settings.geneMaxSpots !== DEFAULT_SETTINGS.geneMaxSpots ||
     settings.pointSize !== DEFAULT_SETTINGS.pointSize ||
-    settings.orientation !== DEFAULT_SETTINGS.orientation;
+    settings.orientation !== DEFAULT_SETTINGS.orientation ||
+    settings.enablePan !== DEFAULT_SETTINGS.enablePan;
   return (
     <div className="flex flex-col gap-6 pb-3 text-xs font-mono text-neutral-300 max-w-2xl">
       <button
@@ -191,6 +192,30 @@ function SettingsTab({
           value={settings.orientation}
           onChange={(o) => update({ orientation: o })}
         />
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+          Camera panning
+        </div>
+        <p className="text-neutral-400 leading-snug">
+          When off, the orbit pivot is locked to the volume center so
+          rotation always pivots around the volume's own axes. Turn on
+          to allow right-drag to translate the camera; rotation will
+          then pivot around the panned point.
+        </p>
+        <label
+          className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
+          title="enable right-drag panning of the 3D camera"
+        >
+          <input
+            type="checkbox"
+            checked={settings.enablePan}
+            onChange={(e) => update({ enablePan: e.target.checked })}
+            className="accent-neutral-300"
+          />
+          enable pan
+        </label>
       </section>
     </div>
   );

@@ -145,6 +145,10 @@ export interface SettingsState {
   pointSize: number;
   /** Brain orientation in the 3D viewer. */
   orientation: Orientation;
+  /** Whether the user can pan (translate) the 3D camera. When false,
+   *  the orbit target stays locked at the volume center so rotation
+   *  always pivots around the volume's own axes. */
+  enablePan: boolean;
 }
 
 export const DEFAULT_SETTINGS: SettingsState = {
@@ -153,6 +157,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
   geneMaxSpots: 1000,
   pointSize: 8.5,
   orientation: 'landscape',
+  enablePan: false,
 };
 
 export interface SelectionState {
