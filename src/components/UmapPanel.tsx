@@ -20,6 +20,20 @@ interface Viewport {
 
 const INITIAL_VIEWPORT: Viewport = { zoom: 1, panX: 0, panY: 0 };
 
+/** Standard ray-casting point-in-polygon test. The polygon is assumed
+ *  closed (the last vertex implicitly connects back to the first). */
+function pointInPolygon(x: number, y: number, poly: Array<[number, number]>): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i][0], yi = poly[i][1];
+    const xj = poly[j][0], yj = poly[j][1];
+    if (((yi > y) !== (yj > y)) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
 export function UmapPanel({ data, filter, settings, selection, onSelect }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -35,7 +49,7 @@ export function UmapPanel({ data, filter, settings, selection, onSelect }: Props
   // middle button); pan also fires on shift+left for users without a
   // multi-button mouse.
   const [drag, setDrag] = useState<
-    | { kind: 'select'; x0: number; y0: number; x1: number; y1: number }
+    | { kind: 'select'; pts: Array<[number, number]> }
     | { kind: 'pan'; lastX: number; lastY: number }
     | null
   >(null);
@@ -124,16 +138,22 @@ export function UmapPanel({ data, filter, settings, selection, onSelect }: Props
       ctx.fillRect(px, py, dotSize, dotSize);
     }
 
-    if (drag && drag.kind === 'select') {
+    if (drag && drag.kind === 'select' && drag.pts.length > 1) {
+      const pts = drag.pts;
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let p = 1; p < pts.length; p++) ctx.lineTo(pts[p][0], pts[p][1]);
+      // Visually close the polygon back to the start so the enclosed
+      // region reads as a shape, not an open scribble. Don't include
+      // the closing edge when there are only 2 points (it'd just be a
+      // line back over itself).
+      if (pts.length >= 3) ctx.closePath();
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      if (pts.length >= 3) ctx.fill();
       ctx.strokeStyle = '#ffffff';
       ctx.setLineDash([4, 2]);
       ctx.lineWidth = 1;
-      ctx.strokeRect(
-        Math.min(drag.x0, drag.x1),
-        Math.min(drag.y0, drag.y1),
-        Math.abs(drag.x1 - drag.x0),
-        Math.abs(drag.y1 - drag.y0),
-      );
+      ctx.stroke();
       ctx.setLineDash([]);
     }
   }, [data, filter, settings, selection, buffers, size, viewport, project, drag]);
@@ -190,7 +210,7 @@ export function UmapPanel({ data, filter, settings, selection, onSelect }: Props
     if (isPan) {
       setDrag({ kind: 'pan', lastX: x, lastY: y });
     } else {
-      setDrag({ kind: 'select', x0: x, y0: y, x1: x, y1: y });
+      setDrag({ kind: 'select', pts: [[x, y]] });
     }
   };
   const onMove = (e: React.PointerEvent) => {
@@ -205,7 +225,14 @@ export function UmapPanel({ data, filter, settings, selection, onSelect }: Props
       setViewport((vp) => ({ ...vp, panX: vp.panX + dx, panY: vp.panY + dy }));
       setDrag({ kind: 'pan', lastX: x, lastY: y });
     } else {
-      setDrag({ ...d, x1: x, y1: y });
+      // Subsample: only append a new vertex if the cursor moved far
+      // enough from the last one. Keeps the polyline readable and the
+      // point-in-polygon hit test cheap.
+      const last = d.pts[d.pts.length - 1];
+      const dx = x - last[0];
+      const dy = y - last[1];
+      if (dx * dx + dy * dy < 4) return;
+      setDrag({ kind: 'select', pts: [...d.pts, [x, y]] });
     }
   };
   const onUp = (e: React.PointerEvent) => {
@@ -216,19 +243,31 @@ export function UmapPanel({ data, filter, settings, selection, onSelect }: Props
       setDrag(null);
       return;
     }
-    const x0 = Math.min(d.x0, d.x1);
-    const x1 = Math.max(d.x0, d.x1);
-    const y0 = Math.min(d.y0, d.y1);
-    const y1 = Math.max(d.y0, d.y1);
+    const pts = d.pts;
     setDrag(null);
-    if (x1 - x0 < 3 || y1 - y0 < 3) {
+    // Need at least a triangle to enclose anything; treat tiny lassos
+    // (clicks or near-clicks) as "clear selection".
+    if (pts.length < 3) {
+      onSelect(new Uint32Array(0), 'umap');
+      return;
+    }
+    // Bounding box for a quick reject before the polygon test.
+    let bxmin = pts[0][0], bxmax = pts[0][0];
+    let bymin = pts[0][1], bymax = pts[0][1];
+    for (let p = 1; p < pts.length; p++) {
+      const px = pts[p][0], py = pts[p][1];
+      if (px < bxmin) bxmin = px; else if (px > bxmax) bxmax = px;
+      if (py < bymin) bymin = py; else if (py > bymax) bymax = py;
+    }
+    if (bxmax - bxmin < 3 || bymax - bymin < 3) {
       onSelect(new Uint32Array(0), 'umap');
       return;
     }
     const out: number[] = [];
     for (let i = 0; i < data.count; i++) {
       const [px, py] = project(data.umap[i * 2], data.umap[i * 2 + 1], size.w, size.h, viewport);
-      if (px >= x0 && px <= x1 && py >= y0 && py <= y1) out.push(i);
+      if (px < bxmin || px > bxmax || py < bymin || py > bymax) continue;
+      if (pointInPolygon(px, py, pts)) out.push(i);
     }
     onSelect(new Uint32Array(out), 'umap');
   };

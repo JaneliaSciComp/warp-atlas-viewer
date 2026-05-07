@@ -281,7 +281,7 @@ function HelpTab() {
       <ul className="list-disc list-inside space-y-0.5">
         <li>3D: drag to orbit, wheel to zoom, right-drag to pan</li>
         <li>3D: hover for ID, region, top genes; click to focus</li>
-        <li>t-SNE: drag to box-select, links to 3D view</li>
+        <li>t-SNE: drag to lasso-select, links to 3D view</li>
         <li>t-SNE: right-drag or shift+drag to pan, wheel to zoom</li>
         <li>Subtype filter: pull a functional cluster as a group</li>
         <li>Co-coding: Color=Stim correlation × single-gene filter</li>
