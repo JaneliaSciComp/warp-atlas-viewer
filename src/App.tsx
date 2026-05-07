@@ -34,6 +34,7 @@ export default function App() {
   // The detail panel floats over the right edge of the viewer and can be
   // hidden when not in use to give the brain viewer / t-SNE the full width.
   const [detailOpen, setDetailOpen] = useState(true);
+  const [bottomOpen, setBottomOpen] = useState(true);
   // Single-neuron focus is independent of the group selection so a
   // t-SNE drag can persist while the user clicks through individual
   // neurons. Click on a neuron → focus it (DetailPanel shows just that
@@ -98,13 +99,14 @@ export default function App() {
     [detailOpen],
   );
   // Inside the main column, two rows: brain viewer + bottom bar
-  // (filters + t-SNE).
+  // (filters + t-SNE). When the bottom bar is hidden the second row
+  // collapses and the brain viewer reclaims the full height.
   const mainLayout = useMemo(
     () => ({
       gridTemplateColumns: 'minmax(0, 1fr)',
-      gridTemplateRows: 'minmax(0, 1fr) 352px',
+      gridTemplateRows: bottomOpen ? 'minmax(0, 1fr) 352px' : 'minmax(0, 1fr)',
     }),
-    [],
+    [bottomOpen],
   );
 
   if (error) {
@@ -154,7 +156,10 @@ export default function App() {
       <div className="flex-1 grid min-h-0" style={outerLayout}>
         {/* Main column: brain viewer on top, filters + t-SNE on bottom. */}
         <div className="grid min-h-0 min-w-0" style={mainLayout}>
-          {/* Top: 3D viewer + legend + clear-selection button. */}
+          {/* Top: 3D viewer + legend + clear-selection button + the
+              bottom-panel show/hide tab handle (sits flush at the
+              bottom edge of the brain viewer area regardless of
+              whether the bottom row is collapsed). */}
           <div className="relative min-h-0 min-w-0 row-start-1 col-start-1">
             <div className="absolute inset-0">
               <BrainViewer
@@ -175,31 +180,51 @@ export default function App() {
                 </button>
               )}
             </div>
+            <button
+              onClick={() => setBottomOpen((o) => !o)}
+              title={bottomOpen ? 'hide bottom panel' : 'show bottom panel'}
+              aria-label={bottomOpen ? 'hide bottom panel' : 'show bottom panel'}
+              className="absolute bottom-0 left-1/2 -translate-x-1/2 z-30 bg-neutral-900/90 border border-b-0 border-neutral-700 text-neutral-200 w-[42px] py-0.5 rounded-t text-xs font-mono hover:bg-neutral-800 leading-none"
+            >
+              <span
+                aria-hidden
+                className={
+                  'inline-block ' +
+                  (bottomOpen ? 'translate-y-[-3px]' : 'translate-y-[3px]')
+                }
+              >
+                {bottomOpen ? '⌄' : '⌃'}
+              </span>
+            </button>
           </div>
 
-          {/* Bottom split: filters + t-SNE */}
-          <div
-            className="row-start-2 col-start-1 grid min-h-0 min-w-0"
-            style={{ gridTemplateColumns: 'minmax(0, 1fr) 320px' }}
-          >
-            <div className="flex flex-col bg-neutral-800 min-h-0 min-w-0 overflow-y-auto">
-              <FilterControls
+          {/* Bottom split: filters + t-SNE. Renders only when open;
+              when hidden, the gridTemplateRows drops the second row
+              and the brain viewer reclaims the height. */}
+          {bottomOpen && (
+            <div
+              className="row-start-2 col-start-1 grid min-h-0 min-w-0"
+              style={{ gridTemplateColumns: 'minmax(0, 1fr) 320px' }}
+            >
+              <div className="flex flex-col bg-neutral-800 min-h-0 min-w-0 overflow-y-auto">
+                <FilterControls
+                  data={data}
+                  filter={filter}
+                  setFilter={setFilter}
+                  settings={settings}
+                  setSettings={setSettings}
+                  onReset={handleResetFilters}
+                />
+              </div>
+              <UmapPanel
                 data={data}
                 filter={filter}
-                setFilter={setFilter}
                 settings={settings}
-                setSettings={setSettings}
-                onReset={handleResetFilters}
+                selection={selection}
+                onSelect={handleUmapSelect}
               />
             </div>
-            <UmapPanel
-              data={data}
-              filter={filter}
-              settings={settings}
-              selection={selection}
-              onSelect={handleUmapSelect}
-            />
-          </div>
+          )}
         </div>
 
         {/* Detail panel column — full-screen height. When closed the
