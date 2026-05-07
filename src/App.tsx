@@ -9,6 +9,7 @@ import { FilterControls } from './components/FilterControls';
 import { UmapPanel } from './components/UmapPanel';
 import { ColorLegend } from './components/ColorLegend';
 import { anyFilterActive, cellInSet } from './utils/coloring';
+import janeliaLogoUrl from '../images/janelia_logo.png';
 
 const INITIAL_FILTER: FilterState = {
   colorMode: 'region',
@@ -138,8 +139,19 @@ export default function App() {
   }
 
   return (
-    <div className="relative h-full w-full overflow-hidden">
-      <div className="h-full w-full grid" style={outerLayout}>
+    <div className="relative h-full w-full overflow-hidden flex flex-col">
+      <header className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-neutral-900 border-b border-neutral-800">
+        <h1 className="font-mono text-base tracking-wide text-neutral-100">WARP Atlas</h1>
+        <a
+          href="https://www.janelia.org"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Janelia Research Campus"
+        >
+          <img src={janeliaLogoUrl} alt="Janelia Research Campus" className="h-10 block" />
+        </a>
+      </header>
+      <div className="flex-1 grid min-h-0" style={outerLayout}>
         {/* Main column: brain viewer on top, filters + t-SNE on bottom. */}
         <div className="grid min-h-0 min-w-0" style={mainLayout}>
           {/* Top: 3D viewer + legend + clear-selection button. */}
