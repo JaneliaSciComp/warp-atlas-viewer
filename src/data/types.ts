@@ -126,11 +126,6 @@ export type StimLogic = 'or' | 'and';
  *  scheme and the activity filter. Lives in its own state slot
  *  (separate from FilterState) so "reset filters" doesn't clobber it
  *  and the Settings tab has a clean home for its controls. */
-/** How the brain is oriented in the 3D viewer. Both modes are dorsal
- *  (top-down) horizontal sections; the difference is which way the
- *  anterior end of the brain points on screen. */
-export type Orientation = 'portrait' | 'landscape';
-
 export interface SettingsState {
   /** Below this correlation, cells are "non-responsive" and dimmed
    *  by the Stim scheme; the Activity filter also requires a cell to
@@ -150,8 +145,6 @@ export interface SettingsState {
    *  viewer and the t-SNE scatter. Display-density preference; raise
    *  on high-DPI screens or when cells look too small. */
   pointSize: number;
-  /** Brain orientation in the 3D viewer. */
-  orientation: Orientation;
   /** Whether the user can pan (translate) the 3D camera. When false,
    *  the orbit target stays locked at the volume center so rotation
    *  always pivots around the volume's own axes. */
@@ -163,7 +156,6 @@ export const DEFAULT_SETTINGS: SettingsState = {
   stimHi: 0.65,
   geneMaxSpots: 1000,
   pointSize: 8.5,
-  orientation: 'landscape',
   enablePan: false,
 };
 

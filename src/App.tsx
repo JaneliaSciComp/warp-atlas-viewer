@@ -105,7 +105,7 @@ export default function App() {
   // change (including ref-driven camera/umap updates routed via
   // scheduleUrlWrite below) is captured. 50 ms is short enough that a
   // single click feels instant, long enough to coalesce camera-drag
-  // bursts (OrbitControls 'change' fires 30-60×/sec while orbiting).
+  // bursts (the camera-controls 'change' fires 30-60×/sec while moving).
   const URL_DEBOUNCE_MS = 50;
   const urlTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scheduleUrlWrite = useCallback(() => {

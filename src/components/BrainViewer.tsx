@@ -1,8 +1,8 @@
 import { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
+import { TrackballControls } from '@react-three/drei';
 import * as THREE from 'three';
-import type { NeuronDataset, FilterState, SelectionState, SettingsState, Orientation } from '../data/types';
+import type { NeuronDataset, FilterState, SelectionState, SettingsState } from '../data/types';
 import type { CameraState } from '../utils/urlState';
 import { allocColoring, applyColoring } from '../utils/coloring';
 import vertSrc from '../shaders/neuron.vert.glsl?raw';
@@ -40,7 +40,6 @@ function PointCloud({
   focusedNeuron,
   pickRef,
   onHoverChange,
-  orientation,
 }: {
   data: NeuronDataset;
   filter: FilterState;
@@ -49,7 +48,6 @@ function PointCloud({
   focusedNeuron: number | null;
   pickRef: React.MutableRefObject<PickState>;
   onHoverChange: (i: number) => void;
-  orientation: Orientation;
 }) {
   const { gl, camera, size } = useThree();
 
@@ -179,21 +177,16 @@ function PointCloud({
     const tmp = ndcRef.current;
     const PIX_THRESH_SQ = 16 * 16;
 
-    // Match the world-rotation applied by <group> below: rotate +90° around
-    // Z (so AP/world-y → screen-x, ML/world-x → screen-y) for landscape.
-    const isLandscape = orientation === 'landscape';
+    // Match the world-rotation applied by <group> below: rotate +90°
+    // around Z (so AP/world-y → screen-x, ML/world-x → screen-y).
 
     let bestI = -1;
     let bestZ = Infinity;
     for (let i = 0; i < data.count; i++) {
-      let x = positions[i * 3];
-      let y = positions[i * 3 + 1];
+      const ox = positions[i * 3];
+      const x = -positions[i * 3 + 1];
+      const y = ox;
       const z = positions[i * 3 + 2];
-      if (isLandscape) {
-        const ox = x;
-        x = -y;
-        y = ox;
-      }
       tmp.set(x, y, z);
       tmp.applyMatrix4(viewMat);
       const cz = tmp.z;
@@ -217,7 +210,7 @@ function PointCloud({
   });
 
   return (
-    <group rotation={[0, 0, orientation === 'landscape' ? Math.PI / 2 : 0]}>
+    <group rotation={[0, 0, Math.PI / 2]}>
       <points geometry={geometry} material={material} />
       <points geometry={markerGeometry} material={markerMaterial} renderOrder={2} />
     </group>
@@ -235,13 +228,10 @@ export function BrainViewer({
   onCameraChange,
 }: Props) {
   const [hover, setHover] = useState<{ i: number; x: number; y: number } | null>(null);
-  const orientation: Orientation = settings.orientation;
   const pickRef = useRef<PickState>({ pos: null, hovered: -1 });
 
   // Default camera position derived from the data bounds — straight-on
-  // dorsal view with the brain comfortably filling a landscape panel.
-  // Used both as the camera's initial position and as the "reset"
-  // target when the user toggles brain orientation in Settings.
+  // dorsal view with the brain comfortably filling the landscape panel.
   const defaultCamPosition = useMemo(() => {
     const { min, max } = data.bounds;
     const span = Math.max(max[0] - min[0], max[1] - min[1], max[2] - min[2]);
@@ -400,14 +390,17 @@ export function BrainViewer({
           focusedNeuron={focusedNeuron}
           pickRef={pickRef}
           onHoverChange={handleHoverChange}
-          orientation={orientation}
         />
-        <OrbitControls makeDefault enableDamping dampingFactor={0.1} enablePan={settings.enablePan} />
+        <TrackballControls
+          makeDefault
+          dynamicDampingFactor={0.1}
+          rotateSpeed={4.0}
+          zoomSpeed={1.5}
+          noPan={!settings.enablePan}
+        />
         <CameraSync
           initialCamera={initialCamera ?? null}
           onCameraChange={onCameraChange}
-          orientation={orientation}
-          defaultCamPosition={defaultCamPosition}
         />
       </Canvas>
       {tooltip && hover && (
@@ -425,27 +418,23 @@ export function BrainViewer({
   );
 }
 
-/** Reads/writes the OrbitControls + camera state so App can mirror it
- *  to the URL hash. Restores `initialCamera` once on mount; thereafter
- *  polls the camera each frame and fires `onCameraChange` only after
- *  a few idle frames so the URL update lands when the user has truly
- *  stopped moving (covers the OrbitControls damping settle without
- *  spamming a write per frame). */
+/** Reads/writes the camera-controls + camera state so App can mirror
+ *  it to the URL hash. Restores `initialCamera` once on mount;
+ *  thereafter polls the camera each frame and fires `onCameraChange`
+ *  only after a few idle frames so the URL update lands when the user
+ *  has truly stopped moving (covers TrackballControls' damping settle
+ *  without spamming a write per frame). */
 function CameraSync({
   initialCamera,
   onCameraChange,
-  orientation,
-  defaultCamPosition,
 }: {
   initialCamera: CameraState | null;
   onCameraChange?: (cam: CameraState) => void;
-  orientation: Orientation;
-  defaultCamPosition: [number, number, number];
 }) {
   const camera = useThree((s) => s.camera);
-  // OrbitControls wires itself in via makeDefault; useThree exposes it
-  // on .controls. The drei type uses any here to avoid a public-API
-  // dependency on OrbitControlsImpl.
+  // The drei controls wire themselves in via makeDefault; useThree
+  // exposes the instance on .controls. Use any to avoid a public-API
+  // dependency on TrackballControlsImpl.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const controls = useThree((s) => s.controls) as any;
   const restoredRef = useRef(false);
@@ -453,7 +442,7 @@ function CameraSync({
   const idleFramesRef = useRef(0);
   const dirtyRef = useRef(false);
   // ~3 frames at 60fps ≈ 50 ms — long enough to outlast any frame
-  // hitches from OrbitControls' damping but short enough to feel
+  // hitches from the trackball's damping but short enough to feel
   // immediate.
   const IDLE_FRAMES = 3;
 
@@ -466,24 +455,6 @@ function CameraSync({
     }
     restoredRef.current = true;
   }, [controls, camera, initialCamera]);
-
-  // Reset the camera whenever the user flips brain orientation in
-  // Settings. The world `<group>` rotates by 90° around Z, which
-  // would otherwise leave the user staring at the brain from a stale
-  // angle; resetting to the default top-down view is the only sane
-  // landing for the new orientation. Skips the very first run so we
-  // don't clobber an URL-restored camera on mount.
-  const orientationMountRef = useRef(true);
-  useEffect(() => {
-    if (orientationMountRef.current) {
-      orientationMountRef.current = false;
-      return;
-    }
-    if (!controls) return;
-    camera.position.set(...defaultCamPosition);
-    controls.target.set(0, 0, 0);
-    controls.update();
-  }, [orientation, controls, camera, defaultCamPosition]);
 
   useFrame(() => {
     if (!controls || !onCameraChange) return;
