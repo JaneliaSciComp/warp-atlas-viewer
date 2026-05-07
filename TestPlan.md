@@ -6,39 +6,39 @@ Run `npm run dev` and open the browser. Each test is independent — reset by cl
 
 ---
 
-## A. Identity sweep — old behaviors still reproducible
+## A. Identity sweep — single-axis color modes
 
-Validate each of the four old "color modes" can still be reached, and looks like it did before this PR.
+Validate each of the four color modes renders correctly with no other filters active.
 
 ### A1. Region mode
 - Setup: Colors=Region, all other filters "all"
 - Expected: every cell colored by its region with the categorical palette; the region legend (top-right) lists all regions.
-- Pass if the brain looks like the old "Region" mode.
+- Pass if every cell renders in its region's categorical color and the legend lists all regions.
 
 ### A2. Gene mode (single gene across whole brain)
 - Setup: Colors=Gene, Anatomy=all, Activity=all. Then in Transcriptomics → Single gene, **pick a gene** (this activates the filter — most of the brain goes grey), **then switch the same dropdown back to "all"** (deactivates the filter; the persistent gene index stays). Anatomy and Activity stay at "all".
 - Expected: plasma gradient over the whole brain showing that gene's raw spot-count expression; non-expressers faint dark gray. Legend reads "Gene: <name>" with plasma bar + scale ticks. The "1000" tick at the right edge does NOT overflow.
 - Toggle scale: log ↔ linear in Colors card. Tick labels in legend should change between [0,1,10,100,1000] and [0,250,500,750,1000].
-- Pass if it looks like old "Gene" mode and the scale toggle works.
+- Pass if the plasma gradient paints the whole brain by gene expression and the scale toggle updates the legend ticks.
 
 ### A3. Cluster mode
 - Setup: Colors=Cluster, Transcriptomics=Subtype → pick any cluster
 - Expected: only the picked cluster is bright yellow, everything else background-dim. Detail panel shows cells from that cluster.
-- Pass if it looks like old "Cluster" mode.
+- Pass if only the picked cluster is bright and the rest is dimmed.
 
 ### A4. Co-coding mode
 - Setup: Colors=Co-coding, Anatomy=all, Activity → any stimulus. Then in Transcriptomics → Single gene, pick a gene then switch back to "all" (same two-step trick as A2 — sets the persistent gene without restricting cells to gene+ only).
 - Expected: 4-tier bivariate (gray / blue / green / red); red cells (gene+ AND stim+) are larger and stand out; legend shows the two gene+/gene− gradient bands.
-- Pass if it matches old "Co-coding" mode.
+- Pass if the 4-tier bivariate renders with red (gene+ AND stim+) cells emphasized.
 
-### A5. Gene richness mode (new)
+### A5. Gene richness mode
 - Setup: Colors=Gene, Transcriptomics=Single gene → "all" (default initial state), Anatomy=all, Activity=all
 - Expected: every cell painted by **how many of the 41 panel genes it expresses by the binary call** — plasma gradient where bright = many genes, dim = few genes. Legend reads "Gene richness" with ticks scaled to [0..G] (G=41 in the WARP dataset). Cells with zero expressed genes appear dim; high-richness regions visibly stand out.
 - Switch Transcriptomics → Subtype → pick a cluster: legend stays in richness mode (still "Gene richness"); only that cluster's cells are colored, everything else dim. Richness still drives the in-cluster colors.
 - Toggle Colors=Gene scale log ↔ linear: ticks change accordingly.
 - Pass if richness aggregation appears whenever no specific gene is in focus.
 
-### A6. Binary-call predicate toggle (new)
+### A6. Binary-call predicate toggle
 - Setup: Colors=Region, Transcriptomics=Single gene → pick a gene. The "binary call" checkbox should appear on its own row inside the Transcriptomics card.
 - With "binary call" CHECKED (default): the filter selects only cells where the curated `geneBinary === 1`. DetailPanel count = the curated population for that gene.
 - Uncheck "binary call": filter relaxes to "any detected expression" (`raw > 0`). DetailPanel count visibly increases (typically by a lot — many cells have raw=1 or 2 below the binary threshold). The 3D view shows more cells colored.
@@ -48,7 +48,7 @@ Validate each of the four old "color modes" can still be reached, and looks like
 
 ---
 
-## B. Compositions — combinations that weren't possible before
+## B. Compositions — multi-filter combinations
 
 ### B1. Anatomy × Transcriptomics(gene) × Color=Cluster
 - Setup: Colors=Cluster; Anatomy → pick a region (e.g., the first in the list); Transcriptomics=Single gene → any gene; Activity=all
@@ -185,8 +185,8 @@ Validate each of the four old "color modes" can still be reached, and looks like
 - Pass if reset clears filters only, not user-explicit selections.
 
 ### E9. t-SNE header is bare
-- Expected: the t-SNE panel header just reads "t-SNE" (plus an optional "reset view" button when zoomed/panned). The old verbose hint string is gone.
-- Tip text for t-SNE controls should appear in the Tips list at the bottom of the filter panel instead.
+- Expected: the t-SNE panel header just reads "t-SNE" (plus an optional "reset view" button when zoomed/panned).
+- Tip text for t-SNE controls should appear in the Tips list at the bottom of the filter panel.
 - Pass if the header is just a title, with t-SNE control hints living in Tips.
 
 ### E10. Gene-legend tick alignment
