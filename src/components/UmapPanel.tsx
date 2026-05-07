@@ -148,49 +148,118 @@ export function UmapPanel({
     offscreenRef.current = document.createElement('canvas');
   }
 
+  // ImageData buffer reused across renders — allocating 19 MB
+  // (1500×800@2dpr) per scatter rebuild adds noticeable overhead, so
+  // we keep it in a ref and reallocate only when the canvas size
+  // changes.
+  const imageDataRef = useRef<ImageData | null>(null);
+
   // Effect A — render the scatter to the offscreen canvas. Re-runs only
   // when something that affects the scatter changes; crucially, NOT
   // when `drag` changes, so the lasso polyline doesn't trigger a
   // 274k-cell redraw.
+  //
+  // Per-cell drawing uses direct ImageData pixel stamping rather than
+  // ctx.fillStyle/arc/fill. The canvas-state-change overhead (string
+  // parse for fillStyle, path machinery for arc) was the bottleneck
+  // at zoom 1 where ~all 274k cells have to be drawn — direct writes
+  // are ~5-10× faster for the small (~1.5 px) dots typical of a
+  // zoomed-out view.
   useEffect(() => {
     const off = offscreenRef.current;
     if (!off) return;
     const dpr = window.devicePixelRatio || 1;
-    off.width = size.w * dpr;
-    off.height = size.h * dpr;
+    const W = size.w * dpr;
+    const H = size.h * dpr;
+    off.width = W;
+    off.height = H;
     const ctx = off.getContext('2d')!;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, size.w, size.h);
-    ctx.fillStyle = '#0a0a0a';
-    ctx.fillRect(0, 0, size.w, size.h);
 
     applyColoring(data, filter, settings, selection, buffers);
 
-    const colors = buffers.colors;
-    const alphas = buffers.alphas;
-    // Dot size scales with the user-configured cell point size and
-    // grows with zoom so dense regions stay readable as you zoom in.
-    // Clamped to 1px floor so cells never disappear entirely.
+    let imageData = imageDataRef.current;
+    if (!imageData || imageData.width !== W || imageData.height !== H) {
+      imageData = ctx.createImageData(W, H);
+      imageDataRef.current = imageData;
+    }
+    const buf = imageData.data;
+    // Background fill (#0a0a0a, opaque) so unpainted areas match the
+    // dot field. Single tight loop — ~9 ms for 19 MB on a modern CPU.
+    for (let p = 0; p < buf.length; p += 4) {
+      buf[p] = 0x0a;
+      buf[p + 1] = 0x0a;
+      buf[p + 2] = 0x0a;
+      buf[p + 3] = 0xff;
+    }
+
+    // Precompute the dot stamp at the current radius. A flat
+    // [dx, dy, weight, dx, dy, weight, ...] array of physical-pixel
+    // offsets with smoothstep edge weights for AA. Built once per
+    // render instead of per cell.
     const dotSize = Math.max(1, settings.pointSize * 0.18 * Math.sqrt(viewport.zoom));
     const radius = dotSize / 2;
-    const TWO_PI = Math.PI * 2;
-    for (let i = 0; i < data.count; i++) {
+    const radiusPhys = radius * dpr;
+    const stampR = Math.ceil(radiusPhys + 1);
+    const stampTriples: number[] = [];
+    for (let dy = -stampR; dy <= stampR; dy++) {
+      for (let dx = -stampR; dx <= stampR; dx++) {
+        const d = Math.sqrt(dx * dx + dy * dy);
+        const w = Math.max(0, Math.min(1, radiusPhys - d + 0.5));
+        if (w > 0.01) stampTriples.push(dx, dy, w);
+      }
+    }
+    const stamp = stampTriples;
+    const stampLen = stamp.length;
+
+    // Inline the project() math so we avoid a function call per cell.
+    const dataW = umapBounds.xmax - umapBounds.xmin;
+    const dataH = umapBounds.ymax - umapBounds.ymin;
+    const baseScale = Math.min(size.w / dataW, size.h / dataH);
+    const scale = baseScale * viewport.zoom;
+    const offsetX = (size.w - dataW * scale) / 2 + viewport.panX;
+    const offsetY = (size.h - dataH * scale) / 2 + viewport.panY;
+    const xmin = umapBounds.xmin;
+    const ymax = umapBounds.ymax;
+
+    const colors = buffers.colors;
+    const alphas = buffers.alphas;
+    const umap = data.umap;
+    const count = data.count;
+
+    for (let i = 0; i < count; i++) {
       const a = alphas[i];
       if (a < 0.05) continue;
-      const [px, py] = project(data.umap[i * 2], data.umap[i * 2 + 1], size.w, size.h, viewport);
-      // Skip points outside the panel; minor speedup at high zoom.
-      if (px < -2 || py < -2 || px > size.w + 2 || py > size.h + 2) continue;
-      const r = Math.round(colors[i * 3] * 255);
-      const g = Math.round(colors[i * 3 + 1] * 255);
-      const b = Math.round(colors[i * 3 + 2] * 255);
-      ctx.fillStyle = `rgba(${r},${g},${b},${a.toFixed(2)})`;
-      ctx.beginPath();
-      ctx.arc(px, py, radius, 0, TWO_PI);
-      ctx.fill();
+      const px = offsetX + (umap[i * 2] - xmin) * scale;
+      const py = offsetY + (ymax - umap[i * 2 + 1]) * scale;
+      // Convert to physical pixel center.
+      const cx = (px * dpr) | 0;
+      const cy = (py * dpr) | 0;
+      // Reject far-off-canvas cells before the stamp loop.
+      if (cx < -stampR || cy < -stampR || cx > W + stampR || cy > H + stampR) continue;
+
+      const r = colors[i * 3] * 255;
+      const g = colors[i * 3 + 1] * 255;
+      const b = colors[i * 3 + 2] * 255;
+
+      for (let s = 0; s < stampLen; s += 3) {
+        const tx = cx + stamp[s];
+        const ty = cy + stamp[s + 1];
+        if (tx < 0 || ty < 0 || tx >= W || ty >= H) continue;
+        const idx = (ty * W + tx) * 4;
+        const aw = a * stamp[s + 2];
+        const inv = 1 - aw;
+        // Uint8ClampedArray clamps to 0-255 automatically.
+        buf[idx] = buf[idx] * inv + r * aw;
+        buf[idx + 1] = buf[idx + 1] * inv + g * aw;
+        buf[idx + 2] = buf[idx + 2] * inv + b * aw;
+      }
     }
+
+    ctx.putImageData(imageData, 0, 0);
 
     // Focused-neuron marker: a small white ring drawn on top of the
     // scatter so the cell stands out regardless of color scheme.
+    // Single cell — ctx.arc is fine here.
     if (focusedNeuron != null && focusedNeuron >= 0 && focusedNeuron < data.count) {
       const [px, py] = project(
         data.umap[focusedNeuron * 2],
@@ -200,6 +269,7 @@ export function UmapPanel({
         viewport,
       );
       if (px >= -10 && py >= -10 && px <= size.w + 10 && py <= size.h + 10) {
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.beginPath();
         ctx.arc(px, py, Math.max(6, radius + 2), 0, Math.PI * 2);
         ctx.strokeStyle = '#ffffff';
@@ -207,7 +277,7 @@ export function UmapPanel({
         ctx.stroke();
       }
     }
-  }, [data, filter, settings, selection, focusedNeuron, buffers, size, viewport, project]);
+  }, [data, filter, settings, selection, focusedNeuron, buffers, size, viewport, project, umapBounds]);
 
   // Effect B — composite the cached scatter onto the visible canvas
   // and overlay the in-progress lasso. Cheap (drawImage + a polyline),
