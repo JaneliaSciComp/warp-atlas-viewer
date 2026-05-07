@@ -4,19 +4,16 @@ import { regionColor, plasma, rgbToHex } from '../utils/colorMaps';
 interface Props {
   data: NeuronDataset;
   filter: FilterState;
-  /** Right-edge offset in px, lets the parent push the legend left when
-   *  the floating detail panel is open. */
-  rightOffset?: number;
 }
 
-export function ColorLegend({ data, filter, rightOffset = 8 }: Props) {
-  const positionStyle = { top: 8, right: rightOffset } as const;
+export function ColorLegend({ data, filter }: Props) {
+  const positionStyle = { top: 8, right: 8 } as const;
 
   if (filter.colorMode === 'region') {
     return (
       <div
         style={positionStyle}
-        className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200 max-h-72 overflow-y-auto transition-[right] duration-200"
+        className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200 max-h-72 overflow-y-auto"
       >
         <div className="text-neutral-400 mb-1">Brain region</div>
         {data.regionNames.map((r, i) => (
@@ -65,7 +62,7 @@ export function ColorLegend({ data, filter, rightOffset = 8 }: Props) {
     return (
       <div
         style={positionStyle}
-        className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200 transition-[right] duration-200"
+        className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200"
       >
         <div className="text-neutral-400 mb-1">{title}</div>
         <div className="relative w-32">
@@ -118,7 +115,7 @@ export function ColorLegend({ data, filter, rightOffset = 8 }: Props) {
   return (
     <div
       style={positionStyle}
-      className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200 transition-[right] duration-200"
+      className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200"
     >
       <div className="text-neutral-400 mb-1">{stimTitle}</div>
       <div className="relative w-32">

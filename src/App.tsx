@@ -81,22 +81,29 @@ export default function App() {
     setFilter(INITIAL_FILTER);
   }, []);
 
-  const layout = useMemo(
+  // Outer 2-column grid: main content on the left, detail panel on the
+  // right (full screen height) when open. minmax(0, 1fr) lets the main
+  // column actually shrink below its content's intrinsic size — plain
+  // `1fr` defaults to minmax(auto, 1fr) which pins the min to
+  // min-content and breaks horizontal resize once the window goes
+  // below the initial width.
+  const outerLayout = useMemo(
     () => ({
-      // minmax(0, 1fr) lets the column actually shrink below its
-      // content's intrinsic size; plain `1fr` defaults to
-      // minmax(auto, 1fr) which pins the min to min-content and breaks
-      // horizontal resize once the window goes below the initial width.
+      gridTemplateColumns: detailOpen
+        ? `minmax(0, 1fr) ${DETAIL_PANEL_WIDTH}px`
+        : 'minmax(0, 1fr)',
+    }),
+    [detailOpen],
+  );
+  // Inside the main column, two rows: brain viewer + bottom bar
+  // (filters + t-SNE).
+  const mainLayout = useMemo(
+    () => ({
       gridTemplateColumns: 'minmax(0, 1fr)',
       gridTemplateRows: 'minmax(0, 1fr) 352px',
     }),
     [],
   );
-
-  // When the detail panel is open it floats over the right edge of the
-  // brain viewer; nudge any right-anchored UI (legend, clear button) inside
-  // the brain viewer left so it isn't covered.
-  const rightInset = detailOpen ? DETAIL_PANEL_WIDTH + 8 : 8;
 
   if (error) {
     return (
@@ -130,99 +137,95 @@ export default function App() {
   }
 
   return (
-    <div
-      className="h-full w-full grid overflow-hidden"
-      style={layout}
-    >
-      {/* Top: 3D viewer + legend + floating detail panel. The aside is
-          anchored inside this container so it spans exactly the brain
-          viewer row — leaving the t-SNE / filters bar fully usable. */}
-      <div className="relative min-h-0 min-w-0 row-start-1 col-start-1">
-        <div className="absolute inset-0">
-          <BrainViewer
-            data={data}
-            filter={filter}
-            selection={selection}
-            focusedNeuron={focusedNeuron}
-            onFocus={setFocusedNeuron}
-          />
-          <ColorLegend data={data} filter={filter} rightOffset={rightInset} />
-          {(focusedNeuron != null || selection.indices.length > 0) && (
-            <button
-              onClick={handleClearAll}
-              style={{ right: rightInset }}
-              className="absolute bottom-2 text-[11px] font-mono bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-2 py-1 rounded hover:bg-neutral-800 transition-[right] duration-200"
-            >
-              clear selection
-            </button>
-          )}
+    <div className="relative h-full w-full overflow-hidden">
+      <div className="h-full w-full grid" style={outerLayout}>
+        {/* Main column: brain viewer on top, filters + t-SNE on bottom. */}
+        <div className="grid min-h-0 min-w-0" style={mainLayout}>
+          {/* Top: 3D viewer + legend + clear-selection button. */}
+          <div className="relative min-h-0 min-w-0 row-start-1 col-start-1">
+            <div className="absolute inset-0">
+              <BrainViewer
+                data={data}
+                filter={filter}
+                selection={selection}
+                focusedNeuron={focusedNeuron}
+                onFocus={setFocusedNeuron}
+              />
+              <ColorLegend data={data} filter={filter} />
+              {(focusedNeuron != null || selection.indices.length > 0) && (
+                <button
+                  onClick={handleClearAll}
+                  className="absolute bottom-2 right-2 text-[11px] font-mono bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-2 py-1 rounded hover:bg-neutral-800"
+                >
+                  clear selection
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Bottom split: filters + t-SNE */}
+          <div
+            className="row-start-2 col-start-1 grid min-h-0 min-w-0"
+            style={{ gridTemplateColumns: 'minmax(0, 1fr) 320px' }}
+          >
+            <div className="flex flex-col bg-neutral-800 min-h-0 min-w-0 overflow-y-auto">
+              <FilterControls
+                data={data}
+                filter={filter}
+                setFilter={setFilter}
+                onReset={handleResetFilters}
+              />
+              <div className="p-3 text-[11px] font-mono text-neutral-400">
+                <div className="mb-1 text-neutral-500">Tips</div>
+                <ul className="list-disc list-inside space-y-0.5">
+                  <li>3D: drag to orbit, wheel to zoom, right-drag to pan</li>
+                  <li>3D: hover for ID, region, top genes; click to focus</li>
+                  <li>t-SNE: drag to box-select, links to 3D view</li>
+                  <li>t-SNE: right-drag or shift+drag to pan, wheel to zoom</li>
+                  <li>Subtype filter: pull a functional cluster as a group</li>
+                  <li>Co-coding: Color=Stim correlation × single-gene filter</li>
+                </ul>
+              </div>
+            </div>
+            <UmapPanel
+              data={data}
+              filter={filter}
+              selection={selection}
+              onSelect={handleUmapSelect}
+            />
+          </div>
         </div>
 
-        {/* Floating detail panel — slides off-screen to the right when hidden. */}
-        <aside
-          aria-hidden={!detailOpen}
-          style={{ width: DETAIL_PANEL_WIDTH }}
-          className={
-            'absolute top-0 right-0 bottom-0 z-20 shadow-2xl transition-transform duration-200 ease-in-out ' +
-            (detailOpen ? 'translate-x-0' : 'translate-x-full')
-          }
-        >
-          <button
-            onClick={() => setDetailOpen(false)}
-            title="hide details"
-            aria-label="hide details panel"
-            className="absolute top-1.5 right-2 z-10 w-6 h-6 flex items-center justify-center text-lg leading-none text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200 rounded"
-          >
-            ×
-          </button>
-          <DetailPanel data={data} selection={effectiveSelection} focusedNeuron={focusedNeuron} />
-        </aside>
-
-        {/* Tab to reopen the panel when it's hidden, vertically centered on
-            the brain viewer row. */}
-        {!detailOpen && (
-          <button
-            onClick={() => setDetailOpen(true)}
-            title="show details"
-            aria-label="show details panel"
-            className="absolute top-1/2 -translate-y-1/2 right-0 z-30 bg-neutral-900/90 border border-r-0 border-neutral-700 text-neutral-200 py-3 px-1.5 rounded-l text-xs font-mono hover:bg-neutral-800"
-          >
-            ‹
-          </button>
+        {/* Detail panel column — full-screen height. When closed the
+            column collapses (gridTemplateColumns drops to '1fr') so the
+            main column reclaims the width. */}
+        {detailOpen && (
+          <aside className="relative min-h-0 min-w-0 border-l border-neutral-700 bg-neutral-50">
+            <button
+              onClick={() => setDetailOpen(false)}
+              title="hide details"
+              aria-label="hide details panel"
+              className="absolute top-1.5 right-2 z-10 w-6 h-6 flex items-center justify-center text-lg leading-none text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200 rounded"
+            >
+              ×
+            </button>
+            <DetailPanel data={data} selection={effectiveSelection} focusedNeuron={focusedNeuron} />
+          </aside>
         )}
       </div>
 
-      {/* Bottom split: filters + t-SNE */}
-      <div
-        className="row-start-2 col-start-1 grid min-h-0 min-w-0"
-        style={{ gridTemplateColumns: 'minmax(0, 1fr) 320px' }}
-      >
-        <div className="flex flex-col bg-neutral-800 min-h-0 min-w-0 overflow-y-auto">
-          <FilterControls
-            data={data}
-            filter={filter}
-            setFilter={setFilter}
-            onReset={handleResetFilters}
-          />
-          <div className="p-3 text-[11px] font-mono text-neutral-400">
-            <div className="mb-1 text-neutral-500">Tips</div>
-            <ul className="list-disc list-inside space-y-0.5">
-              <li>3D: drag to orbit, wheel to zoom, right-drag to pan</li>
-              <li>3D: hover for ID, region, top genes; click to focus</li>
-              <li>t-SNE: drag to box-select, links to 3D view</li>
-              <li>t-SNE: right-drag or shift+drag to pan, wheel to zoom</li>
-              <li>Subtype filter: pull a functional cluster as a group</li>
-              <li>Co-coding: Color=Stim correlation × single-gene filter</li>
-            </ul>
-          </div>
-        </div>
-        <UmapPanel
-          data={data}
-          filter={filter}
-          selection={selection}
-          onSelect={handleUmapSelect}
-        />
-      </div>
+      {/* Tab to reopen the panel when it's hidden, vertically centered
+          on the viewport's right edge. */}
+      {!detailOpen && (
+        <button
+          onClick={() => setDetailOpen(true)}
+          title="show details"
+          aria-label="show details panel"
+          className="absolute top-1/2 -translate-y-1/2 right-0 z-30 bg-neutral-900/90 border border-r-0 border-neutral-700 text-neutral-200 py-3 px-1.5 rounded-l text-xs font-mono hover:bg-neutral-800"
+        >
+          ‹
+        </button>
+      )}
     </div>
   );
 }
