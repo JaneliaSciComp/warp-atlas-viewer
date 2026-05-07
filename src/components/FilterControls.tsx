@@ -329,7 +329,7 @@ const FINDINGS: FindingPreset[] = [
       'Tectal pou4f2_cckb subtype is positively correlated with the dark-flash stimulus — the cckb-pou4f2 luminance-coding population highlighted in the abstract.',
     colorMode: 'stim',
     cluster: 'pou4f2_cckb',
-    stimuli: [5],
+    stimuli: [4],
   },
   {
     title: 'pvalb7_eomesa task-related neurons',
