@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { NeuronDataset, FilterState, ColorMode } from '../data/types';
 
 // Stimulus icons, one per dataset stimulus index. Vite serves these as
@@ -42,26 +43,80 @@ const COLOR_SCHEMES: Array<{ value: ColorMode; label: string }> = [
 
 const ALL_OPTION = { value: -1, label: 'all' } as const;
 
+type Tab = 'filters' | 'settings' | 'help';
+const TABS: Array<{ id: Tab; label: string }> = [
+  { id: 'filters', label: 'Filters' },
+  { id: 'settings', label: 'Settings' },
+  { id: 'help', label: 'Help' },
+];
+
 export function FilterControls({ data, filter, setFilter, onReset }: Props) {
   const update = (patch: Partial<FilterState>) => setFilter({ ...filter, ...patch });
+  const [tab, setTab] = useState<Tab>('filters');
 
   return (
-    <div className="flex flex-col gap-2 p-3 bg-neutral-800 border-t border-neutral-700">
-      <div className="flex items-center gap-2">
-        <span className="text-xs uppercase tracking-wider text-neutral-400 font-mono">
-          Filters
-        </span>
-        <ResetButton onReset={onReset} />
+    <div className="flex flex-col bg-neutral-800 border-t border-neutral-700">
+      <div className="flex border-b border-neutral-700 px-2 pt-1">
+        {TABS.map((t) => {
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={
+                'px-3 py-1.5 text-xs uppercase tracking-wider font-mono -mb-px border-b-2 ' +
+                (active
+                  ? 'text-neutral-100 border-yellow-300'
+                  : 'text-neutral-500 border-transparent hover:text-neutral-300')
+              }
+            >
+              {t.label}
+            </button>
+          );
+        })}
       </div>
-      <div className="flex flex-wrap items-stretch gap-x-2 gap-y-2">
-        <ColorsCard filter={filter} update={update} />
-        <CrossSep />
-        <AnatomyCard data={data} filter={filter} update={update} />
-        <CrossSep />
-        <TranscriptomicsCard data={data} filter={filter} update={update} />
-        <CrossSep />
-        <ActivityCard data={data} filter={filter} update={update} />
+      <div className="p-3">
+        {tab === 'filters' && (
+          <div className="flex flex-col gap-2">
+            <ResetButton onReset={onReset} />
+            <div className="flex flex-wrap items-stretch gap-x-2 gap-y-2">
+              <ColorsCard filter={filter} update={update} />
+              <CrossSep />
+              <AnatomyCard data={data} filter={filter} update={update} />
+              <CrossSep />
+              <TranscriptomicsCard data={data} filter={filter} update={update} />
+              <CrossSep />
+              <ActivityCard data={data} filter={filter} update={update} />
+            </div>
+          </div>
+        )}
+        {tab === 'settings' && <SettingsTab />}
+        {tab === 'help' && <HelpTab />}
       </div>
+    </div>
+  );
+}
+
+function SettingsTab() {
+  return (
+    <div className="text-[11px] font-mono text-neutral-500 italic">
+      No settings yet.
+    </div>
+  );
+}
+
+function HelpTab() {
+  return (
+    <div className="text-[11px] font-mono text-neutral-400">
+      <div className="mb-1 text-neutral-500">Tips</div>
+      <ul className="list-disc list-inside space-y-0.5">
+        <li>3D: drag to orbit, wheel to zoom, right-drag to pan</li>
+        <li>3D: hover for ID, region, top genes; click to focus</li>
+        <li>t-SNE: drag to box-select, links to 3D view</li>
+        <li>t-SNE: right-drag or shift+drag to pan, wheel to zoom</li>
+        <li>Subtype filter: pull a functional cluster as a group</li>
+        <li>Co-coding: Color=Stim correlation × single-gene filter</li>
+      </ul>
     </div>
   );
 }
@@ -98,10 +153,10 @@ function ResetButton({ onReset }: { onReset: () => void }) {
     <button
       onClick={onReset}
       title="reset all filters to defaults"
-      className="flex items-center gap-1 px-2 py-0.5 text-xs font-mono text-neutral-300 bg-neutral-900/60 border border-neutral-700 rounded hover:bg-neutral-700 hover:text-neutral-100"
+      className="self-start flex items-center gap-1 px-2 py-0.5 text-xs font-mono text-neutral-300 bg-neutral-900/60 border border-neutral-700 rounded hover:bg-neutral-700 hover:text-neutral-100"
     >
       <span aria-hidden className="text-base leading-none">↺</span>
-      reset
+      reset filters
     </button>
   );
 }
