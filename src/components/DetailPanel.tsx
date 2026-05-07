@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  LineChart, Line, ReferenceLine, ReferenceArea,
+  LineChart, Line, ReferenceLine, ReferenceArea, Customized,
 } from 'recharts';
 import type { NeuronDataset, SelectionState } from '../data/types';
 import { STIM_ICONS, STIM_LABELS, stimIndexFromName } from '../utils/stimAssets';
@@ -156,9 +156,9 @@ export function DetailPanel({ data, selection, focusedNeuron }: Props) {
         <h3 className="text-xs font-semibold text-neutral-300 mb-1">
           Activity (mean ΔF/F across stimulus presentations)
         </h3>
-        <div style={{ width: '100%', height: 130 }}>
+        <div style={{ width: '100%', height: 150 }}>
           <ResponsiveContainer>
-            <LineChart data={traceData} margin={{ top: 4, right: 8, left: 4, bottom: 14 }}>
+            <LineChart data={traceData} margin={{ top: 22, right: 8, left: 4, bottom: 14 }}>
               <XAxis
                 dataKey="t"
                 type="number"
@@ -183,6 +183,9 @@ export function DetailPanel({ data, selection, focusedNeuron }: Props) {
                   ifOverflow="visible"
                 />
               ))}
+              <Customized component={(props: unknown) => (
+                <StimIconRow windows={stimWindows} chart={props as ChartCtx} />
+              )} />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
                 cursor={TOOLTIP_CURSOR_LINE}
@@ -194,7 +197,7 @@ export function DetailPanel({ data, selection, focusedNeuron }: Props) {
           </ResponsiveContainer>
         </div>
         <div className="text-[10px] text-neutral-500 font-mono mt-0.5">
-          Red bands = stimulus on-windows ({stimWindows.length} stimuli per cycle).
+          Icons mark each stimulus's on-window ({stimWindows.length} stimuli per cycle).
         </div>
       </section>
 
@@ -234,6 +237,55 @@ export function DetailPanel({ data, selection, focusedNeuron }: Props) {
         </div>
       </section>
     </div>
+  );
+}
+
+/** Recharts hands `<Customized>` an internal context that includes the
+ *  resolved axis maps and the plot area's pixel offset. The fields
+ *  aren't in the public types, so we narrow to just what we read. */
+interface ChartCtx {
+  xAxisMap?: Record<string, { scale?: (v: number) => number }>;
+  offset?: { top?: number; left?: number; width?: number; height?: number };
+}
+
+/** Renders the stimulus icons across the top of the activity-trace
+ *  chart, one centered above each stimulus on-window. Mirrors the
+ *  manuscript's panel labeling so a viewer can read off "this peak
+ *  fires during the right-loom" without consulting the legend. */
+function StimIconRow({
+  windows,
+  chart,
+}: {
+  windows: Array<[number, number]>;
+  chart: ChartCtx;
+}) {
+  const xAxis = chart.xAxisMap ? Object.values(chart.xAxisMap)[0] : undefined;
+  const scale = xAxis?.scale;
+  if (!scale || !chart.offset) return null;
+  const ICON_SIZE = 16;
+  // Place icons in the chart's top margin, just above the plot area.
+  const y = Math.max(0, (chart.offset.top ?? 0) - ICON_SIZE - 2);
+  return (
+    <g>
+      {windows.map(([on, off], s) => {
+        const icon = STIM_ICONS[s];
+        if (!icon) return null;
+        const cx = scale((on + off) / 2);
+        if (!Number.isFinite(cx)) return null;
+        return (
+          <image
+            key={s}
+            href={icon}
+            x={cx - ICON_SIZE / 2}
+            y={y}
+            width={ICON_SIZE}
+            height={ICON_SIZE}
+          >
+            <title>{STIM_LABELS[s] ?? `stim ${s + 1}`}</title>
+          </image>
+        );
+      })}
+    </g>
   );
 }
 
