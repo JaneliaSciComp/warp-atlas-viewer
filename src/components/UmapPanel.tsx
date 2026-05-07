@@ -139,16 +139,26 @@ export function UmapPanel({
     return () => ro.disconnect();
   }, []);
 
-  // Render scatter
+  // Offscreen canvas caches the scatter render. During a lasso drag we
+  // re-blit this onto the visible canvas (cheap) instead of looping
+  // over all 274k cells per pointermove (expensive). The cache is
+  // invalidated only when its inputs change (data/filter/viewport/etc.).
+  const offscreenRef = useRef<HTMLCanvasElement | null>(null);
+  if (!offscreenRef.current && typeof document !== 'undefined') {
+    offscreenRef.current = document.createElement('canvas');
+  }
+
+  // Effect A — render the scatter to the offscreen canvas. Re-runs only
+  // when something that affects the scatter changes; crucially, NOT
+  // when `drag` changes, so the lasso polyline doesn't trigger a
+  // 274k-cell redraw.
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const off = offscreenRef.current;
+    if (!off) return;
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = size.w * dpr;
-    canvas.height = size.h * dpr;
-    canvas.style.width = `${size.w}px`;
-    canvas.style.height = `${size.h}px`;
-    const ctx = canvas.getContext('2d')!;
+    off.width = size.w * dpr;
+    off.height = size.h * dpr;
+    const ctx = off.getContext('2d')!;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, size.w, size.h);
     ctx.fillStyle = '#0a0a0a';
@@ -197,6 +207,23 @@ export function UmapPanel({
         ctx.stroke();
       }
     }
+  }, [data, filter, settings, selection, focusedNeuron, buffers, size, viewport, project]);
+
+  // Effect B — composite the cached scatter onto the visible canvas
+  // and overlay the in-progress lasso. Cheap (drawImage + a polyline),
+  // safe to run on every pointermove.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const off = offscreenRef.current;
+    if (!canvas || !off) return;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = size.w * dpr;
+    canvas.height = size.h * dpr;
+    canvas.style.width = `${size.w}px`;
+    canvas.style.height = `${size.h}px`;
+    const ctx = canvas.getContext('2d')!;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.drawImage(off, 0, 0, size.w, size.h);
 
     if (drag && drag.kind === 'select' && drag.pts.length > 1) {
       const pts = drag.pts;
