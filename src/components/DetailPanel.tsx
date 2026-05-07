@@ -4,6 +4,7 @@ import {
   LineChart, Line, ReferenceLine, ReferenceArea,
 } from 'recharts';
 import type { NeuronDataset, SelectionState } from '../data/types';
+import { STIM_ICONS, STIM_LABELS, stimIndexFromName } from '../utils/stimAssets';
 
 interface Props {
   data: NeuronDataset;
@@ -203,12 +204,13 @@ export function DetailPanel({ data, selection, focusedNeuron }: Props) {
         </h3>
         <div style={{ width: '100%', height: 150 }}>
           <ResponsiveContainer>
-            <BarChart data={stimRows} margin={{ top: 4, right: 8, left: 4, bottom: 18 }}>
+            <BarChart data={stimRows} margin={{ top: 4, right: 8, left: 4, bottom: 24 }}>
               <XAxis
                 dataKey="stim"
-                tick={{ fontSize: 10, fill: TICK_FILL, fontFamily: 'ui-monospace' }}
+                tick={<StimIconTick />}
+                interval={0}
+                tickLine={false}
                 stroke={REF_STROKE}
-                label={{ value: 'stimulus', position: 'insideBottom', offset: -2, fontSize: 10, fill: LABEL_FILL }}
               />
               <YAxis
                 tick={{ fontSize: 9, fill: TICK_FILL }}
@@ -221,6 +223,10 @@ export function DetailPanel({ data, selection, focusedNeuron }: Props) {
                 contentStyle={TOOLTIP_STYLE}
                 cursor={TOOLTIP_CURSOR_FILL}
                 formatter={(v: number) => v.toFixed(3)}
+                labelFormatter={(name: string) => {
+                  const idx = stimIndexFromName(name);
+                  return idx >= 0 && STIM_LABELS[idx] ? STIM_LABELS[idx] : name;
+                }}
               />
               <Bar dataKey="v" fill="#22d3ee" />
             </BarChart>
@@ -228,6 +234,38 @@ export function DetailPanel({ data, selection, focusedNeuron }: Props) {
         </div>
       </section>
     </div>
+  );
+}
+
+/** Custom XAxis tick that renders the stimulus icon instead of the
+ *  generic "stim_N" label. Receives recharts tick props (x, y, payload)
+ *  and maps payload.value back to the icon array via stimIndexFromName.
+ *  The text fallback (a tspan) covers any stim that doesn't fit the
+ *  expected naming convention. */
+function StimIconTick(props: {
+  x?: number;
+  y?: number;
+  payload?: { value?: string };
+}) {
+  const { x, y, payload } = props;
+  if (x == null || y == null || !payload) return null;
+  const value = String(payload.value ?? '');
+  const idx = stimIndexFromName(value);
+  const icon = idx >= 0 ? STIM_ICONS[idx] : null;
+  const SIZE = 18;
+  if (!icon) {
+    return (
+      <text x={x} y={y + 12} textAnchor="middle" fill="#e5e5e5" fontSize={9}>
+        {value}
+      </text>
+    );
+  }
+  return (
+    <g transform={`translate(${x - SIZE / 2}, ${y + 2})`}>
+      <image href={icon} width={SIZE} height={SIZE}>
+        <title>{STIM_LABELS[idx] ?? value}</title>
+      </image>
+    </g>
   );
 }
 

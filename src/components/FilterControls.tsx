@@ -2,31 +2,7 @@ import { useState } from 'react';
 import type { NeuronDataset, FilterState, ColorMode, SettingsState } from '../data/types';
 import { DEFAULT_SETTINGS } from '../data/types';
 
-// Stimulus icons, one per dataset stimulus index. Vite serves these as
-// hashed asset URLs in dev and prod. Order is significant: the index in
-// this array maps directly to the dataset's stimulus index.
-import stim1Url from '../../images/stim1_motion_fwd.svg';
-import stim2Url from '../../images/stim2_motion_back.svg';
-import stim3Url from '../../images/stim3_motion_right.svg';
-import stim4Url from '../../images/stim4_motion_left.svg';
-import stim5Url from '../../images/stim5_dark.svg';
-import stim6Url from '../../images/stim6_bright.svg';
-import stim7Url from '../../images/stim7_loom_right.svg';
-import stim8Url from '../../images/stim8_loom_left.svg';
-const STIM_ICONS = [stim1Url, stim2Url, stim3Url, stim4Url, stim5Url, stim6Url, stim7Url, stim8Url];
-// Human-readable stimulus labels parsed from the SVG filenames; used
-// for tooltips on the toggle buttons since the dataset's stimulusNames
-// are generic ("stim_1" through "stim_8"). Order matches STIM_ICONS.
-const STIM_LABELS = [
-  'motion forward',
-  'motion backward',
-  'motion right',
-  'motion left',
-  'dark',
-  'bright',
-  'loom right',
-  'loom left',
-];
+import { STIM_ICONS, STIM_LABELS } from '../utils/stimAssets';
 
 interface Props {
   data: NeuronDataset;
