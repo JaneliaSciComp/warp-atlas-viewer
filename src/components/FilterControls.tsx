@@ -500,9 +500,9 @@ function HelpTab({
         </p>
         <ul className="list-disc list-inside space-y-0.5 text-neutral-400 leading-snug">
           <li><span className="text-neutral-200">Colors</span> — how the visible cells are coloured (by region, by gene expression, by stimulus correlation, or just highlighted)</li>
-          <li><span className="text-neutral-200">Anatomy</span> — isolate one of 16 brain regions</li>
           <li><span className="text-neutral-200">Transcriptomics</span> — keep only cells expressing a single gene, or cells belonging to a single functional subtype (e.g. <span className="text-neutral-200">pou4f2_cckb</span>)</li>
           <li><span className="text-neutral-200">Visual Stimuli</span> — keep only cells whose calcium response correlates with the selected stimuli; the <span className="text-neutral-200">OR / AND</span> toggle picks whether <em>any one</em> match is enough (default) or <em>every</em> selected stimulus must clear the threshold (correlation threshold is in the Settings tab)</li>
+          <li><span className="text-neutral-200">Anatomy</span> — isolate one of 16 brain regions</li>
         </ul>
       </section>
 
