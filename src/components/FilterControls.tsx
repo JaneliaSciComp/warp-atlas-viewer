@@ -27,7 +27,7 @@ const COLOR_SCHEMES: Array<{ value: ColorMode; label: string }> = [
   { value: 'gene', label: 'Gene expression' },
   { value: 'stim', label: 'Stim correlation' },
   { value: 'activity', label: 'Activity' },
-  { value: 'fish', label: 'Fish' },
+  { value: 'fish', label: 'Specimen' },
 ];
 
 const ALL_OPTION = { value: -1, label: 'all' } as const;
@@ -503,7 +503,25 @@ function HelpTab({
           <li><span className="text-neutral-200">Colors</span> — how the visible cells are coloured (by region, by gene expression, by stimulus correlation, or just highlighted)</li>
           <li><span className="text-neutral-200">Transcriptomics</span> — keep only cells expressing a single gene, or cells belonging to a single functional subtype (e.g. <span className="text-neutral-200">pou4f2_cckb</span>)</li>
           <li><span className="text-neutral-200">Visual Stimuli</span> — keep only cells whose calcium response correlates with the selected stimuli; the <span className="text-neutral-200">OR / AND</span> toggle picks whether <em>any one</em> match is enough (default) or <em>every</em> selected stimulus must clear the threshold (correlation threshold is in the Settings tab)</li>
-          <li><span className="text-neutral-200">Anatomy</span> — isolate one of 16 brain regions</li>
+          <li><span className="text-neutral-200">Anatomy</span> — isolate one of 16 brain regions, or one of the 3 fish specimens</li>
+        </ul>
+      </section>
+
+      <section className="flex flex-col gap-1">
+        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+          Specimens
+        </div>
+        <p className="text-neutral-400 leading-snug">
+          The atlas pools cells from 3 individual fish (originally
+          imaged as Fish 1 / 2 / 3) into a shared mapzebrain
+          coordinate frame, just like the WARP preprint's main
+          figures. Every dot is one real cell from one real fish; the
+          per-specimen breakdown surfaces in two places:
+        </p>
+        <ul className="list-disc list-inside space-y-0.5 text-neutral-400 leading-snug">
+          <li><span className="text-neutral-200">Colors → Specimen</span> — paint each cell by its source fish (categorical) so per-fish coverage and registration consistency become visible.</li>
+          <li><span className="text-neutral-200">Anatomy → specimen</span> — keep only cells from one fish, mirroring the manuscript's per-fish supplement views; useful for sanity-checking whether a finding holds in every individual.</li>
+          <li>The <span className="text-neutral-200">Details</span> panel already shows a per-fish breakdown of any selection so you can spot a population that's driven by a single specimen.</li>
         </ul>
       </section>
 
@@ -878,7 +896,7 @@ function AnatomyCard({
       />
       {nFish > 1 && (
         <Select
-          label="fish"
+          label="specimen"
           value={filter.isolatedFish}
           onChange={(v) => update({ isolatedFish: v })}
           options={[
