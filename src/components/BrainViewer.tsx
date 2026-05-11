@@ -4,7 +4,7 @@ import { TrackballControls } from '@react-three/drei';
 import * as THREE from 'three';
 import type { NeuronDataset, FilterState, SelectionState, SettingsState } from '../data/types';
 import type { CameraState } from '../utils/urlState';
-import { allocColoring, applyColoring } from '../utils/coloring';
+import { allocColoring, applyColoring, anyFilterActive, cellInSet } from '../utils/coloring';
 import vertSrc from '../shaders/neuron.vert.glsl?raw';
 import fragSrc from '../shaders/neuron.frag.glsl?raw';
 
@@ -186,9 +186,18 @@ function PointCloud({
     // zoomed out — the 16 px window then contains many cells, so the
     // foreground winner can be visibly several pixels off-cursor while
     // a deeper cell sits right under the click.
+    //
+    // When a filter is active, in-filter cells outrank out-of-filter
+    // ones regardless of distance/depth: the dimmed background cells
+    // are visually de-emphasized, so a click on a coloured cell that
+    // happens to sit a hair behind a greyed-out one should still land
+    // on the coloured cell. Out-of-filter cells are only considered if
+    // no in-filter cell is within the pick window.
+    const filterActive = anyFilterActive(data, filter);
     let bestI = -1;
     let bestD2 = Infinity;
     let bestZ = Infinity;
+    let bestInFilter = false;
     for (let i = 0; i < data.count; i++) {
       const ox = positions[i * 3];
       const x = -positions[i * 3 + 1];
@@ -206,10 +215,20 @@ function PointCloud({
       const d2 = dx * dx + dy * dy;
       if (d2 >= PIX_THRESH_SQ) continue;
       const depth = -cz;
-      if (d2 < bestD2 || (d2 === bestD2 && depth < bestZ)) {
-        bestD2 = d2;
-        bestZ = depth;
-        bestI = i;
+      const inFilter = !filterActive || cellInSet(data, filter, settings, i);
+      if (inFilter) {
+        if (!bestInFilter || d2 < bestD2 || (d2 === bestD2 && depth < bestZ)) {
+          bestInFilter = true;
+          bestD2 = d2;
+          bestZ = depth;
+          bestI = i;
+        }
+      } else if (!bestInFilter) {
+        if (d2 < bestD2 || (d2 === bestD2 && depth < bestZ)) {
+          bestD2 = d2;
+          bestZ = depth;
+          bestI = i;
+        }
       }
     }
 
