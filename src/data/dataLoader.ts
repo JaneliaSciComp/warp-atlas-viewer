@@ -6,6 +6,10 @@ interface ManifestV2 {
   count: number;
   traceLength: number;
   traceSampleRateHz?: number;
+  /** When present, activityTrace.bin holds affine-quantized uint16
+   *  indices: value = lo + index * (hi - lo) / 65535. When absent the
+   *  file is raw float32 (legacy preprocess output). */
+  activityTraceQuant?: { lo: number; hi: number };
   stimulusWindowsSec?: Array<[number, number]>;
   nStimuli: number;
   geneNames: string[];
@@ -89,6 +93,24 @@ async function streamBin(
   return out.buffer;
 }
 
+/** Decode the activityTrace buffer. When the manifest carries
+ *  scale-offset quant metadata, treat the buffer as uint16 indices and
+ *  expand into a Float32Array (lo + idx * step). Otherwise the buffer
+ *  is already float32. Downstream code consumes Float32Array either
+ *  way so call sites don't need to know about the wire format. */
+function decodeActivityTrace(
+  buf: ArrayBuffer,
+  quant: { lo: number; hi: number } | undefined,
+): Float32Array {
+  if (!quant) return new Float32Array(buf);
+  const q = new Uint16Array(buf);
+  const out = new Float32Array(q.length);
+  const lo = quant.lo;
+  const step = (quant.hi - quant.lo) / 65535;
+  for (let i = 0; i < q.length; i++) out[i] = lo + q[i] * step;
+  return out;
+}
+
 async function loadFromManifest(
   m: ManifestV2,
   onProgress?: LoadProgressCallback,
@@ -158,7 +180,7 @@ async function loadFromManifest(
     geneBinary: new Uint8Array(lookup.get('geneBinary')!),
     umap: new Float32Array(lookup.get('umap')!),
     stimulusCorr: new Float32Array(lookup.get('stimulusCorr')!),
-    activityTrace: new Float32Array(lookup.get('activityTrace')!),
+    activityTrace: decodeActivityTrace(lookup.get('activityTrace')!, m.activityTraceQuant),
     traceLength: m.traceLength,
     traceSampleRateHz: m.traceSampleRateHz ?? 1.0,
     stimulusWindowsSec: m.stimulusWindowsSec,

@@ -178,6 +178,22 @@ def main():
         f'cluster_lbl out of range: [{cluster_lbl.min()}, {cluster_lbl.max()}]'
     )
 
+    # Affine-quantize the activity trace to uint16 to halve wire size
+    # and (critically) drop it below browser per-resource HTTP-cache caps
+    # so it gets cached across reloads. Range is auto-fit to the data
+    # with a 1-unit margin so we never clip; per analysis on the current
+    # dataset the quantization step (~1e-4) is ~1000× below the per-sample
+    # measurement noise (~0.1), so this is effectively lossless.
+    trace_lo = float(np.floor(trace.min()) - 1)
+    trace_hi = float(np.ceil(trace.max()) + 1)
+    trace_q = np.round(
+        (trace - trace_lo) / (trace_hi - trace_lo) * 65535.0
+    ).clip(0, 65535).astype(np.uint16)
+    print(
+        f'[preprocess] activityTrace quantized to uint16 over '
+        f'[{trace_lo}, {trace_hi}], step={ (trace_hi - trace_lo) / 65535:.2e}'
+    )
+
     files = {
         'positions': ('positions.bin', pos.astype(np.float32)),
         'regionIds': ('regionIds.bin', brain_reg_int),
@@ -187,7 +203,7 @@ def main():
         'geneBinary': ('geneBinary.bin', genes_bin),
         'umap': ('umap.bin', umap),
         'stimulusCorr': ('stimulusCorr.bin', stim_corr),
-        'activityTrace': ('activityTrace.bin', trace),
+        'activityTrace': ('activityTrace.bin', trace_q),
         'regressors': ('regressors.bin', regressors_avg.astype(np.float32)),
     }
 
@@ -203,6 +219,7 @@ def main():
         'count': int(n),
         'traceLength': int(trace.shape[1]),
         'traceSampleRateHz': float(effective_rate),
+        'activityTraceQuant': {'lo': trace_lo, 'hi': trace_hi},
         'stimulusWindowsSec': stim_windows,
         'nStimuli': int(stim_corr.shape[1]),
         'geneNames': GENE_ORDER,
