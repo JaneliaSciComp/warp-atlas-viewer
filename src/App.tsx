@@ -358,7 +358,7 @@ export default function App() {
             main column reclaims the width. */}
         {detailOpen && (
           <aside className="relative min-h-0 min-w-0 border-l border-neutral-800 bg-neutral-900">
-            <DetailPanel data={data} selection={effectiveSelection} focusedNeuron={focusedNeuron} />
+            <DetailPanel data={data} filter={filter} selection={effectiveSelection} focusedNeuron={focusedNeuron} />
           </aside>
         )}
       </div>

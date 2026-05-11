@@ -3,17 +3,18 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   LineChart, Line, ReferenceLine, ReferenceArea, Customized,
 } from 'recharts';
-import type { NeuronDataset, SelectionState } from '../data/types';
+import type { NeuronDataset, FilterState, SelectionState } from '../data/types';
 import { STIM_ICONS, STIM_LABELS, stimIndexFromName } from '../utils/stimAssets';
 
 interface Props {
   data: NeuronDataset;
+  filter: FilterState;
   selection: SelectionState;
   /** Single-neuron focus, takes precedence over the group selection. */
   focusedNeuron: number | null;
 }
 
-export function DetailPanel({ data, selection, focusedNeuron }: Props) {
+export function DetailPanel({ data, filter, selection, focusedNeuron }: Props) {
   // When a neuron is focused, the detail view shows just that cell;
   // otherwise it falls back to the group selection (t-SNE, cluster,
   // region). Empty-handed = the prompt below.
@@ -65,6 +66,21 @@ export function DetailPanel({ data, selection, focusedNeuron }: Props) {
     traceData.push({ t: t / sampleRate, y: stats.meanTrace[t] });
   }
   const stimWindows = data.stimulusWindowsSec ?? [];
+
+  // Explicit 10 s tick grid so the user can read off the time at
+  // which each stimulus icon sits, instead of leaving recharts to
+  // pick a coarse default like 0/30/60/90/120.
+  const maxT = stats.meanTrace.length > 0 ? (stats.meanTrace.length - 1) / sampleRate : 0;
+  const xTicks: number[] = [];
+  for (let t = 0; t <= maxT + 0.0001; t += 10) xTicks.push(t);
+
+  // When the Activity color scheme is driving the 3D brain, mirror its
+  // current scrub time onto the trace chart so the two views are
+  // visually locked together.
+  const activityCursorSec =
+    filter.colorMode === 'activity'
+      ? Math.max(0, Math.min(maxT, filter.activitySample / sampleRate))
+      : null;
 
   // Recharts theming: ticks/labels in light gray for legibility on
   // dark; reference lines a notch darker so they don't compete with
@@ -163,6 +179,8 @@ export function DetailPanel({ data, selection, focusedNeuron }: Props) {
                 dataKey="t"
                 type="number"
                 domain={['dataMin', 'dataMax']}
+                ticks={xTicks}
+                interval={0}
                 tick={{ fontSize: 9, fill: TICK_FILL }}
                 stroke={REF_STROKE}
                 label={{ value: 'time (s)', position: 'insideBottom', offset: -2, fontSize: 10, fill: LABEL_FILL }}
@@ -193,6 +211,14 @@ export function DetailPanel({ data, selection, focusedNeuron }: Props) {
                 labelFormatter={(t: number) => `t=${t.toFixed(1)} s`}
               />
               <Line type="monotone" dataKey="y" stroke="#fca5a5" strokeWidth={1.4} dot={false} isAnimationActive={false} />
+              {activityCursorSec !== null && (
+                <ReferenceLine
+                  x={activityCursorSec}
+                  stroke="#fde047"
+                  strokeWidth={1.5}
+                  ifOverflow="visible"
+                />
+              )}
             </LineChart>
           </ResponsiveContainer>
         </div>
