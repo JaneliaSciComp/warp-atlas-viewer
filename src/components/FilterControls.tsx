@@ -88,11 +88,11 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
                 onActivityPlayingChange={onActivityPlayingChange}
               />
               <CrossSep />
-              <AnatomyCard data={data} filter={filter} update={update} />
-              <CrossSep />
               <TranscriptomicsCard data={data} filter={filter} update={update} />
               <CrossSep />
               <ActivityCard data={data} filter={filter} update={update} />
+              <CrossSep />
+              <AnatomyCard data={data} filter={filter} update={update} />
             </div>
           </div>
         )}
