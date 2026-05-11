@@ -348,9 +348,10 @@ function StimIconTick(props: {
 }
 
 function labelFish(f: number): string {
-  // Mock data uses 0..2; real data also uses 0..2 (mapped from 59/63/71).
-  const realIds = [59, 63, 71];
-  return realIds[f] !== undefined ? `f${realIds[f]}` : `f${f}`;
+  // Display 1-indexed to match the WARP manuscript's "Fish 1/2/3"
+  // labels; the stored fishIds are 0-indexed (remapped from the
+  // 59/63/71 acquisition IDs by preprocess.py).
+  return `f${f + 1}`;
 }
 
 function topItems(counts: Map<number, number>, names: string[], k: number): string {

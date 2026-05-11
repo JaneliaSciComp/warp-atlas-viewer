@@ -540,5 +540,5 @@ function buildTooltip(data: NeuronDataset, i: number): string {
   }
   tops.sort((a, b) => b.v - a.v);
   const topStr = tops.slice(0, 3).map((t) => `${t.name}:${t.v.toFixed(0)}`).join(' ');
-  return `neuron ${i}\nfish ${fish}  cluster ${cluster}\nregion ${region}\ntop ${topStr || '-'}`;
+  return `neuron ${i}\nfish ${fish + 1}  cluster ${cluster}\nregion ${region}\ntop ${topStr || '-'}`;
 }

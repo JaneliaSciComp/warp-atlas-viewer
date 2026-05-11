@@ -40,14 +40,14 @@ export function ColorLegend({ data, filter, settings }: Props) {
         style={positionStyle}
         className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200"
       >
-        <div className="text-neutral-400 mb-1">Fish of origin</div>
+        <div className="text-neutral-400 mb-1">Specimen</div>
         {Array.from({ length: nFish }, (_, i) => (
           <div key={i} className="flex items-center gap-1.5">
             <span
               className="inline-block w-3 h-3 rounded-sm"
               style={{ background: rgbToHex(fishColor(i)) }}
             />
-            <span>fish {i}</span>
+            <span>fish {i + 1}</span>
           </div>
         ))}
       </div>

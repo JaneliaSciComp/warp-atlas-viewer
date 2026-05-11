@@ -883,7 +883,7 @@ function AnatomyCard({
           onChange={(v) => update({ isolatedFish: v })}
           options={[
             ALL_OPTION,
-            ...Array.from({ length: nFish }, (_, i) => ({ value: i, label: `fish ${i}` })),
+            ...Array.from({ length: nFish }, (_, i) => ({ value: i, label: `fish ${i + 1}` })),
           ]}
           arrows
         />
