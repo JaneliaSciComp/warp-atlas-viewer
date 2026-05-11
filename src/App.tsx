@@ -102,6 +102,13 @@ export default function App() {
     selectionRestoredRef.current = true;
   }, [data, setIndices]);
 
+  // Activity-playback in-progress flag. When true, the URL writer
+  // skips writing so the looping activitySample doesn't pollute the
+  // share URL or browser history. The final sample at the moment
+  // playback stops is persisted via an explicit scheduleUrlWrite
+  // triggered by setActivityPlaying(false).
+  const isPlayingRef = useRef(false);
+
   // Debounced URL writer. Re-runs after every render so any state
   // change (including ref-driven camera/umap updates routed via
   // scheduleUrlWrite below) is captured. 50 ms is short enough that a
@@ -113,6 +120,7 @@ export default function App() {
     if (urlTimerRef.current) clearTimeout(urlTimerRef.current);
     urlTimerRef.current = setTimeout(() => {
       urlTimerRef.current = null;
+      if (isPlayingRef.current) return;
       const filterDiff = diffFilter(filter, INITIAL_FILTER);
       const settingsDiff = diffSettings(settings, DEFAULT_SETTINGS);
       const cam = cameraRef.current ? roundCamera(cameraRef.current) : undefined;
@@ -151,6 +159,13 @@ export default function App() {
     (vp: UmapViewport) => {
       umapRef.current = vp;
       scheduleUrlWrite();
+    },
+    [scheduleUrlWrite],
+  );
+  const setActivityPlaying = useCallback(
+    (playing: boolean) => {
+      isPlayingRef.current = playing;
+      if (!playing) scheduleUrlWrite();
     },
     [scheduleUrlWrite],
   );
@@ -336,6 +351,7 @@ export default function App() {
                   setSettings={setSettings}
                   onReset={handleResetFilters}
                   applyView={handleApplyView}
+                  onActivityPlayingChange={setActivityPlaying}
                 />
               </div>
               <UmapPanel

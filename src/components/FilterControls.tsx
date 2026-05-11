@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { NeuronDataset, FilterState, ColorMode, SettingsState } from '../data/types';
 import { DEFAULT_SETTINGS } from '../data/types';
 
@@ -15,6 +15,10 @@ interface Props {
    *  Caller is expected to base this on INITIAL_FILTER and clear any
    *  user-explicit selections so the preset starts from a clean state. */
   applyView: (preset: Partial<FilterState>) => void;
+  /** Notifies parent when activity playback starts/stops so the URL
+   *  writer can suppress mid-playback writes — only the sample at
+   *  pause time should land in the share URL. */
+  onActivityPlayingChange: (playing: boolean) => void;
 }
 
 const COLOR_SCHEMES: Array<{ value: ColorMode; label: string }> = [
@@ -34,7 +38,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'help', label: 'Help' },
 ];
 
-export function FilterControls({ data, filter, setFilter, settings, setSettings, onReset, applyView }: Props) {
+export function FilterControls({ data, filter, setFilter, settings, setSettings, onReset, applyView, onActivityPlayingChange }: Props) {
   const update = (patch: Partial<FilterState>) => setFilter({ ...filter, ...patch });
   const [tab, setTab] = useState<Tab>('filters');
 
@@ -64,7 +68,12 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
           <div className="flex flex-col gap-2">
             <ResetButton onReset={onReset} />
             <div className="flex flex-wrap items-stretch gap-x-2 gap-y-2">
-              <ColorsCard data={data} filter={filter} update={update} />
+              <ColorsCard
+                data={data}
+                filter={filter}
+                update={update}
+                onActivityPlayingChange={onActivityPlayingChange}
+              />
               <CrossSep />
               <AnatomyCard data={data} filter={filter} update={update} />
               <CrossSep />
@@ -553,10 +562,12 @@ function ColorsCard({
   data,
   filter,
   update,
+  onActivityPlayingChange,
 }: {
   data: NeuronDataset;
   filter: FilterState;
   update: (p: Partial<FilterState>) => void;
+  onActivityPlayingChange: (playing: boolean) => void;
 }) {
   const schemeOptions = COLOR_SCHEMES.map((s, i) => ({ value: i, label: s.label }));
   const currentIdx = COLOR_SCHEMES.findIndex((s) => s.value === filter.colorMode);
@@ -590,7 +601,12 @@ function ColorsCard({
         </label>
       )}
       {filter.colorMode === 'activity' && (
-        <ActivityTimeRow data={data} filter={filter} update={update} />
+        <ActivityTimeRow
+          data={data}
+          filter={filter}
+          update={update}
+          onPlayingChange={onActivityPlayingChange}
+        />
       )}
     </Card>
   );
@@ -600,10 +616,12 @@ function ActivityTimeRow({
   data,
   filter,
   update,
+  onPlayingChange,
 }: {
   data: NeuronDataset;
   filter: FilterState;
   update: (p: Partial<FilterState>) => void;
+  onPlayingChange: (playing: boolean) => void;
 }) {
   // Clamp the displayed value defensively. Stale URL state from a
   // dataset with a different traceLength could otherwise put the
@@ -617,40 +635,148 @@ function ActivityTimeRow({
     const next = Math.max(0, Math.min(maxSample, sample + delta));
     if (next !== sample) update({ activitySample: next });
   };
+
+  const [playing, setPlaying] = useState(false);
+  const [speed, setSpeed] = useState(10);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // The interval tick reads `sample` via this ref so it always advances
+  // from the latest value (including any user scrub mid-playback)
+  // without resetting the interval each render.
+  const sampleRef = useRef(sample);
+  sampleRef.current = sample;
+  // `update` / `onPlayingChange` get fresh identities on every parent
+  // render (parent's `update` closes over `filter`; `onPlayingChange`
+  // closes over `scheduleUrlWrite` which closes over `filter`). Reading
+  // them through refs keeps the interval-tick and the unmount cleanup
+  // independent of those re-renders — otherwise the cleanup effect's
+  // dep would change after the first tick and tear the interval down.
+  const updateRef = useRef(update);
+  updateRef.current = update;
+  const onPlayingChangeRef = useRef(onPlayingChange);
+  onPlayingChangeRef.current = onPlayingChange;
+
+  const setupInterval = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    // Real-time playback would step one sample every 1/sampleRateHz
+    // seconds. At high speed multipliers that interval drops below
+    // what setInterval can cleanly deliver, so we cap the tick rate
+    // at ~60 fps and advance multiple samples per tick instead.
+    const idealMs = 1000 / Math.max(0.1, data.traceSampleRateHz * speed);
+    const MIN_TICK_MS = 16;
+    let tickMs: number;
+    let samplesPerTick: number;
+    if (idealMs >= MIN_TICK_MS) {
+      tickMs = idealMs;
+      samplesPerTick = 1;
+    } else {
+      tickMs = MIN_TICK_MS;
+      samplesPerTick = Math.max(1, Math.round(MIN_TICK_MS / idealMs));
+    }
+    const wrap = maxSample + 1;
+    intervalRef.current = setInterval(() => {
+      const next = (sampleRef.current + samplesPerTick) % wrap;
+      updateRef.current({ activitySample: next });
+    }, tickMs);
+  }, [data.traceSampleRateHz, maxSample, speed]);
+
+  const stopPlayback = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setPlaying(false);
+    onPlayingChangeRef.current(false);
+  }, []);
+
+  const startPlayback = useCallback(() => {
+    if (intervalRef.current) return;
+    setPlaying(true);
+    onPlayingChangeRef.current(true);
+    setupInterval();
+  }, [setupInterval]);
+
+  // If the speed (or stream geometry) changes while playing, restart
+  // the interval with the new cadence. When not playing, do nothing —
+  // setupInterval is a no-op until the user hits play.
+  useEffect(() => {
+    if (intervalRef.current) setupInterval();
+  }, [setupInterval]);
+
+  // Stop the interval and re-enable URL writes if the row unmounts
+  // mid-playback (e.g. user switches color scheme or resets filters).
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      onPlayingChangeRef.current(false);
+    };
+  }, []);
+
   return (
-    <label className="flex items-center gap-1 text-xs">
-      <span className="text-neutral-400">time</span>
-      <button
-        type="button"
-        onClick={() => step(-1)}
-        disabled={atStart}
-        aria-label="previous sample"
-        className="bg-neutral-900 border border-neutral-700 rounded px-1.5 py-1 text-neutral-300 hover:bg-neutral-700 leading-none disabled:opacity-40 disabled:hover:bg-neutral-900"
-      >
-        ‹
-      </button>
-      <input
-        type="range"
-        min={0}
-        max={maxSample}
-        step={1}
-        value={sample}
-        onChange={(e) => update({ activitySample: parseInt(e.target.value, 10) })}
-        className="w-32 accent-yellow-300"
-      />
-      <button
-        type="button"
-        onClick={() => step(1)}
-        disabled={atEnd}
-        aria-label="next sample"
-        className="bg-neutral-900 border border-neutral-700 rounded px-1.5 py-1 text-neutral-300 hover:bg-neutral-700 leading-none disabled:opacity-40 disabled:hover:bg-neutral-900"
-      >
-        ›
-      </button>
-      <span className="font-mono text-neutral-200 tabular-nums w-12 text-right whitespace-nowrap">
-        {Math.round(seconds)} s
-      </span>
-    </label>
+    <div className="flex flex-col gap-1 text-xs">
+      <label className="flex items-center gap-1">
+        <span className="text-neutral-400">time</span>
+        <button
+          type="button"
+          onClick={() => step(-1)}
+          disabled={atStart}
+          aria-label="previous sample"
+          className="bg-neutral-900 border border-neutral-700 rounded px-1.5 py-1 text-neutral-300 hover:bg-neutral-700 leading-none disabled:opacity-40 disabled:hover:bg-neutral-900"
+        >
+          ‹
+        </button>
+        <input
+          type="range"
+          min={0}
+          max={maxSample}
+          step={1}
+          value={sample}
+          onChange={(e) => update({ activitySample: parseInt(e.target.value, 10) })}
+          className="w-32 accent-yellow-300"
+        />
+        <button
+          type="button"
+          onClick={() => step(1)}
+          disabled={atEnd}
+          aria-label="next sample"
+          className="bg-neutral-900 border border-neutral-700 rounded px-1.5 py-1 text-neutral-300 hover:bg-neutral-700 leading-none disabled:opacity-40 disabled:hover:bg-neutral-900"
+        >
+          ›
+        </button>
+        <span className="font-mono text-neutral-200 tabular-nums w-12 text-right whitespace-nowrap">
+          {Math.round(seconds)} s
+        </span>
+      </label>
+      <div className="flex justify-center items-center gap-1.5">
+        <button
+          type="button"
+          onClick={playing ? stopPlayback : startPlayback}
+          aria-label={playing ? 'pause activity playback' : 'play activity'}
+          title={playing ? 'pause' : 'play'}
+          className="bg-neutral-900 border border-neutral-700 rounded px-3 py-0.5 text-neutral-200 hover:bg-neutral-700 leading-none font-mono"
+        >
+          {playing ? '⏸' : '▶'}
+        </button>
+        <select
+          value={speed}
+          onChange={(e) => setSpeed(parseInt(e.target.value, 10))}
+          aria-label="playback speed"
+          title="playback speed"
+          className="bg-neutral-900 border border-neutral-700 rounded px-1.5 py-0.5 text-neutral-200 font-mono text-xs"
+        >
+          {[1, 2, 10, 50, 100].map((s) => (
+            <option key={s} value={s}>
+              {s}x
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
   );
 }
 
