@@ -180,7 +180,14 @@ function PointCloud({
     // Match the world-rotation applied by <group> below: rotate +90°
     // around Z (so AP/world-y → screen-x, ML/world-x → screen-y).
 
+    // Pick the cell closest to the cursor in screen space, breaking
+    // ties by depth (front-most wins). Depth-only would correctly
+    // pick the visible cell in a tight overlap but goes wrong when
+    // zoomed out — the 16 px window then contains many cells, so the
+    // foreground winner can be visibly several pixels off-cursor while
+    // a deeper cell sits right under the click.
     let bestI = -1;
+    let bestD2 = Infinity;
     let bestZ = Infinity;
     for (let i = 0; i < data.count; i++) {
       const ox = positions[i * 3];
@@ -197,8 +204,11 @@ function PointCloud({
       const dx = px - mx;
       const dy = py - my;
       const d2 = dx * dx + dy * dy;
-      if (d2 < PIX_THRESH_SQ && -cz < bestZ) {
-        bestZ = -cz;
+      if (d2 >= PIX_THRESH_SQ) continue;
+      const depth = -cz;
+      if (d2 < bestD2 || (d2 === bestD2 && depth < bestZ)) {
+        bestD2 = d2;
+        bestZ = depth;
         bestI = i;
       }
     }
