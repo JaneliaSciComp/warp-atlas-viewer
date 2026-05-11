@@ -41,7 +41,7 @@ export interface NeuronDataset {
   source: 'mock' | 'real';
 }
 
-export type ColorMode = 'highlight' | 'region' | 'gene' | 'stim';
+export type ColorMode = 'highlight' | 'region' | 'gene' | 'stim' | 'activity';
 export type GeneScale = 'log' | 'linear';
 /** Which sub-filter the Transcriptomics panel exposes. The inactive
  *  sub-filter's index is preserved so the user can flip back to it
@@ -54,8 +54,9 @@ export type TxMode = 'gene' | 'subtype';
  * The current rendering must be 100% described by the fields that the
  * user can currently see in the bottom-panel UI. Several fields below
  * (selectedGene, selectedCluster, selectedStimulus, geneScale,
- * geneStrict) PERSIST across UI flips for ergonomics — when the user
- * toggles between Single-gene/Subtype or "all"/specific, we keep their
+ * geneStrict, activitySample) PERSIST across UI flips for ergonomics —
+ * when the user toggles between Single-gene/Subtype or "all"/specific
+ * (or flips Color scheme away from Activity and back), we keep their
  * prior pick so they don't lose it. That persistence is fine ONLY as
  * long as those fields don't influence rendering when they're hidden.
  *
@@ -117,6 +118,14 @@ export interface FilterState {
    *            stimulus
    *  Only matters when `selectedStimuli.length >= 2`. */
   stimLogic: StimLogic;
+
+  // ── Activity color scheme ────────────────────────────────────────
+  /** Sample index into activityTrace for the Activity color scheme.
+   *  0..traceLength-1. Only influences rendering when
+   *  colorMode === 'activity' — persists across color-mode flips so
+   *  flipping back restores the previous scrub position. Same
+   *  visible-state-only invariant as selectedGene/selectedCluster. */
+  activitySample: number;
 }
 
 export type StimLogic = 'or' | 'and';

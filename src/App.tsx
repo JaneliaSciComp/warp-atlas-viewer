@@ -36,6 +36,7 @@ const INITIAL_FILTER: FilterState = {
   clusterAll: true,
   selectedStimuli: [],
   stimLogic: 'or',
+  activitySample: 0,
 };
 
 const DETAIL_PANEL_WIDTH = 360;

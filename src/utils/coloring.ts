@@ -129,10 +129,18 @@ export function applyColoring(
   selection: SelectionState,
   out: ColoringResult,
 ): void {
-  const { count, regionIds, clusterIds, geneCounts, geneBinary, stimulusCorr } = ds;
+  const { count, regionIds, clusterIds, geneCounts, geneBinary, stimulusCorr, activityTrace, traceLength } = ds;
   const { colors, alphas, sizes } = out;
   const G = ds.geneNames.length;
   const S = ds.stimulusNames.length;
+  // Activity scheme: clamp the URL-restored sample index into the
+  // valid range so a stale share link from a different dataset can't
+  // index out-of-bounds. Anchors are fixed at [0, 1.5] ΔF/F in v1;
+  // see plan note re: deferred SettingsState tunables.
+  const activitySample = Math.max(0, Math.min(traceLength - 1, filter.activitySample | 0));
+  const ACTIVITY_LO = 0.0;
+  const ACTIVITY_HI = 1.5;
+  const activityRange = Math.max(0.001, ACTIVITY_HI - ACTIVITY_LO);
 
   const useLog = filter.geneScale !== 'linear';
   const isolatedRegion = filter.isolatedRegion;
@@ -248,6 +256,23 @@ export function applyColoring(
           // visual encoding overlaid.
           r = 0.94; g = 0.97; b = 0.13;
           alpha = 1.0;
+          break;
+        }
+        case 'activity': {
+          // Per-cell ΔF/F at the current scrub sample, mapped through
+          // plasma over the fixed [LO, HI] anchors. Below-baseline values
+          // drop to the same backdrop the Gene/Stim modes use for
+          // "no signal" so the visual vocabulary stays consistent.
+          const dff = activityTrace[i * traceLength + activitySample];
+          const v = Math.max(0, Math.min(1, (dff - ACTIVITY_LO) / activityRange));
+          if (v <= 0) {
+            r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2];
+            alpha = isolatedRegion >= 0 ? LIFT_ALPHA : 0.10;
+          } else {
+            const c = plasma(v);
+            r = c[0]; g = c[1]; b = c[2];
+            alpha = 1.0;
+          }
           break;
         }
         case 'stim': {

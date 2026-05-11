@@ -132,6 +132,60 @@ export function ColorLegend({ data, filter, settings }: Props) {
   if (filter.colorMode === 'highlight') {
     return null;
   }
+  if (filter.colorMode === 'activity') {
+    // Plasma gradient over fixed [0, 1.5] ΔF/F anchors (mirrored from
+    // utils/coloring.ts; see plan note on deferred SettingsState
+    // tunables). Time readout reflects the current scrub sample so
+    // the user knows what moment the brain is colored for without
+    // looking back at the slider.
+    const ACTIVITY_LO = 0.0;
+    const ACTIVITY_HI = 1.5;
+    const maxSample = Math.max(0, data.traceLength - 1);
+    const sample = Math.max(0, Math.min(maxSample, filter.activitySample | 0));
+    const seconds = sample / Math.max(0.0001, data.traceSampleRateHz);
+    const N = 16;
+    const stops = Array.from({ length: N }, (_, i) => rgbToHex(plasma(i / (N - 1))));
+    const gradient = `linear-gradient(to right, ${stops.join(', ')})`;
+    const ticks = [ACTIVITY_LO, (ACTIVITY_LO + ACTIVITY_HI) / 2, ACTIVITY_HI];
+    const tickPos = (t: number) =>
+      ((t - ACTIVITY_LO) / (ACTIVITY_HI - ACTIVITY_LO)) * 100;
+    return (
+      <div
+        style={positionStyle}
+        className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200"
+      >
+        <div className="text-neutral-400 mb-1 whitespace-nowrap">
+          Activity · t = {Math.round(seconds)} s
+        </div>
+        <div className="relative w-32">
+          <div className="h-3 border border-neutral-700" style={{ background: gradient }} />
+          <div className="relative h-3 mt-0.5 text-[9px] text-neutral-400">
+            {ticks.map((t, idx) => {
+              const transform =
+                idx === 0
+                  ? 'translateX(0)'
+                  : idx === ticks.length - 1
+                    ? 'translateX(-100%)'
+                    : 'translateX(-50%)';
+              return (
+                <span
+                  key={t}
+                  className="absolute"
+                  style={{
+                    left: `${Math.min(100, Math.max(0, tickPos(t)))}%`,
+                    transform,
+                  }}
+                >
+                  {t.toFixed(1)}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+        <div className="text-[9px] text-neutral-500 mt-3">mean ΔF/F</div>
+      </div>
+    );
+  }
   // stim correlation — 1D plasma from STIM_LO to STIM_HI, mirroring the
   // gene scheme's structure. Co-coding falls out by composing this with
   // a single-gene filter. The scheme follows the Activity panel's

@@ -22,6 +22,7 @@ const COLOR_SCHEMES: Array<{ value: ColorMode; label: string }> = [
   { value: 'region', label: 'Region' },
   { value: 'gene', label: 'Gene expression' },
   { value: 'stim', label: 'Stim correlation' },
+  { value: 'activity', label: 'Activity' },
 ];
 
 const ALL_OPTION = { value: -1, label: 'all' } as const;
@@ -63,7 +64,7 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
           <div className="flex flex-col gap-2">
             <ResetButton onReset={onReset} />
             <div className="flex flex-wrap items-stretch gap-x-2 gap-y-2">
-              <ColorsCard filter={filter} update={update} />
+              <ColorsCard data={data} filter={filter} update={update} />
               <CrossSep />
               <AnatomyCard data={data} filter={filter} update={update} />
               <CrossSep />
@@ -549,9 +550,11 @@ function ResetButton({ onReset }: { onReset: () => void }) {
 }
 
 function ColorsCard({
+  data,
   filter,
   update,
 }: {
+  data: NeuronDataset;
   filter: FilterState;
   update: (p: Partial<FilterState>) => void;
 }) {
@@ -586,7 +589,68 @@ function ColorsCard({
           </div>
         </label>
       )}
+      {filter.colorMode === 'activity' && (
+        <ActivityTimeRow data={data} filter={filter} update={update} />
+      )}
     </Card>
+  );
+}
+
+function ActivityTimeRow({
+  data,
+  filter,
+  update,
+}: {
+  data: NeuronDataset;
+  filter: FilterState;
+  update: (p: Partial<FilterState>) => void;
+}) {
+  // Clamp the displayed value defensively. Stale URL state from a
+  // dataset with a different traceLength could otherwise put the
+  // slider past its max.
+  const maxSample = Math.max(0, data.traceLength - 1);
+  const sample = Math.max(0, Math.min(maxSample, filter.activitySample | 0));
+  const seconds = sample / Math.max(0.0001, data.traceSampleRateHz);
+  const atStart = sample <= 0;
+  const atEnd = sample >= maxSample;
+  const step = (delta: number) => {
+    const next = Math.max(0, Math.min(maxSample, sample + delta));
+    if (next !== sample) update({ activitySample: next });
+  };
+  return (
+    <label className="flex items-center gap-1 text-xs">
+      <span className="text-neutral-400">time</span>
+      <button
+        type="button"
+        onClick={() => step(-1)}
+        disabled={atStart}
+        aria-label="previous sample"
+        className="bg-neutral-900 border border-neutral-700 rounded px-1.5 py-1 text-neutral-300 hover:bg-neutral-700 leading-none disabled:opacity-40 disabled:hover:bg-neutral-900"
+      >
+        ‹
+      </button>
+      <input
+        type="range"
+        min={0}
+        max={maxSample}
+        step={1}
+        value={sample}
+        onChange={(e) => update({ activitySample: parseInt(e.target.value, 10) })}
+        className="w-32 accent-yellow-300"
+      />
+      <button
+        type="button"
+        onClick={() => step(1)}
+        disabled={atEnd}
+        aria-label="next sample"
+        className="bg-neutral-900 border border-neutral-700 rounded px-1.5 py-1 text-neutral-300 hover:bg-neutral-700 leading-none disabled:opacity-40 disabled:hover:bg-neutral-900"
+      >
+        ›
+      </button>
+      <span className="font-mono text-neutral-200 tabular-nums w-12 text-right whitespace-nowrap">
+        {Math.round(seconds)} s
+      </span>
+    </label>
   );
 }
 
