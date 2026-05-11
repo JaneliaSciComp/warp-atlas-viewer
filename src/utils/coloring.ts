@@ -55,7 +55,7 @@ export function cellPasses(
   const clusterActive = filter.txMode === 'subtype' && !filter.clusterAll;
   let passesTx = true;
   if (geneActive) {
-    const strict = filter.geneStrict;
+    const strict = settings.geneStrict;
     const hit = (g: number) =>
       strict ? ds.geneBinary[i * G + g] === 1 : ds.geneCounts[i * G + g] > 0;
     if (filter.geneLogic === 'and') {
@@ -267,7 +267,7 @@ export function applyColoring(
               // # of selected genes the cell expresses by the same
               // predicate the filter uses (binary or spot-count > 0).
               let n = 0;
-              if (filter.geneStrict) {
+              if (settings.geneStrict) {
                 for (let k = 0; k < N; k++) if (geneBinary[base + geneSel[k]] === 1) n++;
               } else {
                 for (let k = 0; k < N; k++) if (geneCounts[base + geneSel[k]] > 0) n++;

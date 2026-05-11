@@ -119,6 +119,7 @@ function SettingsTab({
     settings.stimLo !== DEFAULT_SETTINGS.stimLo ||
     settings.stimHi !== DEFAULT_SETTINGS.stimHi ||
     settings.geneMaxSpots !== DEFAULT_SETTINGS.geneMaxSpots ||
+    settings.geneStrict !== DEFAULT_SETTINGS.geneStrict ||
     settings.geneMultiColor !== DEFAULT_SETTINGS.geneMultiColor ||
     settings.pointSize !== DEFAULT_SETTINGS.pointSize ||
     settings.enablePan !== DEFAULT_SETTINGS.enablePan;
@@ -184,6 +185,33 @@ function SettingsTab({
           step={50}
           onChange={(v) => update({ geneMaxSpots: v })}
         />
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+          Gene expression predicate
+        </div>
+        <p className="text-neutral-400 leading-snug">
+          How "expresses a gene" is decided for the gene filter and the
+          richness multi-gene coloring.
+          <span className="text-neutral-200"> Binary call</span> uses
+          the dataset's curated, conservative classification
+          (geneBinary === 1).
+          <span className="text-neutral-200"> Any detected</span> is
+          more permissive — any raw FISH spot count above zero.
+        </p>
+        <label
+          className="flex items-center gap-1 text-xs text-neutral-300 cursor-pointer select-none"
+          title="checked: curated binary call (geneBinary === 1). unchecked: any detected expression (raw spot count > 0)."
+        >
+          <input
+            type="checkbox"
+            checked={settings.geneStrict}
+            onChange={(e) => update({ geneStrict: e.target.checked })}
+            className="accent-neutral-300"
+          />
+          binary call
+        </label>
       </section>
 
       <section className="flex flex-col gap-2">
@@ -944,39 +972,25 @@ function TranscriptomicsCard({
             + add gene
           </button>
           {sel.length >= 1 && (
-            <>
-              <label
-                className="flex items-center gap-1 text-xs text-neutral-300 cursor-pointer select-none"
-                title="checked: curated binary call (geneBinary === 1). unchecked: any detected expression (raw spot count > 0)."
-              >
-                <input
-                  type="checkbox"
-                  checked={filter.geneStrict}
-                  onChange={(e) => update({ geneStrict: e.target.checked })}
-                  className="accent-neutral-300"
-                />
-                binary call
-              </label>
-              <div
-                className={
-                  'flex items-center gap-2 ' + (logicMeaningful ? 'opacity-100' : 'opacity-50')
-                }
-                title={
-                  logicMeaningful
-                    ? 'OR: cells expressing any selected gene. AND: cells expressing every selected gene.'
-                    : 'Combine logic for multi-gene selections (only matters with 2+ genes added).'
-                }
-              >
-                <KindToggle
-                  value={filter.geneLogic}
-                  onChange={(v) => update({ geneLogic: v })}
-                  options={[
-                    { value: 'or', label: 'OR' },
-                    { value: 'and', label: 'AND' },
-                  ]}
-                />
-              </div>
-            </>
+            <div
+              className={
+                'flex items-center gap-2 ' + (logicMeaningful ? 'opacity-100' : 'opacity-50')
+              }
+              title={
+                logicMeaningful
+                  ? 'OR: cells expressing any selected gene. AND: cells expressing every selected gene.'
+                  : 'Combine logic for multi-gene selections (only matters with 2+ genes added).'
+              }
+            >
+              <KindToggle
+                value={filter.geneLogic}
+                onChange={(v) => update({ geneLogic: v })}
+                options={[
+                  { value: 'or', label: 'OR' },
+                  { value: 'and', label: 'AND' },
+                ]}
+              />
+            </div>
           )}
         </>
       ) : (
