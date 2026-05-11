@@ -57,22 +57,31 @@ export function ColorLegend({ data, filter, settings }: Props) {
     //
     // Keep at most 4 ticks total so labels never overlap on the
     // narrow legend bar. Build the full set (0, every power of 10
-    // ≤ ceiling, ceiling), then trim: first drop any intermediate
-    // tick whose log-space position is within 12% of the ceiling
-    // (e.g. when ceiling=1100 the 1000 tick crowds the 1100 tick),
-    // then if still > 4, keep 0, the ceiling, and the two largest
-    // intermediate powers of 10.
+    // ≤ ceiling, ceiling), then trim any intermediate tick whose
+    // label rectangle would collide with the ceiling's. Required gap
+    // is computed from actual label widths — the previous fixed 12%
+    // threshold let "1000" overlap a 4-digit ceiling like "2600".
+    //
+    // After that, if still > 4 ticks total, keep 0, the ceiling, and
+    // the two largest intermediate powers of 10.
     const maxLogLocal = Math.log(1 + maxSpots);
     const logPos = (t: number) => (Math.log(1 + t) / maxLogLocal) * 100;
+    // Empirical label width: w-32 bar = 128 px, text-[9px] monospace
+    // ≈ 5.7 px per glyph → ~4.5% of bar per character. Used to size
+    // the minimum log-space gap between adjacent label centers.
+    const labelWidthPct = (n: number) => String(n).length * 4.5;
     let logSpotTicks: number[] = [0];
     for (let p = 1; p < maxSpots; p *= 10) logSpotTicks.push(p);
     logSpotTicks.push(maxSpots);
-    while (
-      logSpotTicks.length > 2 &&
-      logPos(logSpotTicks[logSpotTicks.length - 1]) -
-        logPos(logSpotTicks[logSpotTicks.length - 2]) <
-        12
-    ) {
+    while (logSpotTicks.length > 2) {
+      const ceil = logSpotTicks[logSpotTicks.length - 1];
+      const prev = logSpotTicks[logSpotTicks.length - 2];
+      // Ceiling label is right-anchored (its FULL width sits left of
+      // its position); the prev label is center-anchored (only HALF
+      // its width is on the side facing the ceiling). Anything less
+      // than the sum of those two extents overlaps.
+      const minGap = labelWidthPct(ceil) + labelWidthPct(prev) / 2;
+      if (logPos(ceil) - logPos(prev) >= minGap) break;
       logSpotTicks.splice(logSpotTicks.length - 2, 1);
     }
     if (logSpotTicks.length > 4) {
