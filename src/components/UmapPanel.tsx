@@ -496,6 +496,11 @@ export function UmapPanel({
           onContextMenu={(e) => e.preventDefault()}
           className={'block ' + (drag?.kind === 'pan' ? 'cursor-grabbing' : 'cursor-crosshair')}
         />
+        {selection.indices.length > 0 && (
+          <div className="absolute top-2 left-2 text-xs text-neutral-400 font-mono pointer-events-none leading-tight">
+            {selection.indices.length.toLocaleString()} selected
+          </div>
+        )}
       </div>
     </div>
   );

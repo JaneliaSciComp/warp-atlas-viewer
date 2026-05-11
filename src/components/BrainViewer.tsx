@@ -274,76 +274,6 @@ export function BrainViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defaultCamPosition]);
 
-  // Count of cells visibly highlighted (i.e. not rendered with the dim
-  // background style) in the current view. Region mode without an
-  // isolate filter shows nothing — the whole brain is colored equally.
-  const highlightCount = useMemo(() => {
-    if (selection.indices.length > 0) return selection.indices.length;
-    const G = data.geneNames.length;
-    const S = data.stimulusNames.length;
-    if (filter.colorMode === 'gene') {
-      // Match the gene-color painting: "lit" cells are those with at
-      // least one selected gene > 0. When no gene is selected we'd be
-      // showing richness across the full panel, so count any cell with
-      // any gene expressed.
-      const sel = filter.selectedGenes;
-      let n = 0;
-      if (sel.length === 0) {
-        for (let i = 0; i < data.count; i++) {
-          const base = i * G;
-          for (let j = 0; j < G; j++) {
-            if (data.geneCounts[base + j] > 0) { n++; break; }
-          }
-        }
-      } else {
-        for (let i = 0; i < data.count; i++) {
-          const base = i * G;
-          for (let k = 0; k < sel.length; k++) {
-            if (data.geneCounts[base + sel[k]] > 0) { n++; break; }
-          }
-        }
-      }
-      return n;
-    }
-    if (filter.colorMode === 'stim') {
-      // Cells that light up: those above the responsive floor (r > 0.30)
-      // for whichever stimulus the scheme is keying off of. Mirrors
-      // applyColoring: a single selected stim → that one; anything else
-      // (zero, all, or a subset) → max across the corresponding set.
-      const sel = filter.selectedStimuli;
-      const useMax = sel.length !== 1;
-      const maxSet =
-        !useMax ? null : sel.length > 0 && sel.length < S ? sel : null;
-      let n = 0;
-      const STIM_LO = settings.stimLo;
-      for (let i = 0; i < data.count; i++) {
-        let r: number;
-        if (!useMax) {
-          r = data.stimulusCorr[i * S + sel[0]];
-        } else if (maxSet === null) {
-          const base = i * S;
-          let m = data.stimulusCorr[base];
-          for (let j = 1; j < S; j++) {
-            const c = data.stimulusCorr[base + j];
-            if (c > m) m = c;
-          }
-          r = m;
-        } else {
-          const base = i * S;
-          let m = data.stimulusCorr[base + maxSet[0]];
-          for (let k = 1; k < maxSet.length; k++) {
-            const c = data.stimulusCorr[base + maxSet[k]];
-            if (c > m) m = c;
-          }
-          r = m;
-        }
-        if (r > STIM_LO) n++;
-      }
-      return n;
-    }
-    return 0;
-  }, [data, filter.colorMode, filter.selectedGenes, filter.selectedStimuli, settings.stimLo, selection.indices]);
-
   // Track the pointer-down position so we can distinguish a click (no
   // movement) from a drag-rotate. Without this, a drag-rotate ending
   // over a neuron fires the same DOM click event a true click would,
@@ -452,11 +382,6 @@ export function BrainViewer({
       {tooltip && hover && (
         <div className="neuron-tooltip" style={{ left: hover.x + 14, top: hover.y + 14 }}>
           {tooltip}
-        </div>
-      )}
-      {highlightCount > 0 && (
-        <div className="absolute top-2 left-2 text-xs text-neutral-400 font-mono pointer-events-none leading-tight">
-          {highlightCount.toLocaleString()} highlighted
         </div>
       )}
     </div>
