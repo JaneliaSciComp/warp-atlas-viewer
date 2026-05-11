@@ -50,15 +50,28 @@ export function cellPasses(
   const inRegion =
     filter.isolatedRegion < 0 || ds.regionIds[i] === filter.isolatedRegion;
 
-  const geneActive = filter.txMode === 'gene' && !filter.geneAll;
+  const genes = filter.selectedGenes;
+  const geneActive = filter.txMode === 'gene' && genes.length > 0;
   const clusterActive = filter.txMode === 'subtype' && !filter.clusterAll;
-  const passesTx = geneActive
-    ? filter.geneStrict
-      ? ds.geneBinary[i * G + filter.selectedGene] === 1
-      : ds.geneCounts[i * G + filter.selectedGene] > 0
-    : clusterActive
-      ? ds.clusterIds[i] === filter.selectedCluster
-      : true;
+  let passesTx = true;
+  if (geneActive) {
+    const strict = filter.geneStrict;
+    const hit = (g: number) =>
+      strict ? ds.geneBinary[i * G + g] === 1 : ds.geneCounts[i * G + g] > 0;
+    if (filter.geneLogic === 'and') {
+      passesTx = true;
+      for (let k = 0; k < genes.length; k++) {
+        if (!hit(genes[k])) { passesTx = false; break; }
+      }
+    } else {
+      passesTx = false;
+      for (let k = 0; k < genes.length; k++) {
+        if (hit(genes[k])) { passesTx = true; break; }
+      }
+    }
+  } else if (clusterActive) {
+    passesTx = ds.clusterIds[i] === filter.selectedCluster;
+  }
 
   // Activity filter: an empty selection means "don't filter by activity
   // at all". Any non-empty selection is a real filter — combined per
@@ -102,7 +115,7 @@ export function anyFilterActive(ds: NeuronDataset, filter: FilterState): boolean
   const stimsActive = filter.selectedStimuli.length > 0;
   return (
     filter.isolatedRegion >= 0 ||
-    (filter.txMode === 'gene' && !filter.geneAll) ||
+    (filter.txMode === 'gene' && filter.selectedGenes.length > 0) ||
     (filter.txMode === 'subtype' && !filter.clusterAll) ||
     stimsActive
   );
@@ -154,15 +167,28 @@ export function applyColoring(
   const geneMaxSpots = Math.max(1, settings.geneMaxSpots);
   const geneLogDen = Math.log(1 + geneMaxSpots);
   const baseSize = settings.pointSize;
-  // The Gene color scheme paints by a single gene's expression when a
-  // specific gene is in focus via Transcriptomics; otherwise it paints
-  // by transcriptomic richness (# of panel genes the cell expresses by
-  // the curated binary call), so picking Color=Gene with no specific
-  // gene tells you something instead of falling back to whichever gene
-  // happens to be the persistent index.
+  // The Gene color scheme paints by the selected genes when at least
+  // one is in focus via Transcriptomics; otherwise it paints by
+  // transcriptomic richness across the full 41-gene panel (# of
+  // genes the cell expresses by the curated binary call), so picking
+  // Color=Gene with nothing selected still tells the user something.
+  //
+  // With exactly one gene selected we paint by its raw spot count.
+  // With 2+ genes the behaviour is driven by settings.geneMultiColor:
+  //   'max'      → plasma over max(geneCounts[g]) — mirror of stim coloring
+  //   'sum'      → plasma over sum(geneCounts[g]) — emphasises co-expressors
+  //   'richness' → plasma over # of selected genes the cell expresses
+  //                (same predicate the filter uses), 0..N
+  const geneSel = filter.selectedGenes;
   const useRichness =
-    filter.txMode === 'subtype' || (filter.txMode === 'gene' && filter.geneAll);
+    filter.txMode === 'subtype' ||
+    (filter.txMode === 'gene' && geneSel.length === 0);
   const RICHNESS_LOG_DEN = Math.log(1 + G);
+  const multiGenes = filter.txMode === 'gene' && geneSel.length >= 2;
+  const geneMultiMode = settings.geneMultiColor;
+  const SEL_RICHNESS_LOG_DEN = multiGenes
+    ? Math.log(1 + geneSel.length)
+    : 1;
   // Stim color scheme: when exactly one stimulus is selected we paint
   // by that stimulus's correlation; otherwise (zero, all, or 2..S-1
   // selected) we paint by max across the relevant set. Mean would be
@@ -212,9 +238,14 @@ export function applyColoring(
           break;
         }
         case 'gene': {
-          // Two sub-modes: per-cell richness when no single gene is in
-          // focus, otherwise the classic single-gene plasma over raw
-          // FISH spot counts.
+          // Sub-modes:
+          //   0 genes selected (or subtype mode)  → richness over the
+          //     full 41-gene panel.
+          //   1 gene selected                     → classic single-gene
+          //     plasma over its raw FISH spot count.
+          //   2+ genes selected                   → driven by
+          //     settings.geneMultiColor (max / sum / richness within
+          //     the selected subset).
           let raw: number;
           let v: number;
           if (useRichness) {
@@ -229,8 +260,43 @@ export function applyColoring(
             v = useLog
               ? Math.log(1 + n) / RICHNESS_LOG_DEN
               : n / G;
+          } else if (multiGenes) {
+            const base = i * G;
+            const N = geneSel.length;
+            if (geneMultiMode === 'richness') {
+              // # of selected genes the cell expresses by the same
+              // predicate the filter uses (binary or spot-count > 0).
+              let n = 0;
+              if (filter.geneStrict) {
+                for (let k = 0; k < N; k++) if (geneBinary[base + geneSel[k]] === 1) n++;
+              } else {
+                for (let k = 0; k < N; k++) if (geneCounts[base + geneSel[k]] > 0) n++;
+              }
+              raw = n;
+              v = useLog
+                ? Math.log(1 + n) / SEL_RICHNESS_LOG_DEN
+                : n / N;
+            } else if (geneMultiMode === 'sum') {
+              let s = 0;
+              for (let k = 0; k < N; k++) s += geneCounts[base + geneSel[k]];
+              raw = s;
+              v = useLog
+                ? Math.min(1, Math.log(1 + s) / geneLogDen)
+                : Math.min(1, s / geneMaxSpots);
+            } else {
+              // 'max' — default. Mirrors stim multi-select coloring.
+              let m = 0;
+              for (let k = 0; k < N; k++) {
+                const c = geneCounts[base + geneSel[k]];
+                if (c > m) m = c;
+              }
+              raw = m;
+              v = useLog
+                ? Math.min(1, Math.log(1 + m) / geneLogDen)
+                : Math.min(1, m / geneMaxSpots);
+            }
           } else {
-            raw = geneCounts[i * G + filter.selectedGene];
+            raw = geneCounts[i * G + geneSel[0]];
             v = useLog
               ? Math.min(1, Math.log(1 + raw) / geneLogDen)
               : Math.min(1, raw / geneMaxSpots);

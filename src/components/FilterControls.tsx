@@ -31,6 +31,19 @@ const COLOR_SCHEMES: Array<{ value: ColorMode; label: string }> = [
 
 const ALL_OPTION = { value: -1, label: 'all' } as const;
 
+/** Dedupe an array of integer indices while preserving insertion
+ *  order — used so the gene-filter rows render in the order the user
+ *  added them (newest at the bottom) rather than re-sorting on every
+ *  change. */
+function dedupePreserveOrder(xs: number[]): number[] {
+  const seen = new Set<number>();
+  const out: number[] = [];
+  for (const x of xs) {
+    if (!seen.has(x)) { seen.add(x); out.push(x); }
+  }
+  return out;
+}
+
 type Tab = 'filters' | 'settings' | 'help';
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'filters', label: 'Filters' },
@@ -106,6 +119,7 @@ function SettingsTab({
     settings.stimLo !== DEFAULT_SETTINGS.stimLo ||
     settings.stimHi !== DEFAULT_SETTINGS.stimHi ||
     settings.geneMaxSpots !== DEFAULT_SETTINGS.geneMaxSpots ||
+    settings.geneMultiColor !== DEFAULT_SETTINGS.geneMultiColor ||
     settings.pointSize !== DEFAULT_SETTINGS.pointSize ||
     settings.enablePan !== DEFAULT_SETTINGS.enablePan;
   return (
@@ -170,6 +184,29 @@ function SettingsTab({
           step={50}
           onChange={(v) => update({ geneMaxSpots: v })}
         />
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+          Multi-gene coloring
+        </div>
+        <p className="text-neutral-400 leading-snug">
+          What the Gene color scheme paints when 2+ genes are selected.
+          <span className="text-neutral-200"> Max</span> mirrors stim coloring (brightest single marker).
+          <span className="text-neutral-200"> Sum</span> emphasises co-expression strength.
+          <span className="text-neutral-200"> Richness</span> counts how many of the selected genes the cell expresses (same predicate as the gene filter).
+        </p>
+        <div className="flex items-center gap-2">
+          <KindToggle
+            value={settings.geneMultiColor}
+            onChange={(v) => update({ geneMultiColor: v })}
+            options={[
+              { value: 'max', label: 'Max' },
+              { value: 'sum', label: 'Sum' },
+              { value: 'richness', label: 'Richness' },
+            ]}
+          />
+        </div>
       </section>
 
       <section className="flex flex-col gap-2">
@@ -360,8 +397,7 @@ function buildPresetFilter(p: FindingPreset, data: NeuronDataset): Partial<Filte
     const idx = data.geneNames.indexOf(p.gene);
     if (idx < 0) return null;
     out.txMode = 'gene';
-    out.selectedGene = idx;
-    out.geneAll = false;
+    out.selectedGenes = [idx];
   }
   if (p.stimuli && p.stimuli.length > 0) {
     out.selectedStimuli = [...p.stimuli].sort((a, b) => a - b);
@@ -816,19 +852,51 @@ function TranscriptomicsCard({
   filter: FilterState;
   update: (p: Partial<FilterState>) => void;
 }) {
-  // The "all" sentinel maps to the matching *All flag, leaving the
-  // persistent index alone so flipping txMode (or coming back from
-  // "all") doesn't lose the previously picked gene/cluster.
-  const onGeneChange = (v: number) => {
-    if (v < 0) update({ geneAll: true });
-    else update({ geneAll: false, selectedGene: v });
-  };
   const onClusterChange = (v: number) => {
     if (v < 0) update({ clusterAll: true });
     else update({ clusterAll: false, selectedCluster: v });
   };
-  const geneValue = filter.geneAll ? -1 : filter.selectedGene;
   const clusterValue = filter.clusterAll ? -1 : filter.selectedCluster;
+
+  // ── Multi-gene helpers ─────────────────────────────────────────────
+  const sel = filter.selectedGenes;
+  const G = data.geneNames.length;
+  const replaceGene = (rowIdx: number, newGene: number) => {
+    // Splice in-place, then dedupe + sort (selectedGenes is kept
+    // sorted + unique to match the URL-state diff convention and the
+    // stim-filter pattern).
+    const next = sel.slice();
+    next[rowIdx] = newGene;
+    update({ selectedGenes: dedupePreserveOrder(next) });
+  };
+  const removeGene = (rowIdx: number) => {
+    const next = sel.slice();
+    next.splice(rowIdx, 1);
+    update({ selectedGenes: next });
+  };
+  const addGene = () => {
+    if (sel.length >= G) return;
+    // First not-yet-selected gene (alphabetical). User can change the
+    // dropdown immediately to pick something specific.
+    const used = new Set(sel);
+    const firstAvail = data.geneNames
+      .map((name, i) => ({ name, i }))
+      .filter((o) => !used.has(o.i))
+      .sort((a, b) => a.name.localeCompare(b.name))[0];
+    if (!firstAvail) return;
+    update({ selectedGenes: dedupePreserveOrder([...sel, firstAvail.i]) });
+  };
+  // For each row, the dropdown lists all genes except those already
+  // selected on OTHER rows — so the user can't add the same gene twice.
+  const rowOptions = (rowIdx: number) => {
+    const otherUsed = new Set(sel.filter((_, k) => k !== rowIdx));
+    return data.geneNames
+      .map((name, i) => ({ value: i, label: name }))
+      .filter((o) => !otherUsed.has(o.value))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  };
+  const logicMeaningful = sel.length >= 2;
+  const addDisabled = sel.length >= G;
 
   return (
     <Card title="Transcriptomics">
@@ -836,37 +904,79 @@ function TranscriptomicsCard({
         value={filter.txMode}
         onChange={(m) => update({ txMode: m })}
         options={[
-          { value: 'gene', label: 'Single gene' },
+          { value: 'gene', label: 'Gene' },
           { value: 'subtype', label: 'Subtype' },
         ]}
       />
       {filter.txMode === 'gene' ? (
         <>
-          <Select
-            label="gene"
-            value={geneValue}
-            onChange={onGeneChange}
-            options={[
-              ALL_OPTION,
-              ...data.geneNames
-                .map((g, i) => ({ value: i, label: g }))
-                .sort((a, b) => a.label.localeCompare(b.label)),
-            ]}
-            arrows
-          />
-          {!filter.geneAll && (
-            <label
-              className="flex items-center gap-1 text-xs text-neutral-300 cursor-pointer select-none"
-              title="checked: curated binary call (geneBinary === 1). unchecked: any detected expression (raw spot count > 0)."
-            >
-              <input
-                type="checkbox"
-                checked={filter.geneStrict}
-                onChange={(e) => update({ geneStrict: e.target.checked })}
-                className="accent-neutral-300"
+          {sel.map((g, rowIdx) => (
+            <div key={rowIdx} className="flex items-center gap-1">
+              <Select
+                label=""
+                value={g}
+                onChange={(v) => replaceGene(rowIdx, v)}
+                options={rowOptions(rowIdx)}
               />
-              binary call
-            </label>
+              <button
+                type="button"
+                onClick={() => removeGene(rowIdx)}
+                aria-label="remove gene"
+                title="remove"
+                className="bg-neutral-900 border border-neutral-700 rounded px-1.5 py-1 text-neutral-400 hover:text-neutral-100 hover:bg-neutral-700 leading-none"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={addGene}
+            disabled={addDisabled}
+            title={addDisabled ? 'all genes already selected' : 'add a gene to the filter'}
+            className={
+              'self-start flex items-center gap-1 px-2 py-0.5 text-xs font-mono rounded border ' +
+              (addDisabled
+                ? 'text-neutral-600 border-neutral-800 cursor-default'
+                : 'text-neutral-300 bg-neutral-900/60 border-neutral-700 hover:bg-neutral-700 hover:text-neutral-100')
+            }
+          >
+            + add gene
+          </button>
+          {sel.length >= 1 && (
+            <>
+              <label
+                className="flex items-center gap-1 text-xs text-neutral-300 cursor-pointer select-none"
+                title="checked: curated binary call (geneBinary === 1). unchecked: any detected expression (raw spot count > 0)."
+              >
+                <input
+                  type="checkbox"
+                  checked={filter.geneStrict}
+                  onChange={(e) => update({ geneStrict: e.target.checked })}
+                  className="accent-neutral-300"
+                />
+                binary call
+              </label>
+              <div
+                className={
+                  'flex items-center gap-2 ' + (logicMeaningful ? 'opacity-100' : 'opacity-50')
+                }
+                title={
+                  logicMeaningful
+                    ? 'OR: cells expressing any selected gene. AND: cells expressing every selected gene.'
+                    : 'Combine logic for multi-gene selections (only matters with 2+ genes added).'
+                }
+              >
+                <KindToggle
+                  value={filter.geneLogic}
+                  onChange={(v) => update({ geneLogic: v })}
+                  options={[
+                    { value: 'or', label: 'OR' },
+                    { value: 'and', label: 'AND' },
+                  ]}
+                />
+              </div>
+            </>
           )}
         </>
       ) : (
@@ -1028,7 +1138,7 @@ function Select({
 
   return (
     <label className="flex items-center gap-1 text-xs">
-      <span className="text-neutral-400">{label}</span>
+      {label && <span className="text-neutral-400">{label}</span>}
       {arrows && (
         <button
           type="button"

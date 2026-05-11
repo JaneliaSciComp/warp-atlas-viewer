@@ -30,18 +30,26 @@ export function ColorLegend({ data, filter, settings }: Props) {
     );
   }
   if (filter.colorMode === 'gene') {
-    // Two sub-modes: richness (number of panel genes expressed per cell)
-    // when no specific gene is in focus, otherwise the classic plasma
-    // gradient over absolute FISH spot count for the selected gene.
+    // Sub-modes (mirrors the painting branches in coloring.ts):
+    //   0 genes (or subtype mode) → richness over the full 41-gene panel
+    //   1 gene → plasma over its raw FISH spot count
+    //   2+ genes → driven by settings.geneMultiColor (max/sum/richness)
+    const sel = filter.selectedGenes;
     const useRichness =
-      filter.txMode === 'subtype' || (filter.txMode === 'gene' && filter.geneAll);
+      filter.txMode === 'subtype' || (filter.txMode === 'gene' && sel.length === 0);
+    const multiGenes = filter.txMode === 'gene' && sel.length >= 2;
+    const multiMode = settings.geneMultiColor;
+    // "Richness within selection" reuses the richness branch but
+    // anchored at the selected-gene count instead of G.
+    const useSelRichness = multiGenes && multiMode === 'richness';
     const N = 16;
     const stops = Array.from({ length: N }, (_, i) => rgbToHex(plasma(i / (N - 1))));
     const gradient = `linear-gradient(to right, ${stops.join(', ')})`;
     const isLog = filter.geneScale !== 'linear';
     const G = data.geneNames.length;
     const maxSpots = Math.max(1, settings.geneMaxSpots);
-    const maxVal = useRichness ? G : maxSpots;
+    const richnessTickCeiling = useSelRichness ? sel.length : G;
+    const maxVal = useRichness || useSelRichness ? richnessTickCeiling : maxSpots;
     // Pick reasonable ticks for either mode. For richness G is small
     // (~41) so we snap at fractions of G; for spot count we use
     // powers of 10 in log mode (clipped at the configured ceiling)
@@ -74,10 +82,23 @@ export function ColorLegend({ data, filter, settings }: Props) {
     // Cap every tick row at 4 so labels never collide on the narrow
     // bar. For the 5-tick patterns we drop the second-to-last entry
     // (the one that crowds the ceiling label).
-    const richnessLogTicks = [0, 1, Math.round(G / 4), G];
-    const richnessLinearTicks = [0, Math.round(G / 4), Math.round(G / 2), G];
+    // For selection-richness, the ceiling is small (typically 2..10).
+    // Show every integer when the bar isn't crowded, fall back to
+    // quartile-style only when N > 6 so labels never collide.
+    const selN = sel.length;
+    const richnessLogTicks = useSelRichness
+      ? selN <= 6
+        ? Array.from({ length: selN + 1 }, (_, k) => k)
+        : [0, 1, Math.round(selN / 2), selN]
+      : [0, 1, Math.round(G / 4), G];
+    const richnessLinearTicks = useSelRichness
+      ? selN <= 6
+        ? Array.from({ length: selN + 1 }, (_, k) => k)
+        : [0, Math.round(selN / 4), Math.round(selN / 2), selN]
+      : [0, Math.round(G / 4), Math.round(G / 2), G];
     const linearSpotTicks = [0, Math.round(maxSpots / 4), Math.round(maxSpots / 2), maxSpots];
-    const ticks = useRichness
+    const useRichnessTicks = useRichness || useSelRichness;
+    const ticks = useRichnessTicks
       ? isLog
         ? richnessLogTicks
         : richnessLinearTicks
@@ -89,8 +110,18 @@ export function ColorLegend({ data, filter, settings }: Props) {
       isLog ? (Math.log(1 + t) / maxLog) * 100 : (t / maxVal) * 100;
     const title = useRichness
       ? 'Gene richness'
-      : `Gene: ${data.geneNames[filter.selectedGene]}`;
-    const axisLabel = useRichness ? '# genes expressed' : 'mRNA spot count';
+      : sel.length === 1
+        ? `Gene: ${data.geneNames[sel[0]]}`
+        : multiMode === 'max'
+          ? `Genes: max across ${sel.length}`
+          : multiMode === 'sum'
+            ? `Genes: sum across ${sel.length}`
+            : `Genes: # of ${sel.length} expressed`;
+    const axisLabel = useRichness
+      ? '# genes expressed'
+      : useSelRichness
+        ? '# selected genes expressed'
+        : 'mRNA spot count';
     return (
       <div
         style={positionStyle}

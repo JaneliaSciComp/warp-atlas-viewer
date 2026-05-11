@@ -282,9 +282,26 @@ export function BrainViewer({
     const G = data.geneNames.length;
     const S = data.stimulusNames.length;
     if (filter.colorMode === 'gene') {
+      // Match the gene-color painting: "lit" cells are those with at
+      // least one selected gene > 0. When no gene is selected we'd be
+      // showing richness across the full panel, so count any cell with
+      // any gene expressed.
+      const sel = filter.selectedGenes;
       let n = 0;
-      for (let i = 0; i < data.count; i++) {
-        if (data.geneCounts[i * G + filter.selectedGene] > 0) n++;
+      if (sel.length === 0) {
+        for (let i = 0; i < data.count; i++) {
+          const base = i * G;
+          for (let j = 0; j < G; j++) {
+            if (data.geneCounts[base + j] > 0) { n++; break; }
+          }
+        }
+      } else {
+        for (let i = 0; i < data.count; i++) {
+          const base = i * G;
+          for (let k = 0; k < sel.length; k++) {
+            if (data.geneCounts[base + sel[k]] > 0) { n++; break; }
+          }
+        }
       }
       return n;
     }
@@ -325,7 +342,7 @@ export function BrainViewer({
       return n;
     }
     return 0;
-  }, [data, filter.colorMode, filter.selectedGene, filter.selectedStimuli, settings.stimLo, selection.indices]);
+  }, [data, filter.colorMode, filter.selectedGenes, filter.selectedStimuli, settings.stimLo, selection.indices]);
 
   // Track the pointer-down position so we can distinguish a click (no
   // movement) from a drag-rotate. Without this, a drag-rotate ending

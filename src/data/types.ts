@@ -53,24 +53,28 @@ export type TxMode = 'gene' | 'subtype';
  *
  * The current rendering must be 100% described by the fields that the
  * user can currently see in the bottom-panel UI. Several fields below
- * (selectedGene, selectedCluster, selectedStimulus, geneScale,
- * geneStrict, activitySample) PERSIST across UI flips for ergonomics —
- * when the user toggles between Single-gene/Subtype or "all"/specific
- * (or flips Color scheme away from Activity and back), we keep their
- * prior pick so they don't lose it. That persistence is fine ONLY as
- * long as those fields don't influence rendering when they're hidden.
+ * (selectedCluster, selectedStimulus, geneScale, geneStrict,
+ * geneLogic, activitySample) PERSIST across UI flips for ergonomics —
+ * when the user toggles between Gene/Subtype or empties their gene
+ * list (or flips Color scheme away from Activity and back), we keep
+ * their prior pick so they don't lose it. That persistence is fine
+ * ONLY as long as those fields don't influence rendering when they're
+ * hidden.
  *
  * Rule for any code path that reads one of these fields:
- *   1. Check the visibility predicate first (e.g. for selectedGene:
- *      txMode === 'gene' && !geneAll). If the field is hidden, fall
- *      back to an explicit alternative — gene scheme falls back to
- *      richness; stim scheme falls back to max-across-stimuli.
+ *   1. Check the visibility predicate first (e.g. for geneStrict /
+ *      geneLogic: txMode === 'gene' && selectedGenes.length > 0). If
+ *      the field is hidden, fall back to an explicit alternative —
+ *      gene scheme falls back to richness when selectedGenes is empty;
+ *      stim scheme falls back to max-across-stimuli when no stim is
+ *      selected.
  *   2. The legend must reflect that fallback so the user can read what
  *      the visualization is showing without inspecting state they
  *      can't see.
  *
- * Adding a new code path that reads selectedGene/Cluster/Stimulus
- * outside its visibility window is the bug class to watch for.
+ * Adding a new code path that reads selectedCluster/selectedStimulus
+ * (or geneStrict / geneLogic) outside its visibility window is the
+ * bug class to watch for.
  */
 export interface FilterState {
   // ── Colors ────────────────────────────────────────────────────────
@@ -83,24 +87,31 @@ export interface FilterState {
 
   // ── Transcriptomics filter ────────────────────────────────────────
   txMode: TxMode;
-  /** Always 0..G-1. Persists across txMode flips and "all" picks so
-   *  color schemes that read it always have a meaningful index. */
-  selectedGene: number;
-  /** When txMode === 'gene' and geneAll is true, the gene predicate
-   *  is trivially true (no transcriptomic constraint). Coloring still
-   *  uses selectedGene. */
-  geneAll: boolean;
-  /** When txMode === 'gene' and geneAll is false, controls which
-   *  predicate the gene filter uses:
-   *    true  → curated binary call (geneBinary[i*G+sel] === 1)
-   *    false → any detected expression (geneCounts[i*G+sel] > 0)
+  /** Indices into geneNames of every gene the user has added to the
+   *  gene filter. Sorted, unique. An empty array means "no gene
+   *  filter" (every cell qualifies); any non-empty selection is a real
+   *  filter combined according to `geneLogic`. The Gene color scheme
+   *  reads the same array — empty → richness, single → that gene's
+   *  spot count, multiple → driven by settings.geneMultiColor. */
+  selectedGenes: number[];
+  /** How multi-gene selections combine in the gene filter:
+   *    'or'  → cell passes iff it expresses AT LEAST ONE selected gene
+   *    'and' → cell passes iff it expresses EVERY selected gene
+   *  Whether "expresses" means the curated binary call or raw counts
+   *  is controlled by `geneStrict`. Only meaningful when
+   *  selectedGenes.length >= 2. */
+  geneLogic: GeneLogic;
+  /** When txMode === 'gene' and selectedGenes is non-empty, controls
+   *  which predicate the gene filter uses:
+   *    true  → curated binary call (geneBinary[i*G+g] === 1)
+   *    false → any detected expression (geneCounts[i*G+g] > 0)
    *  The binary call is the dataset's curated, conservative
    *  classification; "any spots" is more permissive and matches the
    *  classic "raw > 0" reading of FISH counts. */
   geneStrict: boolean;
-  /** Always 0..C-1. Persists like selectedGene. */
+  /** Always 0..C-1. Persists across txMode flips and "all" picks. */
   selectedCluster: number;
-  /** Mirror of geneAll for the subtype branch. */
+  /** Subtype-branch equivalent of "no cluster filter". */
   clusterAll: boolean;
 
   // ── Activity filter ───────────────────────────────────────────────
@@ -124,11 +135,13 @@ export interface FilterState {
    *  0..traceLength-1. Only influences rendering when
    *  colorMode === 'activity' — persists across color-mode flips so
    *  flipping back restores the previous scrub position. Same
-   *  visible-state-only invariant as selectedGene/selectedCluster. */
+   *  visible-state-only invariant as selectedCluster/geneStrict. */
   activitySample: number;
 }
 
 export type StimLogic = 'or' | 'and';
+export type GeneLogic = 'or' | 'and';
+export type GeneMultiColor = 'max' | 'sum' | 'richness';
 
 /** User-tunable rendering parameters that aren't filters per se —
  *  e.g. the calcium-imaging thresholds that anchor the Stim color
@@ -150,6 +163,17 @@ export interface SettingsState {
    *  end. Different probes / datasets have different practical
    *  ceilings; 1000 is a sensible default. */
   geneMaxSpots: number;
+  /** When 2+ genes are selected, what the Gene color scheme paints by:
+   *    'max'      → max spot count across the selected genes (mirror
+   *                 of stim coloring; the default)
+   *    'sum'      → sum of spot counts; emphasises cells that express
+   *                 multiple selected markers strongly
+   *    'richness' → how many of the selected genes are "on" per the
+   *                 same predicate the filter uses (binary call when
+   *                 geneStrict, otherwise count > 0); ranges 0..N
+   *  Single-gene coloring and richness over the full panel are
+   *  unaffected by this setting. */
+  geneMultiColor: GeneMultiColor;
   /** Base 3D point size (pixels) for every cell, used by both the 3D
    *  viewer and the t-SNE scatter. Display-density preference; raise
    *  on high-DPI screens or when cells look too small. */
@@ -164,6 +188,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
   stimLo: 0.30,
   stimHi: 0.65,
   geneMaxSpots: 1000,
+  geneMultiColor: 'max',
   pointSize: 8.5,
   enablePan: false,
 };
