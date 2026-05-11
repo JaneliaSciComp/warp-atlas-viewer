@@ -454,12 +454,11 @@ export function BrainViewer({
           {tooltip}
         </div>
       )}
-      <div className="absolute top-2 left-2 text-xs text-neutral-400 font-mono pointer-events-none leading-tight">
-        <div>{data.count.toLocaleString()} neurons {data.source === 'mock' ? '(mock)' : ''}</div>
-        {highlightCount > 0 && (
-          <div>{highlightCount.toLocaleString()} highlighted</div>
-        )}
-      </div>
+      {highlightCount > 0 && (
+        <div className="absolute top-2 left-2 text-xs text-neutral-400 font-mono pointer-events-none leading-tight">
+          {highlightCount.toLocaleString()} highlighted
+        </div>
+      )}
     </div>
   );
 }

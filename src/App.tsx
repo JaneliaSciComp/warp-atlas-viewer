@@ -297,7 +297,7 @@ export default function App() {
                 if (data.fishIds[i] >= n) n = data.fishIds[i] + 1;
               }
               return n;
-            })()} fish
+            })()} fish{data.source === 'mock' ? ' (mock)' : ''}
           </p>
         </div>
         <a
