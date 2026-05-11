@@ -221,9 +221,9 @@ function SettingsTab({
         </div>
         <p className="text-neutral-400 leading-snug">
           What the Gene color scheme paints when 2+ genes are selected.
-          <span className="text-neutral-200"> Max</span> mirrors stim coloring (brightest single marker).
-          <span className="text-neutral-200"> Sum</span> emphasises co-expression strength.
-          <span className="text-neutral-200"> Richness</span> counts how many of the selected genes the cell expresses (same predicate as the gene filter).
+          <span className="text-neutral-200"> Max</span> — the strongest-expressing of the selected genes per cell.
+          <span className="text-neutral-200"> Sum</span> — total spot count across the selected genes; emphasises co-expression strength.
+          <span className="text-neutral-200"> Richness</span> — how many of the selected genes the cell expresses (using the same predicate as the gene filter).
         </p>
         <div className="flex items-center gap-2">
           <KindToggle
@@ -514,14 +514,13 @@ function HelpTab({
         <p className="text-neutral-400 leading-snug">
           The atlas pools cells from 3 individual fish (originally
           imaged as Fish 1 / 2 / 3) into a shared mapzebrain
-          coordinate frame, just like the WARP preprint's main
-          figures. Every dot is one real cell from one real fish; the
-          per-specimen breakdown surfaces in two places:
+          coordinate frame. Every dot is one real cell from one real
+          fish; the per-specimen breakdown surfaces in three places:
         </p>
         <ul className="list-disc list-inside space-y-0.5 text-neutral-400 leading-snug">
           <li><span className="text-neutral-200">Colors → Specimen</span> — paint each cell by its source fish (categorical) so per-fish coverage and registration consistency become visible.</li>
-          <li><span className="text-neutral-200">Anatomy → specimen</span> — keep only cells from one fish, mirroring the manuscript's per-fish supplement views; useful for sanity-checking whether a finding holds in every individual.</li>
-          <li>The <span className="text-neutral-200">Details</span> panel already shows a per-fish breakdown of any selection so you can spot a population that's driven by a single specimen.</li>
+          <li><span className="text-neutral-200">Anatomy → specimen</span> — keep only cells from one fish; useful for sanity-checking whether a finding holds in every individual.</li>
+          <li>The <span className="text-neutral-200">Details</span> panel shows a per-fish breakdown of any selection so you can spot a population that's driven by a single specimen.</li>
         </ul>
       </section>
 

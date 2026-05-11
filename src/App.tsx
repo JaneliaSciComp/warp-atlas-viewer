@@ -289,7 +289,7 @@ export default function App() {
           <h1 className="font-mono text-base tracking-wide text-neutral-100">WARP Atlas</h1>
           <p
             className="font-mono text-[11px] text-neutral-500"
-            title="Cells from each fish are registered into shared mapzebrain atlas coordinates; the WARP paper's main figures pool the same way."
+            title="Cells from each fish are registered into shared mapzebrain atlas coordinates."
           >
             {data.count.toLocaleString()} cells pooled from {(() => {
               let n = 0;
