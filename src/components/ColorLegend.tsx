@@ -1,5 +1,5 @@
 import type { NeuronDataset, FilterState, SettingsState } from '../data/types';
-import { regionColor, plasma, rgbToHex } from '../utils/colorMaps';
+import { regionColor, fishColor, plasma, rgbToHex } from '../utils/colorMaps';
 
 interface Props {
   data: NeuronDataset;
@@ -24,6 +24,30 @@ export function ColorLegend({ data, filter, settings }: Props) {
               style={{ background: rgbToHex(regionColor(i)) }}
             />
             <span>{r}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (filter.colorMode === 'fish') {
+    let nFish = 0;
+    for (let i = 0; i < data.fishIds.length; i++) {
+      const v = data.fishIds[i];
+      if (v >= nFish) nFish = v + 1;
+    }
+    return (
+      <div
+        style={positionStyle}
+        className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200"
+      >
+        <div className="text-neutral-400 mb-1">Fish of origin</div>
+        {Array.from({ length: nFish }, (_, i) => (
+          <div key={i} className="flex items-center gap-1.5">
+            <span
+              className="inline-block w-3 h-3 rounded-sm"
+              style={{ background: rgbToHex(fishColor(i)) }}
+            />
+            <span>fish {i}</span>
           </div>
         ))}
       </div>

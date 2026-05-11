@@ -65,6 +65,25 @@ export function regionColor(idx: number): [number, number, number] {
   return REGION_PALETTE[((idx % REGION_PALETTE.length) + REGION_PALETTE.length) % REGION_PALETTE.length];
 }
 
+// Categorical palette for the per-fish color scheme. Kept distinct from
+// the region palette (which is a 16-stop Tableau extension) so fish and
+// regions don't read as visually related. Cycles if a dataset somehow
+// has more than 8 specimens.
+export const FISH_PALETTE: Array<[number, number, number]> = [
+  [0.894, 0.102, 0.110], // red
+  [0.216, 0.494, 0.722], // blue
+  [0.302, 0.686, 0.290], // green
+  [0.596, 0.306, 0.639], // purple
+  [1.000, 0.498, 0.000], // orange
+  [1.000, 1.000, 0.200], // yellow
+  [0.651, 0.337, 0.157], // brown
+  [0.969, 0.506, 0.749], // pink
+];
+
+export function fishColor(idx: number): [number, number, number] {
+  return FISH_PALETTE[((idx % FISH_PALETTE.length) + FISH_PALETTE.length) % FISH_PALETTE.length];
+}
+
 export function rgbToHex(c: [number, number, number]): string {
   const to = (x: number) => Math.max(0, Math.min(255, Math.round(x * 255)))
     .toString(16)

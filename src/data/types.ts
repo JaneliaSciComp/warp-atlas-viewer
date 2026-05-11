@@ -41,7 +41,7 @@ export interface NeuronDataset {
   source: 'mock' | 'real';
 }
 
-export type ColorMode = 'highlight' | 'region' | 'gene' | 'stim' | 'activity';
+export type ColorMode = 'highlight' | 'region' | 'gene' | 'stim' | 'activity' | 'fish';
 export type GeneScale = 'log' | 'linear';
 /** Which sub-filter the Transcriptomics panel exposes. The inactive
  *  sub-filter's index is preserved so the user can flip back to it
@@ -83,6 +83,11 @@ export interface FilterState {
 
   // ── Anatomy filter ────────────────────────────────────────────────
   isolatedRegion: number; // index into regionNames, -1 = show all
+  /** Fish-of-origin filter: 0..nFish-1 keeps only cells from that
+   *  specimen; -1 keeps all (the pooled-atlas default). Mirrors how
+   *  the WARP paper's main figures pool all 3 fish but supplements
+   *  break out per-fish (Figure S6B). */
+  isolatedFish: number;
 
   // ── Transcriptomics filter ────────────────────────────────────────
   txMode: TxMode;

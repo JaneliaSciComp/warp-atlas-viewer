@@ -1,5 +1,5 @@
 import type { NeuronDataset, FilterState, SelectionState, SettingsState } from '../data/types';
-import { regionColor, plasma } from './colorMaps';
+import { regionColor, fishColor, plasma } from './colorMaps';
 
 const DIM_RGB: [number, number, number] = [0.30, 0.30, 0.32];
 const DIM_ALPHA = 0.10;
@@ -47,8 +47,13 @@ export function cellPasses(
   const G = ds.geneNames.length;
   const S = ds.stimulusNames.length;
 
+  // Anatomy filter folds region AND fish-of-origin into the same
+  // predicate slot — both are "which subset of the atlas's pooled
+  // cells do you want to keep" controls that the user picks in the
+  // Anatomy card.
   const inRegion =
-    filter.isolatedRegion < 0 || ds.regionIds[i] === filter.isolatedRegion;
+    (filter.isolatedRegion < 0 || ds.regionIds[i] === filter.isolatedRegion) &&
+    (filter.isolatedFish < 0 || ds.fishIds[i] === filter.isolatedFish);
 
   const genes = filter.selectedGenes;
   const geneActive = filter.txMode === 'gene' && genes.length > 0;
@@ -115,6 +120,7 @@ export function anyFilterActive(ds: NeuronDataset, filter: FilterState): boolean
   const stimsActive = filter.selectedStimuli.length > 0;
   return (
     filter.isolatedRegion >= 0 ||
+    filter.isolatedFish >= 0 ||
     (filter.txMode === 'gene' && filter.selectedGenes.length > 0) ||
     (filter.txMode === 'subtype' && !filter.clusterAll) ||
     stimsActive
@@ -234,6 +240,11 @@ export function applyColoring(
       switch (filter.colorMode) {
         case 'region': {
           const c = regionColor(regionIds[i]);
+          r = c[0]; g = c[1]; b = c[2];
+          break;
+        }
+        case 'fish': {
+          const c = fishColor(ds.fishIds[i]);
           r = c[0]; g = c[1]; b = c[2];
           break;
         }

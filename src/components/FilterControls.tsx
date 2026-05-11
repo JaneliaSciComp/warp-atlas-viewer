@@ -27,6 +27,7 @@ const COLOR_SCHEMES: Array<{ value: ColorMode; label: string }> = [
   { value: 'gene', label: 'Gene expression' },
   { value: 'stim', label: 'Stim correlation' },
   { value: 'activity', label: 'Activity' },
+  { value: 'fish', label: 'Fish' },
 ];
 
 const ALL_OPTION = { value: -1, label: 'all' } as const;
@@ -853,6 +854,14 @@ function AnatomyCard({
   filter: FilterState;
   update: (p: Partial<FilterState>) => void;
 }) {
+  // Fish count is derived from the data — fishIds is a Uint8Array of
+  // 0..nFish-1, so (max + 1) is enough. Cheap enough on a one-time
+  // render to skip caching.
+  let nFish = 0;
+  for (let i = 0; i < data.fishIds.length; i++) {
+    const v = data.fishIds[i];
+    if (v >= nFish) nFish = v + 1;
+  }
   return (
     <Card title="Anatomy">
       <Select
@@ -867,6 +876,18 @@ function AnatomyCard({
         ]}
         arrows
       />
+      {nFish > 1 && (
+        <Select
+          label="fish"
+          value={filter.isolatedFish}
+          onChange={(v) => update({ isolatedFish: v })}
+          options={[
+            ALL_OPTION,
+            ...Array.from({ length: nFish }, (_, i) => ({ value: i, label: `fish ${i}` })),
+          ]}
+          arrows
+        />
+      )}
     </Card>
   );
 }

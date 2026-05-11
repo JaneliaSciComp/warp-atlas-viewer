@@ -28,6 +28,7 @@ const INITIAL_FILTER: FilterState = {
   colorMode: 'region',
   geneScale: 'log',
   isolatedRegion: -1,
+  isolatedFish: -1,
   txMode: 'gene',
   selectedGenes: [],
   geneLogic: 'or',
@@ -284,7 +285,21 @@ export default function App() {
   return (
     <div className="relative h-full w-full overflow-hidden flex flex-col">
       <header className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-neutral-900 border-b border-neutral-800">
-        <h1 className="font-mono text-base tracking-wide text-neutral-100">WARP Atlas</h1>
+        <div className="flex items-baseline gap-3">
+          <h1 className="font-mono text-base tracking-wide text-neutral-100">WARP Atlas</h1>
+          <p
+            className="font-mono text-[11px] text-neutral-500"
+            title="Cells from each fish are registered into shared mapzebrain atlas coordinates; the WARP paper's main figures pool the same way."
+          >
+            {data.count.toLocaleString()} cells pooled from {(() => {
+              let n = 0;
+              for (let i = 0; i < data.fishIds.length; i++) {
+                if (data.fishIds[i] >= n) n = data.fishIds[i] + 1;
+              }
+              return n;
+            })()} fish
+          </p>
+        </div>
         <a
           href="https://www.janelia.org"
           target="_blank"
