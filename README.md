@@ -88,7 +88,7 @@ npm run dev
 
 The app will be at `http://localhost:5173/`. The dev server is bound to `0.0.0.0`; if you need to access it externally, add your hostname to `server.allowedHosts` in `vite.config.ts`.
 
-If `./preprocessed/neurons.json` is missing (e.g. you skipped step 2 to demo the UI), the app falls back to a 10k-neuron synthetic mock dataset automatically.
+If `./preprocessed/neurons.json` is missing the app surfaces an error rather than silently substituting fake data. To demo the UI without preprocessing, append `?mock=1` to the URL (e.g. `http://localhost:5173/?mock=1`) and the app will load a 10k-neuron synthetic atlas.
 
 ### Production build
 
@@ -163,7 +163,7 @@ preprocessed/                       output of preprocess.py (gitignored)
 
 ## Troubleshooting
 
-- **"Loading WARP atlas…" never finishes** — open DevTools → Network and check whether `/preprocessed/neurons.json` 200s. If 404, you skipped preprocessing; the app should fall back to mock data, but check the JS console for `[dataLoader]` messages.
+- **"Loading WARP atlas…" never finishes / Error loading data** — open DevTools → Network and check whether `/preprocessed/neurons.json` 200s. If 404, you skipped preprocessing (append `?mock=1` to demo without it). For other failures, check the JS console for `[dataLoader]` messages.
 - **Bundle warning at build time** about chunks > 500 kB — expected. Three.js + recharts aren't small. Code-splitting is out of scope for the prototype.
 - **External hostname blocked by Vite** — add it to `server.allowedHosts` in `vite.config.ts`.
 - **Figshare download fails** — the WAF token rotates; refresh `FIGSHARE_COOKIE` in `scripts/.env.download` (or the env var) from a browser session.

@@ -47,16 +47,30 @@ export type LoadProgressCallback = (p: LoadProgress) => void;
 export async function loadNeuronDataset(
   onProgress?: LoadProgressCallback,
 ): Promise<NeuronDataset> {
-  try {
-    const res = await fetch(`${PREPROCESSED_BASE}neurons.json`, { cache: 'no-cache' });
-    if (!res.ok) throw new Error(`manifest ${res.status}`);
-    const manifest = (await res.json()) as ManifestV2;
-    if (manifest.version !== 2) throw new Error(`unsupported manifest version ${manifest.version}`);
-    return await loadFromManifest(manifest, onProgress);
-  } catch (err) {
-    console.info('[dataLoader] using mock data:', (err as Error).message);
+  // Explicit demo-mode opt-in. Without ?mock=1, any failure to load real
+  // preprocessed data surfaces as an error rather than silently substituting
+  // a synthetic atlas — a fake-looking-real atlas is dangerous in a viewer
+  // that's used to draw scientific conclusions.
+  if (
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).has('mock')
+  ) {
+    console.info('[dataLoader] ?mock=1 set, generating synthetic 10k-cell dataset');
     return generateMockData(10000);
   }
+  const res = await fetch(`${PREPROCESSED_BASE}neurons.json`, { cache: 'no-cache' });
+  if (!res.ok) {
+    throw new Error(
+      `manifest fetch failed (HTTP ${res.status}). ` +
+        `Run scripts/preprocess.py to generate ${PREPROCESSED_BASE}neurons.json, ` +
+        `or append ?mock=1 to the URL to load a synthetic demo atlas.`,
+    );
+  }
+  const manifest = (await res.json()) as ManifestV2;
+  if (manifest.version !== 2) {
+    throw new Error(`unsupported manifest version ${manifest.version} (expected 2)`);
+  }
+  return await loadFromManifest(manifest, onProgress);
 }
 
 /**
