@@ -6,10 +6,9 @@ interface ManifestV2 {
   count: number;
   traceLength: number;
   traceSampleRateHz?: number;
-  /** When present, activityTrace.bin holds affine-quantized uint16
-   *  indices: value = lo + index * (hi - lo) / 65535. When absent the
-   *  file is raw float32 (legacy preprocess output). */
-  activityTraceQuant?: { lo: number; hi: number };
+  /** activityTrace.bin holds affine-quantized uint16 indices: each
+   *  sample decodes as `lo + index * (hi - lo) / 65535`. */
+  activityTraceQuant: { lo: number; hi: number };
   stimulusWindowsSec?: Array<[number, number]>;
   nStimuli: number;
   geneNames: string[];
@@ -109,16 +108,17 @@ function validateManifest(m: ManifestV2): void {
       );
     }
   }
-  if (m.activityTraceQuant) {
-    const { lo, hi } = m.activityTraceQuant;
-    if (!Number.isFinite(lo) || !Number.isFinite(hi)) {
-      throw new Error(
-        `manifest.activityTraceQuant.{lo,hi} must be finite (got lo=${lo}, hi=${hi})`,
-      );
-    }
-    if (hi <= lo) {
-      throw new Error(`manifest.activityTraceQuant.hi (${hi}) must be > lo (${lo})`);
-    }
+  if (!m.activityTraceQuant) {
+    throw new Error('manifest.activityTraceQuant is required');
+  }
+  const { lo, hi } = m.activityTraceQuant;
+  if (!Number.isFinite(lo) || !Number.isFinite(hi)) {
+    throw new Error(
+      `manifest.activityTraceQuant.{lo,hi} must be finite (got lo=${lo}, hi=${hi})`,
+    );
+  }
+  if (hi <= lo) {
+    throw new Error(`manifest.activityTraceQuant.hi (${hi}) must be > lo (${lo})`);
   }
 }
 
@@ -135,7 +135,6 @@ function expectedBytes(
   const G = m.geneNames.length;
   const S = m.nStimuli;
   const T = m.traceLength;
-  const traceBytes = m.activityTraceQuant ? 2 : 4;
   switch (key) {
     case 'positions':     return C * 3 * 4; // float32
     case 'regionIds':     return C * 2;     // int16
@@ -145,7 +144,7 @@ function expectedBytes(
     case 'geneBinary':    return C * G;     // uint8
     case 'umap':          return C * 2 * 4; // float32
     case 'stimulusCorr':  return C * S * 4; // float32
-    case 'activityTrace': return C * T * traceBytes;
+    case 'activityTrace': return C * T * 2; // uint16
     case 'regressors':    return S * T * 4; // float32, NOT per-cell
   }
 }
@@ -198,16 +197,14 @@ async function streamBin(
   return out.buffer;
 }
 
-/** Decode the activityTrace buffer. When the manifest carries
- *  scale-offset quant metadata, treat the buffer as uint16 indices and
- *  expand into a Float32Array (lo + idx * step). Otherwise the buffer
- *  is already float32. Downstream code consumes Float32Array either
- *  way so call sites don't need to know about the wire format. */
+/** Decode the activityTrace buffer: the wire format is uint16 indices
+ *  affine-quantized as `lo + idx * (hi - lo) / 65535`. Downstream code
+ *  consumes Float32Array so call sites don't need to know about the
+ *  wire format. */
 function decodeActivityTrace(
   buf: ArrayBuffer,
-  quant: { lo: number; hi: number } | undefined,
+  quant: { lo: number; hi: number },
 ): Float32Array {
-  if (!quant) return new Float32Array(buf);
   const q = new Uint16Array(buf);
   const out = new Float32Array(q.length);
   const lo = quant.lo;
