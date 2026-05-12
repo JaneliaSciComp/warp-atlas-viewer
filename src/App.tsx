@@ -3,6 +3,7 @@ import type { FilterState, SelectionState, SettingsState } from './data/types';
 import { DEFAULT_SETTINGS } from './data/types';
 import { useNeuronData } from './hooks/useNeuronData';
 import { useSelection } from './hooks/useSelection';
+import { useUniqueFishIds } from './hooks/useUniqueFishIds';
 import { BrainViewer } from './components/BrainViewer';
 import { DetailPanel } from './components/DetailPanel';
 import { FilterControls } from './components/FilterControls';
@@ -51,6 +52,7 @@ const INITIAL_URL_STATE =
 
 export default function App() {
   const { data, error, progress } = useNeuronData();
+  const uniqueFishIds = useUniqueFishIds(data);
   const [filter, setFilter] = useState<FilterState>(() => ({
     ...INITIAL_FILTER,
     ...(INITIAL_URL_STATE?.filter ?? {}),
@@ -300,13 +302,7 @@ export default function App() {
             className="font-mono text-[11px] text-neutral-500"
             title="Cells from each fish are registered into shared mapzebrain atlas coordinates."
           >
-            {data.count.toLocaleString()} cells pooled from {(() => {
-              let n = 0;
-              for (let i = 0; i < data.fishIds.length; i++) {
-                if (data.fishIds[i] >= n) n = data.fishIds[i] + 1;
-              }
-              return n;
-            })()} fish{data.source === 'mock' ? ' (mock)' : ''}
+            {data.count.toLocaleString()} cells pooled from {uniqueFishIds.length} fish{data.source === 'mock' ? ' (mock)' : ''}
           </p>
         </div>
         <a
@@ -337,7 +333,12 @@ export default function App() {
                 initialCamera={INITIAL_URL_STATE?.camera ?? null}
                 onCameraChange={handleCameraChange}
               />
-              <ColorLegend data={data} filter={filter} settings={settings} />
+              <ColorLegend
+                data={data}
+                filter={filter}
+                settings={settings}
+                uniqueFishIds={uniqueFishIds}
+              />
             </div>
             <button
               onClick={() => setBottomOpen((o) => !o)}
@@ -372,6 +373,7 @@ export default function App() {
                   setFilter={setFilter}
                   settings={settings}
                   setSettings={setSettings}
+                  uniqueFishIds={uniqueFishIds}
                   onReset={handleResetFilters}
                   applyView={handleApplyView}
                   onActivityPlayingChange={setActivityPlaying}

@@ -10,6 +10,9 @@ interface Props {
   setFilter: (f: FilterState) => void;
   settings: SettingsState;
   setSettings: (s: SettingsState) => void;
+  /** Sorted unique fish ids in the dataset; lifted to a shared memo in
+   *  App so the header, anatomy dropdown, and the legend agree. */
+  uniqueFishIds: Uint8Array;
   onReset: () => void;
   /** Apply a preset view (Help-tab "reproduce a finding" buttons).
    *  Caller is expected to base this on INITIAL_FILTER and clear any
@@ -52,7 +55,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'help', label: 'Help' },
 ];
 
-export function FilterControls({ data, filter, setFilter, settings, setSettings, onReset, applyView, onActivityPlayingChange }: Props) {
+export function FilterControls({ data, filter, setFilter, settings, setSettings, uniqueFishIds, onReset, applyView, onActivityPlayingChange }: Props) {
   const update = (patch: Partial<FilterState>) => setFilter({ ...filter, ...patch });
   const [tab, setTab] = useState<Tab>('filters');
 
@@ -93,7 +96,12 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
               <CrossSep />
               <ActivityCard data={data} filter={filter} update={update} />
               <CrossSep />
-              <AnatomyCard data={data} filter={filter} update={update} />
+              <AnatomyCard
+                data={data}
+                filter={filter}
+                update={update}
+                uniqueFishIds={uniqueFishIds}
+              />
             </div>
           </div>
         )}
@@ -897,19 +905,13 @@ function AnatomyCard({
   data,
   filter,
   update,
+  uniqueFishIds,
 }: {
   data: NeuronDataset;
   filter: FilterState;
   update: (p: Partial<FilterState>) => void;
+  uniqueFishIds: Uint8Array;
 }) {
-  // Fish count is derived from the data — fishIds is a Uint8Array of
-  // 0..nFish-1, so (max + 1) is enough. Cheap enough on a one-time
-  // render to skip caching.
-  let nFish = 0;
-  for (let i = 0; i < data.fishIds.length; i++) {
-    const v = data.fishIds[i];
-    if (v >= nFish) nFish = v + 1;
-  }
   return (
     <Card title="Anatomy">
       <Select
@@ -924,14 +926,14 @@ function AnatomyCard({
         ]}
         arrows
       />
-      {nFish > 1 && (
+      {uniqueFishIds.length > 1 && (
         <Select
           label="specimen"
           value={filter.isolatedFish}
           onChange={(v) => update({ isolatedFish: v })}
           options={[
             ALL_OPTION,
-            ...Array.from({ length: nFish }, (_, i) => ({ value: i, label: `fish ${i + 1}` })),
+            ...Array.from(uniqueFishIds, (id) => ({ value: id, label: `fish ${id + 1}` })),
           ]}
           arrows
         />

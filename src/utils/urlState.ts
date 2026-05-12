@@ -235,12 +235,13 @@ function validatePersisted(raw: Record<string, unknown>): PersistedState {
 // list, smaller cell count) would otherwise feed out-of-range indices
 // into typed-array reads.
 
-/** Highest fish id present in the dataset. Computed inline because
- *  fishIds doesn't carry an explicit count; cf. CodeReview §1.2. */
-function maxFishId(fishIds: Uint8Array): number {
-  let m = -1;
-  for (let i = 0; i < fishIds.length; i++) if (fishIds[i] > m) m = fishIds[i];
-  return m;
+/** Unique fish ids present in the dataset, as a Set for O(1)
+ *  membership tests. Built once per sanitize call — fishIds is a flat
+ *  Uint8Array with no explicit unique list (cf. CodeReview §1.2). */
+function fishIdSet(fishIds: Uint8Array): Set<number> {
+  const s = new Set<number>();
+  for (let i = 0; i < fishIds.length; i++) s.add(fishIds[i]);
+  return s;
 }
 
 export function sanitizeFilterAgainstDataset(
@@ -252,11 +253,11 @@ export function sanitizeFilterAgainstDataset(
   const R = data.regionNames.length;
   const S = data.stimulusNames.length;
   const T = data.traceLength;
-  const fishMax = maxFishId(data.fishIds);
+  const fishSet = fishIdSet(data.fishIds);
   return {
     ...f,
     isolatedRegion: f.isolatedRegion >= -1 && f.isolatedRegion < R ? f.isolatedRegion : -1,
-    isolatedFish: f.isolatedFish >= -1 && f.isolatedFish <= fishMax ? f.isolatedFish : -1,
+    isolatedFish: f.isolatedFish === -1 || fishSet.has(f.isolatedFish) ? f.isolatedFish : -1,
     selectedGenes: f.selectedGenes.filter((g) => g >= 0 && g < G),
     selectedCluster: f.selectedCluster >= 0 && f.selectedCluster < C ? f.selectedCluster : 0,
     selectedStimuli: f.selectedStimuli.filter((s) => s >= 0 && s < S),
