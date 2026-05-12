@@ -93,7 +93,7 @@ Output: `preprocessed/neurons.json` (manifest) plus 10 `.bin` files (~210 MB tot
 npm run dev
 ```
 
-The app will be at `http://localhost:5173/`. The dev server is bound to `0.0.0.0`; if you need to access it externally, add your hostname to `server.allowedHosts` in `vite.config.ts`.
+The app will be at `http://localhost:5173/`. The dev server is bound to `0.0.0.0`; if you need to access it from another host, add the hostname to your local `.env.local` file (see [Local dev-server config](#local-dev-server-config) below).
 
 If `./preprocessed/neurons.json` is missing the app surfaces an error. To demo the UI without preprocessing, append `?mock=1` to the URL (e.g. `http://localhost:5173/?mock=1`) and the app will load a 10k-neuron synthetic atlas.
 
@@ -125,6 +125,60 @@ npx serve dist      # or any static-file server, then open the URL it prints
 `npm run preview` also works for the JS-only build (`npm run build`),
 but you'd need to put `preprocessed/` next to `dist/` for it to find
 the data.
+
+### Documentation site
+
+End-user documentation for the viewer lives in `docs/` and is built
+with [VitePress](https://vitepress.dev/). It's a separate static site
+from the viewer itself — explainer pages for the UI, the filter cards,
+the visualizations, and the data flow, with built-in full-text search.
+
+```bash
+npm run docs:dev        # live dev server, defaults to http://localhost:5173/
+npm run docs:build      # static site → docs/.vitepress/dist/
+npm run docs:preview    # preview the production build locally
+```
+
+The dev server uses the same `WARP_ALLOWED_HOSTS` config as the main
+app (see [Local dev-server config](#local-dev-server-config)).
+
+For deployment to GitHub Pages at a project subpath (e.g.
+`https://JaneliaSciComp.github.io/warp-website/`), set `DOCS_BASE`
+at build time so internal links resolve correctly:
+
+```bash
+DOCS_BASE=/warp-website/ npm run docs:build
+```
+
+Default is `/`, which is correct for root-deployed sites or local
+preview. The build output is a self-contained static directory you can
+ship to any static host.
+
+### Local dev-server config
+
+Both `npm run dev` (the viewer) and `npm run docs:dev` (the docs site)
+read a `.env.local` file at the repo root for per-developer settings
+that shouldn't be checked in. Currently the only setting is the list
+of hostnames the Vite dev server will accept — useful when running on
+a shared workstation or a remote dev VM.
+
+To set up:
+
+```bash
+cp .env.local.example .env.local
+# edit .env.local — add your dev hostname(s) to WARP_ALLOWED_HOSTS
+```
+
+`.env.local` is gitignored. The example file is committed as a
+template.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `WARP_ALLOWED_HOSTS` | `localhost` | Comma-separated list of hostnames the dev server accepts. Supports Vite's `.example.com` wildcard syntax. |
+
+The shared loader lives at `scripts/devEnv.mjs`; both
+`vite.config.ts` and `docs/.vitepress/config.ts` import its
+`allowedHosts` export.
 
 ## Project layout
 
@@ -168,7 +222,16 @@ src/
 scripts/
   preprocess.py                     numpy → typed-array preprocessor
   bundle.sh                         self-contained `npm run bundle` build
+  devEnv.mjs                        loads .env.local for the dev servers
 
+docs/                               VitePress documentation site
+  .vitepress/
+    config.ts                       nav, sidebar, search, theme wiring
+    theme/                          dark-mode CSS overrides
+  *.md, ui/*.md, filters/*.md       end-user docs pages
+
+.env.local.example                  template for per-developer config
+.env.local                          actual local config (gitignored)
 data/                               raw figshare dump (gitignored)
 preprocessed/                       output of preprocess.py (gitignored)
 ```
@@ -177,6 +240,6 @@ preprocessed/                       output of preprocess.py (gitignored)
 
 - **"Loading WARP atlas…" never finishes / Error loading data**: open DevTools → Network and check whether `/preprocessed/neurons.json` 200s. If 404, you skipped preprocessing (append `?mock=1` to demo without it). For other failures, check the JS console for `[dataLoader]` messages.
 - **Bundle warning at build time** about chunks > 500 kB: expected. Three.js + recharts aren't small. Code-splitting is out of scope for the prototype.
-- **External hostname blocked by Vite**: add it to `server.allowedHosts` in `vite.config.ts`.
+- **External hostname blocked by Vite**: add it to `WARP_ALLOWED_HOSTS` in your `.env.local` (see [Local dev-server config](#local-dev-server-config)).
 - **Detail / bottom panels disappeared**: they have collapse handles (the `›` on the right edge and the `⌄` at the bottom of the 3D viewer). Click to toggle.
 - **A URL someone shared shows blank state**: share URLs can exceed browser hash caps if the lasso polygon is huge; the app drops the lasso first, then the whole hash, and warns in the console. Re-lasso and re-share.
