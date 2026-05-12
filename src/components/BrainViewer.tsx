@@ -4,7 +4,8 @@ import { TrackballControls } from '@react-three/drei';
 import * as THREE from 'three';
 import type { NeuronDataset, FilterState, SelectionState, SettingsState } from '../data/types';
 import type { CameraState } from '../utils/urlState';
-import { allocColoring, applyColoring, anyFilterActive, cellInSet } from '../utils/coloring';
+import { allocColoring, anyFilterActive, cellInSet } from '../utils/coloring';
+import type { SharedColoring } from '../hooks/useColoring';
 import vertSrc from '../shaders/neuron.vert.glsl?raw';
 import fragSrc from '../shaders/neuron.frag.glsl?raw';
 
@@ -13,6 +14,10 @@ interface Props {
   filter: FilterState;
   settings: SettingsState;
   selection: SelectionState;
+  /** Shared base coloring computed once in App. We copy it into our
+   *  own buffers so we can stamp the focused-neuron brighter on top
+   *  without corrupting what UmapPanel reads. */
+  coloring: SharedColoring | null;
   /** Single-neuron focus, separate from the group selection. */
   focusedNeuron: number | null;
   /** Click on a neuron sets focus; click on empty space sets to null. */
@@ -31,12 +36,15 @@ interface PickState {
 }
 
 
-/** Inner R3F component: owns the Points object and shader updates. */
+/** Inner R3F component: owns the Points object and shader updates.
+ *  Filter / settings / selection are already baked into `coloring`;
+ *  this component reads them directly only for the picker's
+ *  in-filter prioritization. */
 function PointCloud({
   data,
   filter,
   settings,
-  selection,
+  coloring,
   focusedNeuron,
   pickRef,
   onHoverChange,
@@ -44,7 +52,7 @@ function PointCloud({
   data: NeuronDataset;
   filter: FilterState;
   settings: SettingsState;
-  selection: SelectionState;
+  coloring: SharedColoring | null;
   focusedNeuron: number | null;
   pickRef: React.MutableRefObject<PickState>;
   onHoverChange: (i: number) => void;
@@ -76,7 +84,13 @@ function PointCloud({
   }, [gl]);
 
   useEffect(() => {
-    applyColoring(data, filter, settings, selection, buffers);
+    if (!coloring) return;
+    // Copy the shared base coloring into our own buffers so the
+    // focused-neuron stamp below doesn't corrupt what other consumers
+    // (UmapPanel) read from the same shared result.
+    buffers.colors.set(coloring.result.colors);
+    buffers.alphas.set(coloring.result.alphas);
+    buffers.sizes.set(coloring.result.sizes);
     // Stamp the focused neuron on top of whatever group coloring chose
     // for it: full alpha, brightened, so it stays visible inside a
     // dimmed group. The ring marker (below) handles the actual focus
@@ -91,7 +105,7 @@ function PointCloud({
     (geometry.attributes.instColor as THREE.BufferAttribute).needsUpdate = true;
     (geometry.attributes.instAlpha as THREE.BufferAttribute).needsUpdate = true;
     (geometry.attributes.instSize as THREE.BufferAttribute).needsUpdate = true;
-  }, [data, filter, settings, selection, focusedNeuron, buffers, geometry]);
+  }, [data, coloring, focusedNeuron, buffers, geometry]);
 
   // Focused-neuron ring marker. Mirrors the t-SNE white outline: a
   // hollow circle that grows with the cell up close and floors at a
@@ -251,6 +265,7 @@ export function BrainViewer({
   filter,
   settings,
   selection,
+  coloring,
   focusedNeuron,
   onFocus,
   initialCamera,
@@ -362,7 +377,7 @@ export function BrainViewer({
           data={data}
           filter={filter}
           settings={settings}
-          selection={selection}
+          coloring={coloring}
           focusedNeuron={focusedNeuron}
           pickRef={pickRef}
           onHoverChange={handleHoverChange}

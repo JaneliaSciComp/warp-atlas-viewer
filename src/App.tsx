@@ -1,6 +1,7 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import type { FilterState, SelectionState, SettingsState } from './data/types';
 import { DEFAULT_SETTINGS } from './data/types';
+import { useColoring } from './hooks/useColoring';
 import { useNeuronData } from './hooks/useNeuronData';
 import { useSelection } from './hooks/useSelection';
 import { useUniqueFishIds } from './hooks/useUniqueFishIds';
@@ -62,6 +63,11 @@ export default function App() {
     ...(INITIAL_URL_STATE?.settings ?? {}),
   }));
   const { selection, setIndices, clear } = useSelection();
+  // Shared per-cell coloring (colors / alphas / sizes) — computed once
+  // per filter/settings/selection change and passed to both BrainViewer
+  // and UmapPanel so neither has to repeat the 274k-cell applyColoring
+  // pass on every interaction.
+  const coloring = useColoring(data, filter, settings, selection);
   // The detail panel floats over the right edge of the viewer and can be
   // hidden when not in use to give the brain viewer / t-SNE the full width.
   const [detailOpen, setDetailOpen] = useState(INITIAL_URL_STATE?.detail ?? true);
@@ -359,6 +365,7 @@ export default function App() {
                 filter={filter}
                 settings={settings}
                 selection={selection}
+                coloring={coloring}
                 focusedNeuron={focusedNeuron}
                 onFocus={setFocusedNeuron}
                 initialCamera={INITIAL_URL_STATE?.camera ?? null}
@@ -412,9 +419,9 @@ export default function App() {
               </div>
               <UmapPanel
                 data={data}
-                filter={filter}
                 settings={settings}
                 selection={selection}
+                coloring={coloring}
                 focusedNeuron={focusedNeuron}
                 onFocus={setFocusedNeuron}
                 onSelect={handleUmapSelect}

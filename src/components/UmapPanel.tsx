@@ -1,14 +1,17 @@
 import { useEffect, useRef, useMemo, useCallback, useState } from 'react';
-import type { NeuronDataset, FilterState, SelectionState, SettingsState } from '../data/types';
+import type { NeuronDataset, SelectionState, SettingsState } from '../data/types';
 import type { UmapViewport } from '../utils/urlState';
-import { allocColoring, applyColoring } from '../utils/coloring';
+import type { SharedColoring } from '../hooks/useColoring';
 import { pointInPolygon } from '../utils/polygon';
 
 interface Props {
   data: NeuronDataset;
-  filter: FilterState;
   settings: SettingsState;
   selection: SelectionState;
+  /** Shared base coloring (filter+settings+selection are baked in
+   *  already) computed once in App and consumed read-only here — no
+   *  in-place mutation. See `useColoring`. */
+  coloring: SharedColoring | null;
   /** Single-neuron focus, mirrored from the 3D viewer. Click in
    *  t-SNE → focus; click empty space → unfocus. The lasso selection
    *  is independent and survives focus changes. */
@@ -35,9 +38,9 @@ const INITIAL_VIEWPORT: Viewport = { zoom: 1, panX: 0, panY: 0 };
 
 export function UmapPanel({
   data,
-  filter,
   settings,
   selection,
+  coloring,
   focusedNeuron,
   onFocus,
   onSelect,
@@ -92,9 +95,6 @@ export function UmapPanel({
     const padY = (ymax - ymin) * 0.05;
     return { xmin: xmin - padX, xmax: xmax + padX, ymin: ymin - padY, ymax: ymax + padY };
   }, [data]);
-
-  // Reusable color buffer mirroring 3D viewer coloring rules.
-  const buffers = useMemo(() => allocColoring(data.count), [data]);
 
   // UMAP → pixel coords. Uniform-scale fit-to-panel + viewport zoom + pan.
   // Both the renderer and the box-select use this so they stay in sync.
@@ -153,6 +153,7 @@ export function UmapPanel({
   // are ~5-10× faster for the small (~1.5 px) dots typical of a
   // zoomed-out view.
   useEffect(() => {
+    if (!coloring) return;
     const off = offscreenRef.current;
     if (!off) return;
     const dpr = window.devicePixelRatio || 1;
@@ -161,8 +162,6 @@ export function UmapPanel({
     off.width = W;
     off.height = H;
     const ctx = off.getContext('2d')!;
-
-    applyColoring(data, filter, settings, selection, buffers);
 
     let imageData = imageDataRef.current;
     if (!imageData || imageData.width !== W || imageData.height !== H) {
@@ -208,8 +207,8 @@ export function UmapPanel({
     const xmin = umapBounds.xmin;
     const ymax = umapBounds.ymax;
 
-    const colors = buffers.colors;
-    const alphas = buffers.alphas;
+    const colors = coloring.result.colors;
+    const alphas = coloring.result.alphas;
     const umap = data.umap;
     const count = data.count;
 
@@ -264,7 +263,7 @@ export function UmapPanel({
         ctx.stroke();
       }
     }
-  }, [data, filter, settings, selection, focusedNeuron, buffers, size, viewport, project, umapBounds]);
+  }, [data, settings.pointSize, coloring, focusedNeuron, size, viewport, project, umapBounds]);
 
   // Effect B — composite the cached scatter onto the visible canvas
   // and overlay the in-progress lasso. Cheap (drawImage + a polyline),
@@ -300,7 +299,7 @@ export function UmapPanel({
       ctx.stroke();
       ctx.setLineDash([]);
     }
-  }, [data, filter, settings, selection, focusedNeuron, buffers, size, viewport, project, drag]);
+  }, [size, drag, coloring, focusedNeuron, viewport]);
 
   // Wheel: zoom anchored at the cursor so the data point under the mouse
   // stays put. Native non-passive listener (React's onWheel is passive in
