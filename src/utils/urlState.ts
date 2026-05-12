@@ -11,7 +11,17 @@
 //      the URL stays small. Decoder re-runs point-in-polygon to derive
 //      indices.
 
-import type { FilterState, SettingsState } from '../data/types';
+import type {
+  ColorMode,
+  FilterState,
+  GeneLogic,
+  GeneMultiColor,
+  GeneScale,
+  NeuronDataset,
+  SettingsState,
+  StimLogic,
+  TxMode,
+} from '../data/types';
 
 export interface CameraState {
   pos: [number, number, number];
@@ -65,13 +75,197 @@ export function encodeHash(state: PersistedState): string {
 
 export function decodeHash(hash: string): PersistedState | null {
   if (!hash.startsWith('#!')) return null;
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(decodeURIComponent(hash.slice(2)));
-    if (typeof parsed !== 'object' || parsed === null) return null;
-    return parsed as PersistedState;
-  } catch {
+    parsed = JSON.parse(decodeURIComponent(hash.slice(2)));
+  } catch (err) {
+    console.warn('[urlState] failed to parse URL hash, ignoring:', err);
     return null;
   }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null;
+  return validatePersisted(parsed as Record<string, unknown>);
+}
+
+// ── Runtime schema validation ────────────────────────────────────────
+//
+// The URL hash is hostile input — a user pasting a stale or hand-edited
+// share link can put arbitrary values into our state. Casting it
+// directly to PersistedState used to let bogus values flow into
+// FilterState/SettingsState and crash the renderer (a stray
+// `selectedGenes: [999]` walked past the end of a typed array, NaN'd
+// through plasma(), and threw inside sampleStops). The validators below
+// drop malformed fields silently — the merged state falls back to its
+// default where the URL value was unusable.
+//
+// Note: these checks are SCHEMA-LEVEL only (types/enums/finite numbers).
+// Index bounds that depend on the loaded dataset (gene/stim/cluster
+// arity, count, traceLength, …) are enforced separately by
+// sanitizeAgainstDataset below, called after `data` resolves.
+
+const COLOR_MODES = new Set<ColorMode>(['highlight', 'region', 'gene', 'stim', 'activity', 'fish']);
+const GENE_SCALES = new Set<GeneScale>(['log', 'linear']);
+const TX_MODES = new Set<TxMode>(['gene', 'subtype']);
+const GENE_LOGICS = new Set<GeneLogic>(['or', 'and']);
+const STIM_LOGICS = new Set<StimLogic>(['or', 'and']);
+const GENE_MULTI_COLORS = new Set<GeneMultiColor>(['max', 'sum', 'richness']);
+
+function isFiniteNum(v: unknown): v is number {
+  return typeof v === 'number' && Number.isFinite(v);
+}
+function isInt(v: unknown): v is number {
+  return Number.isInteger(v);
+}
+function isString<T extends string>(v: unknown, allowed: Set<T>): v is T {
+  return typeof v === 'string' && allowed.has(v as T);
+}
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+/** Validate + clean an unknown blob into a Partial<FilterState>. Keys
+ *  with malformed values are dropped (not defaulted) so the caller's
+ *  spread merge falls back to the app default. */
+function validateFilter(raw: unknown): Partial<FilterState> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const f = raw as Record<string, unknown>;
+  const out: Partial<FilterState> = {};
+  if (isString(f.colorMode, COLOR_MODES)) out.colorMode = f.colorMode;
+  if (isString(f.geneScale, GENE_SCALES)) out.geneScale = f.geneScale;
+  if (isInt(f.isolatedRegion) && f.isolatedRegion >= -1) out.isolatedRegion = f.isolatedRegion;
+  if (isInt(f.isolatedFish) && f.isolatedFish >= -1) out.isolatedFish = f.isolatedFish;
+  if (isString(f.txMode, TX_MODES)) out.txMode = f.txMode;
+  if (Array.isArray(f.selectedGenes)) {
+    const ids = f.selectedGenes.filter((x): x is number => isInt(x) && x >= 0);
+    out.selectedGenes = Array.from(new Set(ids)).sort((a, b) => a - b);
+  }
+  if (isString(f.geneLogic, GENE_LOGICS)) out.geneLogic = f.geneLogic;
+  if (isInt(f.selectedCluster) && f.selectedCluster >= 0) out.selectedCluster = f.selectedCluster;
+  if (typeof f.clusterAll === 'boolean') out.clusterAll = f.clusterAll;
+  if (Array.isArray(f.selectedStimuli)) {
+    const ids = f.selectedStimuli.filter((x): x is number => isInt(x) && x >= 0);
+    out.selectedStimuli = Array.from(new Set(ids)).sort((a, b) => a - b);
+  }
+  if (isString(f.stimLogic, STIM_LOGICS)) out.stimLogic = f.stimLogic;
+  if (isInt(f.activitySample) && f.activitySample >= 0) out.activitySample = f.activitySample;
+  return out;
+}
+
+/** Validate + clean an unknown blob into a Partial<SettingsState>.
+ *  Numeric ranges are clamped to plausible windows so a hostile URL
+ *  can't push the renderer into a state the UI can't reach. */
+function validateSettings(raw: unknown): Partial<SettingsState> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const s = raw as Record<string, unknown>;
+  const out: Partial<SettingsState> = {};
+  // Correlations live in [-1, 1]; lo/hi ordering is enforced by the
+  // settings UI, not here (the user can transiently invert them).
+  if (isFiniteNum(s.stimLo)) out.stimLo = clamp(s.stimLo, -1, 1);
+  if (isFiniteNum(s.stimHi)) out.stimHi = clamp(s.stimHi, -1, 1);
+  if (isFiniteNum(s.geneMaxSpots) && s.geneMaxSpots > 0) {
+    out.geneMaxSpots = clamp(s.geneMaxSpots, 1, 100000);
+  }
+  if (typeof s.geneStrict === 'boolean') out.geneStrict = s.geneStrict;
+  if (isString(s.geneMultiColor, GENE_MULTI_COLORS)) out.geneMultiColor = s.geneMultiColor;
+  if (isFiniteNum(s.pointSize) && s.pointSize > 0) out.pointSize = clamp(s.pointSize, 1, 50);
+  if (typeof s.enablePan === 'boolean') out.enablePan = s.enablePan;
+  return out;
+}
+
+function validateCamera(raw: unknown): CameraState | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const c = raw as Record<string, unknown>;
+  if (
+    !Array.isArray(c.pos) || c.pos.length !== 3 || !c.pos.every(isFiniteNum) ||
+    !Array.isArray(c.target) || c.target.length !== 3 || !c.target.every(isFiniteNum)
+  ) return undefined;
+  return {
+    pos: [c.pos[0] as number, c.pos[1] as number, c.pos[2] as number],
+    target: [c.target[0] as number, c.target[1] as number, c.target[2] as number],
+  };
+}
+
+function validateViewport(raw: unknown): UmapViewport | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const v = raw as Record<string, unknown>;
+  if (!isFiniteNum(v.zoom) || v.zoom <= 0) return undefined;
+  if (!isFiniteNum(v.panX) || !isFiniteNum(v.panY)) return undefined;
+  return { zoom: v.zoom, panX: v.panX, panY: v.panY };
+}
+
+function validateLasso(raw: unknown): number[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  if (raw.length < 6 || raw.length % 2 !== 0) return undefined;
+  if (!raw.every(isFiniteNum)) return undefined;
+  return raw as number[];
+}
+
+function validatePersisted(raw: Record<string, unknown>): PersistedState {
+  const out: PersistedState = {};
+  if (raw.filter !== undefined) {
+    const f = validateFilter(raw.filter);
+    if (Object.keys(f).length > 0) out.filter = f;
+  }
+  if (raw.settings !== undefined) {
+    const s = validateSettings(raw.settings);
+    if (Object.keys(s).length > 0) out.settings = s;
+  }
+  if (isInt(raw.focusedNeuron) && raw.focusedNeuron >= 0) {
+    out.focusedNeuron = raw.focusedNeuron;
+  }
+  if (typeof raw.detail === 'boolean') out.detail = raw.detail;
+  if (typeof raw.bottom === 'boolean') out.bottom = raw.bottom;
+  const cam = validateCamera(raw.camera);
+  if (cam) out.camera = cam;
+  const vp = validateViewport(raw.umap);
+  if (vp) out.umap = vp;
+  const lasso = validateLasso(raw.lasso);
+  if (lasso) out.lasso = lasso;
+  return out;
+}
+
+// ── Dataset-aware sanitization ───────────────────────────────────────
+//
+// Called once after `data` resolves to clamp index-typed state against
+// the actual arity of the loaded dataset. A URL that was generated
+// against a different dataset (different gene panel, different stimulus
+// list, smaller cell count) would otherwise feed out-of-range indices
+// into typed-array reads.
+
+/** Highest fish id present in the dataset. Computed inline because
+ *  fishIds doesn't carry an explicit count; cf. CodeReview §1.2. */
+function maxFishId(fishIds: Uint8Array): number {
+  let m = -1;
+  for (let i = 0; i < fishIds.length; i++) if (fishIds[i] > m) m = fishIds[i];
+  return m;
+}
+
+export function sanitizeFilterAgainstDataset(
+  f: FilterState,
+  data: NeuronDataset,
+): FilterState {
+  const G = data.geneNames.length;
+  const C = data.clusterNames.length;
+  const R = data.regionNames.length;
+  const S = data.stimulusNames.length;
+  const T = data.traceLength;
+  const fishMax = maxFishId(data.fishIds);
+  return {
+    ...f,
+    isolatedRegion: f.isolatedRegion >= -1 && f.isolatedRegion < R ? f.isolatedRegion : -1,
+    isolatedFish: f.isolatedFish >= -1 && f.isolatedFish <= fishMax ? f.isolatedFish : -1,
+    selectedGenes: f.selectedGenes.filter((g) => g >= 0 && g < G),
+    selectedCluster: f.selectedCluster >= 0 && f.selectedCluster < C ? f.selectedCluster : 0,
+    selectedStimuli: f.selectedStimuli.filter((s) => s >= 0 && s < S),
+    activitySample: f.activitySample >= 0 && f.activitySample < T ? f.activitySample : 0,
+  };
+}
+
+export function sanitizeFocusedNeuron(
+  n: number | null,
+  data: NeuronDataset,
+): number | null {
+  if (n === null) return null;
+  return n >= 0 && n < data.count ? n : null;
 }
 
 /** Difference helpers: only fields that differ from the default end up

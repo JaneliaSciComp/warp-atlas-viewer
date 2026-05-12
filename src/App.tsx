@@ -18,6 +18,8 @@ import {
   roundViewport,
   viewportIsDefault,
   roundLasso,
+  sanitizeFilterAgainstDataset,
+  sanitizeFocusedNeuron,
   type CameraState,
   type UmapViewport,
 } from './utils/urlState';
@@ -86,10 +88,17 @@ export default function App() {
 
   // Restore lasso selection from URL once data is loaded: re-run
   // point-in-polygon over the persisted vertices to derive indices.
+  // Also sanitize URL-restored filter/settings/focusedNeuron against the
+  // actual dataset arity — schema validation in decodeHash blocks
+  // type-level garbage, but a URL generated against a different dataset
+  // could still carry out-of-range gene/cluster/stim/cell indices that
+  // would NaN typed-array reads downstream.
   const selectionRestoredRef = useRef(false);
   useEffect(() => {
     if (selectionRestoredRef.current) return;
     if (!data) return;
+    setFilter((prev) => sanitizeFilterAgainstDataset(prev, data));
+    setFocusedNeuron((prev) => sanitizeFocusedNeuron(prev, data));
     const lasso = INITIAL_URL_STATE?.lasso;
     if (lasso && lasso.length >= 6 && lasso.length % 2 === 0) {
       const poly = new Float32Array(lasso);
