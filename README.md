@@ -1,22 +1,38 @@
 # WARP Atlas Viewer
 
-Interactive web-based atlas for the [WARP](https://www.biorxiv.org/) dataset — whole-brain co-mapping of gene expression and neuronal activity in larval zebrafish (Marquez-Legorreta, Fleishman, Hesselink et al., bioRxiv 2026). The viewer renders ~274,000 neurons as a 3D point cloud and lets you cross-reference each cell's spatial position, gene expression (41 markers), functional cluster (333 molecularly-defined subtypes), and per-stimulus calcium response.
+Interactive web-based atlas for the [WARP](https://www.biorxiv.org/content/10.64898/2026.02.07.704095v1) dataset — whole-brain co-mapping of gene expression and neuronal activity in larval zebrafish (Marquez-Legorreta, Fleishman, Hesselink et al., bioRxiv 2026). The viewer renders ~274,000 neurons pooled from 3 fish as a 3D point cloud and lets you cross-reference each cell's spatial position, gene expression (41 markers), functional cluster (333 molecularly-defined subtypes), and per-stimulus calcium response.
 
 The tool runs entirely in the browser — no backend. It loads typed-array binaries served as static assets and renders the point cloud with a custom Three.js shader, with a linked t-SNE panel and per-selection detail charts.
 
 ## What you can do with it
 
-- **Region mode** — colour by one of 16 focal anatomical regions.
-- **Gene mode** — colour by spot count for any of the 41 genes (plasma ramp).
-- **Cluster mode** — pick one of the 333 named gene-combination clusters (e.g. `pou4f2_cckb`); selected cells render in magenta.
-- **Co-coding mode** — pick a gene + a stimulus; cells that are both gene-positive and stimulus-correlated highlight in red. This is the view designed to reproduce the manuscript's headline gene-function findings.
-- Drag-select on the t-SNE; click a neuron in 3D to populate the detail panel (gene-expression bar chart, mean ΔF/F trace with stimulus on-windows, per-stimulus correlation).
-- Toggle viewer orientation (anterior ↑ vs anterior ←) in the bottom-right corner.
+Three filter cards (**Transcriptomics × Visual Stimuli × Anatomy**) combine with logical AND to keep a subset of cells visible. A fourth card (**Colors**) decides how the visible cells are painted. Anything left at "all" stops filtering.
+
+- **Colors** — pick how cells are painted:
+  - *Simple* — single-color highlight (everything visible cell-shaded the same).
+  - *Region* — categorical palette over 16 focal anatomical regions.
+  - *Gene expression* — plasma ramp over FISH spot counts. With no gene pinned the ramp shows **gene richness** (how many of the 41 panel genes each cell expresses). Pin a single gene to get its classic spot-count map; pin multiple to drive *max / sum / richness* (chosen in Settings). Toggle log ↔ linear scale.
+  - *Stim correlation* — plasma ramp over Pearson r against the selected stimulus regressor. With no stim picked, max r across all 8 stimuli; with one picked, that stim's r; with several, max across the picks.
+  - *Activity* — plasma ramp over the mean ΔF/F trace at a scrubbable time point; an inline play button steps through the 134 s representative cycle (1×–100× speed).
+  - *Specimen* — categorical palette over the 3 source fish.
+- **Transcriptomics** — keep cells expressing one or more genes (combined with OR / AND), or cells in a single named subtype (e.g. `pou4f2_cckb`).
+- **Visual Stimuli** — keep cells responsive to one or more of 8 stimuli (OR / AND); icons render the stimulus identity. Responsiveness threshold is tunable in Settings.
+- **Anatomy** — isolate one of 16 regions and/or one of 3 fish specimens.
+
+Selections are independent of filters:
+
+- Click a neuron in the 3D viewer to focus it — the Detail panel shows that one cell (gene bar chart, mean ΔF/F trace with stimulus on-windows shaded, per-stimulus correlation).
+- Drag in the t-SNE to lasso-select a group; the lasso highlights the same cells in 3D.
+- Lasso / focus survive every filter change; the Detail panel falls back to the filter intersection when nothing's user-selected.
+
+URL hash mirrors the full app state (filters, settings, camera, t-SNE viewport, lasso polygon, focused neuron) so any view you arrive at is shareable by copying the URL.
+
+A **Help** tab in the bottom panel includes one-click presets that reproduce specific findings from the paper.
 
 ## Tech stack
 
 - **Vite** + **TypeScript** + **React 18**
-- **Three.js** via `@react-three/fiber` + `@react-three/drei` for the point cloud
+- **Three.js** via `@react-three/fiber` + `@react-three/drei` for the 3D point cloud
 - **recharts** for the detail-panel charts
 - **Tailwind CSS** for layout
 - Data is preprocessed Python → typed-array `.bin` blobs + a JSON manifest
@@ -39,21 +55,11 @@ npm install
 
 ### 1. Download the source data
 
-The raw WARP dataset is hosted on Figshare (private link) and is ~25 GB compressed / ~60 GB extracted. The `download.sh` script handles the AWS WAF cookie dance, but does not bundle credentials: provide the Figshare URL and a fresh browser cookie via environment variables, or put them in a local `scripts/.env.download` (gitignored):
+The raw WARP dataset is hosted on Figshare. Open the share link from the paper's data-availability statement in a browser and download the archive manually:
 
-```bash
-# scripts/.env.download
-FIGSHARE_URL='https://figshare.com/ndownloader/articles/<id>?private_link=<slug>'
-FIGSHARE_COOKIE='aws-waf-token=...; GLOBAL_FIGSHARE_SESSION_KEY=...; ...'
-```
+> Figshare: <link from the WARP paper's data-availability section>
 
-Open the Figshare share link in a browser, then copy the request URL and `Cookie` header from DevTools → Network. The cookie expires regularly; refresh it the same way when the script reports a WAF block. Then run (from the repo root):
-
-```bash
-./scripts/download.sh
-```
-
-The script unzips into `./data/`, which after extraction looks like:
+Extract the archive into `./data/` so the layout looks like:
 
 ```
 data/
@@ -78,7 +84,7 @@ What it does:
 - Boxcar-downsamples activity traces 2× (268 → 134 timepoints, 2 Hz → 1 Hz) to halve the wire size.
 - Computes stimulus on-windows in seconds from the regressor traces.
 
-Output: `preprocessed/neurons.json` (manifest) plus 10 `.bin` files (~210 MB total).
+Output: `preprocessed/neurons.json` (manifest) plus ~10 `.bin` files (~210 MB total).
 
 ### 3. Run the dev server
 
@@ -127,29 +133,36 @@ the data.
 
 ```
 src/
-  App.tsx                           top-level grid layout
+  App.tsx                           top-level grid layout, URL-hash state, selection wiring
   main.tsx                          entry point
   components/
     BrainViewer.tsx                 3D point cloud + custom shader, hover/click pick
-    DetailPanel.tsx                 sidebar: gene bar chart, activity trace, stim corr
-    FilterControls.tsx              region/gene/cluster/co-coding mode toggles
-    UmapPanel.tsx                   2D t-SNE scatter with linked drag-select
-    ColorLegend.tsx                 mode-aware legend (top right of viewer)
+    DetailPanel.tsx                 right sidebar: gene bar chart, activity trace, stim corr
+    FilterControls.tsx              Filters / Settings / Help tabs and the four filter cards
+    UmapPanel.tsx                   2D t-SNE scatter with linked lasso + pan/zoom
+    ColorLegend.tsx                 mode-aware legend (top-right of viewer)
   shaders/
     neuron.vert.glsl, neuron.frag.glsl
   data/
-    types.ts                        NeuronDataset interface
+    types.ts                        FilterState / SettingsState / NeuronDataset
     dataLoader.ts                   real-or-mock fallback
     mockData.ts                     synthetic fallback dataset
   utils/
     coloring.ts                     single-pass per-neuron colour/alpha/size fill
     colorMaps.ts                    plasma, region palette, fish palette
+    stimAssets.ts                   stimulus icons and labels
+    urlState.ts                     hash codec for shareable URLs
+    polygon.ts                      point-in-polygon for t-SNE lasso
     constants.ts                    static name lists (mock-mode fallback)
   hooks/
-    useNeuronData.ts, useSelection.ts
+    useNeuronData.ts                fetches + decodes the .bin blobs
+    useColoring.ts                  shared per-cell color/alpha/size buffer
+    useSelection.ts                 user-explicit selection state
+    useUniqueFishIds.ts             memo for fish-id dropdown
 
 scripts/
   preprocess.py                     numpy → typed-array preprocessor
+  bundle.sh                         self-contained `npm run bundle` build
 
 data/                               raw figshare dump (gitignored)
 preprocessed/                       output of preprocess.py (gitignored)
@@ -157,13 +170,15 @@ preprocessed/                       output of preprocess.py (gitignored)
 
 ## Notes
 
-- The data and preprocessed binaries are **not** committed (see `.gitignore`); the dataset is shared privately by the manuscript authors.
+- The data and preprocessed binaries are **not** committed (see `.gitignore`); the dataset is shared by the manuscript authors via Figshare.
 - The activity-trace x-axis is in seconds. The full 134 s representative cycle contains all 8 stimuli back-to-back — pink shaded bands on the trace plot show each stimulus's on-window.
-- Select a cluster like `pou4f2_cckb` in Cluster mode to reproduce the manuscript's "cckb-pou4f2 midbrain population" — ~80% of those cells fall in the optic tectum.
+- Select a cluster like `pou4f2_cckb` in Transcriptomics → Subtype to reproduce the manuscript's "cckb-pou4f2 midbrain population" — most of those cells fall in the optic tectum. The Help tab has one-click presets for several findings.
+- The full app state (filters, settings, camera, t-SNE viewport, lasso polygon, focused neuron) lives in the URL hash, so any view is shareable by copying the URL.
 
 ## Troubleshooting
 
 - **"Loading WARP atlas…" never finishes / Error loading data** — open DevTools → Network and check whether `/preprocessed/neurons.json` 200s. If 404, you skipped preprocessing (append `?mock=1` to demo without it). For other failures, check the JS console for `[dataLoader]` messages.
 - **Bundle warning at build time** about chunks > 500 kB — expected. Three.js + recharts aren't small. Code-splitting is out of scope for the prototype.
 - **External hostname blocked by Vite** — add it to `server.allowedHosts` in `vite.config.ts`.
-- **Figshare download fails** — the WAF token rotates; refresh `FIGSHARE_COOKIE` in `scripts/.env.download` (or the env var) from a browser session.
+- **Detail / bottom panels disappeared** — they have collapse handles (the `›` on the right edge and the `⌄` at the bottom of the 3D viewer). Click to toggle.
+- **A URL someone shared shows blank state** — share URLs can exceed browser hash caps if the lasso polygon is huge; the app drops the lasso first, then the whole hash, and warns in the console. Re-lasso and re-share.

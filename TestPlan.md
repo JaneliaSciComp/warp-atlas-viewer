@@ -1,107 +1,141 @@
-# Filter UX test plan
+# WARP Atlas test plan
 
-Browser-driven validation of the four-filter (Colors × Anatomy × Transcriptomics × Activity) bottom panel.
+Browser-driven validation of the viewer. Run `npm run dev` (or open a `npm run bundle` build over HTTP) and walk through each section.
 
-Run `npm run dev` and open the browser. Each test is independent — reset by clicking the **↺ reset** button (next to the "Filters" title) before starting the next one.
+Each test is independent. Reset between tests by clicking the **↺ reset filters** button at the top of the Filters tab — that returns every filter card to defaults but preserves any user-explicit selection (t-SNE lasso / 3D click focus). The **↺ reset settings** button (Settings tab) returns the Settings panel to defaults independently.
+
+The bottom panel has three tabs: **Filters**, **Settings**, **Help**. The Filters tab is the default. Filter cards are laid out left-to-right as **Colors × Transcriptomics × Visual Stimuli × Anatomy** with `×` separators (logical AND).
 
 ---
 
-## A. Identity sweep — single-axis color modes
+## A. Color schemes — single-axis sanity checks
 
-Validate each of the four color modes renders correctly with no other filters active.
+Validate each of the six color schemes renders correctly with no other filters active. Switch via Colors → scheme dropdown.
 
-### A1. Region mode
-- Setup: Colors=Region, all other filters "all"
-- Expected: every cell colored by its region with the categorical palette; the region legend (top-right) lists all regions.
+### A1. Simple (highlight)
+- Setup: Colors=Simple, all other filters "all".
+- Expected: every cell rendered with a single highlight color (no per-cell categorical or gradient encoding). The legend has no entries (no scale).
+- Pass if the brain renders uniformly highlighted.
+
+### A2. Region
+- Setup: Colors=Region, all other filters "all".
+- Expected: every cell colored by its region with the categorical palette. The Brain region legend (top-right of the 3D viewer) lists all 16 regions plus Unassigned.
 - Pass if every cell renders in its region's categorical color and the legend lists all regions.
 
-### A2. Gene mode (single gene across whole brain)
-- Setup: Colors=Gene, Anatomy=all, Activity=all. Then in Transcriptomics → Single gene, **pick a gene** (this activates the filter — most of the brain goes grey), **then switch the same dropdown back to "all"** (deactivates the filter; the persistent gene index stays). Anatomy and Activity stay at "all".
-- Expected: plasma gradient over the whole brain showing that gene's raw spot-count expression; non-expressers faint dark gray. Legend reads "Gene: <name>" with plasma bar + scale ticks. The "1000" tick at the right edge does NOT overflow.
-- Toggle scale: log ↔ linear in Colors card. Tick labels in legend should change between [0,1,10,100,1000] and [0,250,500,750,1000].
-- Pass if the plasma gradient paints the whole brain by gene expression and the scale toggle updates the legend ticks.
+### A3. Gene expression — richness fallback
+- Setup: Colors=Gene expression. Transcriptomics: no genes selected (default).
+- Expected: plasma gradient paints the whole brain by **gene richness** — how many of the 41 panel genes each cell expresses by the curated binary call. Legend reads "Gene richness" with ticks `0..G` (G = number of selected genes if any, else 41). Cells with zero expressed genes appear dim.
+- Toggle the Colors → "scale: log | linear" toggle; legend ticks change accordingly.
+- Switch the Settings → "Gene expression predicate" between binary call and any-detected: richness should respond (any-detected typically raises richness for many cells).
+- Pass if a richness map appears whenever no specific gene is in focus, and reflects the predicate toggle.
 
-### A3. Cluster mode
-- Setup: Colors=Cluster, Transcriptomics=Subtype → pick any cluster
-- Expected: only the picked cluster is bright yellow, everything else background-dim. Detail panel shows cells from that cluster.
-- Pass if only the picked cluster is bright and the rest is dimmed.
+### A4. Gene expression — single gene
+- Setup: Colors=Gene expression. Transcriptomics → "+ add gene" → pick a gene.
+- Expected: plasma gradient over that gene's raw FISH spot count across the brain. Legend reads `Gene: <name>` with plasma bar + scale ticks `[0, 1, 10, 100, 1000]` (log) or `[0, 250, 500, 750, 1000]` (linear). The right-edge tick does NOT overflow past the legend border.
+- The brain is also filtered to gene-positive cells (the gene-filter activates on the same selection); use Settings → predicate to widen/narrow the population if needed.
+- Pass if the plasma gradient paints by single-gene expression, the scale toggle updates the legend ticks, and no tick is clipped.
 
-### A4. Co-coding mode
-- Setup: Colors=Co-coding, Anatomy=all, Activity → any stimulus. Then in Transcriptomics → Single gene, pick a gene then switch back to "all" (same two-step trick as A2 — sets the persistent gene without restricting cells to gene+ only).
-- Expected: 4-tier bivariate (gray / blue / green / red); red cells (gene+ AND stim+) are larger and stand out; legend shows the two gene+/gene− gradient bands.
-- Pass if the 4-tier bivariate renders with red (gene+ AND stim+) cells emphasized.
+### A5. Gene expression — multi-gene
+- Setup: Colors=Gene expression. Add 2+ genes via Transcriptomics → "+ add gene". Settings → Multi-gene coloring → cycle between Max / Sum / Richness.
+- Expected: the brain repaints to reflect the chosen aggregation (max spot count across the selection / sum across / count of "on" calls). Legend title shifts ("Max", "Sum", "Richness" wording) and ticks rescale.
+- Transcriptomics → OR / AND toggle: under OR the filter keeps any cell that expresses *any* selected gene; under AND only cells expressing *every* selected gene. The colored population should visibly shrink when flipping OR → AND.
+- Pass if every Max/Sum/Richness produces a sensible map and OR/AND visibly restricts the population.
 
-### A5. Gene richness mode
-- Setup: Colors=Gene, Transcriptomics=Single gene → "all" (default initial state), Anatomy=all, Activity=all
-- Expected: every cell painted by **how many of the 41 panel genes it expresses by the binary call** — plasma gradient where bright = many genes, dim = few genes. Legend reads "Gene richness" with ticks scaled to [0..G] (G=41 in the WARP dataset). Cells with zero expressed genes appear dim; high-richness regions visibly stand out.
-- Switch Transcriptomics → Subtype → pick a cluster: legend stays in richness mode (still "Gene richness"); only that cluster's cells are colored, everything else dim. Richness still drives the in-cluster colors.
-- Toggle Colors=Gene scale log ↔ linear: ticks change accordingly.
-- Pass if richness aggregation appears whenever no specific gene is in focus.
+### A6. Stim correlation
+- Setup: Colors=Stim correlation, all other filters "all".
+- Expected: plasma gradient by **max Pearson r across all 8 stimuli** for each cell. Legend ticks span the configured r range. Cells below Settings → "responsive floor (r ≥)" appear dim; cells at/above Settings → "saturation" hit the brightest plasma end.
+- Tweak the floor / saturation in Settings and confirm the legend tick scale and the dim/bright partition responds.
+- Now toggle ON one stimulus in Visual Stimuli. The map should switch to that stim's r (a stricter, sparser response pattern). Toggle ON a second: now it's the max across the two selected stims.
+- Pass if the gradient tracks max-r when nothing's picked and the selected-subset's max when stims are picked.
 
-### A6. Binary-call predicate toggle
-- Setup: Colors=Region, Transcriptomics=Single gene → pick a gene. The "binary call" checkbox should appear on its own row inside the Transcriptomics card.
-- With "binary call" CHECKED (default): the filter selects only cells where the curated `geneBinary === 1`. DetailPanel count = the curated population for that gene.
-- Uncheck "binary call": filter relaxes to "any detected expression" (`raw > 0`). DetailPanel count visibly increases (typically by a lot — many cells have raw=1 or 2 below the binary threshold). The 3D view shows more cells colored.
-- Re-check: count drops back.
-- Switch Transcriptomics → "all": the checkbox disappears (only relevant when a specific gene is picked). Switch back to a specific gene: checkbox reappears with its prior state preserved.
-- Pass if the checkbox toggles the predicate and visibly changes the cell count, and is hidden when "all" is selected.
+### A7. Activity
+- Setup: Colors=Activity. The Colors card grows a **time slider** (sample index ‹ › arrows + range), a "t s" readout, a play ▶ button, and a speed dropdown (1×–100×).
+- Expected: plasma gradient over the mean ΔF/F at the chosen sample. Scrubbing the slider repaints the brain frame-by-frame. The Detail panel's trace plot shows a vertical activity cursor at the current time.
+- Hit Play: time advances, brain animates; the URL hash does NOT update mid-playback (URL bar shouldn't change while playing). Pause: the URL is then written with the paused-at sample.
+- Settings → Activity ΔF/F anchors: tweak floor / ceiling and confirm the bright / dim partition rescales.
+- Pass if scrubbing animates the brain, the trace cursor follows, playback doesn't pollute history, and the legend's ΔF/F ticks reflect Settings.
+
+### A8. Specimen
+- Setup: Colors=Specimen.
+- Expected: each cell colored categorically by its source fish (3 colors). Legend lists each fish ID present in the dataset.
+- Pass if the per-fish partition is visible (registration consistency: regions should look like the same anatomy in three colors rather than three disjoint blobs).
 
 ---
 
-## B. Compositions — multi-filter combinations
+## B. Filter compositions — multi-card combinations
 
-### B1. Anatomy × Transcriptomics(gene) × Color=Cluster
-- Setup: Colors=Cluster; Anatomy → pick a region (e.g., the first in the list); Transcriptomics=Single gene → any gene; Activity=all
-- Expected:
-  - Cells inside the chosen region AND expressing the gene that also belong to the persistent `selectedCluster`: bright yellow.
-  - Cells inside the region AND expressing the gene but NOT in that cluster: rendered (small set).
-  - Cells inside the region but NOT expressing the gene: lifted gray (alpha ~0.5) — region outline visible.
-  - Cells outside the region: deep dim.
-- Pass if you can clearly see the region outline + a small foreground subset highlighted within it.
+The `×` between filter cards is logical AND. A card set to "all" doesn't restrict.
 
-### B2. Anatomy × Transcriptomics(subtype) × Color=Gene (richness)
-- Setup: Colors=Gene; Anatomy → pick a region; Transcriptomics=Subtype → pick a cluster; Activity=all
-- Expected: cells in BOTH the region AND the cluster are colored by **gene richness** plasma (since no specific gene is in focus, A5 rules apply); in-region non-cluster cells are lifted gray; out-of-region cells deep dim.
-- Pass if a small richness-colored intersection is visible inside a gray region outline. Legend reads "Gene richness".
+### B1. Region × Single gene
+- Setup: Colors=Region; Anatomy → pick a region; Transcriptomics → add one gene; Visual Stimuli=all.
+- Expected: only cells inside the region AND expressing the gene are colored by region; cells inside the region not expressing the gene are "lifted" (alpha ~0.5) so the region outline still reads through; cells outside the region are deep-dim.
+- Pass if you can see the region outline in lifted gray plus the small bright in-region/gene-positive subset.
+
+### B2. Subtype × Gene-expression coloring
+- Setup: Colors=Gene expression; Transcriptomics → Subtype → pick a cluster; Visual Stimuli=all; Anatomy=all.
+- Expected: only the picked cluster's cells are colored, by gene richness (no specific gene pinned → A3 fallback rules). Legend reads "Gene richness". Everything else is deep-dim.
+- Pass if the cluster lights up colored by richness while non-cluster cells go dim.
 
 ### B3. Triple-filter intersection
-- Setup: Colors=Region; Anatomy → pick a region; Transcriptomics=Single gene → any gene; Activity → any stimulus
-- Expected: only the (small) intersection of all three filters is colored by region; the rest is dimmed (with anatomical lift inside the chosen region).
-- Pass if the colored set is visibly smaller than any single-filter intersection. The detail panel should show a count matching the visible bright cells.
+- Setup: Colors=Region; Anatomy → a region; Transcriptomics → one gene; Visual Stimuli → one stim.
+- Expected: only the (small) intersection of all three filters is colored by region. Out-of-region cells are deep-dim; in-region non-intersection cells are lifted.
+- Pass if the colored set is visibly smaller than any single-filter intersection, and the Detail panel count matches the visible bright cells.
 
 ### B4. Activity-only filter
-- Setup: Colors=Region, Anatomy=all, Transcriptomics=all, Activity → pick a stimulus
-- Expected: only stim-responsive cells (r ≥ 0.30) colored by region; non-responsive cells background-dim.
-- Pass if a sparse, region-colored "stim-responsive map" is visible.
+- Setup: Colors=Region, Anatomy=all, Transcriptomics: no genes, Visual Stimuli → pick a stim.
+- Expected: only cells with r ≥ Settings.stimLo for the selected stim are colored by region. Non-responsive cells are deep-dim. Tightening `stimLo` in Settings should shrink the colored set.
+- Pass if a sparse, region-colored stim-responsive map appears.
 
-### B5. Co-coding restricted to a region
-- Setup: Colors=Co-coding, Anatomy → a region. Transcriptomics: pick a gene then switch back to "all" (so the gene filter is inactive but the persistent gene index drives the bivariate axis). Activity → any stim.
-- Expected: bivariate colors only inside the region; region outline preserved; outside dim.
-- Pass if the bivariate palette is anatomically localized.
+### B5. Multi-stimulus AND vs OR
+- Setup: Colors=Region, Anatomy=all, Transcriptomics: no genes, Visual Stimuli → toggle ON 2+ stimuli.
+- Expected: under OR the colored set is the union of responders; under AND it's the (typically much smaller) intersection. Flipping the OR/AND toggle in the Visual Stimuli card should visibly resize the set.
+- Pass if OR ⊇ AND in every multi-stim case.
+
+### B6. Co-coding (Stim color × gene filter)
+- Setup: Colors=Stim correlation. Transcriptomics → add a gene. Anatomy=all. Visual Stimuli → pick a stim.
+- Expected: only gene-positive cells are kept; among those, plasma encodes their r against the selected stim. This reproduces the "co-coding" view from the older UI (gene-positive AND stim-correlated).
+- Pass if a sparse, gene-positive, plasma-by-stim-r map appears.
+
+### B7. Anatomy → specimen filter
+- Setup: Anatomy → specimen → pick one fish (only visible if the dataset has more than one fish).
+- Expected: only that fish's cells are kept. The brain should still look like a brain (registration is into the shared mapzebrain frame), but in only one specimen's coverage.
+- Toggle Colors=Specimen to confirm only that fish's color is present.
+- Pass if only one fish's cells render, with mapzebrain-aligned anatomy preserved.
 
 ---
 
 ## C. Persistence behavior
 
 ### C1. txMode flip preserves both indices
-- Setup: Transcriptomics=Single gene → pick gene "X"; flip to Subtype → pick cluster "Y"; flip back to Single gene.
-- Expected: the gene dropdown still shows "X" (not reset). Flip to Subtype again → cluster dropdown still shows "Y".
-- Pass if both selections survive the flip.
+- Setup: Transcriptomics → Gene → add gene "X"; flip to Subtype → pick cluster "Y"; flip back to Gene.
+- Expected: gene "X" still in the gene list. Flip to Subtype again → cluster "Y" still picked.
+- Pass if both selections survive every flip.
 
-### C2. "all" preserves the prior pick
-- Setup: Transcriptomics=Single gene → pick gene "X" (filter activates); now switch the dropdown to "all" (filter deactivates); set Colors=Gene.
-- Expected: the gene legend should show "Gene: X" — the persistent index survived even though the filter is "all" — and the brain is painted by gene X expression across all cells.
-- Pass if the persistent gene drives the visualization while the filter is "all".
+### C2. Removing all genes preserves color-mode behavior
+- Setup: Transcriptomics → Gene → pick a gene; Colors=Gene expression (single-gene map). Now click the × on the gene to remove it.
+- Expected: Colors stays on Gene expression but switches to **richness** automatically (A3 rules). Legend retitles to "Gene richness". The filter releases (more cells render).
+- Pass if removing the last gene cleanly returns to richness without leaving a stale single-gene legend.
 
-### C3. Color scheme switch preserves filter state
-- Setup: Anatomy=region, Transcriptomics=Subtype/cluster, Activity=stimulus; cycle Colors through Region → Gene → Cluster → Co-coding and back.
-- Expected: each color scheme repaints, but the Anatomy/Transcriptomics/Activity dropdowns retain their settings. Detail panel keeps the same intersection count.
-- Pass if filter dropdowns don't reset when Colors changes.
+### C3. Color-scheme switch preserves filter state
+- Setup: Anatomy → a region; Transcriptomics → Subtype → cluster; Visual Stimuli → a stim; then cycle Colors through Simple → Region → Gene → Stim → Activity → Specimen and back.
+- Expected: each color scheme repaints, but Anatomy / Transcriptomics / Visual Stimuli retain their picks. Detail panel keeps the same intersection count.
+- Pass if no filter dropdown / chip resets when Colors changes.
 
-### C4. binary-call checkbox state persists across "all" toggles
-- Setup: Transcriptomics=Single gene → pick a gene → uncheck "binary call". Switch to "all" (checkbox disappears). Switch back to a specific gene.
-- Expected: the checkbox reappears and is still UNCHECKED.
-- Pass if the geneStrict state survives the dropdown round-trip.
+### C4. Settings.geneStrict (binary call) state affects filter + coloring
+- Setup: Colors=Gene expression. Transcriptomics → add a gene; note Detail panel count. Settings → Gene expression predicate → uncheck "binary call".
+- Expected: Detail panel count rises (any-detected is more permissive than the curated binary call). The 3D bright-cell set grows. Re-check: count drops back.
+- Pass if the predicate visibly changes both the filter membership and the richness colors (A3 / A5).
+
+### C5. URL hash round-trip
+- Setup: Configure a non-default state (pick a color mode, add a gene, toggle a stim, isolate a region, scrub activity, lasso in t-SNE, click a 3D neuron). Copy the URL.
+- Open the URL in a new tab.
+- Expected: the new tab restores filter + settings + camera + t-SNE viewport + lasso + focused neuron exactly. The lasso polygon may be dropped if the URL hit the 6 kB hash cap (console warns); without that, the lasso indices should be re-derived and the selection re-displayed.
+- Pass if a fresh page load reaches the same visible state.
+
+### C6. Activity playback doesn't pollute URL
+- Setup: Colors=Activity. Hit Play. Watch the URL bar.
+- Expected: the URL hash does not visibly tick along with playback. Click Pause: the URL then updates once to the paused-at sample.
+- Pass if playback is silent in the URL.
 
 ---
 
@@ -109,112 +143,156 @@ Validate each of the four color modes renders correctly with no other filters ac
 
 ### D1. Filter-derived selection updates DetailPanel
 - Setup: All filters "all". Pick Anatomy → a region.
-- Expected: DetailPanel shows aggregate stats for cells in that region (count, top regions/genes, etc.).
-- Add Transcriptomics=Single gene → a gene. DetailPanel updates to the smaller intersection. Add Activity → a stim. Updates again.
+- Expected: DetailPanel shows aggregate stats for cells in that region (count, top regions/genes, mean trace, per-stim correlation).
+- Add Transcriptomics → a gene. DetailPanel updates to the smaller intersection. Add Visual Stimuli → a stim. Updates again.
 - Pass if DetailPanel count shrinks monotonically as filters are added.
 
-### D2. Returning all filters to "all" drops the filter-derived selection
-- Setup: continue from D1, but make sure no t-SNE drag / 3D click is active. Click the ↺ reset button (or set every filter back to "all" manually).
-- Expected: DetailPanel empties (no filter intersection to fall back to); the brain shows the bare Highlight scheme.
-- Pass if the DetailPanel clears.
-- Variant: with a t-SNE drag selection ALREADY in place, do the same. The DetailPanel should keep showing the t-SNE selection — it's user-explicit and isn't tied to filters.
+### D2. Reset clears filters only
+- Setup: continue from D1. Click ↺ reset filters.
+- Expected: every filter card returns to defaults; DetailPanel empties (no filter intersection to fall back to). User-explicit selections (lasso / 3D-focus) are NOT touched.
+- Variant: make a t-SNE lasso selection first, change filters, click ↺ reset filters. The lasso must survive; DetailPanel must still show the lasso.
+- Pass if the reset only clears filter state.
 
 ### D3. User selection is independent of filters; order of operations doesn't matter
-- Setup A (drag-then-filter): All filters "all". Drag-select a cluster of cells in the t-SNE panel — they highlight (brightness/size boost) in the 3D viewer. Now add Anatomy → some region.
-- Setup B (filter-then-drag): Reset everything. Add Anatomy → that same region first, then drag-select the same cluster of cells in t-SNE.
-- Expected (both setups): identical end state. The t-SNE box-selected cells are highlighted with the user-selection boost (visible in both 3D and t-SNE). The anatomy filter applies to the rest of the brain (out-of-region cells dim). DetailPanel shows the t-SNE selection (it wins over the filter intersection).
-- Now repeat the comparison with a 3D click instead of a t-SNE drag. Click a neuron (single-neuron focus); add a filter. Focused neuron persists. Reverse: filter first, then click — same end state.
-- Pass if every order-of-operations pairing reaches the same final visualization and DetailPanel content.
+- Setup A (lasso-then-filter): all filters "all". Lasso a cluster of cells in the t-SNE — they highlight (brightness+size boost) in both views. Add Anatomy → a region.
+- Setup B (filter-then-lasso): Reset everything. Anatomy → that same region first, then lasso the same cells.
+- Expected (both): identical end state. The lasso-selected cells get the user-selection boost in both views; the anatomy filter dims out-of-region cells. DetailPanel shows the lasso (it wins over the filter intersection).
+- Repeat with a 3D click instead of a lasso (single-neuron focus).
+- Pass if every order-of-operations pairing reaches the same final visualization.
 
 ### D4. Filter-derived selection does NOT get the user-selection brightness boost
 - Setup: Anatomy → a region with many cells; Color=Region.
-- Expected: the in-region cells are colored by region, but they should NOT have the extra brightness/size boost that 3D-clicked cells get. (Compare to D3 where dragging in t-SNE clearly enlarges/lights up the selected cells.)
-- Pass if filter-derived "selections" look like the natural color scheme rather than the user-selection bright halo.
+- Expected: the in-region cells are colored by region but should NOT have the extra brightness/size halo that lasso-selected cells get.
+- Pass if filter-driven highlighting looks like the natural color scheme rather than the bright user-selection halo.
 
-### D5. binary-call checkbox affects the derived selection too
-- Setup: All filters "all". Pick Transcriptomics=Single gene → a gene; note the DetailPanel count. Uncheck "binary call".
-- Expected: the DetailPanel count should change to match the more permissive `raw > 0` predicate (typically larger). The 3D view's bright-cell set should match the new count.
-- Pass if the visualization and the derived selection agree under both checkbox states.
+### D5. Clear-selection button on t-SNE panel
+- Setup: lasso something in t-SNE → "clear selection" button appears in the t-SNE header.
+- Expected: clicking it drops the lasso (selection cleared in 3D + t-SNE; DetailPanel falls back to filter intersection if any, else empty).
+- Pass if "clear selection" disappears after one click and the lasso is gone.
+
+### D6. 3D-click focus
+- Setup: click any visible neuron in the 3D viewer.
+- Expected: DetailPanel header changes to "Focused neuron #N" and shows that single cell's gene bars, trace, and per-stim correlation. A focus ring renders around the cell. Click empty space: focus clears.
+- A lasso, if present, persists through focus changes.
+- Pass if the focus is independent of the lasso and clears on empty-space click.
 
 ---
 
-## E. UI / layout
+## E. Tabs and panels
 
-### E1. "Filters" title and adjacent reset
-- Expected: above the row of cards, a small "Filters" label; immediately to its right, a "↺ reset" button.
-- Pass if both render as a single header row above the cards.
+### E1. Filters / Settings / Help tabs
+- Click each tab in the bottom panel.
+- Expected: only one tab pane is visible at a time; the active tab has a yellow underline.
+- Pass if tab switching is clean and stateless (switching back doesn't reset filter state).
 
-### E2. × separators visible between cards
-- Expected: in the bottom panel, four cards labeled "Colors / Anatomy / Transcriptomics / Activity" with `×` symbols between them.
-- Pass if separators are clearly visible.
+### E2. Bottom panel hide/show
+- Click the `⌄` handle at the bottom-center of the 3D viewer.
+- Expected: the bottom row (Filters + t-SNE) collapses and the 3D viewer reclaims the full height; handle flips to `⌃`. Click again to restore.
+- Pass if the brain viewer cleanly resizes to fill the space without distortion.
 
-### E3. Vertical control stacking inside cards
-- Expected: every control inside a card sits on its own row.
-  - Colors: scheme dropdown on row 1; (when scheme=Gene) "scale: log | linear" on row 2.
-  - Anatomy: region dropdown on row 1.
-  - Transcriptomics: Single gene/Subtype toggle on row 1; the gene/cluster dropdown on row 2; (when a specific gene is picked) the "binary call" checkbox on row 3.
-  - Activity: stimulus dropdown on row 1.
-- Pass if no card has two controls side-by-side on the same line.
+### E3. Detail panel hide/show
+- Click the `›` handle on the right edge of the screen (on the panel border when open; on the viewport edge when closed).
+- Expected: the detail panel collapses; the main column reclaims the width. Handle flips to `‹`.
+- Pass if the layout reflows without horizontal scroll.
 
-### E4. Wrap on narrow window
+### E4. × separators visible between filter cards
+- Expected: four cards `Colors × Transcriptomics × Visual Stimuli × Anatomy` with `×` separators between them.
+- Pass if separators are visible.
+
+### E5. Filter card wraps on narrow window
 - Resize the window narrower until the four cards no longer fit on one row.
-- Expected: cards wrap to a second row; layout doesn't break.
-- Pass if no horizontal scroll appears in the filter panel.
+- Expected: cards wrap to a second row; layout doesn't break; no horizontal scroll in the filter panel.
+- Pass if wrapping is clean.
 
-### E5. Filter panel scrolls when content overflows
-- Resize the window narrow enough that the wrapped cards + Tips section don't fit in the bottom-left panel's vertical space.
-- Expected: a vertical scrollbar appears inside the bottom-left panel; you can scroll to reveal hidden cards/Tips. The 3D viewer and t-SNE panel are unaffected.
-- Pass if the bottom-left scrolls without spilling into the rest of the layout.
+### E6. Filter panel scrolls when content overflows
+- Resize narrow enough that the wrapped cards don't fit vertically.
+- Expected: a vertical scrollbar appears inside the bottom-left panel; the 3D viewer and t-SNE are unaffected.
+- Pass if vertical scroll appears without horizontal.
 
-### E6. Dropdown arrow cycling
-- In any dropdown with arrows (Anatomy region, Activity stim, Transcriptomics gene/cluster), click ‹ and › repeatedly past the boundaries.
+### E7. Dropdown arrow cycling
+- In any dropdown with `‹ ›` arrows (Anatomy region, Anatomy specimen, Transcriptomics subtype), click both arrows past the boundaries.
 - Expected: cycles through "all" + all options without dead-ending; wraps from the last option back to "all".
 - Pass if cycling never gets stuck.
 
-### E7. Gene scale toggle visibility
-- Set Colors=Gene → "scale: log | linear" toggle should appear inside the Colors card.
-- Set Colors=anything else → toggle disappears.
-- Pass if scale toggle only shows when Colors=Gene.
+### E8. Gene scale toggle visibility
+- Set Colors=Gene expression → the "scale: log | linear" toggle should appear inside the Colors card. Set Colors anything else → the toggle disappears.
+- Pass if the toggle only appears when Colors=Gene expression.
 
-### E8. Reset button behavior
-- Setup: change every filter (pick a region, switch txMode to Subtype with a cluster picked, pick a stimulus, change Colors to Co-coding, uncheck binary call).
-- Click the **↺ reset** button next to the "Filters" title.
-- Expected: every card returns to defaults — Colors=Region, Anatomy=all, Transcriptomics=Single gene with "all", Activity=all, "binary call" reverts to checked. DetailPanel clears (any filter-derived selection is dropped).
-- Now repeat the test but make a t-SNE box-selection FIRST, then change filters, then click reset.
-- Expected: filters reset to defaults but the t-SNE selection survives (still highlighted in 3D + t-SNE; DetailPanel still shows it).
-- Pass if reset clears filters only, not user-explicit selections.
+### E9. Activity time row visibility
+- Set Colors=Activity → the time slider + ‹ › arrows + play button + speed dropdown appear inside the Colors card. Switch to any other color mode → they disappear.
+- Pass if the activity controls only appear when Colors=Activity.
 
-### E9. t-SNE header is bare
-- Expected: the t-SNE panel header just reads "t-SNE" (plus an optional "reset view" button when zoomed/panned).
-- Tip text for t-SNE controls should appear in the Tips list at the bottom of the filter panel.
-- Pass if the header is just a title, with t-SNE control hints living in Tips.
+### E10. Reset filters button
+- Setup: change every filter card. Click ↺ reset filters.
+- Expected: every card returns to its default (Colors=Region, no genes, no stims, Anatomy=all, etc.). DetailPanel clears any filter-derived selection.
+- The button does NOT clear user-explicit selections (a t-SNE lasso made BEFORE the reset survives).
+- Pass if reset clears filters only, not user selections.
 
-### E10. Gene-legend tick alignment
-- Set Colors=Gene (either richness or single-gene mode).
-- Expected: the leftmost tick label ("0") sits at the bar's left edge; the rightmost tick label ("1000" for single-gene log/linear, "G" for richness) sits at the bar's right edge — neither overflows the legend's border.
+### E11. Reset settings button
+- Setup: change every Settings control (move sliders, toggle binary call, etc.). Click ↺ reset settings (Settings tab).
+- Expected: every Settings control returns to defaults. Filters and selections are untouched.
+- Pass if reset settings only affects the Settings tab.
+
+### E12. Gene-legend tick alignment
+- Set Colors=Gene expression (either richness or single-gene mode).
+- Expected: the leftmost tick label ("0") sits at the bar's left edge; the rightmost (e.g. "1000" or "41") sits at the bar's right edge — neither overflows the legend's border.
 - Pass if no tick label is clipped.
+
+### E13. t-SNE header is bare
+- Expected: the t-SNE panel header reads "t-SNE" plus an optional "reset view" button (when zoomed/panned) and an optional "clear selection" button (when a lasso is active). Nothing else.
+- Pass if the header stays minimal.
+
+### E14. Stim icons render with correct on/off styling
+- In the Visual Stimuli card, each of the 8 stims renders as a 32×32 icon button. Untoggled buttons are semi-dim; toggled-on buttons have a yellow ring + full opacity.
+- Pass if every icon renders and the on/off styling is unambiguous.
+
+### E15. OR / AND toggles dim out when irrelevant
+- Visual Stimuli card with 0 or 1 stims selected: the OR/AND toggle appears but at reduced opacity (50%) with a tooltip explaining it only matters at 2+ selections.
+- Add a second stim: opacity returns to 100%.
+- Same behavior for the Transcriptomics gene-list OR/AND toggle.
+- Pass if both toggles correctly dim/undim.
 
 ---
 
-## F. Quick smoke checks
+## F. Help tab presets
 
-- **F1.** Hover a cell in the 3D view. Tooltip still shows ID/region/top genes.
-- **F2.** Box-select in t-SNE while a filter is active. Selection should be the user box-select (source 'umap'), with brightness boost overriding the filter intersection.
-- **F3.** "Clear selection" button appears when a 3D-focus or UMAP-drag selection exists. Clicking it clears.
-- **F4.** Reload the page. Initial state matches A1 (Region color, no filters, "Gene richness" legend if you switch Colors=Gene without picking a gene).
+### F1. Each preset is enabled iff its referenced cluster/gene exists
+- Open the Help tab. Each "reproduce a finding" button references a cluster name (e.g. `pou4f2_cckb`) or a gene (`otpa`).
+- Expected: buttons are enabled when the dataset contains the named cluster/gene; disabled (grayed out) otherwise. In the mock dataset most will be disabled; in the real dataset most should be enabled.
+- Pass if enable-state matches dataset content.
+
+### F2. Clicking a preset applies it cleanly
+- Click any enabled preset.
+- Expected: the filter resets and then loads the preset's color mode + cluster/gene + stimulus picks; any prior lasso / 3D focus is cleared (presets are meant to start from a clean slate). The 3D view repaints; the legend reflects the preset.
+- Pass if the preset gets you to the described view (e.g. `pou4f2_cckb` tectal cells highlighted by dark-flash r).
+
+---
+
+## G. Quick smoke checks
+
+- **G1.** Hover a cell in the 3D view. Tooltip shows ID / region / top genes.
+- **G2.** Box-/lasso-select in t-SNE while a filter is active. Selection should be the user lasso (source 'umap') with the brightness boost overriding the filter intersection.
+- **G3.** Click "clear selection" or click empty 3D space — clears the corresponding selection.
+- **G4.** Reload the page. Initial state matches A2 (Region color, no filters), or whatever the URL hash specifies if you arrived via a shared URL.
+- **G5.** Switch Colors=Activity → Play. Both the 3D view and the Detail-panel trace cursor advance together.
+- **G6.** Open in a second tab via copied URL; the second tab matches.
 
 ---
 
 ## What "fail" looks like
 
-Capture any of these as bugs to file:
-- A region outline that should read through (anatomy active) but is invisible because in-region non-foreground cells went to deep dim instead of lift.
-- Filter dropdowns or the binary-call checkbox resetting unexpectedly when you change Colors or txMode.
-- Selection from a cluster filter persisting after switching to "all".
+Capture any of these as bugs:
+
+- A region outline that should read through (anatomy active) but is invisible because in-region non-foreground cells went to deep dim instead of "lifted" gray.
+- Filter dropdowns / gene chips / stim toggles resetting unexpectedly when you change Colors or txMode.
+- Selection from a subtype filter persisting after clearing it.
 - Dropdown cycling getting stuck at "all".
-- Layout overflow / horizontal scroll in the filter panel (vertical scroll on overflow is the intended behavior — only horizontal is a bug).
-- Reset button clearing the user's t-SNE / 3D-click selection.
+- Horizontal scroll in the filter panel (vertical scroll on overflow is intended).
+- Reset filters clearing the user's t-SNE lasso or 3D focus.
 - Gene legend tick label overflowing past the gradient's edge.
-- Color=Gene with no specific gene in focus silently using a leftover persistent gene's expression instead of richness.
+- Colors=Gene expression with no specific gene in focus silently using a leftover gene's expression instead of richness.
+- Activity playback writing intermediate samples to the URL (history pollution).
+- A shared URL failing to restore the camera, viewport, or lasso when the hash is under the 6 kB cap.
+- OR/AND toggle changing nothing when 2+ stims are selected.
 
 Report which test number failed and what you saw.
