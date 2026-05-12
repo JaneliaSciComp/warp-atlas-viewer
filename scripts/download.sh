@@ -1,5 +1,57 @@
 #!/usr/bin/env bash
+#
+# download.sh — fetch the raw WARP dataset from Figshare into ./data/.
+#
+# This is a convenience for maintainers re-pulling the source data. End users
+# do not need it: the README points them at the public Figshare landing page
+# for a manual browser download.
+#
+# What it does
+#   1. Reads FIGSHARE_URL and FIGSHARE_COOKIE (env vars, or scripts/.env.download).
+#   2. Downloads the share-link zip past Figshare's AWS WAF (uses aria2c with
+#      16 parallel connections if available; otherwise falls back to curl).
+#   3. Unzips into ./data/ and removes the archive.
+#
+# Why the cookie dance
+#   The Figshare share link is behind AWS WAF. aria2c/curl without a valid
+#   browser-issued aws-waf-token cookie get 202'd. There is no API token for
+#   private-link articles, so we paste the browser cookie in.
+#
+# One-time setup
+#   1. Open the Figshare share URL in a browser; let it pass the WAF check.
+#   2. In DevTools → Network, copy the request URL (the ndownloader one) and
+#      the Cookie request header.
+#   3. Put them in scripts/.env.download (gitignored):
+#
+#        FIGSHARE_URL='https://figshare.com/ndownloader/articles/<id>?private_link=<slug>'
+#        FIGSHARE_COOKIE='aws-waf-token=...; GLOBAL_FIGSHARE_SESSION_KEY=...; ...'
+#
+#      Or export them in your shell before running.
+#
+# Usage
+#   ./scripts/download.sh           # download + unzip into ./data/
+#   ./scripts/download.sh --help    # print this header
+#
+# When it fails
+#   The aws-waf-token rotates (lifetime ~minutes to hours). Re-open the share
+#   link in a browser, copy a fresh Cookie header, and re-run.
+#
+# Output layout
+#   data/Fish1/ Fish2/ Fish3/     raw per-fish folders
+#   data/postprocessed/           cell-level analysis arrays
+#
+# After this, run `python3 scripts/preprocess.py` to produce ./preprocessed/.
+
 set -euo pipefail
+
+case "${1:-}" in
+  -h|--help)
+    # Print the header comment block (lines 2..N of this file, stopping at the
+    # first blank line after the `set -euo pipefail` boundary marker).
+    sed -n '2,/^set -euo pipefail$/p' "$0" | sed -n '/^#/{s/^# \{0,1\}//;p;}'
+    exit 0
+    ;;
+esac
 
 # Resolve script dir before cd-ing, so the env-file path stays correct.
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
