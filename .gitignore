@@ -8,3 +8,7 @@ dist
 /preprocessed/
 scripts/.env.download
 CodeReview*.md
+
+# VitePress build output and cache
+docs/.vitepress/dist
+docs/.vitepress/cache
