@@ -70,7 +70,98 @@ export async function loadNeuronDataset(
   if (manifest.version !== 2) {
     throw new Error(`unsupported manifest version ${manifest.version} (expected 2)`);
   }
+  validateManifest(manifest);
   return await loadFromManifest(manifest, onProgress);
+}
+
+/** Sanity-check manifest scalars and metadata. Everything downstream
+ *  assumes these are well-formed (counts drive typed-array sizes, bounds
+ *  drive camera framing, quant drives trace decoding), so catching
+ *  malformed values here saves a forensic dive later. */
+function validateManifest(m: ManifestV2): void {
+  const posInt = (name: string, v: unknown) => {
+    if (!Number.isInteger(v) || (v as number) <= 0) {
+      throw new Error(`manifest.${name} must be a positive integer (got ${JSON.stringify(v)})`);
+    }
+  };
+  posInt('count', m.count);
+  posInt('traceLength', m.traceLength);
+  posInt('nStimuli', m.nStimuli);
+  if (!Array.isArray(m.geneNames) || m.geneNames.length === 0) {
+    throw new Error('manifest.geneNames must be a non-empty array');
+  }
+  if (!Array.isArray(m.stimulusNames) || m.stimulusNames.length !== m.nStimuli) {
+    throw new Error(
+      `manifest.stimulusNames.length (${m.stimulusNames?.length}) must equal nStimuli (${m.nStimuli})`,
+    );
+  }
+  if (!Array.isArray(m.regionNames) || m.regionNames.length === 0) {
+    throw new Error('manifest.regionNames must be a non-empty array');
+  }
+  if (!Array.isArray(m.clusterNames) || m.clusterNames.length === 0) {
+    throw new Error('manifest.clusterNames must be a non-empty array');
+  }
+  for (const k of ['min', 'max'] as const) {
+    const v = m.bounds?.[k];
+    if (!Array.isArray(v) || v.length !== 3 || !v.every(Number.isFinite)) {
+      throw new Error(
+        `manifest.bounds.${k} must be three finite numbers (got ${JSON.stringify(v)})`,
+      );
+    }
+  }
+  if (m.activityTraceQuant) {
+    const { lo, hi } = m.activityTraceQuant;
+    if (!Number.isFinite(lo) || !Number.isFinite(hi)) {
+      throw new Error(
+        `manifest.activityTraceQuant.{lo,hi} must be finite (got lo=${lo}, hi=${hi})`,
+      );
+    }
+    if (hi <= lo) {
+      throw new Error(`manifest.activityTraceQuant.hi (${hi}) must be > lo (${lo})`);
+    }
+  }
+}
+
+/** Expected byte length for each binary file, derived from manifest
+ *  scalars. Anything that doesn't match exactly indicates the file is
+ *  truncated, has the wrong dtype, or was paired with the wrong manifest
+ *  — all of which would otherwise silently produce mis-shaped typed
+ *  arrays that read past valid data or NaN downstream. */
+function expectedBytes(
+  key: keyof ManifestV2['files'],
+  m: ManifestV2,
+): number {
+  const C = m.count;
+  const G = m.geneNames.length;
+  const S = m.nStimuli;
+  const T = m.traceLength;
+  const traceBytes = m.activityTraceQuant ? 2 : 4;
+  switch (key) {
+    case 'positions':     return C * 3 * 4; // float32
+    case 'regionIds':     return C * 2;     // int16
+    case 'clusterIds':    return C * 2;     // int16
+    case 'fishIds':       return C;         // uint8
+    case 'geneCounts':    return C * G * 4; // float32
+    case 'geneBinary':    return C * G;     // uint8
+    case 'umap':          return C * 2 * 4; // float32
+    case 'stimulusCorr':  return C * S * 4; // float32
+    case 'activityTrace': return C * T * traceBytes;
+    case 'regressors':    return S * T * 4; // float32, NOT per-cell
+  }
+}
+
+function validateBuffer(
+  fileName: string,
+  buf: ArrayBuffer,
+  expected: number,
+): void {
+  if (buf.byteLength !== expected) {
+    throw new Error(
+      `${fileName}: expected ${expected} bytes, got ${buf.byteLength}. ` +
+        `Likely cause: stale manifest paired with new binaries, a truncated ` +
+        `upload, or a wrong-dtype export. Re-run scripts/preprocess.py.`,
+    );
+  }
 }
 
 /**
@@ -183,6 +274,14 @@ async function loadFromManifest(
 
   const lookup = new Map<string, ArrayBuffer>();
   fileKeys.forEach((k, i) => lookup.set(k, buffers[i]));
+
+  // Validate every fetched buffer's byte length against what the manifest
+  // implies BEFORE constructing typed arrays on top of it. A wrong size
+  // here is the single most common way for the viewer to render real-
+  // looking but wrong data, so fail loudly with the specific file.
+  for (const k of fileKeys) {
+    validateBuffer(m.files[k]!, lookup.get(k)!, expectedBytes(k, m));
+  }
 
   const ds: NeuronDataset = {
     count: m.count,
