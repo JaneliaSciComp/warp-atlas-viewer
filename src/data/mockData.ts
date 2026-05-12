@@ -181,7 +181,7 @@ function poisson(lambda: number, rand: () => number): number {
     k += 1;
     p *= rand();
     if (p <= L) return k - 1;
-    if (k > 200) return k;
+    if (k > 200) return k - 1;
   }
 }
 
