@@ -197,13 +197,12 @@ export function ColorLegend({ data, filter, settings }: Props) {
     return null;
   }
   if (filter.colorMode === 'activity') {
-    // Plasma gradient over fixed [0, 1.5] ΔF/F anchors (mirrored from
-    // utils/coloring.ts; see plan note on deferred SettingsState
-    // tunables). Time readout reflects the current scrub sample so
-    // the user knows what moment the brain is colored for without
-    // looking back at the slider.
-    const ACTIVITY_LO = 0.0;
-    const ACTIVITY_HI = 1.5;
+    // Plasma gradient over the ΔF/F anchors from settings (must match
+    // utils/coloring.ts). Time readout reflects the current scrub
+    // sample so the user knows what moment the brain is colored for
+    // without looking back at the slider.
+    const ACTIVITY_LO = settings.activityLo;
+    const ACTIVITY_HI = settings.activityHi;
     const maxSample = Math.max(0, data.traceLength - 1);
     const sample = Math.max(0, Math.min(maxSample, filter.activitySample | 0));
     const seconds = sample / Math.max(0.0001, data.traceSampleRateHz);

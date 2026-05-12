@@ -123,7 +123,9 @@ function SettingsTab({
     settings.geneStrict !== DEFAULT_SETTINGS.geneStrict ||
     settings.geneMultiColor !== DEFAULT_SETTINGS.geneMultiColor ||
     settings.pointSize !== DEFAULT_SETTINGS.pointSize ||
-    settings.enablePan !== DEFAULT_SETTINGS.enablePan;
+    settings.enablePan !== DEFAULT_SETTINGS.enablePan ||
+    settings.activityLo !== DEFAULT_SETTINGS.activityLo ||
+    settings.activityHi !== DEFAULT_SETTINGS.activityHi;
   return (
     <div className="flex flex-col gap-6 pb-3 text-xs font-mono text-neutral-300 max-w-2xl">
       <button
@@ -166,6 +168,35 @@ function SettingsTab({
           max={1}
           step={0.05}
           onChange={(v) => update({ stimHi: v })}
+        />
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+          Activity ΔF/F anchors
+        </div>
+        <p className="text-neutral-400 leading-snug">
+          Lower / upper anchors of the Activity color scheme's plasma
+          ramp. Cells with trace values at or below the floor map to the
+          dark end; values at or above the ceiling saturate at the
+          bright end. Tune to match the practical dynamic range of the
+          dataset's calcium traces.
+        </p>
+        <NumberRow
+          label="floor (ΔF/F)"
+          value={settings.activityLo}
+          min={-2}
+          max={settings.activityHi - 0.1}
+          step={0.1}
+          onChange={(v) => update({ activityLo: v })}
+        />
+        <NumberRow
+          label="ceiling (ΔF/F)"
+          value={settings.activityHi}
+          min={settings.activityLo + 0.1}
+          max={5}
+          step={0.1}
+          onChange={(v) => update({ activityHi: v })}
         />
       </section>
 

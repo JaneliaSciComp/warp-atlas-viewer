@@ -154,11 +154,12 @@ export function applyColoring(
   const S = ds.stimulusNames.length;
   // Activity scheme: clamp the URL-restored sample index into the
   // valid range so a stale share link from a different dataset can't
-  // index out-of-bounds. Anchors are fixed at [0, 1.5] ΔF/F in v1;
-  // see plan note re: deferred SettingsState tunables.
+  // index out-of-bounds. Anchors come from settings; clamp the divisor
+  // so a transient hi <= lo (user dragging sliders past each other)
+  // doesn't divide by zero.
   const activitySample = Math.max(0, Math.min(traceLength - 1, filter.activitySample | 0));
-  const ACTIVITY_LO = 0.0;
-  const ACTIVITY_HI = 1.5;
+  const ACTIVITY_LO = settings.activityLo;
+  const ACTIVITY_HI = settings.activityHi;
   const activityRange = Math.max(0.001, ACTIVITY_HI - ACTIVITY_LO);
 
   const useLog = filter.geneScale !== 'linear';

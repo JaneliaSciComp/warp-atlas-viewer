@@ -186,6 +186,16 @@ export interface SettingsState {
    *  the orbit target stays locked at the volume center so rotation
    *  always pivots around the volume's own axes. */
   enablePan: boolean;
+  /** Lower anchor for the Activity scheme's plasma palette (ΔF/F).
+   *  Cells with traces below this map to the dark end. Default 0 — the
+   *  baseline; values <0 would mean the user wants negative deflections
+   *  to fall off the dark end too. */
+  activityLo: number;
+  /** Upper anchor for the Activity scheme's plasma palette (ΔF/F).
+   *  Cells with traces ≥ this saturate at the bright end. Default 1.5
+   *  is a typical strong-response ΔF/F for this dataset's traces; tune
+   *  if probes / preprocessing change the dynamic range. */
+  activityHi: number;
 }
 
 export const DEFAULT_SETTINGS: SettingsState = {
@@ -196,6 +206,8 @@ export const DEFAULT_SETTINGS: SettingsState = {
   geneMultiColor: 'max',
   pointSize: 8.5,
   enablePan: false,
+  activityLo: 0.0,
+  activityHi: 1.5,
 };
 
 export interface SelectionState {

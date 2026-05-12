@@ -168,6 +168,10 @@ function validateSettings(raw: unknown): Partial<SettingsState> {
   if (isString(s.geneMultiColor, GENE_MULTI_COLORS)) out.geneMultiColor = s.geneMultiColor;
   if (isFiniteNum(s.pointSize) && s.pointSize > 0) out.pointSize = clamp(s.pointSize, 1, 50);
   if (typeof s.enablePan === 'boolean') out.enablePan = s.enablePan;
+  // ΔF/F anchors. Negative lo is plausible (cells deflecting below
+  // baseline); 10 is a generous upper bound for activityHi.
+  if (isFiniteNum(s.activityLo)) out.activityLo = clamp(s.activityLo, -5, 10);
+  if (isFiniteNum(s.activityHi)) out.activityHi = clamp(s.activityHi, -5, 10);
   return out;
 }
 
