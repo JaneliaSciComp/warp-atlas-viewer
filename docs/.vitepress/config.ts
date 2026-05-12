@@ -15,6 +15,11 @@ export default defineConfig({
   cleanUrls: true,
   lastUpdated: true,
 
+  // Dark only — matches the viewer itself, which has no light mode.
+  // 'force-dark' both pins the theme and removes the appearance toggle
+  // (plain 'dark' only changes the default; the switch stays).
+  appearance: 'force-dark',
+
   // Mirror the main app's vite.config.ts so `npm run docs:dev` is
   // reachable from external hostnames. Set WARP_ALLOWED_HOSTS in
   // .env.local (gitignored) to add your own — see .env.local.example.
