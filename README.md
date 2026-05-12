@@ -132,9 +132,17 @@ src/
   components/
     BrainViewer.tsx                 3D point cloud + custom shader, hover/click pick
     DetailPanel.tsx                 right sidebar: gene bar chart, activity trace, stim corr
-    FilterControls.tsx              Filters / Settings / Help tabs and the four filter cards
+    FilterControls.tsx              tab shell (Filters / Settings / Help)
     UmapPanel.tsx                   2D t-SNE scatter with linked lasso + pan/zoom
     ColorLegend.tsx                 mode-aware legend (top-right of viewer)
+    filters/
+      ColorsCard.tsx                Colors card + activity-time playback row
+      TranscriptomicsCard.tsx       gene multi-select + subtype dropdown
+      ActivityCard.tsx              stimulus icons + OR/AND logic
+      AnatomyCard.tsx               region + specimen dropdowns
+      SettingsTab.tsx               tunable cutoffs, ramps, point size, etc.
+      HelpTab.tsx                   guide + "reproduce a finding" presets
+      shared.tsx                    Card / Select / KindToggle / ResetButton
   shaders/
     neuron.vert.glsl, neuron.frag.glsl
   data/
