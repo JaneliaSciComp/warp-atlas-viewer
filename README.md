@@ -75,14 +75,17 @@ python3 scripts/preprocess.py
 
 What it does:
 
-- Filters to the 274,455 cells with valid coordinates.
-- Reorders coords (z, x, y) → (x, y, z), centers on origin, flips the AP axis so anterior renders at the top.
-- Aligns cluster labels to names (`cluster_labelsAll2`, not the permuted `cluster_labelsAll3`).
-- Recovers the Brain_reg → anatomy mapping from the 112-region atlas overlap.
-- Boxcar-downsamples activity traces 2× (268 → 134 timepoints, 2 Hz → 1 Hz) to halve the wire size.
-- Computes stimulus on-windows in seconds from the regressor traces.
+- Filters to the 274,455 cells with valid coordinates and zero-fills any remaining NaN in the activity-trace and stim-correlation arrays.
+- Reorders coords (z, x, y) → (x, y, z), centers on origin, and flips the AP axis so anterior renders at the top of the screen.
+- Boxcar-downsamples the activity traces and the shared regressor traces 2× (268 → 134 timepoints, 2 Hz → 1 Hz) to halve the wire size.
+- Affine-quantizes the activity trace to uint16 over an auto-fit range. This roughly halves the trace file again and pushes it below browser per-resource HTTP-cache caps so it sticks across reloads. The quantization step (~1e-4) is ~1000× below per-sample measurement noise, so it is effectively lossless.
+- Remaps source fish IDs (59 / 63 / 71) to a dense 0 / 1 / 2; fails loudly on any unknown ID rather than silently aliasing it to 0.
+- Centers and scales the t-SNE embedding to roughly the [-50, 50] box so the panel's pixel projection doesn't depend on the upstream scale.
+- Aligns cluster labels to names: index 0 is "Unassigned", indices 1..332 align one-to-one with the 332 named subtypes (uses `cluster_labelsAll2`, not the permuted `cluster_labelsAll3`).
+- Embeds a hand-built Brain_reg → anatomy mapping (16 focal regions plus "Unassigned" at index 0). The mapping was recovered offline by intersecting `Brain_reg` with the 112-region atlas overlap and is hard-coded in the script.
+- Computes stimulus on-windows in seconds from the downsampled regressor traces, for the Detail-panel trace overlay bars.
 
-Output: `preprocessed/neurons.json` (manifest) plus ~10 `.bin` files (~210 MB total).
+Output: `preprocessed/neurons.json` (manifest) plus 10 `.bin` files (~210 MB total).
 
 ### 3. Run the dev server
 
