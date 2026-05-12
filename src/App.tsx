@@ -126,7 +126,14 @@ export default function App() {
   // single click feels instant, long enough to coalesce camera-drag
   // bursts (the camera-controls 'change' fires 30-60×/sec while moving).
   const URL_DEBOUNCE_MS = 50;
+  // Browser + proxy hash limits vary (Firefox throws SecurityError past
+  // a few KB; Chrome silently truncates in extremes; corporate proxies
+  // are sometimes stricter). Cap below the practical floor so a
+  // multi-hundred-vertex lasso doesn't break sharing or history-state.
+  const MAX_HASH_BYTES = 6000;
   const urlTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const warnedLassoDroppedRef = useRef(false);
+  const warnedHashDroppedRef = useRef(false);
   const scheduleUrlWrite = useCallback(() => {
     if (urlTimerRef.current) clearTimeout(urlTimerRef.current);
     urlTimerRef.current = setTimeout(() => {
@@ -139,7 +146,7 @@ export default function App() {
         ? roundViewport(umapRef.current)
         : undefined;
       const lasso = lassoPoly ? roundLasso(lassoPoly) : undefined;
-      const hash = encodeHash({
+      const baseFields = {
         filter: Object.keys(filterDiff).length > 0 ? filterDiff : undefined,
         settings: Object.keys(settingsDiff).length > 0 ? settingsDiff : undefined,
         focusedNeuron: focusedNeuron ?? undefined,
@@ -147,8 +154,32 @@ export default function App() {
         bottom: bottomOpen ? undefined : false,
         camera: cam,
         umap,
-        lasso,
-      });
+      };
+      let hash = encodeHash({ ...baseFields, lasso });
+      if (hash.length > MAX_HASH_BYTES && lasso) {
+        // Drop just the lasso first — it's by far the largest field and
+        // the selection itself stays live in app state.
+        hash = encodeHash(baseFields);
+        if (!warnedLassoDroppedRef.current) {
+          console.warn(
+            `[urlState] lasso polygon (${lasso.length / 2} vertices) makes share URL ` +
+              `exceed ${MAX_HASH_BYTES}-byte cap; dropping lasso from URL hash. ` +
+              `Selection stays active in the UI.`,
+          );
+          warnedLassoDroppedRef.current = true;
+        }
+      }
+      if (hash.length > MAX_HASH_BYTES) {
+        // Lasso wasn't the culprit (or wasn't there). Drop the whole hash.
+        if (!warnedHashDroppedRef.current) {
+          console.warn(
+            `[urlState] encoded state exceeds ${MAX_HASH_BYTES}-byte URL hash cap; ` +
+              `skipping URL persistence this update.`,
+          );
+          warnedHashDroppedRef.current = true;
+        }
+        hash = '';
+      }
       const target = `${window.location.pathname}${window.location.search}${hash}`;
       window.history.replaceState(null, '', target);
     }, URL_DEBOUNCE_MS);
