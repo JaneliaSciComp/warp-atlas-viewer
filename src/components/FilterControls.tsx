@@ -494,7 +494,7 @@ function HelpTab({
             rel="noopener noreferrer"
             className="text-yellow-300 hover:underline"
           >
-            preprint
+            paper
           </a>
           ), each one mapped to (1) a 3D position in the brain,
           (2) expression counts for 41 genes, (3) one of 333
@@ -578,7 +578,7 @@ function HelpTab({
 
       <section className="flex flex-col gap-1">
         <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
-          Reproduce a finding from the preprint
+          Reproduce a finding from the paper
         </div>
         <p className="text-neutral-400 leading-snug">
           Each button sets the filters/colour scheme to reproduce a
@@ -589,7 +589,7 @@ function HelpTab({
             rel="noopener noreferrer"
             className="text-yellow-300 hover:underline"
           >
-            WARP preprint
+            WARP paper
           </a>
           . Selections (lasso / focused cell) are cleared.
         </p>
