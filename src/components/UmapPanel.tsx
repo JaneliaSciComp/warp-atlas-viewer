@@ -490,7 +490,7 @@ export function UmapPanel({
           className={'block ' + (drag?.kind === 'pan' ? 'cursor-grabbing' : 'cursor-crosshair')}
         />
         {selection.indices.length > 0 && (
-          <div className="absolute top-2 left-2 text-xs text-neutral-400 font-mono pointer-events-none leading-tight">
+          <div className="absolute top-2 right-2 text-xs text-neutral-400 font-mono pointer-events-none leading-tight">
             {selection.indices.length.toLocaleString()} selected
           </div>
         )}
