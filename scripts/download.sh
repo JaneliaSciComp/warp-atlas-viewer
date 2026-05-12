@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd "$(dirname "$0")"
+# Resolve script dir before cd-ing, so the env-file path stays correct.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR/.."
 mkdir -p data
 
 # Figshare URL + browser-issued cookies (including aws-waf-token) get past the
 # WAF challenge. Both are credentials and must NOT be committed: read them from
 # the environment, or from a local (gitignored) .env.download next to this
 # script. Refresh from your browser's DevTools when the token expires.
-ENV_FILE="$(pwd)/.env.download"
+ENV_FILE="$SCRIPT_DIR/.env.download"
 if [ -f "$ENV_FILE" ]; then
   set -a
   # shellcheck disable=SC1090

@@ -47,10 +47,10 @@ FIGSHARE_URL='https://figshare.com/ndownloader/articles/<id>?private_link=<slug>
 FIGSHARE_COOKIE='aws-waf-token=...; GLOBAL_FIGSHARE_SESSION_KEY=...; ...'
 ```
 
-Open the Figshare share link in a browser, then copy the request URL and `Cookie` header from DevTools → Network. The cookie expires regularly; refresh it the same way when the script reports a WAF block. Then run:
+Open the Figshare share link in a browser, then copy the request URL and `Cookie` header from DevTools → Network. The cookie expires regularly; refresh it the same way when the script reports a WAF block. Then run (from the repo root):
 
 ```bash
-./download.sh
+./scripts/download.sh
 ```
 
 The script unzips into `./data/`, which after extraction looks like:
