@@ -1,3 +1,4 @@
+import type { ReactNode, CSSProperties } from 'react';
 import type { NeuronDataset, FilterState, SettingsState } from '../data/types';
 import { regionColor, fishColor, plasma, rgbToHex } from '../utils/colorMaps';
 
@@ -8,6 +9,77 @@ interface Props {
   /** Sorted unique fish ids in the dataset; lifted to a shared memo in
    *  App so the header, anatomy dropdown, and this legend agree. */
   uniqueFishIds: Uint8Array;
+}
+
+// The plasma gradient strip is identical across the gene / activity /
+// stim legends; build the CSS string once at module load.
+const PLASMA_STOP_COUNT = 16;
+const PLASMA_GRADIENT = `linear-gradient(to right, ${Array.from(
+  { length: PLASMA_STOP_COUNT },
+  (_, i) => rgbToHex(plasma(i / (PLASMA_STOP_COUNT - 1))),
+).join(', ')})`;
+
+interface GradientLegendProps {
+  title: ReactNode;
+  axisLabel: string;
+  ticks: number[];
+  /** Position of a tick along the bar in 0..100 percent. */
+  tickPos: (t: number) => number;
+  /** Formatter for tick labels (default: `String`). Gene legend uses
+   *  integers, activity uses one decimal, stim uses two. */
+  formatTick?: (t: number) => string;
+  positionStyle: CSSProperties;
+}
+
+/** Shared gradient-bar legend used by the gene, activity, and stim
+ *  color modes. The three branches differ only in title, ticks, tick
+ *  format, and axis label — extracted here so each mode's branch in
+ *  ColorLegend stays focused on computing those four things. */
+function GradientLegend({
+  title,
+  axisLabel,
+  ticks,
+  tickPos,
+  formatTick = String,
+  positionStyle,
+}: GradientLegendProps) {
+  return (
+    <div
+      style={positionStyle}
+      className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200"
+    >
+      <div className="text-neutral-400 mb-1 whitespace-nowrap">{title}</div>
+      <div className="relative w-32">
+        <div className="h-3 border border-neutral-700" style={{ background: PLASMA_GRADIENT }} />
+        <div className="relative h-3 mt-0.5 text-[9px] text-neutral-400">
+          {ticks.map((t, idx) => {
+            // Anchor the first/last tick label to the bar edge instead
+            // of centering it, so e.g. "1000" doesn't overflow past
+            // the gradient's right edge into the legend's border.
+            const transform =
+              idx === 0
+                ? 'translateX(0)'
+                : idx === ticks.length - 1
+                  ? 'translateX(-100%)'
+                  : 'translateX(-50%)';
+            return (
+              <span
+                key={t}
+                className="absolute"
+                style={{
+                  left: `${Math.min(100, Math.max(0, tickPos(t)))}%`,
+                  transform,
+                }}
+              >
+                {formatTick(t)}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+      <div className="text-[9px] text-neutral-500 mt-3">{axisLabel}</div>
+    </div>
+  );
 }
 
 export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
@@ -64,9 +136,6 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
     // "Richness within selection" reuses the richness branch but
     // anchored at the selected-gene count instead of G.
     const useSelRichness = multiGenes && multiMode === 'richness';
-    const N = 16;
-    const stops = Array.from({ length: N }, (_, i) => rgbToHex(plasma(i / (N - 1))));
-    const gradient = `linear-gradient(to right, ${stops.join(', ')})`;
     const isLog = filter.geneScale !== 'linear';
     const G = data.geneNames.length;
     const maxSpots = Math.max(1, settings.geneMaxSpots);
@@ -154,41 +223,13 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
         ? '# selected genes expressed'
         : 'mRNA spot count';
     return (
-      <div
-        style={positionStyle}
-        className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200"
-      >
-        <div className="text-neutral-400 mb-1">{title}</div>
-        <div className="relative w-32">
-          <div className="h-3 border border-neutral-700" style={{ background: gradient }} />
-          <div className="relative h-3 mt-0.5 text-[9px] text-neutral-400">
-            {ticks.map((t, idx) => {
-              // Anchor the first/last tick label to the bar edge instead
-              // of centering it, so e.g. "1000" doesn't overflow past
-              // the gradient's right edge into the legend's border.
-              const transform =
-                idx === 0
-                  ? 'translateX(0)'
-                  : idx === ticks.length - 1
-                    ? 'translateX(-100%)'
-                    : 'translateX(-50%)';
-              return (
-                <span
-                  key={t}
-                  className="absolute"
-                  style={{
-                    left: `${Math.min(100, Math.max(0, tickPos(t)))}%`,
-                    transform,
-                  }}
-                >
-                  {t}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-        <div className="text-[9px] text-neutral-500 mt-3">{axisLabel}</div>
-      </div>
+      <GradientLegend
+        title={title}
+        axisLabel={axisLabel}
+        ticks={ticks}
+        tickPos={tickPos}
+        positionStyle={positionStyle}
+      />
     );
   }
   if (filter.colorMode === 'highlight') {
@@ -204,47 +245,18 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
     const maxSample = Math.max(0, data.traceLength - 1);
     const sample = Math.max(0, Math.min(maxSample, filter.activitySample | 0));
     const seconds = sample / Math.max(0.0001, data.traceSampleRateHz);
-    const N = 16;
-    const stops = Array.from({ length: N }, (_, i) => rgbToHex(plasma(i / (N - 1))));
-    const gradient = `linear-gradient(to right, ${stops.join(', ')})`;
     const ticks = [ACTIVITY_LO, (ACTIVITY_LO + ACTIVITY_HI) / 2, ACTIVITY_HI];
     const tickPos = (t: number) =>
       ((t - ACTIVITY_LO) / (ACTIVITY_HI - ACTIVITY_LO)) * 100;
     return (
-      <div
-        style={positionStyle}
-        className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200"
-      >
-        <div className="text-neutral-400 mb-1 whitespace-nowrap">
-          Activity · t = {Math.round(seconds)} s
-        </div>
-        <div className="relative w-32">
-          <div className="h-3 border border-neutral-700" style={{ background: gradient }} />
-          <div className="relative h-3 mt-0.5 text-[9px] text-neutral-400">
-            {ticks.map((t, idx) => {
-              const transform =
-                idx === 0
-                  ? 'translateX(0)'
-                  : idx === ticks.length - 1
-                    ? 'translateX(-100%)'
-                    : 'translateX(-50%)';
-              return (
-                <span
-                  key={t}
-                  className="absolute"
-                  style={{
-                    left: `${Math.min(100, Math.max(0, tickPos(t)))}%`,
-                    transform,
-                  }}
-                >
-                  {t.toFixed(1)}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-        <div className="text-[9px] text-neutral-500 mt-3">mean ΔF/F</div>
-      </div>
+      <GradientLegend
+        title={`Activity · t = ${Math.round(seconds)} s`}
+        axisLabel="mean ΔF/F"
+        ticks={ticks}
+        tickPos={tickPos}
+        formatTick={(t) => t.toFixed(1)}
+        positionStyle={positionStyle}
+      />
     );
   }
   // stim correlation — 1D plasma from STIM_LO to STIM_HI, mirroring the
@@ -260,9 +272,6 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
       : sel.length === 0 || sel.length === S
         ? 'Stim: max across all'
         : `Stim: max across ${sel.length}`;
-  const N = 16;
-  const stops = Array.from({ length: N }, (_, i) => rgbToHex(plasma(i / (N - 1))));
-  const gradient = `linear-gradient(to right, ${stops.join(', ')})`;
   // Use the user-configured stim cutoffs as the bar's anchor points.
   // The mid tick is the simple average; if stimHi <= stimLo the divisor
   // collapses, so guard against it.
@@ -273,37 +282,13 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
   const ticks = [stimLo, stimMid, stimHi];
   const tickPos = (t: number) => ((t - stimLo) / stimRange) * 100;
   return (
-    <div
-      style={positionStyle}
-      className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200"
-    >
-      <div className="text-neutral-400 mb-1">{stimTitle}</div>
-      <div className="relative w-32">
-        <div className="h-3 border border-neutral-700" style={{ background: gradient }} />
-        <div className="relative h-3 mt-0.5 text-[9px] text-neutral-400">
-          {ticks.map((t, idx) => {
-            const transform =
-              idx === 0
-                ? 'translateX(0)'
-                : idx === ticks.length - 1
-                  ? 'translateX(-100%)'
-                  : 'translateX(-50%)';
-            return (
-              <span
-                key={t}
-                className="absolute"
-                style={{
-                  left: `${Math.min(100, Math.max(0, tickPos(t)))}%`,
-                  transform,
-                }}
-              >
-                {t.toFixed(2)}
-              </span>
-            );
-          })}
-        </div>
-      </div>
-      <div className="text-[9px] text-neutral-500 mt-3">stim correlation r</div>
-    </div>
+    <GradientLegend
+      title={stimTitle}
+      axisLabel="stim correlation r"
+      ticks={ticks}
+      tickPos={tickPos}
+      formatTick={(t) => t.toFixed(2)}
+      positionStyle={positionStyle}
+    />
   );
 }
