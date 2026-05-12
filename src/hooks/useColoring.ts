@@ -16,12 +16,10 @@ export interface SharedColoring {
   revision: number;
 }
 
-/** Lift `applyColoring` out of the individual renderers. Before this
- *  hook, BrainViewer and UmapPanel each allocated their own buffers
- *  and ran a full 274k-cell `applyColoring` pass on every filter /
- *  settings / selection change — two passes per change for the same
- *  inputs. Now App computes once and both renderers consume the same
- *  base. */
+/** Shared per-cell coloring keyed on (data, filter, settings,
+ *  selection). Both BrainViewer and UmapPanel consume the same base
+ *  buffers, so the 274k-cell `applyColoring` pass runs at most once
+ *  per interaction regardless of how many renderers display the data. */
 export function useColoring(
   data: NeuronDataset | null,
   filter: FilterState,

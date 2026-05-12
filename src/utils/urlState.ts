@@ -89,13 +89,12 @@ export function decodeHash(hash: string): PersistedState | null {
 // ── Runtime schema validation ────────────────────────────────────────
 //
 // The URL hash is hostile input — a user pasting a stale or hand-edited
-// share link can put arbitrary values into our state. Casting it
-// directly to PersistedState used to let bogus values flow into
-// FilterState/SettingsState and crash the renderer (a stray
-// `selectedGenes: [999]` walked past the end of a typed array, NaN'd
-// through plasma(), and threw inside sampleStops). The validators below
-// drop malformed fields silently — the merged state falls back to its
-// default where the URL value was unusable.
+// share link can put arbitrary values into our state. Without runtime
+// validation, an out-of-range value like `selectedGenes: [999]` would
+// walk past the end of a typed array, NaN through plasma(), and throw
+// inside sampleStops. The validators below drop malformed fields
+// silently — the merged state falls back to its default where the URL
+// value was unusable.
 //
 // Note: these checks are SCHEMA-LEVEL only (types/enums/finite numbers).
 // Index bounds that depend on the loaded dataset (gene/stim/cluster

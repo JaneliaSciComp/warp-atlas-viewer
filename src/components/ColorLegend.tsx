@@ -149,9 +149,10 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
     // Keep at most 4 ticks total so labels never overlap on the
     // narrow legend bar. Build the full set (0, every power of 10
     // ≤ ceiling, ceiling), then trim any intermediate tick whose
-    // label rectangle would collide with the ceiling's. Required gap
-    // is computed from actual label widths — the previous fixed 12%
-    // threshold let "1000" overlap a 4-digit ceiling like "2600".
+    // label rectangle would collide with the ceiling's. The required
+    // gap is computed from actual label widths because label width
+    // scales with the digit count — a 4-digit ceiling like "2600"
+    // takes nearly twice the horizontal space of a 3-digit "1000".
     //
     // After that, if still > 4 ticks total, keep 0, the ceiling, and
     // the two largest intermediate powers of 10.
