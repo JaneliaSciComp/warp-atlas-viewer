@@ -7,6 +7,11 @@ dist
 /data/
 /preprocessed/
 scripts/.env.download
+
+# Per-developer local env (e.g. dev-server allowedHosts).
+# See .env.local.example for the format.
+/.env.local
+/.env*.local
 CodeReview*.md
 
 # VitePress build output and cache

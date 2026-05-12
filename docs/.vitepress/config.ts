@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitepress';
+import { allowedHosts } from '../../scripts/devEnv.mjs';
 
 // Set DOCS_BASE at build time for GitHub Pages project sites
 // (e.g. DOCS_BASE=/warp-website/ npm run docs:build).
@@ -14,12 +15,13 @@ export default defineConfig({
   cleanUrls: true,
   lastUpdated: true,
 
-  // Mirror the main app's vite.config.ts so `npm run docs:dev` is reachable
-  // from external hostnames. Add more hosts to `allowedHosts` as needed.
+  // Mirror the main app's vite.config.ts so `npm run docs:dev` is
+  // reachable from external hostnames. Set WARP_ALLOWED_HOSTS in
+  // .env.local (gitignored) to add your own — see .env.local.example.
   vite: {
     server: {
       host: '0.0.0.0',
-      allowedHosts: ['rokickik-dev.int.janelia.org', '.int.janelia.org', 'localhost'],
+      allowedHosts,
     },
   },
 

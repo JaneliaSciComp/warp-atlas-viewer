@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { allowedHosts } from './scripts/devEnv.mjs';
 
 export default defineConfig({
   plugins: [react()],
@@ -11,7 +12,9 @@ export default defineConfig({
   server: {
     port: 5173,
     host: '0.0.0.0',
-    allowedHosts: ['rokickik-dev.int.janelia.org', '.int.janelia.org', 'localhost'],
+    // Set WARP_ALLOWED_HOSTS in .env.local (gitignored) to add your
+    // own dev hostnames — see .env.local.example.
+    allowedHosts,
   },
   assetsInclude: ['**/*.glsl', '**/*.vert', '**/*.frag'],
 });
