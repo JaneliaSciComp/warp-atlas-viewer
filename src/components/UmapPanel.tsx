@@ -2,6 +2,7 @@ import { useEffect, useRef, useMemo, useCallback, useState } from 'react';
 import type { NeuronDataset, FilterState, SelectionState, SettingsState } from '../data/types';
 import type { UmapViewport } from '../utils/urlState';
 import { allocColoring, applyColoring } from '../utils/coloring';
+import { pointInPolygon } from '../utils/polygon';
 
 interface Props {
   data: NeuronDataset;
@@ -31,20 +32,6 @@ interface Viewport {
 }
 
 const INITIAL_VIEWPORT: Viewport = { zoom: 1, panX: 0, panY: 0 };
-
-/** Standard ray-casting point-in-polygon test. The polygon is assumed
- *  closed (the last vertex implicitly connects back to the first). */
-function pointInPolygon(x: number, y: number, poly: Array<[number, number]>): boolean {
-  let inside = false;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const xi = poly[i][0], yi = poly[i][1];
-    const xj = poly[j][0], yj = poly[j][1];
-    if (((yi > y) !== (yj > y)) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
-      inside = !inside;
-    }
-  }
-  return inside;
-}
 
 export function UmapPanel({
   data,
@@ -436,11 +423,18 @@ export function UmapPanel({
       onFocus(nearest >= 0 ? nearest : null);
       return;
     }
+    // Flatten the pixel-space polygon once; the shared pointInPolygon
+    // expects [x0,y0,x1,y1,…] for a stride-friendly hot loop.
+    const polyPx = new Float32Array(pts.length * 2);
+    for (let p = 0; p < pts.length; p++) {
+      polyPx[p * 2] = pts[p][0];
+      polyPx[p * 2 + 1] = pts[p][1];
+    }
     const out: number[] = [];
     for (let i = 0; i < data.count; i++) {
       const [px, py] = project(data.umap[i * 2], data.umap[i * 2 + 1], size.w, size.h, viewport);
       if (px < bxmin || px > bxmax || py < bymin || py > bymax) continue;
-      if (pointInPolygon(px, py, pts)) out.push(i);
+      if (pointInPolygon(px, py, polyPx)) out.push(i);
     }
     // Capture the polygon in t-SNE data coords too — App round-trips
     // it through the URL hash, way smaller than serializing thousands
