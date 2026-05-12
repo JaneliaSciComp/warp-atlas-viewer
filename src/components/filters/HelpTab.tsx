@@ -291,6 +291,31 @@ export function HelpTab({
           <li><span className="text-neutral-200">Stim correlation, max across selected:</span> with the <span className="text-neutral-200">Stim correlation</span> colour scheme, picking exactly one stimulus paints by that stimulus's Pearson r. With nothing picked the cell is coloured by its <em>max</em> correlation across every stimulus; with two or more picked, by max across just the selected set (independent of the OR/AND filter logic).</li>
         </ul>
       </section>
+
+      <section className="flex flex-col gap-1">
+        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+          Code
+        </div>
+        <p className="text-neutral-400 leading-snug">
+          The source for this viewer lives at{' '}
+          <a
+            href="https://github.com/JaneliaSciComp/warp-website"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-yellow-300 hover:underline"
+          >
+            github.com/JaneliaSciComp/warp-website
+          </a>
+          . File an issue or open a PR there.
+        </p>
+      </section>
+
+      <p className="text-[10px] text-neutral-500 mt-2">
+        © {(() => {
+          const y = new Date().getFullYear();
+          return y > 2026 ? `2026-${y}` : '2026';
+        })()} HHMI
+      </p>
     </div>
   );
 }
