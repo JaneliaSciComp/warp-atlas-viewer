@@ -14,6 +14,15 @@ export default defineConfig({
   cleanUrls: true,
   lastUpdated: true,
 
+  // Mirror the main app's vite.config.ts so `npm run docs:dev` is reachable
+  // from external hostnames. Add more hosts to `allowedHosts` as needed.
+  vite: {
+    server: {
+      host: '0.0.0.0',
+      allowedHosts: ['rokickik-dev.int.janelia.org', '.int.janelia.org', 'localhost'],
+    },
+  },
+
   head: [
     ['meta', { name: 'theme-color', content: '#171717' }],
     ['meta', { name: 'color-scheme', content: 'dark' }],
