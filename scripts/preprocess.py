@@ -156,10 +156,24 @@ def main():
     bounds_max = pos.max(axis=0).tolist()
     print(f'[preprocess] position bounds: {bounds_min} → {bounds_max}')
 
-    # fish 59/63/71 → 0/1/2 (uint8)
+    # fish 59/63/71 → 0/1/2 (uint8). Track which cells matched a known
+    # source id so a stray 4th fish (or a typo) doesn't get silently
+    # aliased to 0 by np.zeros's default — the bug would merge it with
+    # Fish 1.
     fish_remap = np.zeros(n, dtype=np.uint8)
-    for k, src in enumerate([59, 63, 71]):
-        fish_remap[fish_id == src] = k
+    matched = np.zeros(n, dtype=bool)
+    FISH_SOURCES = [59, 63, 71]
+    for k, src in enumerate(FISH_SOURCES):
+        mask = fish_id == src
+        fish_remap[mask] = k
+        matched |= mask
+    if not matched.all():
+        unknown = np.unique(fish_id[~matched]).tolist()
+        raise SystemExit(
+            f'[preprocess] unrecognized fish id(s) in input: {unknown}. '
+            f'Expected only {FISH_SOURCES}. Update FISH_SOURCES if a new '
+            f'fish was added upstream, or fix the source data.'
+        )
 
     # Center UMAP and scale to roughly [-1,1] range so the panel projection
     # works the same as it did for mock data.
