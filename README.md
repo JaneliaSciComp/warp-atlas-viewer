@@ -7,7 +7,7 @@ The tool runs entirely in the browser — no backend. It loads typed-array binar
 ## What you can do with it
 
 - **Region mode** — colour by one of 16 focal anatomical regions.
-- **Gene mode** — colour by spot count for any of the 41 genes (viridis ramp).
+- **Gene mode** — colour by spot count for any of the 41 genes (plasma ramp).
 - **Cluster mode** — pick one of the 333 named gene-combination clusters (e.g. `pou4f2_cckb`); selected cells render in magenta.
 - **Co-coding mode** — pick a gene + a stimulus; cells that are both gene-positive and stimulus-correlated highlight in red. This is the view designed to reproduce the manuscript's headline gene-function findings.
 - Drag-select on the t-SNE; click a neuron in 3D to populate the detail panel (gene-expression bar chart, mean ΔF/F trace with stimulus on-windows, per-stimulus correlation).
@@ -143,7 +143,7 @@ src/
     mockData.ts                     synthetic fallback dataset
   utils/
     coloring.ts                     single-pass per-neuron colour/alpha/size fill
-    colorMaps.ts                    viridis, region palette, bivariate ramp
+    colorMaps.ts                    plasma, region palette, fish palette
     constants.ts                    static name lists (mock-mode fallback)
   hooks/
     useNeuronData.ts, useSelection.ts

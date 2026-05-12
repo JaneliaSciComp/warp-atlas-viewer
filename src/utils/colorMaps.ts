@@ -1,21 +1,7 @@
-// Viridis sampled at 32 stops, then linearly interpolated.
-const VIRIDIS_STOPS: Array<[number, number, number]> = [
-  [0.267, 0.005, 0.329], [0.282, 0.094, 0.418], [0.279, 0.175, 0.483],
-  [0.263, 0.243, 0.524], [0.237, 0.305, 0.541], [0.207, 0.372, 0.553],
-  [0.180, 0.435, 0.557], [0.156, 0.498, 0.557], [0.135, 0.557, 0.553],
-  [0.115, 0.617, 0.541], [0.121, 0.679, 0.516], [0.180, 0.731, 0.480],
-  [0.286, 0.784, 0.428], [0.426, 0.829, 0.357], [0.594, 0.866, 0.270],
-  [0.769, 0.890, 0.176], [0.929, 0.906, 0.099], [0.993, 0.906, 0.144],
-];
-
-export function viridis(t: number): [number, number, number] {
-  return sampleStops(VIRIDIS_STOPS, t);
-}
-
-// Plasma — perceptually uniform like viridis but with a deep purple → red
-// → orange → yellow ramp, which reads better than viridis on a dark
-// background because the dark-end purple is still distinguishable from
-// the viewport background. 16 stops sampled from matplotlib's plasma.
+// Plasma — perceptually uniform with a deep purple → red → orange →
+// yellow ramp, which reads well on a dark background because the
+// dark-end purple is still distinguishable from the viewport
+// background. 16 stops sampled from matplotlib's plasma.
 const PLASMA_STOPS: Array<[number, number, number]> = [
   [0.051, 0.031, 0.529], [0.165, 0.020, 0.578], [0.262, 0.012, 0.601],
   [0.359, 0.001, 0.602], [0.453, 0.005, 0.580], [0.541, 0.039, 0.534],
