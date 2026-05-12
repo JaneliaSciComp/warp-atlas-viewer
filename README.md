@@ -39,13 +39,21 @@ npm install
 
 ### 1. Download the source data
 
-The raw WARP dataset is hosted on Figshare (private link) and is ~25 GB compressed / ~60 GB extracted. The `download.sh` script handles the AWS WAF cookie dance:
+The raw WARP dataset is hosted on Figshare (private link) and is ~25 GB compressed / ~60 GB extracted. The `download.sh` script handles the AWS WAF cookie dance, but does not bundle credentials: provide the Figshare URL and a fresh browser cookie via environment variables, or put them in a local `scripts/.env.download` (gitignored):
+
+```bash
+# scripts/.env.download
+FIGSHARE_URL='https://figshare.com/ndownloader/articles/<id>?private_link=<slug>'
+FIGSHARE_COOKIE='aws-waf-token=...; GLOBAL_FIGSHARE_SESSION_KEY=...; ...'
+```
+
+Open the Figshare share link in a browser, then copy the request URL and `Cookie` header from DevTools → Network. The cookie expires regularly; refresh it the same way when the script reports a WAF block. Then run:
 
 ```bash
 ./download.sh
 ```
 
-If the cookie has expired you'll need to refresh it from a browser (open the Figshare link in DevTools, copy the new `aws-waf-token` into `download.sh`'s `COOKIE` variable). The script unzips into `./data/`, which after extraction looks like:
+The script unzips into `./data/`, which after extraction looks like:
 
 ```
 data/
@@ -158,4 +166,4 @@ preprocessed/                       output of preprocess.py (gitignored)
 - **"Loading WARP atlas…" never finishes** — open DevTools → Network and check whether `/preprocessed/neurons.json` 200s. If 404, you skipped preprocessing; the app should fall back to mock data, but check the JS console for `[dataLoader]` messages.
 - **Bundle warning at build time** about chunks > 500 kB — expected. Three.js + recharts aren't small. Code-splitting is out of scope for the prototype.
 - **External hostname blocked by Vite** — add it to `server.allowedHosts` in `vite.config.ts`.
-- **Figshare download fails** — the WAF token in `download.sh` rotates; refresh from a browser session.
+- **Figshare download fails** — the WAF token rotates; refresh `FIGSHARE_COOKIE` in `scripts/.env.download` (or the env var) from a browser session.

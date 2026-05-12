@@ -6,3 +6,5 @@ dist
 .claude
 /data/
 /preprocessed/
+scripts/.env.download
+CodeReview*.md
