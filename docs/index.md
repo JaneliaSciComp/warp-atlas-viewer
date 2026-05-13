@@ -3,8 +3,7 @@ layout: home
 
 hero:
   name: WARP Atlas Viewer
-  text: Whole-brain co-mapping of gene expression and neuronal activity in larval zebrafish.
-  tagline: Cross-reference each cell's anatomy, transcriptome, functional subtype, and visual-stimulus response — all in the browser.
+  text: Whole-brain co-mapping of gene expression and neuronal activity in larval zebrafish
   actions:
     - theme: brand
       text: Quick start
