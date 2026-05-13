@@ -242,6 +242,18 @@ export default function App() {
     return selection;
   }, [data, selection, filter, settings]);
 
+  // Cells visible after the active filters. With no filter active every
+  // cell is visible, so we can skip the per-cell pass.
+  const visibleCount = useMemo(() => {
+    if (!data) return 0;
+    if (!anyFilterActive(data, filter)) return data.count;
+    let n = 0;
+    for (let i = 0; i < data.count; i++) {
+      if (cellInSet(data, filter, settings, i)) n++;
+    }
+    return n;
+  }, [data, filter, settings]);
+
   const handleUmapSelect = useCallback(
     (indices: Uint32Array, polygon: Float32Array | null) => {
       if (indices.length === 0) {
@@ -413,6 +425,7 @@ export default function App() {
                   setSettings={setSettings}
                   uniqueFishIds={uniqueFishIds}
                   onReset={handleResetFilters}
+                  visibleCount={visibleCount}
                   applyView={handleApplyView}
                   onActivityPlayingChange={setActivityPlaying}
                 />

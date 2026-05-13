@@ -18,6 +18,10 @@ interface Props {
    *  App so the header, anatomy dropdown, and the legend agree. */
   uniqueFishIds: Uint8Array;
   onReset: () => void;
+  /** Number of cells passing the active filters; shown next to the
+   *  reset button so the current state of "how many cells am I looking
+   *  at?" is visible without leaving the Filters tab. */
+  visibleCount: number;
   /** Apply a preset view (Help-tab "reproduce a finding" buttons).
    *  Caller is expected to base this on INITIAL_FILTER and clear any
    *  user-explicit selections so the preset starts from a clean state. */
@@ -35,7 +39,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'help', label: 'Help' },
 ];
 
-export function FilterControls({ data, filter, setFilter, settings, setSettings, uniqueFishIds, onReset, applyView, onActivityPlayingChange }: Props) {
+export function FilterControls({ data, filter, setFilter, settings, setSettings, uniqueFishIds, onReset, visibleCount, applyView, onActivityPlayingChange }: Props) {
   const update = (patch: Partial<FilterState>) => setFilter({ ...filter, ...patch });
   const [tab, setTab] = useState<Tab>('filters');
 
@@ -63,7 +67,12 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
       <div className="flex-1 min-h-0 overflow-y-auto p-3">
         {tab === 'filters' && (
           <div className="flex flex-col gap-2">
-            <ResetButton onReset={onReset} />
+            <div className="flex items-center gap-3">
+              <ResetButton onReset={onReset} />
+              <span className="text-xs font-mono text-neutral-400">
+                {visibleCount.toLocaleString()} cells visible
+              </span>
+            </div>
             <div className="flex flex-wrap items-stretch gap-x-2 gap-y-2">
               <ColorsCard
                 data={data}
