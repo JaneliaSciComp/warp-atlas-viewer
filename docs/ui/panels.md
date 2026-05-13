@@ -7,23 +7,7 @@ description: Where each panel sits, and how to collapse or expand them.
 
 The viewer occupies a single full-screen page divided into four regions:
 
-```
-┌────────────────────────────────────────────┐ ┌──────────┐
-│                                            │ │          │
-│              3D BRAIN VIEWER               │ │          │
-│           color legend ──┐                 │ │          │
-│                          │                 │ │          │
-│                          │                 │ │  DETAIL  │
-│                                            │ │          │
-│                                ⌄ collapse  │ │ ‹ collapse│
-├────────────────────────────────────────────┤ │          │
-│                            │               │ │          │
-│      FILTER STRIP          │   t-SNE       │ │          │
-│      (Filters / Settings   │   PANEL       │ │          │
-│         / Help)            │               │ │          │
-│                            │               │ │          │
-└────────────────────────────────────────────┴─┴──────────┘
-```
+![Conceptual layout of the WARP viewer: 3D viewer occupies the top-left, the filter strip the bottom-left, the t-SNE panel the bottom-right, and the detail panel the right edge.](/layout-overview.svg)
 
 ## 3D viewer
 

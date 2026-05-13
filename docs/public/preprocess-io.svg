@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 220" role="img" aria-labelledby="title desc" font-family="ui-sans-serif, system-ui, sans-serif">
+  <title id="title">Preprocessing input and output</title>
+  <desc id="desc">Source data of approximately 30 GB on the left — per-specimen folders and post-processed analysis arrays — is converted by preprocessing into a 210 MB output bundle on the right: a neurons.json manifest plus typed-array blobs containing positions, genes, traces, and other per-cell quantities.</desc>
+  <style>
+    .box { fill: rgba(255,255,255,0.04); stroke: #888; stroke-width: 1.5; rx: 6; ry: 6; }
+    .box-title { fill: #ddd; font-size: 14px; font-weight: 600; }
+    .box-detail { fill: #aaa; font-size: 12px; }
+    .edge-label { fill: #999; font-size: 12px; font-style: italic; }
+    .arrow { stroke: #888; stroke-width: 1.5; fill: none; }
+  </style>
+
+  <defs>
+    <marker id="arrow-h" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#888"/>
+    </marker>
+  </defs>
+
+  <!-- Source -->
+  <rect class="box" x="20" y="30" width="280" height="160"/>
+  <text class="box-title" x="160" y="60" text-anchor="middle">Source (~30 GB)</text>
+  <text class="box-detail" x="160" y="100" text-anchor="middle">Per-specimen folders</text>
+  <text class="box-detail" x="160" y="120" text-anchor="middle">and post-processed</text>
+  <text class="box-detail" x="160" y="140" text-anchor="middle">analysis arrays</text>
+
+  <!-- arrow -->
+  <line class="arrow" x1="310" y1="110" x2="410" y2="110" marker-end="url(#arrow-h)"/>
+  <text class="edge-label" x="360" y="100" text-anchor="middle">preprocessing</text>
+
+  <!-- Output -->
+  <rect class="box" x="420" y="30" width="280" height="160"/>
+  <text class="box-title" x="560" y="60" text-anchor="middle">Output (~210 MB)</text>
+  <text class="box-detail" x="560" y="95" text-anchor="middle">neurons.json manifest</text>
+  <text class="box-detail" x="560" y="115" text-anchor="middle">+ typed-array blobs</text>
+  <text class="box-detail" x="560" y="140" text-anchor="middle">(positions, genes,</text>
+  <text class="box-detail" x="560" y="160" text-anchor="middle">traces, …)</text>
+</svg>

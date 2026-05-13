@@ -24,20 +24,7 @@ The 3D viewer and the t-SNE panel display the same cells in two coordinate syste
 
 ## Conceptual layout
 
-```
-┌────────────────────────────────────────────┐ ┌──────────┐
-│                                            │ │          │
-│              3D BRAIN VIEWER               │ │  DETAIL  │
-│            (cells in anatomy)              │ │          │
-│                                            │ │  gene    │
-├────────────────────────────────────────────┤ │  bar     │
-│                            │               │ │  chart   │
-│  Colors × Transcriptomics  │   t-SNE       │ │          │
-│      × Stimuli × Anatomy   │   (lasso)     │ │  ΔF/F    │
-│        + Settings + Help   │               │ │  trace   │
-│                            │               │ │          │
-└────────────────────────────────────────────┘ └──────────┘
-```
+![Conceptual layout of the WARP viewer: 3D viewer occupies the top-left, the filter strip the bottom-left, the t-SNE panel the bottom-right, and the detail panel the right edge.](/layout-overview.svg)
 
 - **Filters determine which cells are visible.** Four cards combine under logical AND. ([Filtering rules](/filters/overview))
 - **Selections are independent of filters.** A focused cell or lasso selection is retained across filter changes. ([Selections](/selections))

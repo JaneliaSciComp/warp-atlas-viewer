@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 130" role="img" aria-labelledby="title desc" font-family="ui-sans-serif, system-ui, sans-serif">
+  <title id="title">Four filter cards combined by logical AND</title>
+  <desc id="desc">The Filters tab contains four cards arranged in a row — Colors, Transcriptomics, Visual Stimuli, and Anatomy — combined by logical AND, so a cell must pass every active card to remain visible.</desc>
+  <style>
+    .box { fill: rgba(255,255,255,0.04); stroke: #888; stroke-width: 1.5; rx: 6; ry: 6; }
+    .box-label { fill: #ddd; font-size: 14px; font-weight: 600; }
+    .op { fill: #999; font-size: 22px; font-weight: 600; }
+    .op-caption { fill: #888; font-size: 10px; font-style: italic; letter-spacing: 0.05em; }
+  </style>
+
+  <!-- Colors -->
+  <rect class="box" x="30"  y="30" width="140" height="60"/>
+  <text class="box-label" x="100" y="66" text-anchor="middle">Colors</text>
+
+  <!-- × between Colors and Transcriptomics -->
+  <text class="op"         x="185" y="68" text-anchor="middle">×</text>
+  <text class="op-caption" x="185" y="100" text-anchor="middle">AND</text>
+
+  <!-- Transcriptomics -->
+  <rect class="box" x="200" y="30" width="140" height="60"/>
+  <text class="box-label" x="270" y="66" text-anchor="middle">Transcriptomics</text>
+
+  <!-- × -->
+  <text class="op"         x="355" y="68" text-anchor="middle">×</text>
+  <text class="op-caption" x="355" y="100" text-anchor="middle">AND</text>
+
+  <!-- Visual Stimuli -->
+  <rect class="box" x="370" y="30" width="140" height="60"/>
+  <text class="box-label" x="440" y="66" text-anchor="middle">Visual Stimuli</text>
+
+  <!-- × -->
+  <text class="op"         x="525" y="68" text-anchor="middle">×</text>
+  <text class="op-caption" x="525" y="100" text-anchor="middle">AND</text>
+
+  <!-- Anatomy -->
+  <rect class="box" x="540" y="30" width="140" height="60"/>
+  <text class="box-label" x="610" y="66" text-anchor="middle">Anatomy</text>
+</svg>

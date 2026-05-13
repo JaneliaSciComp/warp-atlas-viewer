@@ -5,32 +5,7 @@ description: How the published dataset becomes the rendered point cloud.
 
 # Data flow
 
-```
-┌────────────────────────────────────────────────────────────┐
-│  Published dataset (Figshare, ~30 GB)                      │
-│  Per-specimen folders and cell-level analysis arrays       │
-└──────────────────────────┬─────────────────────────────────┘
-                           │
-                           │  preprocessing
-                           │  (Python, one-time)
-                           ▼
-┌────────────────────────────────────────────────────────────┐
-│  Preprocessed bundle (~210 MB, shipped with the viewer)    │
-│  Manifest plus typed-array blobs                           │
-└──────────────────────────┬─────────────────────────────────┘
-                           │
-                           │  loaded at startup
-                           ▼
-┌────────────────────────────────────────────────────────────┐
-│  In-memory dataset (positions, genes, traces, …)           │
-└──────────────────────────┬─────────────────────────────────┘
-                           │
-                           │  filter + color compute
-                           ▼
-┌────────────────────────────────────────────────────────────┐
-│  3D viewer  +  t-SNE  +  Detail panel                      │
-└────────────────────────────────────────────────────────────┘
-```
+![Pipeline: the published dataset on Figshare is converted by a preprocessing step into a bundle that the viewer fetches at startup into an in-memory dataset, which is reduced each frame to per-cell visibility, color, and size buffers and drawn by the GPU into the 3D viewer, t-SNE, and Detail panel.](/data-flow.svg)
 
 The viewer runs entirely in the browser. There is no backend or database — only static files served alongside the page.
 

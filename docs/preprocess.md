@@ -11,13 +11,7 @@ This page documents the decisions baked into that conversion, so that quantities
 
 ## Input and output
 
-```
-Source: per-specimen folders and post-processed analysis arrays
-        from the manuscript pipeline (~30 GB total).
-
-Output: a manifest (neurons.json) and a set of typed-array blobs
-        (positions, gene matrices, traces, …) totaling ~210 MB.
-```
+![Preprocessing reduces a ~30 GB source — per-specimen folders and post-processed analysis arrays — to a ~210 MB output bundle of a neurons.json manifest plus typed-array blobs (positions, genes, traces, …).](/preprocess-io.svg)
 
 ## Transformations, in order
 

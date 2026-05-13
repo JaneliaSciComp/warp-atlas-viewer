@@ -7,11 +7,7 @@ description: The AND-between-cards / OR-or-AND-within-card rule that determines 
 
 The Filters tab contains four cards:
 
-```
-┌──────────┐ × ┌────────────────┐ × ┌──────────┐ × ┌─────────┐
-│  Colors  │   │ Transcriptomics│   │ Stimuli  │   │ Anatomy │
-└──────────┘   └────────────────┘   └──────────┘   └─────────┘
-```
+![Four filter cards in a row — Colors, Transcriptomics, Visual Stimuli, and Anatomy — combined by logical AND.](/filter-cards.svg)
 
 The `×` between cards denotes logical **AND**: a cell must pass every active card to remain visible.
 
