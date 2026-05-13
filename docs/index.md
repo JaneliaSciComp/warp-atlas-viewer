@@ -16,35 +16,29 @@ hero:
       link: https://github.com/JaneliaSciComp/warp-website
 
 features:
-  - title: 3D brain × t-SNE, linked
-    details: ~274,000 neurons rendered as a single point cloud, with a t-SNE panel that lasso-selects the same cells in anatomy space.
-  - title: Four orthogonal filter cards
-    details: Combine transcriptomics × visual-stimulus responsiveness × anatomy with logical AND. A fourth card chooses how visible cells are colored.
-  - title: Six color schemes
-    details: Simple highlight, anatomical region, gene expression (single or multi-gene), stimulus correlation, scrubbable ΔF/F activity, and source-fish specimen.
-  - title: Per-cell detail
-    details: Click any cell for its gene bar chart, mean ΔF/F trace with stimulus on-windows shaded, and a per-stimulus correlation chart.
-  - title: Shareable URLs
-    details: The URL hash mirrors the full app state — filters, settings, camera, t-SNE viewport, lasso polygon, focused neuron. Copy the URL to share the view.
-  - title: One-click paper presets
-    details: The Help tab includes preset views that reproduce specific findings from Marquez-Legorreta, Fleishman, Hesselink et al. (bioRxiv 2026).
+  - title: Linked anatomical and transcriptomic views
+    details: Approximately 274,000 neurons are rendered as a single point cloud in mapzebrain coordinates, with a paired t-SNE projection in which selections propagate across views.
+  - title: Compositional filtering
+    details: Transcriptomic, stimulus-response, and anatomical criteria can be combined with logical AND. A fourth card controls how the resulting cells are colored.
+  - title: Six color encodings
+    details: Uniform highlight, anatomical region, gene expression (single- and multi-gene), stimulus correlation, time-resolved ΔF/F, and source specimen.
+  - title: Per-cell inspection
+    details: Selecting a cell exposes its gene spot-count profile, mean ΔF/F trace with stimulus on-windows shaded, and per-stimulus correlation.
+  - title: Stateful URLs
+    details: The URL hash encodes filters, settings, camera, t-SNE viewport, lasso polygon, and focused neuron, allowing any view to be reproduced from a link.
+  - title: Paper figure presets
+    details: The Help tab provides preset views that recapitulate specific findings from Marquez-Legorreta, Fleishman, Hesselink et al. (bioRxiv 2026).
 ---
 
-## What this documentation covers
+## Scope of this documentation
 
-This site is the end-user guide for the WARP Atlas Viewer. It explains:
+This site is the end-user guide for the WARP Atlas Viewer. It covers:
 
-- How to use [each part of the interface](/ui/panels) — the 3D viewer, the t-SNE, the detail panel, and the filter strip.
-- What [each filter card](/filters/overview) does, and how the cards combine.
-- What [every color scheme](/filters/colors) shows and how to read it.
-- How [data flows](/data-flow) through the app — from the raw paper dataset to the dots on screen.
+- The function of [each panel in the interface](/ui/panels) — the 3D viewer, the t-SNE projection, the detail panel, and the filter strip.
+- The behavior of [each filter card](/filters/overview) and how filters compose.
+- The semantics of [each color scheme](/filters/colors).
+- The [data flow](/data-flow) from the published dataset to the rendered point cloud.
 - How to interpret [each visualization](/ui/detail#charts) in the detail panel.
-- How to reproduce [specific findings](/findings) from the paper with one click.
+- How to reproduce [specific findings](/findings) from the paper.
 
-If you're brand new, start with **[Quick start](/getting-started)**. If something looks wrong, jump to **[Troubleshooting](/troubleshooting)**.
-
-::: tip Looking for the viewer itself?
-The interactive app lives separately from these docs. See the project README in the
-[source repo](https://github.com/JaneliaSciComp/warp-website) for instructions on
-running the viewer locally or hosting a static bundle.
-:::
+Readers new to the viewer should begin with the [Quick start](/getting-started). For unexpected behavior, see [Troubleshooting](/troubleshooting).

@@ -5,69 +5,69 @@ description: Click-focus, lasso, the precedence rules between them, and how sele
 
 # Selections
 
-A **selection** is whatever cells you've explicitly picked out — independent of which cells the filters happen to leave visible. There are two kinds:
+A **selection** is a set of cells the user has explicitly designated, independent of which cells the filters happen to leave visible. Two types are supported:
 
-| Kind | How you make it | What it shows in the Detail panel |
+| Type | Mechanism | Detail-panel content |
 |---|---|---|
 | **Focused cell** | Click a cell in the 3D viewer or in the t-SNE. | That one cell. |
-| **Lasso group** | Drag in the t-SNE to draw a polygon. | The mean over the lassoed cells. |
+| **Lasso group** | Drag in the t-SNE to define a polygon. | The mean across the enclosed cells. |
 
-There is also an implicit **filter intersection**: the cells currently visible after filters. It feeds the Detail panel as a fallback, but you can't manually "select" the filter intersection — it just is what it is.
+There is also an implicit **filter intersection**: the cells currently visible after filtering. It populates the Detail panel as a fallback but cannot be selected directly.
 
-## Why selections are separate from filters
+## Selections are independent of filters
 
-Selections **survive filter changes**. You can:
+A selection persists through filter changes:
 
-1. Click a cell to focus it.
-2. Change filters to a totally different population.
-3. Look at the focused cell's Detail (still showing) in the context of the new filter result.
+1. A cell is focused.
+2. Filters are changed to a different population.
+3. The focused cell's detail remains visible in the context of the new filter result.
 
-The selection persists until you clear it explicitly. This is intentional — it makes it possible to drill into a specific cell, then swing the filters around to compare its neighborhood without losing the cell itself.
+This is intentional: it permits inspection of a specific cell while changing the surrounding population, without losing the cell itself.
 
 ## Click-focus
 
 Click any cell:
 
-- In the **3D viewer** → that cell.
-- In the **t-SNE** → same cell.
+- in the **3D viewer** to focus it,
+- in the **t-SNE** to focus the same cell.
 
-The Detail panel switches to single-cell mode. The cell renders at a ×1.5 size boost and a bright outline color in both views.
+The Detail panel switches to single-cell mode, and the focused cell is rendered at 1.5× size with an outline color in both views.
 
-To drop the focus:
+To clear the focus:
 
-- Click empty space in the 3D viewer.
-- Or use the **clear-selection** button at the top of the t-SNE panel.
+- click empty space in the 3D viewer, or
+- use the **clear-selection** button at the top of the t-SNE panel.
 
-## Lasso from the t-SNE
+## Lasso in the t-SNE
 
-Drag in the t-SNE to draw a polygon; all cells inside become the selection. The lasso shows up as a dashed outline in t-SNE and lights the same cells up in the 3D viewer.
+Dragging in the t-SNE defines a polygon; all enclosed cells become the selection. The lasso is shown as a dashed outline in the t-SNE and the corresponding cells are highlighted in the 3D viewer.
 
-Lasso behaviors:
+Lasso behavior:
 
-- **Lasso while a cell is focused** — the lasso wins; the focused cell is unfocused.
-- **Lasso, then click a cell** — the click wins; the lasso is cleared and replaced by single-cell focus.
-- **Lasso polygon is part of the URL hash.** A copied link reproduces the polygon.
+- A lasso drawn while a cell is focused replaces the focus.
+- Clicking a cell after a lasso replaces the lasso with single-cell focus.
+- The lasso polygon is included in the URL hash, so a shared link reproduces it.
 
-::: warning Big lassos can overflow the URL
-Browsers cap the URL hash at ~2 KB. If your lasso polygon is enormous (e.g. tens of vertices around a complex outline), the app drops the lasso vertices from the hash, logs a warning, and re-encodes the URL without it. The lasso still works locally — you just can't share it. Re-lasso and re-share if the recipient's view comes up empty.
+::: warning Large lassos may exceed the URL hash limit
+Browsers cap the URL hash at approximately 2 KB. If a lasso polygon contains many vertices, the application drops the lasso vertices from the hash, logs a warning, and re-encodes the URL without them. The lasso continues to function locally, but cannot be shared. Redraw the lasso with fewer vertices to share again.
 :::
 
 ## Precedence
 
-When multiple things could drive the Detail panel, this is the order:
+When multiple sources could drive the Detail panel, the following order applies:
 
-1. **Focused neuron** (click) — always wins.
-2. **Lasso polygon** — used if no click-focus.
-3. **Filter intersection** — used if nothing is explicitly selected.
-4. **Empty** — Detail panel shows a prompt.
+1. **Focused cell** (click) — always takes precedence.
+2. **Lasso polygon** — used in the absence of a click-focus.
+3. **Filter intersection** — used when nothing is explicitly selected.
+4. **Empty** — the Detail panel shows a prompt.
 
-To "go up" one level, clear the current selection: click empty space (drops focus), then the clear-selection button (drops lasso).
+To "step back" one level, clear the current selection: clicking empty space drops the focus, and the clear-selection button drops the lasso.
 
-## Clear selection
+## Clearing the selection
 
-Use the small button at the top of the t-SNE panel. It drops the focused cell and the lasso in one click. The filter cards are untouched.
+The clear-selection button at the top of the t-SNE panel removes both the focused cell and the lasso in one action. Filter cards are unaffected.
 
 ## See also
 
 - [Detail panel](/ui/detail) — what populates with the current selection.
-- [Sharing views](/sharing) — what the URL hash stores.
+- [Sharing views](/sharing) — what the URL hash encodes.

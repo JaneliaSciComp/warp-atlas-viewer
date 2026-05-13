@@ -1,88 +1,76 @@
 ---
 title: Troubleshooting
-description: Common failures and how to fix them.
+description: Common failure modes and how to resolve them.
 ---
 
 # Troubleshooting
 
-## "Loading WARP atlas…" never finishes / "Error loading data"
+## "Loading WARP atlas…" never completes, or "Error loading data" is shown
 
-The viewer tried to fetch the preprocessed dataset and failed.
+The viewer attempted to fetch the preprocessed dataset and failed.
 
-1. Open DevTools → **Network** tab.
-2. Look for `preprocessed/neurons.json`. If it `404`s, the preprocessed bundle is missing — for self-hosted setups, [run preprocessing](/preprocess) first.
-3. To demo the UI without preprocessing, append `?mock=1` to the URL (e.g. `http://localhost:5173/?mock=1`).
-4. If `neurons.json` returns 200 but `.bin` files fail, check the JS console for `[dataLoader]` messages — they include the path that failed.
+1. Open the browser's DevTools and check the **Network** tab.
+2. If `preprocessed/neurons.json` returns 404, the preprocessed bundle is missing from the server hosting the viewer.
+3. To inspect the UI without the real data, append `?mock=1` to the URL.
+4. If the manifest loads but one or more `.bin` blobs fail, the JS console reports the failing path.
 
-## Bundle warning at build time about chunks > 500 kB
+## Detail or bottom panels have disappeared
 
-Expected. Three.js and recharts aren't small. Code-splitting is out of scope for the prototype.
+Both panels can be collapsed:
 
-## External hostname blocked by Vite
+- The **‹** handle on the right edge of the 3D viewer toggles the Detail panel.
+- The **⌄** handle on the bottom edge of the 3D viewer toggles the filter strip.
 
-If you're running the dev server and accessing it from a hostname other than `localhost`, Vite blocks the request by default. Add your hostname to `server.allowedHosts` in `vite.config.ts`.
+Click either handle to restore the panel.
 
-## Detail / bottom panels disappeared
+## A shared URL opens to an empty view
 
-They have collapse handles:
+Shared URLs may exceed the browser's hash limit (~2 KB) when the lasso polygon is large. The viewer handles this in two stages:
 
-- The **‹** on the right edge of the 3D viewer toggles the Detail panel.
-- The **⌄** at the bottom of the 3D viewer toggles the filter strip.
+1. The lasso polygon is dropped; everything else is preserved.
+2. If still too long, the entire hash is dropped and the link opens in the default view.
 
-Click either handle to toggle.
+If a recipient reports an empty view, redraw the lasso with fewer vertices and resend. See [Sharing views → Limitations](/sharing#limitations).
 
-## A URL someone shared shows blank state
+## Cells appear too small or too large
 
-Share URLs can exceed browser hash caps (~2 KB) if the lasso polygon is huge.
+Adjust **Settings → Cell point size**. High-DPI displays generally benefit from a larger value. Selected cells receive an additional 1.5× boost.
 
-The app handles this in two steps:
+## Camera orientation feels lost after rotating
 
-1. Drops the lasso polygon, keeps everything else. A warning logs to the console.
-2. If still too long, drops the whole hash. Another warning logs.
+With **Camera panning** enabled in Settings, the orbit pivot tracks the panned point, which makes it easy to lose orientation after successive right-drags.
 
-If you sent the link and the recipient saw blank, re-lasso with simpler vertices and re-copy. See [Sharing views → Caveats](/sharing#caveats).
+- Disable Camera panning so that rotation always pivots around the volume center, or
+- refresh the page to reset the camera.
 
-## Cells look too small / too big
+## Activity playback appears jittery at 100×
 
-Use **Settings → point size** to bump the base point size in pixels. High-DPI screens often want a value higher than the default. User-selected cells get an extra ×1.5 boost on top.
+The renderer caps playback at approximately 60 fps and advances multiple samples per frame at high speeds. The motion appears less smooth at 100× because samples are being skipped per frame. Use 10× or 50× for the smoothest visual.
 
-## Camera orbit feels wrong after a rotation
+## "Gene expression" view appears uniformly dim
 
-When **Camera panning** is *on* (Settings), the orbit pivot follows your panned point — which makes orientation easy to lose after a few right-drags.
+If **Colors → Gene expression** is active and the brain appears uniformly dark:
 
-Fix:
+- No gene is pinned and Subtype mode is active, so the scheme falls back to [gene richness](/filters/colors#gene-richness-when-nothing-is-pinned). Try the **log scale** toggle in the same card.
+- The **Gene plasma ceiling** in Settings may be set too high for the dataset's spot-count distribution, mapping typical values to the dim end. Reduce the ceiling.
+- The currently pinned gene may be genuinely sparse. Use **‹ ›** to step through other genes.
 
-- Turn pan off (**Settings → Camera panning** unchecked) so orbit always pivots around the volume center.
-- Or refresh the page (camera resets to default).
+## "Stim correlation" view appears uniformly dim
 
-## Activity playback looks choppy at 100×
+If **Colors → Stim correlation** is active and almost every cell is dim:
 
-The viewer caps the playback tick rate at ~60 fps and advances multiple samples per tick at high speed multipliers. The motion *looks* less smooth at 100× because the trace is being skipped over at multiple samples per frame — that's intentional, not a bug. Drop to 10× or 50× for the smoothest visual.
+- The **responsive floor (r ≥)** may be too high. The default is `0.1`; values above `0.3` will hide most cells.
+- The selected stimulus may have few responsive cells.
+- The region in view may not encode the modality being queried.
 
-## "Gene expression" view is dim everywhere
+## A cluster selection in Subtype mode shows no cells
 
-If **Colors → Gene expression** is selected and the brain looks uniformly dark:
+Some clusters are small (< 100 cells) and can be entirely hidden by an overlapping Anatomy filter. Reset the Anatomy card to "all" and the cluster should reappear.
 
-- **No gene is pinned**, and you're in Subtype mode — the scheme falls back to [gene richness](/filters/colors#gene-richness-when-nothing-is-pinned). Try **log scale** in the same card.
-- The **Gene plasma ceiling** in Settings may be set too high relative to the dataset's spot counts — values that look small relative to the ceiling map to the dim end. Lower the ceiling.
-- The currently pinned gene is genuinely sparse — try `‹ ›` to step through other genes.
+## A copied URL did not capture the expected state
 
-## "Stim correlation" view shows nothing
+Address-bar caches in browsers can lag the application state. After a state change, click into the address bar (or refresh) before copying to ensure the URL is current. During fast Activity playback the URL hash is briefly stale by design.
 
-If **Colors → Stim correlation** is selected and (almost) every cell is dim:
+## Help, Filters, or Settings tab is empty after a dataset error
 
-- The **responsive floor (r ≥)** is too high. Default is `0.1`; values like `0.3+` will hide most cells.
-- You're showing a stimulus with very few responsive cells (some are scarcer than others).
-- You're looking at a region of the brain that doesn't carry the modality you're asking about.
-
-## I selected a cluster in Subtype mode but nothing's visible
-
-Some clusters are very small (< 100 cells) and can be hidden by a coincident Anatomy filter. Reset the Anatomy card (or set it to "all") and the cluster should reappear.
-
-## URL didn't share what I expected
-
-Browser address-bar caches can lag. After a state change, **click into the address bar** (or refresh) before copying to make sure the URL reflects the current state. Most of the time this isn't necessary, but during fast Activity playback the URL hash is briefly stale by design.
-
-## Help / Filters / Settings tab is empty after dataset error
-
-If `dataLoader` fails, some cards short-circuit to an empty state to avoid rendering against missing data. Fix the data error first (see top of this page) and the tabs will repopulate on reload.
+When data loading fails, some cards short-circuit to an empty state to avoid rendering against missing data. Resolve the data error first (see the top of this page); the tabs repopulate on reload.

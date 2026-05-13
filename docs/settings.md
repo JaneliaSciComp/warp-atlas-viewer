@@ -1,81 +1,81 @@
 ---
 title: Settings
-description: Tunable cutoffs, ramp anchors, point size, and the gene-expression predicate.
+description: Threshold cutoffs, ramp anchors, point size, and the gene-expression predicate.
 ---
 
 # Settings
 
-The **Settings** tab in the bottom panel holds the tunables that aren't part of the everyday filter loop. Every value persists in the [URL hash](/sharing).
+The **Settings** tab in the bottom panel holds the parameters that are not part of the everyday filter loop. All values are persisted in the [URL hash](/sharing).
 
-A **↺ reset settings** button at the top of the tab reverts everything to defaults; it's disabled when no setting is non-default.
+A **↺ reset settings** button at the top of the tab reverts everything to defaults; it is disabled when no setting has been changed.
 
 ---
 
 ## Cell point size
 
-Base point size in pixels for both the 3D viewer and the t-SNE scatter. User-selected cells get an extra ×1.5 boost on top.
+Base point size in pixels for both the 3D viewer and the t-SNE scatter. Selected cells receive an additional 1.5× boost.
 
-- **Default:** ~3 px on standard DPI. Bump up on high-DPI screens or when cells look undersized.
+- **Default:** approximately 3 px on standard DPI displays. Increase on high-DPI screens or when cells appear undersized.
 - **Range:** 2 – 20.
 
 ## Camera panning
 
-When **off** *(default)*, the orbit pivot is locked to the volume center — rotation always pivots around the volume's own axes (predictable). When **on**, right-drag pans the camera and rotation pivots around the panned point (more flexible, but easier to lose orientation).
+When **off** *(default)*, the orbit pivot is locked to the volume center and rotation always pivots around the volume's axes. When **on**, right-drag pans the camera and rotation then pivots around the panned point — useful for focusing inspection on a specific region, but easier to disorient.
 
-Touch / trackpad users sometimes prefer pan on; mouse users tend to leave it off.
+Touch and trackpad users sometimes prefer pan enabled; mouse users typically leave it off.
 
 ## Gene plasma ceiling
 
-Upper anchor for the **Gene** color scheme's plasma ramp (in raw FISH spot count). Cells above this value saturate at the bright end of the ramp.
+Upper anchor for the **Gene expression** color scheme's plasma ramp, expressed as a raw FISH spot count. Cells above this value saturate at the bright end of the ramp.
 
-Tune to match the practical ceiling of the dataset's probe panel. Defaults are picked to keep the brightest typical gene from saturating cells you care about.
+The default is chosen so that the brightest typical gene does not saturate cells of interest. Adjust to match the practical ceiling of the panel's spot-count distribution.
 
 - **Range:** 50 – 5000 spots.
 
 ## Multi-gene coloring
 
-What the [Gene color scheme](/filters/colors#multi-gene-mode-2-genes-pinned) paints when 2 or more genes are pinned:
+Controls what the [Gene color scheme](/filters/colors#multi-gene-mode-2-genes-pinned) displays when two or more genes are pinned:
 
 - **Max** — strongest single gene per cell.
-- **Sum** — total spot count across the pinned genes (emphasises co-expression strength).
-- **Richness** — count of pinned genes the cell expresses, using the [Gene expression predicate](#gene-expression-predicate) below.
+- **Sum** — total spot count across the pinned genes; emphasizes co-expression strength.
+- **Richness** — count of pinned genes a cell expresses, using the [gene-expression predicate](#gene-expression-predicate) below.
 
-This setting only kicks in with multiple genes pinned — with one pinned gene the scheme is unambiguous.
+This setting has no effect with a single gene pinned.
 
 ## Stim correlation cutoffs
 
 Two anchors on the same row:
 
-- **responsive floor (r ≥)** — Cells below this Pearson r are treated as non-responsive. Used by both:
+- **responsive floor (r ≥)** — cells below this Pearson r are treated as non-responsive. Used by both:
   - the [Visual Stimuli filter](/filters/stimuli#how-responsive-is-defined) (visibility),
   - the [Stim correlation color scheme](/filters/colors#stim-correlation) (dim end of the ramp).
-- **saturation (r ≥)** — Cells with r above this anchor saturate at the bright end of the plasma ramp.
+- **saturation (r ≥)** — cells with r above this anchor saturate at the bright end of the ramp.
 
-Default floor is `0.1`, default saturation is `0.6`. Lower the floor to be more permissive; raise to be stricter.
+Defaults are floor `0.1` and saturation `0.6`. Lower the floor to be more permissive; raise it to be stricter.
 
 ## Activity ΔF/F anchors
 
 Two anchors for the [Activity color scheme](/filters/colors#activity):
 
-- **floor (ΔF/F)** — cells at or below this trace value map to the dark end of the plasma ramp.
+- **floor (ΔF/F)** — cells at or below this value map to the dim end of the plasma ramp.
 - **ceiling (ΔF/F)** — cells at or above this value saturate at the bright end.
 
-Tune to match the practical dynamic range of the dataset's calcium traces. The default range is wide enough that quiet cells go dark and the brightest peaks saturate.
+The default range accommodates quiet cells at the dim end while allowing peaks to saturate.
 
 ## Gene expression predicate
 
-How "expresses a gene" is decided for the [gene filter](/filters/transcriptomics#what-counts-as-expressing-a-gene) and the [Richness multi-gene coloring](#multi-gene-coloring) above:
+Defines what counts as "expressing" a gene, for the [gene filter](/filters/transcriptomics#what-counts-as-expressing-a-gene) and for the [Richness multi-gene coloring](#multi-gene-coloring) above:
 
-- **Binary call** *(checked, default)* — uses the dataset's curated, conservative classification (the per-cell `geneBinary === 1` flag from the manuscript pipeline). Tracks the paper's calls.
-- **Any detected** *(unchecked)* — more permissive — any raw FISH spot count above zero. Useful for hunting low-level expression that the binary call rejects.
+- **Binary call** *(default)* — uses the curated, conservative classification from the manuscript pipeline.
+- **Any detected** — more permissive; any non-zero raw FISH spot count.
 
-## What's not in Settings
+## What Settings does not control
 
-Settings tunes *thresholds and palette anchors*. The things it intentionally does **not** touch:
+The Settings tab governs thresholds and palette anchors. The following are intentionally excluded:
 
-- The active color scheme (use the [Colors card](/filters/colors)).
-- Which cells are selected (use [click / lasso](/selections)).
-- The 3D camera position (orbit / wheel directly).
-- The t-SNE viewport (pan / zoom directly).
+- the active color scheme (use the [Colors card](/filters/colors)),
+- selections (use [click or lasso](/selections)),
+- the 3D camera position (orbit and wheel),
+- the t-SNE viewport (pan and zoom).
 
-All of those are stored in the URL hash too, just outside the Settings tab.
+These are also stored in the URL hash, but outside the Settings tab.

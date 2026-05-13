@@ -1,121 +1,100 @@
 ---
 title: Data flow
-description: From the raw paper dataset to the dots on your screen — what happens at each stage.
+description: How the published dataset becomes the rendered point cloud.
 ---
 
 # Data flow
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│  RAW DATA  (Figshare, ~30 GB)                              │
-│  Fish1/, Fish2/, Fish3/ — spot counts, ephys, masks, …     │
-│  postprocessed/  — cell-level analysis arrays              │
+│  Published dataset (Figshare, ~30 GB)                      │
+│  Per-specimen folders and cell-level analysis arrays       │
 └──────────────────────────┬─────────────────────────────────┘
                            │
-                           │  scripts/preprocess.py
-                           │  (one-time, Python + numpy)
+                           │  preprocessing
+                           │  (Python, one-time)
                            ▼
 ┌────────────────────────────────────────────────────────────┐
-│  PREPROCESSED  (~210 MB, ships with the viewer)            │
-│  neurons.json — manifest                                   │
-│  *.bin        — typed-array blobs (positions, genes, …)    │
+│  Preprocessed bundle (~210 MB, shipped with the viewer)    │
+│  Manifest plus typed-array blobs                           │
 └──────────────────────────┬─────────────────────────────────┘
                            │
-                           │  fetch() at startup
-                           │  (browser, dataLoader.ts)
+                           │  loaded at startup
                            ▼
 ┌────────────────────────────────────────────────────────────┐
-│  IN-MEMORY DATASET  (NeuronDataset object)                 │
-│  Float32Array positions, Uint16Array spot counts, …        │
+│  In-memory dataset (positions, genes, traces, …)           │
 └──────────────────────────┬─────────────────────────────────┘
                            │
                            │  filter + color compute
-                           │  (useColoring.ts)
                            ▼
 ┌────────────────────────────────────────────────────────────┐
-│  PER-CELL BUFFERS  (Float32Array color, alpha, size)       │
-└──────────────────────────┬─────────────────────────────────┘
-                           │
-                           │  GPU upload, one draw call
-                           ▼
-┌────────────────────────────────────────────────────────────┐
-│  3D VIEWER  +  t-SNE  +  DETAIL PANEL                      │
+│  3D viewer  +  t-SNE  +  Detail panel                      │
 └────────────────────────────────────────────────────────────┘
 ```
 
-The viewer is entirely client-side. There is no backend, no database, no auth. Everything is static files plus client-side rendering.
+The viewer runs entirely in the browser. There is no backend or database — only static files served alongside the page.
 
-## Stage 1 — Raw data on Figshare
+## Source dataset
 
-The original WARP dataset is hosted on [Figshare](https://figshare.com/s/d1d19b105c4f74865c32). It is the source of truth and comes from the manuscript pipeline:
+The WARP dataset is hosted on [Figshare](https://figshare.com/s/d1d19b105c4f74865c32) and is the canonical source for the underlying measurements:
 
-- **Per-fish folders** (`Fish1/`, `Fish2/`, `Fish3/`) — gene spot counts, ephys recordings, brain masks, the upstream registrations, etc.
-- **`postprocessed/`** — cell-level analysis arrays produced by the paper authors: cluster labels, registered coordinates, binary gene calls, stimulus correlations, mean ΔF/F traces, t-SNE embedding.
+- **Per-specimen folders** containing gene spot counts, electrophysiological recordings, brain masks, and the upstream registrations.
+- **Post-processed analysis arrays** produced by the manuscript pipeline: cluster labels, registered coordinates, binary gene calls, stimulus correlations, mean ΔF/F traces, and the t-SNE embedding.
 
-The viewer never reads these files directly. They are converted by a one-time preprocessing step.
+The viewer does not read these files directly; they are first converted by a one-time preprocessing step.
 
-## Stage 2 — Preprocessing (one-time, Python)
+## Preprocessing
 
-`scripts/preprocess.py` converts the `.npy` analysis arrays to web-friendly binary blobs plus a JSON manifest. This is the place where editorial decisions about *which cells to keep* and *how to encode them* happen.
+A Python script reduces the published arrays to web-friendly binary blobs and a JSON manifest. This stage incorporates several decisions about which cells to retain and how each quantity is encoded — see [Preprocessing](/preprocess) for the full list. The principal transformations are:
 
-Key transformations (see [Preprocessing](/preprocess) for the full list):
+- Cells without valid coordinates are excluded; approximately 274,455 cells are retained.
+- Coordinates are reordered and centered, and the AP axis is flipped so that anterior renders upward.
+- Calcium traces are downsampled 2× (268 → 134 samples, 2 Hz → 1 Hz) with negligible perceptual loss on the smooth ΔF/F signal.
+- Traces are quantized to uint16 over an auto-fit range, reducing file size and enabling browser caching across reloads.
+- Region names are attached to the 16 focal anatomical groupings carried in the dataset.
+- Cluster labels are aligned so that index 0 corresponds to *Unassigned* and indices 1…332 correspond to the 332 named subtypes.
 
-- **Cell filter:** drop cells without valid coordinates; ~274,455 cells survive.
-- **Coordinate fix:** reorder (z, x, y) → (x, y, z), center on origin, flip the AP axis so anterior renders at the top of the screen.
-- **Downsample traces 2×:** 268 → 134 timepoints, 2 Hz → 1 Hz. Halves wire size with no perceptible loss.
-- **Quantize traces to uint16:** trace files drop below the browser's per-resource HTTP-cache cap so they stick across reloads.
-- **Remap fish IDs:** 59 / 63 / 71 → dense 0 / 1 / 2.
-- **Anatomy mapping:** collapse the upstream ~112-region atlas to 16 focal regions, hard-coded.
-- **Cluster alignment:** align cluster labels to names using `cluster_labelsAll2` (not the permuted `cluster_labelsAll3`), so index 0 is `Unassigned` and 1..332 align to the 332 named subtypes.
+The output is a manifest plus ten binary blobs totaling approximately 210 MB.
 
-Output: `preprocessed/neurons.json` plus 10 `.bin` files (~210 MB total).
+## Loading
 
-## Stage 3 — Loading into the browser
+On page load the manifest is fetched first, followed by parallel requests for each binary blob. Each blob is decoded into a typed array sized to the cell count declared in the manifest. After gzip the on-the-wire payload is substantially smaller than the on-disk total, and quantized traces remain in the browser's HTTP cache so subsequent loads are markedly faster.
 
-On page load, `dataLoader.ts` issues `fetch()` calls for the manifest and each of the binary blobs. Each blob is decoded into a typed array (`Float32Array`, `Uint16Array`, `Uint8Array`) sized to the cell count from the manifest.
+If the manifest is missing, the loader surfaces an error. Appending `?mock=1` to the URL bypasses real data and synthesizes a 10,000-cell dataset suitable for UI demonstration.
 
-Total on-the-wire payload after gzip is well below the ~210 MB on-disk number, but the browser still has to download it all once. The trace blob is quantized so it fits under the per-resource cache cap, which means it stays cached across reloads — second-load is much faster.
+## In-memory representation
 
-If `preprocessed/neurons.json` is missing the loader surfaces an error. Appending `?mock=1` to the URL bypasses the real data and synthesizes a 10,000-cell dataset for UI demos.
+After loading, all per-cell quantities are held in a single in-memory dataset:
 
-## Stage 4 — In-memory dataset
+- 3D positions and t-SNE coordinates,
+- per-cell gene spot counts (41 genes) and curated binary gene calls,
+- transcriptomic cluster, anatomical region, and source-specimen indices,
+- quantized mean ΔF/F traces (134 samples per cell),
+- per-stimulus Pearson correlations (8 stimuli per cell),
+- name arrays for genes, clusters, regions, and stimuli,
+- supporting metadata including the trace sample rate and stimulus on-windows.
 
-The result is a single in-memory **NeuronDataset** object containing:
+## Rendering
 
-- `positions: Float32Array` — `[x, y, z, x, y, z, …]`, one triplet per cell.
-- `geneSpots: Uint16Array` — `[cell0_g0, cell0_g1, … cell0_g40, cell1_g0, …]`.
-- `geneBinary: Uint8Array` — same shape, but the curated binary call.
-- `clusterIds: Uint16Array` — cluster index per cell.
-- `regionIds: Uint8Array` — region index per cell.
-- `fishIds: Uint8Array` — 0 / 1 / 2 per cell.
-- `meanTraces: Uint16Array` — quantized ΔF/F traces, `cellCount × traceLength`.
-- `stimCorr: Float32Array` — Pearson r per cell × stimulus.
-- `tsne: Float32Array` — `[u, v, u, v, …]` per cell.
-- Name arrays (`geneNames`, `clusterNames`, `regionNames`, `stimulusNames`).
+On each render the viewer:
 
-Plus precomputed metadata: `traceSampleRateHz`, `stimulusWindowsSec`, etc.
+1. Walks the cell array once, computing per-cell visibility (from the four filter cards), color (RGBA), and size.
+2. Uploads the resulting buffers to the GPU.
+3. Draws the full point cloud in a single GPU draw call using a custom shader.
 
-## Stage 5 — Filter + color compute
+Changing a color scheme or filter re-runs this single pass; the viewer does not maintain a separate "filtered subset" structure.
 
-Every render the app:
-
-1. Walks the cell array once, building a per-cell **visibility** (boolean from the four filter cards) and **color** (4 floats — R, G, B, alpha) and **size** scalar.
-2. Uploads the resulting buffers to the GPU as Three.js BufferAttributes.
-3. Draws the entire point cloud in one Three.js draw call using a custom GLSL shader.
-
-The single-pass compute lives in `src/utils/coloring.ts`; the shader in `src/shaders/neuron.{vert,frag}.glsl`. Switching color schemes or filter cards is just a re-run of that pass — there's no separate "filtered subset" data structure.
-
-## Stage 6 — Three views, one source
+## Three views, one source
 
 The 3D viewer, t-SNE panel, and Detail panel all read from the same in-memory dataset:
 
-- **3D viewer** plots `positions` with the shared color / alpha / size buffer.
-- **t-SNE panel** plots `tsne` with the same color / alpha / size buffer.
-- **Detail panel** indexes into `geneSpots`, `meanTraces`, `stimCorr` for the current selection.
+- The 3D viewer plots cell positions with the shared color, alpha, and size buffers.
+- The t-SNE panel plots the precomputed embedding with the same buffers.
+- The Detail panel indexes the gene, trace, and correlation arrays for the current selection.
 
-This is why selections cross views for free — there is no separate "highlighted-in-3D" vs. "highlighted-in-t-SNE" copy of the data.
+Because the views share the underlying buffers, selections propagate across views without requiring separate highlight state.
 
 ## See also
 
-- [Preprocessing](/preprocess) — the full list of transformations the Python script does.
+- [Preprocessing](/preprocess) — full list of transformations applied to the published arrays.
 - [Sharing views](/sharing) — what the URL hash encodes.

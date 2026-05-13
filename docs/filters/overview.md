@@ -1,11 +1,11 @@
 ---
 title: How filters combine
-description: The AND-between-cards / OR-or-AND-within-card rule that drives visibility.
+description: The AND-between-cards / OR-or-AND-within-card rule that determines visibility.
 ---
 
 # How filters combine
 
-The Filters tab has four cards:
+The Filters tab contains four cards:
 
 ```
 ┌──────────┐ × ┌────────────────┐ × ┌──────────┐ × ┌─────────┐
@@ -13,30 +13,30 @@ The Filters tab has four cards:
 └──────────┘   └────────────────┘   └──────────┘   └─────────┘
 ```
 
-The `×` between the cards is logical **AND** — a cell has to clear every active card to stay visible.
+The `×` between cards denotes logical **AND**: a cell must pass every active card to remain visible.
 
 ::: tip Colors is not a filter
-**Colors** decides how visible cells are *painted*. The other three cards decide which cells are visible. They're grouped together because they live in the same tab and follow the same UI pattern (a `Card` with a small Reset button), but the Colors card never removes cells from the view.
+The **Colors** card controls how visible cells are *painted*. The remaining three cards determine which cells are visible. The cards share the same tab and UI pattern, but the Colors card never removes cells from the view.
 :::
 
-## A card with "all" doesn't filter anything
+## A card set to "all" does not filter
 
-Each filter card has a sensible "everything passes" default — usually a dropdown set to **all**. A card in that state contributes nothing to the AND chain. Setting any other value tightens the visible set.
+Each filter card has an "everything passes" default, typically a dropdown set to **all**. A card in this state contributes nothing to the AND chain. Selecting any other value narrows the visible set.
 
-The Filters tab's top-right **Reset** button reverts every card to its "all" default in one click.
+The Filters tab's **Reset** button reverts every card to its "all" default in one action.
 
-## OR vs. AND inside a card
+## OR versus AND within a card
 
-Two cards have a logical toggle on the selections within them:
+Two cards support a logical toggle on selections within them:
 
-- **Transcriptomics (gene mode)** — `OR` keeps cells expressing **any** of the selected genes; `AND` keeps cells expressing **all** of them.
-- **Visual Stimuli** — `OR` keeps cells responsive to **any** of the selected stimuli; `AND` keeps cells responsive to **all** of them.
+- **Transcriptomics (gene mode)** — `OR` retains cells expressing **any** of the selected genes; `AND` retains cells expressing **all** of them.
+- **Visual Stimuli** — `OR` retains cells responsive to **any** of the selected stimuli; `AND` retains cells responsive to **all** of them.
 
-There is no OR toggle for Anatomy: the region and specimen dropdowns each pick a single value or "all".
+Anatomy provides no OR toggle: the region and specimen dropdowns each select a single value or "all".
 
 ## Worked example
 
-> "Show me cells that express both `otpa` and `slc17a7a`, are responsive to forward visual motion **or** dark flash, and live in the hindbrain — colored by their stim-correlation strength."
+> "Cells that express both `otpa` and `slc17a7a`, are responsive to forward visual motion or the dark flash, and are located in the hindbrain — colored by stimulus correlation strength."
 
 | Card | Setting |
 |---|---|
@@ -45,24 +45,24 @@ There is no OR toggle for Anatomy: the region and specimen dropdowns each pick a
 | Visual Stimuli | `[forward motion, dark flash]`, **OR** |
 | Anatomy | Region = `Hindbrain` |
 
-The remaining visible cells are gene-positive **AND** stim-responsive **AND** anatomically constrained. The plasma ramp in the legend (top-right of the 3D viewer) tells you which of them respond *strongly*.
+The visible cells are gene-positive, stimulus-responsive, and anatomically constrained. The plasma ramp in the legend indicates the strength of response.
 
-## "Responsive" — what's the threshold?
+## "Responsive": threshold
 
-A cell counts as responsive to a stimulus if its Pearson r with that stimulus's regressor clears the **responsive floor** in [Settings](/settings#stim-correlation-cutoffs). Default is `r ≥ 0.1`; tune up to be stricter, down to be more permissive.
+A cell is considered responsive to a stimulus if its Pearson r with the corresponding regressor meets the **responsive floor** in [Settings](/settings#stim-correlation-cutoffs). The default is `r ≥ 0.1`; raising it imposes a stricter criterion, lowering it a more permissive one.
 
 The same floor is used by:
 
-- The **Visual Stimuli** filter card (visibility).
-- The **Stim correlation** color scheme (dim end of the plasma ramp).
+- the **Visual Stimuli** filter card (visibility),
+- the **Stim correlation** color scheme (dim end of the plasma ramp).
 
 ## Selections survive filter changes
 
-If you click-focus a cell or lasso a group, that selection stays even if you change filters and the cell would have been filtered out. The Detail panel keeps showing it. This is intentional — you can drill down into a cell, then change filters to compare its neighborhood without losing the cell itself. ([Selections](/selections))
+A click-focused cell or lasso group is retained across filter changes, even when the cell or group would otherwise be filtered out. The Detail panel continues to display the selection. This permits comparison of a specific cell or group against successive filtered populations. See [Selections](/selections).
 
 ## Next
 
-- [Colors](./colors) — what the six schemes paint.
+- [Colors](./colors) — the six color schemes.
 - [Transcriptomics](./transcriptomics) — gene multi-select and subtype dropdown.
-- [Visual Stimuli](./stimuli) — the 8 stimuli and OR/AND logic.
+- [Visual Stimuli](./stimuli) — the 8 stimuli and OR / AND logic.
 - [Anatomy](./anatomy) — region and specimen filters.

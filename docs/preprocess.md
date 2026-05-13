@@ -1,94 +1,77 @@
 ---
 title: Preprocessing
-description: The one-time Python step that converts the raw paper dataset into web-friendly typed-array blobs.
+description: The one-time conversion from the published dataset to the binary bundle the viewer loads.
 ---
 
 # Preprocessing
 
-The viewer doesn't load the raw `.npy` files directly. `scripts/preprocess.py` reads the Figshare dump and writes a manifest plus a handful of typed-array `.bin` blobs to `./preprocessed/`.
+The viewer does not load the published `.npy` files directly. A one-time preprocessing step reads the Figshare distribution and writes a manifest plus a set of typed-array blobs that together make up the bundle the viewer fetches at startup.
 
-::: info You probably won't run this
-End users of the deployed site never run preprocessing — they get the preprocessed bundle for free. This page exists so you can understand the editorial decisions baked into the data, not so you can replicate them.
-:::
+This page documents the decisions baked into that conversion, so that quantities seen in the viewer can be related back to the published dataset.
 
-## Input → output
+## Input and output
 
 ```
-data/
-  Fish1/, Fish2/, Fish3/    ── raw per-fish folders
-  postprocessed/             ── cell-level analysis arrays
-                                from the manuscript pipeline
+Source: per-specimen folders and post-processed analysis arrays
+        from the manuscript pipeline (~30 GB total).
 
-           │
-           ▼   python3 scripts/preprocess.py
-
-preprocessed/
-  neurons.json               ── manifest (cell count, names, ranges)
-  *.bin                      ── typed-array blobs
-                                (positions, gene matrices, traces, …)
+Output: a manifest (neurons.json) and a set of typed-array blobs
+        (positions, gene matrices, traces, …) totaling ~210 MB.
 ```
-
-Output is ~210 MB total. The raw input is ~30 GB.
 
 ## Transformations, in order
 
 ### Cell filter
 
-Keep only cells with valid coordinates. The remaining ~274,455 cells pass through every other step. NaN values in the activity-trace and stim-correlation arrays are zero-filled (rather than dropping the cell entirely) so the cell still has a position and a transcriptomic identity even if the functional readout is missing.
+Only cells with valid coordinates are retained; approximately 274,455 cells pass through every subsequent step. NaN values in the calcium-trace and stimulus-correlation arrays are zero-filled rather than dropped, so a cell retains its position and transcriptomic identity even when its functional readout is unavailable.
 
-### Coordinate fix
+### Coordinate reorientation
 
-- Reorder `(z, x, y) → (x, y, z)` to match three.js convention.
-- Center on the origin so the orbit pivot is meaningful.
-- Flip the AP axis so anterior renders at the *top* of the screen instead of the bottom.
+- Axes are reordered to match the renderer's convention.
+- Coordinates are centered on the origin so that the orbit pivot is meaningful.
+- The AP axis is flipped so that anterior renders upward.
 
 ### Trace downsampling
 
-The original calcium traces are 268 timepoints at 2 Hz. The preprocessor **boxcar-downsamples by 2×** to 134 timepoints at 1 Hz, halving the wire size with no perceptible loss for the smooth ΔF/F signals.
-
-The same downsample is applied to the shared stimulus regressor traces so the on-window timings stay aligned with the cell traces.
+The published calcium traces are 268 samples at 2 Hz. A 2× boxcar downsample yields 134 samples at 1 Hz. The same downsample is applied to the stimulus regressors so that on-window timings remain aligned with the cell traces.
 
 ### Trace quantization
 
-The downsampled traces are **affine-quantized to uint16** over an auto-fit range. This roughly halves the trace file again and — crucially — pushes it below the browser's per-resource HTTP-cache cap, so the trace blob stays cached across reloads.
+The downsampled traces are affine-quantized to uint16 over an auto-fit range. The quantization step is roughly three orders of magnitude below the per-sample measurement noise, making the conversion effectively lossless. The resulting file fits below the browser's per-resource HTTP-cache limit and therefore persists across reloads.
 
-The quantization step (~1e-4) is ~1000× below per-sample measurement noise, so the loss is effectively lossless.
+### Specimen ID remapping
 
-### Fish ID remap
-
-Source fish are labeled `59 / 63 / 71` in the raw data. The preprocessor remaps them to a dense `0 / 1 / 2` for the viewer's arrays. Any unknown ID raises an error rather than silently aliasing to `0`.
+Source-specimen labels in the published data are remapped to a dense 0 / 1 / 2 for use within the viewer's arrays. Unknown labels raise an error rather than silently aliasing.
 
 ### t-SNE rescaling {#tsne}
 
-The t-SNE embedding is centered and scaled to roughly the `[-50, 50]` box. This keeps the t-SNE panel's pixel projection independent of the upstream embedding scale — change the upstream parameters and the viewer still renders to the same size.
+The t-SNE embedding is centered and scaled to approximately the `[-50, 50]` box. This decouples the pixel projection in the viewer from the absolute scale of the upstream embedding.
 
 ### Cluster alignment
 
-Indices 1..332 in `clusterIds` align one-to-one with the 332 named subtypes. Index 0 is reserved for `Unassigned`. The preprocessor uses `cluster_labelsAll2`, **not** the permuted `cluster_labelsAll3` — a subtle gotcha if you read the upstream files directly. Cluster *names* (e.g. `pou4f2_cckb`) are the stable identifier across dataset versions; the indices can shift.
+Indices 1…332 in the cluster array correspond one-to-one with the 332 named subtypes. Index 0 is reserved for *Unassigned*. Cluster *names* (e.g. `pou4f2_cckb`) are the stable identifiers across dataset versions; indices may shift.
 
-### Anatomy mapping {#anatomy-mapping}
+### Region names {#anatomy-mapping}
 
-A hand-built `Brain_reg → anatomy` mapping collapses the upstream ~112-region atlas to the 16 focal regions the viewer exposes (plus "Unassigned" at index 0).
-
-The mapping was recovered offline by intersecting `Brain_reg` with the 112-region atlas overlap and is hard-coded in the script. If the upstream atlas changes the mapping needs to be regenerated; this is *not* automatic.
+The dataset assigns each cell to one of 16 focal anatomical groupings (plus *Unassigned* at index 0). The preprocessor attaches human-readable names to these 16 indices; the names are recovered by majority overlap against the finer ~112-region reference atlas and are included in the bundle.
 
 ### Stimulus on-windows
 
-The preprocessor extracts the stimulus on-windows in seconds from the downsampled regressor traces and writes them into the manifest. The Detail panel's ΔF/F trace overlay reads these to shade the right vertical bands.
+The stimulus on-windows, in seconds, are extracted from the downsampled regressor traces and written into the manifest. The Detail panel uses these to shade the corresponding bands on the ΔF/F trace.
 
 ## Manifest
 
-`neurons.json` is small (a few KB) and contains:
+The manifest is a small JSON file that records:
 
-- Cell count and gene / cluster / region / stimulus counts.
-- Name arrays (`geneNames`, `clusterNames`, `regionNames`, `stimulusNames`).
-- Stimulus on-windows in seconds.
-- The trace sample rate (1 Hz after the 2× downsample).
-- Trace quantization parameters (offset + scale to invert the uint16 encoding).
-- A list of binary blob filenames + their expected lengths.
+- cell count and the counts of genes, clusters, regions, and stimuli,
+- name arrays (genes, clusters, regions, stimuli),
+- stimulus on-windows in seconds,
+- the trace sample rate (1 Hz after downsampling),
+- quantization parameters needed to recover trace values,
+- the list of binary blobs and their expected sizes.
 
-The browser fetches the manifest first to learn how big each blob should be, then issues the blob fetches in parallel.
+The viewer fetches the manifest first to determine the size of each blob, then issues the remaining requests in parallel.
 
 ## Mock data
 
-If you need to demo the UI without the full preprocessed bundle, append `?mock=1` to the viewer URL. The app synthesizes a 10,000-cell dataset with plausible gene / cluster / stimulus distributions and skips the `fetch()` calls entirely. Mock data is for UI demos only — none of the numbers are meaningful.
+Appending `?mock=1` to the viewer URL bypasses the preprocessed bundle and synthesizes a 10,000-cell dataset with plausible gene, cluster, and stimulus distributions. Mock data is intended for UI demonstration only; none of the numerical values are meaningful.

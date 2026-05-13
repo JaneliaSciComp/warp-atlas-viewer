@@ -1,18 +1,18 @@
 ---
 title: Detail panel
-description: How to read the gene bar chart, ΔF/F trace, and per-stimulus correlation chart.
+description: Interpretation of the gene bar chart, ΔF/F trace, and per-stimulus correlation chart.
 ---
 
 # Detail panel
 
-The right-edge sidebar. It populates whenever you have a [selection](/selections):
+The right-edge sidebar. It populates whenever a [selection](/selections) is active:
 
-- **Click-focus on a cell** → the panel shows that one cell.
-- **Lasso selection** → the panel shows the *mean* over the lasso.
-- **Nothing selected** → the panel shows the mean over the [filter intersection](/filters/overview) (i.e. whatever's currently visible).
-- **Empty filter + nothing selected** → the panel prompts you to pick something.
+- **Click-focus on a cell** → the panel displays that one cell.
+- **Lasso selection** → the panel displays the *mean* across the lasso.
+- **No selection** → the panel displays the mean across the [filter intersection](/filters/overview) (i.e. whatever is currently visible).
+- **Empty filter and no selection** → the panel prompts for a selection.
 
-Collapse with the **‹** handle on the panel's left edge.
+The **‹** handle on the panel's left edge collapses it.
 
 ## Charts
 
@@ -21,27 +21,27 @@ Collapse with the **‹** handle on the panel's left edge.
 A horizontal bar chart of per-gene FISH spot counts.
 
 - **Single cell:** raw spot counts for each of the 41 panel genes.
-- **Selection:** **mean** spot count per gene across the selected cells.
-- Bars at zero are hidden — only genes with non-zero expression in the selection appear.
-- Bars are sorted descending. If the selection expresses more than 20 genes, the panel truncates and shows a count of how many more were hidden.
+- **Group selection:** the mean spot count per gene across the selection.
+- Bars at zero are omitted; only genes with non-zero expression appear.
+- Bars are sorted by magnitude (descending). If more than 20 genes have non-zero values, the panel truncates and reports the number hidden.
 
-::: tip How to read it
-For a single cell, the bar lengths are a fingerprint of which genes are detectable. For a group, the same bars tell you the dominant transcriptomic identity of the group — useful for naming an unfamiliar lasso selection.
+::: tip Reading the bar chart
+For a single cell, the bars are a fingerprint of detectable genes. For a group, the same bars summarize the dominant transcriptomic identity — useful for identifying an unfamiliar lasso selection.
 :::
 
 ### 2. Mean ΔF/F trace
 
-A line chart of the calcium-imaging signal as a function of time.
+A line chart of the calcium-imaging signal over time.
 
-- **X-axis:** seconds (a full cycle is ~134 s; one cycle contains all 8 stimuli back-to-back).
-- **Y-axis:** ΔF/F, the standard relative-fluorescence readout. Higher = more active.
-- **Single cell:** that cell's trace.
-- **Selection:** the *mean* trace across the selection.
-- **Shaded vertical bands:** when each stimulus was on. The colors correspond to the [stimulus icons](/filters/stimuli#the-eight-stimuli) used in the Visual Stimuli card.
-- **Vertical scrub cursor:** if Colors is set to **Activity**, the time point currently driving the brain's color is shown as a yellow vertical line. Drag the Activity time slider or hit play to see the trace cursor move in lockstep with the brain.
+- **X-axis:** seconds. One full cycle is approximately 134 s and contains all 8 stimuli back-to-back.
+- **Y-axis:** ΔF/F.
+- **Single cell:** the cell's trace.
+- **Group selection:** the mean trace across the selection.
+- **Shaded vertical bands:** stimulus on-windows. The band colors correspond to the [stimulus icons](/filters/stimuli#the-eight-stimuli) in the Visual Stimuli card.
+- **Vertical scrub cursor:** when Colors is set to **Activity**, the current time point is indicated by a yellow vertical line. Dragging the Activity time slider or starting playback moves the cursor in lockstep with the brain coloring.
 
 ::: warning Single-cell traces are noisy
-A single zebrafish cell's calcium trace is intrinsically noisy — group-averaging (lasso a cluster) is usually more informative than focusing one cell.
+Single-cell calcium traces are intrinsically noisy. For most interpretation, lasso-averaged group traces are more informative than single-cell traces.
 :::
 
 ### 3. Per-stimulus correlation
@@ -50,24 +50,24 @@ A bar chart of the Pearson r between the (mean) trace and each of the 8 stimulus
 
 - **X-axis:** the 8 stimuli, in order.
 - **Y-axis:** Pearson r (can be negative).
-- Positive r ≈ the cell ramps up when the stimulus is on. Negative r ≈ the cell suppresses.
-- The [Stim correlation Colors scheme](/filters/colors#stim-correlation) paints the brain by this same value.
+- Positive r corresponds to activation during the stimulus on-window; negative r corresponds to suppression.
+- The [Stim correlation Colors scheme](/filters/colors#stim-correlation) paints the brain by the same value.
 
 ::: tip Reading negative correlations
-Strongly negative bars are real signals — they mark inhibitory or anti-correlated populations. The dorsal-raphe `gad1b_tph2_gfra1a` preset ([Findings](/findings)) is a good example.
+Strongly negative bars are meaningful signals, identifying inhibitory or anti-correlated populations. The dorsal-raphe `gad1b_tph2_gfra1a` preset ([Findings](/findings)) provides a worked example.
 :::
 
-### 4. Per-fish breakdown
+### 4. Per-specimen breakdown
 
-Below the charts the panel shows how the selection splits across the 3 source fish (counts and percentages). A selection driven by a single fish is a flag to double-check that the finding holds across all three.
+Below the charts, the panel reports how the selection partitions across the 3 source specimens (counts and percentages). A selection dominated by a single specimen warrants a check that the finding holds across all three.
 
 ## Selection precedence
 
-When multiple things are selected at once, the panel obeys this order:
+When multiple sources could populate the Detail panel, the following order applies:
 
-1. **Focused neuron** (click) — always wins.
-2. **Lasso polygon** (drag in t-SNE) — used if no click-focus.
-3. **Filter intersection** — used if nothing is explicitly selected.
+1. **Focused cell** (click) — always takes precedence.
+2. **Lasso polygon** (drag in t-SNE) — used in the absence of a click-focus.
+3. **Filter intersection** — used when nothing is explicitly selected.
 4. **Empty** — prompt shown when neither filter nor selection produces any cells.
 
-To drop level 1, click empty space in the 3D viewer or use the clear-selection button. To drop level 2, use the same clear-selection button (top of the t-SNE).
+To clear level 1, click empty space in the 3D viewer or use the clear-selection button. To clear level 2, use the same clear-selection button at the top of the t-SNE.
