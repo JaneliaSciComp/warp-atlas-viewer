@@ -82,13 +82,31 @@ html.dark {
 /* The hero's `.text` and `.tagline` lines get a tight 592px cap by
    default, which makes our one-sentence subheadline wrap into a
    narrow column. Widen the whole .main column so the text breathes
-   on desktop while still wrapping nicely on small screens. */
+   on desktop while still wrapping nicely on small screens. Also dial
+   the subheadline font down a notch — VitePress's default sits at
+   ~56px on desktop, which is louder than the sentence wants. */
 .VPHero .container .main {
   max-width: 100%;
 }
 .VPHero .text,
 .VPHero .tagline {
   max-width: 880px;
+}
+.VPHero .text {
+  font-size: 28px;
+  line-height: 36px;
+}
+@media (min-width: 640px) {
+  .VPHero .text {
+    font-size: 32px;
+    line-height: 40px;
+  }
+}
+@media (min-width: 960px) {
+  .VPHero .text {
+    font-size: 36px;
+    line-height: 44px;
+  }
 }
 
 /* Mono inline code that doesn't fight prose */
