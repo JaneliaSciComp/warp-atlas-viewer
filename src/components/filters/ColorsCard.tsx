@@ -7,6 +7,7 @@ const COLOR_SCHEMES: Array<{ value: ColorMode; label: string }> = [
   { value: 'region', label: 'Region' },
   { value: 'gene', label: 'Gene expression' },
   { value: 'stim', label: 'Stim correlation' },
+  { value: 'swim', label: 'Swim correlation' },
   { value: 'activity', label: 'Activity' },
   { value: 'fish', label: 'Specimen' },
 ];

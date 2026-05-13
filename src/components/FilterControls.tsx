@@ -5,6 +5,7 @@ import { AnatomyCard } from './filters/AnatomyCard';
 import { ColorsCard } from './filters/ColorsCard';
 import { HelpTab } from './filters/HelpTab';
 import { SettingsTab } from './filters/SettingsTab';
+import { SwimCard } from './filters/SwimCard';
 import { TranscriptomicsCard } from './filters/TranscriptomicsCard';
 import { CrossSep, ResetButton } from './filters/shared';
 
@@ -84,6 +85,8 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
               <TranscriptomicsCard data={data} filter={filter} update={update} />
               <CrossSep />
               <ActivityCard data={data} filter={filter} update={update} />
+              <CrossSep />
+              <SwimCard filter={filter} update={update} />
               <CrossSep />
               <AnatomyCard
                 data={data}

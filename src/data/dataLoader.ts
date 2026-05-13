@@ -25,6 +25,7 @@ interface ManifestV2 {
     geneBinary: string;
     umap: string;
     stimulusCorr: string;
+    swimCorr: string;
     activityTrace: string;
     regressors?: string;
   };
@@ -144,6 +145,7 @@ function expectedBytes(
     case 'geneBinary':    return C * G;     // uint8
     case 'umap':          return C * 2 * 4; // float32
     case 'stimulusCorr':  return C * S * 4; // float32
+    case 'swimCorr':      return C * 4;     // float32
     case 'activityTrace': return C * T * 2; // uint16
     case 'regressors':    return S * T * 4; // float32, NOT per-cell
   }
@@ -226,7 +228,8 @@ async function loadFromManifest(
   // List of binary files we need (skip optional regressors if absent).
   const fileKeys: Array<keyof ManifestV2['files']> = [
     'positions', 'regionIds', 'clusterIds', 'fishIds',
-    'geneCounts', 'geneBinary', 'umap', 'stimulusCorr', 'activityTrace',
+    'geneCounts', 'geneBinary', 'umap', 'stimulusCorr', 'swimCorr',
+    'activityTrace',
   ];
   if (m.files.regressors) fileKeys.push('regressors');
 
@@ -290,6 +293,7 @@ async function loadFromManifest(
     geneBinary: new Uint8Array(lookup.get('geneBinary')!),
     umap: new Float32Array(lookup.get('umap')!),
     stimulusCorr: new Float32Array(lookup.get('stimulusCorr')!),
+    swimCorr: new Float32Array(lookup.get('swimCorr')!),
     activityTrace: decodeActivityTrace(lookup.get('activityTrace')!, m.activityTraceQuant),
     traceLength: m.traceLength,
     traceSampleRateHz: m.traceSampleRateHz ?? 1.0,

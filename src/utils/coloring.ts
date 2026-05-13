@@ -1,5 +1,5 @@
 import type { NeuronDataset, FilterState, SelectionState, SettingsState } from '../data/types';
-import { regionColor, fishColor, plasma } from './colorMaps';
+import { regionColor, fishColor, plasma, coolwarm } from './colorMaps';
 
 const DIM_RGB: [number, number, number] = [0.30, 0.30, 0.32];
 const DIM_ALPHA = 0.10;
@@ -36,6 +36,9 @@ export interface CellPredicates {
   passesTx: boolean;
   /** Whether the cell passes the active stimulus filter. */
   passesStim: boolean;
+  /** Whether the cell passes the active swim-correlation filter. True
+   *  when swimMode === 'off'. */
+  passesSwim: boolean;
 }
 
 export function cellPasses(
@@ -99,7 +102,22 @@ export function cellPasses(
     }
   }
 
-  return { inRegion, passesTx, passesStim };
+  // Swim filter: behavioral regressor, signed. 'positive' keeps cells
+  // whose calcium activity tracks swim power (r ≥ +swimLo); 'negative'
+  // keeps anti-correlated cells (r ≤ −swimLo); 'both' is the union; 'off'
+  // (default) leaves everything in.
+  let passesSwim = true;
+  if (filter.swimMode !== 'off') {
+    const r = ds.swimCorr[i];
+    const lo = settings.swimLo;
+    switch (filter.swimMode) {
+      case 'positive': passesSwim = r >=  lo; break;
+      case 'negative': passesSwim = r <= -lo; break;
+      case 'both':     passesSwim = r >=  lo || r <= -lo; break;
+    }
+  }
+
+  return { inRegion, passesTx, passesStim, passesSwim };
 }
 
 /** True iff cell `i` is inside the intersection of every active filter. */
@@ -110,7 +128,7 @@ export function cellInSet(
   i: number,
 ): boolean {
   const p = cellPasses(ds, filter, settings, i);
-  return p.inRegion && p.passesTx && p.passesStim;
+  return p.inRegion && p.passesTx && p.passesStim && p.passesSwim;
 }
 
 /** True iff at least one filter dimension is constraining. The activity
@@ -123,7 +141,8 @@ export function anyFilterActive(ds: NeuronDataset, filter: FilterState): boolean
     filter.isolatedFish >= 0 ||
     (filter.txMode === 'gene' && filter.selectedGenes.length > 0) ||
     (filter.txMode === 'subtype' && !filter.clusterAll) ||
-    stimsActive
+    stimsActive ||
+    filter.swimMode !== 'off'
   );
 }
 
@@ -148,7 +167,7 @@ export function applyColoring(
   selection: SelectionState,
   out: ColoringResult,
 ): void {
-  const { count, regionIds, clusterIds, geneCounts, geneBinary, stimulusCorr, activityTrace, traceLength } = ds;
+  const { count, regionIds, clusterIds, geneCounts, geneBinary, stimulusCorr, swimCorr, activityTrace, traceLength } = ds;
   const { colors, alphas, sizes } = out;
   const G = ds.geneNames.length;
   const S = ds.stimulusNames.length;
@@ -169,6 +188,12 @@ export function applyColoring(
   // small but positive so plasma still maps without dividing by zero.
   const stimLo = settings.stimLo;
   const stimRange = Math.max(0.001, settings.stimHi - settings.stimLo);
+  // Swim coloring anchors: symmetric around 0. Below |r| = swimLo the
+  // cell maps to the neutral midpoint of the divergent ramp; above
+  // |r| = swimHi it saturates at the corresponding end. Clamp the divisor
+  // so swimHi <= swimLo (transient slider state) doesn't divide by zero.
+  const swimLoSetting = settings.swimLo;
+  const swimRange = Math.max(0.001, settings.swimHi - settings.swimLo);
   // Gene scheme anchors and the per-cell base size also come from
   // settings.
   const geneMaxSpots = Math.max(1, settings.geneMaxSpots);
@@ -229,7 +254,7 @@ export function applyColoring(
     let r = 0, g = 0, b = 0, alpha = 0.85, size = baseSize;
 
     const p = cellPasses(ds, filter, settings, i);
-    const inSet = p.inRegion && p.passesTx && p.passesStim;
+    const inSet = p.inRegion && p.passesTx && p.passesStim && p.passesSwim;
 
     if (!inSet) {
       // Two-tier dim: anatomical-context lift when the cell is inside
@@ -392,6 +417,29 @@ export function applyColoring(
             r = c[0]; g = c[1]; b = c[2];
             alpha = 1.0;
           }
+          break;
+        }
+        case 'swim': {
+          // Divergent ramp over signed swim correlation, anchored
+          // symmetrically at ±swimLo (neutral midpoint) and ±swimHi
+          // (saturation). Unlike plasma-based schemes there is no
+          // "background" tier — neutral cells live at the midpoint of
+          // the ramp (near-white) rather than dimming, so the user can
+          // still see the brain silhouette for context.
+          const rawS = swimCorr[i];
+          const mag = Math.abs(rawS);
+          // Map magnitude beyond the deadband [-swimLo, +swimLo] into
+          // [0, 1], preserving sign.
+          let v: number;
+          if (mag <= swimLoSetting) {
+            v = 0;
+          } else {
+            v = Math.min(1, (mag - swimLoSetting) / swimRange);
+          }
+          const signed = rawS >= 0 ? v : -v;
+          const c = coolwarm(signed);
+          r = c[0]; g = c[1]; b = c[2];
+          alpha = 1.0;
           break;
         }
       }

@@ -17,6 +17,10 @@ export interface NeuronDataset {
   umap: Float32Array;
   /** Per-stimulus correlation coefficient (or activity summary), length count*nStimuli. */
   stimulusCorr: Float32Array;
+  /** Pearson correlation between calcium activity and estimated swim power
+   *  per cell, length count. Signed: positive = swim-driven, negative =
+   *  anti-correlated with swimming. Derived from postprocessed/swim_corr_All. */
+  swimCorr: Float32Array;
   /** Single mean activity trace per neuron. Shape count × traceLength, row-major. */
   activityTrace: Float32Array;
   /** Length of each cell's activity trace. */
@@ -41,7 +45,16 @@ export interface NeuronDataset {
   source: 'mock' | 'real';
 }
 
-export type ColorMode = 'highlight' | 'region' | 'gene' | 'stim' | 'activity' | 'fish';
+export type ColorMode = 'highlight' | 'region' | 'gene' | 'stim' | 'swim' | 'activity' | 'fish';
+
+/** Swim-correlation filter state. Two independent toggles combined with OR:
+ *    'off'      → no swim filter (every cell qualifies)
+ *    'positive' → cell passes iff swimCorr >=  swimLo  (swim-driven)
+ *    'negative' → cell passes iff swimCorr <= -swimLo  (anti-swim)
+ *    'both'     → either toggle holds (i.e. |swimCorr| >= swimLo)
+ *  The "swim-driven" and "anti-swim" buttons in the SwimCard map a
+ *  pair of booleans into one of these four states. */
+export type SwimMode = 'off' | 'positive' | 'negative' | 'both';
 export type GeneScale = 'log' | 'linear';
 /** Which sub-filter the Transcriptomics panel exposes. The inactive
  *  sub-filter's index is preserved so the user can flip back to it
@@ -126,6 +139,13 @@ export interface FilterState {
    *  Only matters when `selectedStimuli.length >= 2`. */
   stimLogic: StimLogic;
 
+  // ── Swim (behavioral) filter ─────────────────────────────────────
+  /** Which signed band of swim-power correlation the swim card keeps.
+   *  See SwimMode for the semantics; 'off' (default) is the unfiltered
+   *  state. The threshold is `settings.swimLo` (symmetric for the
+   *  negative side). */
+  swimMode: SwimMode;
+
   // ── Activity color scheme ────────────────────────────────────────
   /** Sample index into activityTrace for the Activity color scheme.
    *  0..traceLength-1. Only influences rendering when
@@ -196,6 +216,16 @@ export interface SettingsState {
    *  is a typical strong-response ΔF/F for this dataset's traces; tune
    *  if probes / preprocessing change the dynamic range. */
   activityHi: number;
+  /** Magnitude floor for the swim-correlation filter and the dim end of
+   *  the swim color ramp. Symmetric: 'positive' mode keeps r ≥ +swimLo,
+   *  'negative' mode keeps r ≤ −swimLo. Default 0.15 — swim correlations
+   *  in WARP are tighter than visual-stimulus correlations (p5 ≈ −0.13,
+   *  p95 ≈ +0.35), so a 0.30 floor would hide almost everything. */
+  swimLo: number;
+  /** Saturation anchor for the swim color ramp. |r| ≥ swimHi clamps to
+   *  the ramp end. Default 0.35 — roughly the 95th percentile of
+   *  positive swim correlations in WARP. */
+  swimHi: number;
 }
 
 export const DEFAULT_SETTINGS: SettingsState = {
@@ -208,6 +238,8 @@ export const DEFAULT_SETTINGS: SettingsState = {
   enablePan: false,
   activityLo: 0.0,
   activityHi: 1.5,
+  swimLo: 0.15,
+  swimHi: 0.35,
 };
 
 export interface SelectionState {

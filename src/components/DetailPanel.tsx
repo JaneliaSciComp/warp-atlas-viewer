@@ -1,20 +1,22 @@
 import { useMemo } from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer,
   LineChart, Line, ReferenceLine, ReferenceArea, Customized,
 } from 'recharts';
-import type { NeuronDataset, FilterState, SelectionState } from '../data/types';
+import type { NeuronDataset, FilterState, SelectionState, SettingsState } from '../data/types';
 import { STIM_ICONS, STIM_LABELS, stimIndexFromName } from '../utils/stimAssets';
+import { coolwarm, rgbToHex } from '../utils/colorMaps';
 
 interface Props {
   data: NeuronDataset;
   filter: FilterState;
+  settings: SettingsState;
   selection: SelectionState;
   /** Single-neuron focus, takes precedence over the group selection. */
   focusedNeuron: number | null;
 }
 
-export function DetailPanel({ data, filter, selection, focusedNeuron }: Props) {
+export function DetailPanel({ data, filter, settings, selection, focusedNeuron }: Props) {
   // When a neuron is focused, the detail view shows just that cell;
   // otherwise it falls back to the group selection (t-SNE, cluster,
   // region). Empty-handed = the prompt below.
@@ -22,7 +24,10 @@ export function DetailPanel({ data, filter, selection, focusedNeuron }: Props) {
     if (focusedNeuron != null) return new Uint32Array([focusedNeuron]);
     return selection.indices;
   }, [focusedNeuron, selection.indices]);
-  const stats = useMemo(() => computeStats(data, indicesToShow), [data, indicesToShow]);
+  const stats = useMemo(
+    () => computeStats(data, indicesToShow, settings.swimLo),
+    [data, indicesToShow, settings.swimLo],
+  );
   const isFocused = focusedNeuron != null;
 
   if (!stats) {
@@ -54,6 +59,21 @@ export function DetailPanel({ data, filter, selection, focusedNeuron }: Props) {
   const stimRows: Array<{ stim: string; v: number }> = [];
   for (let s = 0; s < stats.stimulusMeans.length; s++) {
     stimRows.push({ stim: data.stimulusNames[s], v: stats.stimulusMeans[s] });
+  }
+
+  // 40-bin histogram of per-cell swim correlation across the selection.
+  // Bin centers span [-1+w/2, +1-w/2] with w = swimBinWidth. The center
+  // value doubles as a coolwarm-map lookup so each bar gets the same
+  // color it would have in the 3D viewer under Colors → Swim.
+  const swimBinRows: Array<{ x: number; count: number; fill: string }> = [];
+  const halfBin = stats.swimBinWidth / 2;
+  for (let b = 0; b < stats.swimBins.length; b++) {
+    const center = -1 + halfBin + b * stats.swimBinWidth;
+    swimBinRows.push({
+      x: center,
+      count: stats.swimBins[b],
+      fill: rgbToHex(coolwarm(center)),
+    });
   }
 
   // Convert sample index → seconds for the activity trace plot, so the
@@ -262,6 +282,73 @@ export function DetailPanel({ data, filter, selection, focusedNeuron }: Props) {
           </ResponsiveContainer>
         </div>
       </section>
+
+      <section className="mt-4">
+        <h3 className="text-xs font-semibold text-neutral-300 mb-1">
+          Swim correlation {isFocused ? '' : '(distribution)'}
+        </h3>
+        <div style={{ width: '100%', height: 110 }}>
+          <ResponsiveContainer>
+            <BarChart data={swimBinRows} margin={{ top: 4, right: 8, left: 4, bottom: 18 }}>
+              <XAxis
+                dataKey="x"
+                type="number"
+                domain={[-1, 1]}
+                ticks={[-1, -0.5, 0, 0.5, 1]}
+                tick={{ fontSize: 9, fill: TICK_FILL }}
+                stroke={REF_STROKE}
+                label={{ value: 'r vs swim power', position: 'insideBottom', offset: -2, fontSize: 10, fill: LABEL_FILL }}
+              />
+              <YAxis hide />
+              {/* Deadband around zero — cells inside it count as "off"
+                  for the pro/anti/off summary and map to the neutral
+                  midpoint of the swim color ramp. */}
+              <ReferenceArea
+                x1={-settings.swimLo}
+                x2={settings.swimLo}
+                fill="#737373"
+                fillOpacity={0.18}
+                ifOverflow="visible"
+              />
+              <ReferenceLine x={0} stroke={REF_STROKE} strokeDasharray="2 2" />
+              <ReferenceLine
+                x={stats.swimMean}
+                stroke="#fde047"
+                strokeWidth={1.4}
+                ifOverflow="visible"
+                label={{ value: 'mean', position: 'top', fontSize: 9, fill: '#fde047' }}
+              />
+              <Tooltip
+                contentStyle={TOOLTIP_STYLE}
+                cursor={TOOLTIP_CURSOR_FILL}
+                formatter={(v: number) => [`${v} cell${v === 1 ? '' : 's'}`, 'count']}
+                labelFormatter={(t: number) =>
+                  `r ∈ [${(t - halfBin).toFixed(2)}, ${(t + halfBin).toFixed(2)}]`
+                }
+              />
+              <Bar dataKey="count" barSize={7} isAnimationActive={false}>
+                {swimBinRows.map((row, idx) => (
+                  <Cell key={idx} fill={row.fill} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="text-[10px] text-neutral-500 font-mono mt-0.5 space-y-0.5">
+          {isFocused ? (
+            <div>r = {formatSigned(stats.swimMean)}</div>
+          ) : (
+            <>
+              <div>
+                mean {formatSigned(stats.swimMean)} · range {formatSigned(stats.swimMin)} .. {formatSigned(stats.swimMax)}
+              </div>
+              <div>
+                pro {stats.swimPos} ({pct(stats.swimPos, indicesToShow.length)}) · anti {stats.swimNeg} ({pct(stats.swimNeg, indicesToShow.length)}) · off {stats.swimOff} ({pct(stats.swimOff, indicesToShow.length)})
+              </div>
+            </>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
@@ -363,7 +450,7 @@ function topItems(counts: Map<number, number>, names: string[], k: number): stri
     .join(', ');
 }
 
-function computeStats(data: NeuronDataset, indices: Uint32Array) {
+function computeStats(data: NeuronDataset, indices: Uint32Array, swimLo: number) {
   if (indices.length === 0) return null;
   const G = data.geneNames.length;
   const S = data.stimulusNames.length;
@@ -375,6 +462,19 @@ function computeStats(data: NeuronDataset, indices: Uint32Array) {
   const regionCounts = new Map<number, number>();
   const clusterCounts = new Map<number, number>();
   const fishCounts = new Map<number, number>();
+  // Swim correlation summary. swimMean matches the per-stimulus chart's
+  // arithmetic-mean convention. swimPos/Neg/Off partition the selection
+  // by the user's responsive-floor magnitude so a mixed group doesn't
+  // average to a misleading near-zero. swimBins is a 40-bin histogram
+  // over [-1, +1] used by the Detail-panel swim chart.
+  const SWIM_BINS = 40;
+  const SWIM_BIN_WIDTH = 2 / SWIM_BINS; // 0.05
+  const swimBins = new Uint32Array(SWIM_BINS);
+  let swimSum = 0;
+  let swimPos = 0;
+  let swimNeg = 0;
+  let swimMin = Infinity;
+  let swimMax = -Infinity;
 
   for (let k = 0; k < indices.length; k++) {
     const i = indices[k];
@@ -382,6 +482,18 @@ function computeStats(data: NeuronDataset, indices: Uint32Array) {
     for (let s = 0; s < S; s++) stimulusMeans[s] += data.stimulusCorr[i * S + s];
     const traceBase = i * T;
     for (let t = 0; t < T; t++) meanTrace[t] += data.activityTrace[traceBase + t];
+    const sr = data.swimCorr[i];
+    swimSum += sr;
+    if (sr >=  swimLo) swimPos++;
+    else if (sr <= -swimLo) swimNeg++;
+    if (sr < swimMin) swimMin = sr;
+    if (sr > swimMax) swimMax = sr;
+    // Map [-1, +1] to bin index [0, SWIM_BINS-1]; values outside the
+    // range clamp to the edge bins so e.g. r=−1.05 doesn't underflow.
+    let bin = Math.floor((sr + 1) / SWIM_BIN_WIDTH);
+    if (bin < 0) bin = 0;
+    if (bin >= SWIM_BINS) bin = SWIM_BINS - 1;
+    swimBins[bin]++;
     inc(regionCounts, data.regionIds[i]);
     inc(clusterCounts, data.clusterIds[i]);
     inc(fishCounts, data.fishIds[i]);
@@ -390,10 +502,27 @@ function computeStats(data: NeuronDataset, indices: Uint32Array) {
   for (let g = 0; g < G; g++) geneMeans[g] *= inv;
   for (let s = 0; s < S; s++) stimulusMeans[s] *= inv;
   for (let t = 0; t < T; t++) meanTrace[t] *= inv;
+  const swimMean = swimSum * inv;
+  const swimOff = indices.length - swimPos - swimNeg;
 
-  return { geneMeans, stimulusMeans, meanTrace, regionCounts, clusterCounts, fishCounts };
+  return {
+    geneMeans, stimulusMeans, meanTrace,
+    regionCounts, clusterCounts, fishCounts,
+    swimMean, swimPos, swimNeg, swimOff,
+    swimMin, swimMax, swimBins, swimBinWidth: SWIM_BIN_WIDTH,
+  };
 }
 
 function inc<K>(m: Map<K, number>, k: K) {
   m.set(k, (m.get(k) ?? 0) + 1);
+}
+
+function formatSigned(v: number): string {
+  const s = Math.abs(v).toFixed(2);
+  return v < 0 ? `-${s}` : `+${s}`;
+}
+
+function pct(n: number, total: number): string {
+  if (total <= 0) return '0%';
+  return `${Math.round((n / total) * 100)}%`;
 }

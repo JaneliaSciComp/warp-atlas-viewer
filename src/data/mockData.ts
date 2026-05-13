@@ -40,6 +40,7 @@ export function generateMockData(n: number = 10000): NeuronDataset {
   const geneBinary = new Uint8Array(n * N_GENES);
   const umap = new Float32Array(n * 2);
   const stimulusCorr = new Float32Array(n * N_STIMULI);
+  const swimCorr = new Float32Array(n);
   const activityTrace = new Float32Array(n * TIMEPOINTS);
 
   // Brain shape: ellipsoid.
@@ -52,6 +53,7 @@ export function generateMockData(n: number = 10000): NeuronDataset {
     region: number;
     geneSig: number[];
     stimSig: number[];
+    swimSig: number;
   }> = [];
   for (let c = 0; c < MOCK_N_CLUSTERS; c++) {
     const region = Math.floor(rand() * N_REGIONS);
@@ -63,6 +65,7 @@ export function generateMockData(n: number = 10000): NeuronDataset {
       region,
       geneSig: pickK(N_GENES, 2 + Math.floor(rand() * 4), rand),
       stimSig: Array.from({ length: N_STIMULI }, () => rand() * 0.9 - 0.1),
+      swimSig: (rand() - 0.5) * 0.8,
     });
   }
 
@@ -96,6 +99,7 @@ export function generateMockData(n: number = 10000): NeuronDataset {
     for (let s = 0; s < N_STIMULI; s++) {
       stimulusCorr[i * N_STIMULI + s] = c.stimSig[s] + randn() * 0.05;
     }
+    swimCorr[i] = c.swimSig + randn() * 0.08;
     const phase = cid * 0.3;
     for (let t = 0; t < TIMEPOINTS; t++) {
       const x = t / TIMEPOINTS;
@@ -153,6 +157,7 @@ export function generateMockData(n: number = 10000): NeuronDataset {
     geneBinary,
     umap,
     stimulusCorr,
+    swimCorr,
     activityTrace,
     traceLength: TIMEPOINTS,
     traceSampleRateHz: 1.0,

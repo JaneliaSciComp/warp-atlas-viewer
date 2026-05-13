@@ -86,6 +86,7 @@ def main():
     tsne = np.load(PP / 'tsne_results_20240527.npy') # (N, 2)
     trace = np.load(PP / 'dff_traceAllavg.npy')      # (N, 268)
     stim_corr = np.load(PP / 'high_corr_perSimMix.npy')   # (N, 8)
+    swim_corr = np.load(PP / 'swim_corr_All.npy')        # (N,)  Pearson r vs swim power
     cluster_names_raw = np.load(PP / 'good_cls_names.npy')  # (332,)
     regressors_avg = np.load(PP / 'regressors_avg.npy')     # (8, 268)
 
@@ -108,6 +109,7 @@ def main():
     tsne = tsne[keep_idx].astype(np.float32)
     trace = np.nan_to_num(trace[keep_idx], copy=False).astype(np.float32)
     stim_corr = np.nan_to_num(stim_corr[keep_idx], copy=False).astype(np.float32)
+    swim_corr = np.nan_to_num(swim_corr[keep_idx], copy=False).astype(np.float32)
 
     # Downsample the activity trace temporally by 2x using simple boxcar
     # averaging. Keeps stimulus-onset dynamics visible while halving the
@@ -217,6 +219,7 @@ def main():
         'geneBinary': ('geneBinary.bin', genes_bin),
         'umap': ('umap.bin', umap),
         'stimulusCorr': ('stimulusCorr.bin', stim_corr),
+        'swimCorr': ('swimCorr.bin', swim_corr),
         'activityTrace': ('activityTrace.bin', trace_q),
         'regressors': ('regressors.bin', regressors_avg.astype(np.float32)),
     }

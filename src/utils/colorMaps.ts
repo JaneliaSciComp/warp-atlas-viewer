@@ -16,6 +16,29 @@ export function plasma(t: number): [number, number, number] {
   return sampleStops(PLASMA_STOPS, t);
 }
 
+// Coolwarm — perceptually uniform diverging map (deep blue → near-white
+// → deep red), suitable for signed quantities like swim correlation
+// where 0 sits at the visually neutral midpoint. 11 stops sampled from
+// matplotlib's coolwarm. Pass t in [-1, +1] (it's symmetric around 0).
+const COOLWARM_STOPS: Array<[number, number, number]> = [
+  [0.230, 0.299, 0.754], // -1.0  deep blue
+  [0.353, 0.470, 0.871],
+  [0.487, 0.625, 0.953],
+  [0.624, 0.751, 0.996],
+  [0.748, 0.842, 0.992],
+  [0.866, 0.866, 0.866], //  0.0  neutral gray
+  [0.957, 0.811, 0.728],
+  [0.969, 0.703, 0.589],
+  [0.953, 0.557, 0.442],
+  [0.886, 0.395, 0.314],
+  [0.706, 0.016, 0.150], // +1.0  deep red
+];
+
+export function coolwarm(t: number): [number, number, number] {
+  // Map t from [-1, +1] to [0, 1] then sample.
+  return sampleStops(COOLWARM_STOPS, (t + 1) / 2);
+}
+
 function sampleStops(stops: Array<[number, number, number]>, t: number): [number, number, number] {
   if (t <= 0) return stops[0];
   if (t >= 1) return stops[stops.length - 1];

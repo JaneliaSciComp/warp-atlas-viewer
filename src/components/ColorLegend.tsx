@@ -1,6 +1,6 @@
 import type { ReactNode, CSSProperties } from 'react';
 import type { NeuronDataset, FilterState, SettingsState } from '../data/types';
-import { regionColor, fishColor, plasma, rgbToHex } from '../utils/colorMaps';
+import { regionColor, fishColor, plasma, coolwarm, rgbToHex } from '../utils/colorMaps';
 
 interface Props {
   data: NeuronDataset;
@@ -17,6 +17,14 @@ const PLASMA_STOP_COUNT = 16;
 const PLASMA_GRADIENT = `linear-gradient(to right, ${Array.from(
   { length: PLASMA_STOP_COUNT },
   (_, i) => rgbToHex(plasma(i / (PLASMA_STOP_COUNT - 1))),
+).join(', ')})`;
+
+// Coolwarm divergent ramp used by the swim color scheme. Built once
+// the same way so the swim legend stays in sync with utils/colorMaps.
+const COOLWARM_STOP_COUNT = 21;
+const COOLWARM_GRADIENT = `linear-gradient(to right, ${Array.from(
+  { length: COOLWARM_STOP_COUNT },
+  (_, i) => rgbToHex(coolwarm(-1 + (2 * i) / (COOLWARM_STOP_COUNT - 1))),
 ).join(', ')})`;
 
 interface GradientLegendProps {
@@ -258,6 +266,51 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
         formatTick={(t) => t.toFixed(1)}
         positionStyle={positionStyle}
       />
+    );
+  }
+  if (filter.colorMode === 'swim') {
+    // Divergent ramp from −swimHi to +swimHi, with the user-configured
+    // floor (swimLo) marking the inner dead-band where cells map to
+    // the neutral midpoint. Symmetric so positive and negative
+    // populations read by sign-of-color rather than magnitude alone.
+    const lo = settings.swimLo;
+    const hi = settings.swimHi;
+    const range = Math.max(0.001, 2 * hi); // -hi → +hi
+    const ticks = [-hi, -lo, 0, lo, hi];
+    const tickPos = (t: number) => ((t + hi) / range) * 100;
+    return (
+      <div
+        style={positionStyle}
+        className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200"
+      >
+        <div className="text-neutral-400 mb-1 whitespace-nowrap">Swim correlation</div>
+        <div className="relative w-32">
+          <div className="h-3 border border-neutral-700" style={{ background: COOLWARM_GRADIENT }} />
+          <div className="relative h-3 mt-0.5 text-[9px] text-neutral-400">
+            {ticks.map((t, idx) => {
+              const transform =
+                idx === 0
+                  ? 'translateX(0)'
+                  : idx === ticks.length - 1
+                    ? 'translateX(-100%)'
+                    : 'translateX(-50%)';
+              return (
+                <span
+                  key={t}
+                  className="absolute"
+                  style={{
+                    left: `${Math.min(100, Math.max(0, tickPos(t)))}%`,
+                    transform,
+                  }}
+                >
+                  {t === 0 ? '0' : t.toFixed(2)}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+        <div className="text-[9px] text-neutral-500 mt-3">Pearson r vs swim power</div>
+      </div>
     );
   }
   // stim correlation — 1D plasma from STIM_LO to STIM_HI, mirroring the

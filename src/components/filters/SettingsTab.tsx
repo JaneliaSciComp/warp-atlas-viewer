@@ -21,7 +21,9 @@ export function SettingsTab({
     settings.pointSize !== DEFAULT_SETTINGS.pointSize ||
     settings.enablePan !== DEFAULT_SETTINGS.enablePan ||
     settings.activityLo !== DEFAULT_SETTINGS.activityLo ||
-    settings.activityHi !== DEFAULT_SETTINGS.activityHi;
+    settings.activityHi !== DEFAULT_SETTINGS.activityHi ||
+    settings.swimLo !== DEFAULT_SETTINGS.swimLo ||
+    settings.swimHi !== DEFAULT_SETTINGS.swimHi;
   return (
     <div className="flex flex-col gap-6 pb-3 text-xs font-mono text-neutral-300 max-w-2xl">
       <button
@@ -150,6 +152,37 @@ export function SettingsTab({
           max={1}
           step={0.05}
           onChange={(v) => update({ stimHi: v })}
+        />
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+          Swim correlation cutoffs
+        </div>
+        <p className="text-neutral-400 leading-snug">
+          Magnitude thresholds for the signed swim-power correlation.
+          The <span className="text-neutral-200">floor</span> sets the
+          dead-band around zero — cells with |r| below it are treated as
+          unresponsive (neutral midpoint of the swim color ramp; rejected
+          by the swim filter). The <span className="text-neutral-200">saturation</span> sets
+          the |r| at which the divergent ramp reaches its endpoints.
+          Defaults are tuned to WARP's tighter swim distribution.
+        </p>
+        <NumberRow
+          label="responsive floor (|r| ≥)"
+          value={settings.swimLo}
+          min={0}
+          max={settings.swimHi - 0.01}
+          step={0.05}
+          onChange={(v) => update({ swimLo: v })}
+        />
+        <NumberRow
+          label="saturation (|r| ≥)"
+          value={settings.swimHi}
+          min={settings.swimLo + 0.01}
+          max={1}
+          step={0.05}
+          onChange={(v) => update({ swimHi: v })}
         />
       </section>
 

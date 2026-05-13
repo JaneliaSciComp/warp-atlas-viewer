@@ -41,6 +41,7 @@ const INITIAL_FILTER: FilterState = {
   selectedStimuli: [],
   stimLogic: 'or',
   activitySample: 0,
+  swimMode: 'off',
 };
 
 const DETAIL_PANEL_WIDTH = 360;
@@ -451,7 +452,7 @@ export default function App() {
             main column reclaims the width. */}
         {detailOpen && (
           <aside className="relative min-h-0 min-w-0 border-l border-neutral-800 bg-neutral-900">
-            <DetailPanel data={data} filter={filter} selection={effectiveSelection} focusedNeuron={focusedNeuron} />
+            <DetailPanel data={data} filter={filter} settings={settings} selection={effectiveSelection} focusedNeuron={focusedNeuron} />
           </aside>
         )}
       </div>
