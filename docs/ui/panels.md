@@ -46,12 +46,3 @@ Top-right corner of the 3D viewer. The legend adapts to the active color scheme:
 
 See [Color legend](/ui/legend) for the details of each variant.
 
-## Bottom-edge metadata strip
-
-Above the filter strip, a single-line summary reports:
-
-- the number of cells currently visible (after filters),
-- the number of cells currently selected (lasso or focus),
-- the active color scheme.
-
-This serves as a quick check that a filter combination has not inadvertently emptied the view.

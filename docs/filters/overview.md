@@ -21,6 +21,10 @@ Each filter card has an "everything passes" default, typically a dropdown set to
 
 The Filters tab's **Reset** button reverts every card to its "all" default in one action.
 
+### Visible-cell readout {#visible-cell-readout}
+
+A small readout next to the reset button reports the **number of cells currently visible** after the active filters. It serves as a quick confirmation that a filter combination has not inadvertently emptied the view.
+
 ## OR versus AND within a card
 
 Two cards support a logical toggle on selections within them:

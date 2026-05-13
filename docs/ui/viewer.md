@@ -25,7 +25,7 @@ With pan **off** (default), the orbit pivot is locked to the volume's geometric 
 ## Contents
 
 - **Anatomy:** the mapzebrain reference frame. The camera starts oriented toward the dorsal surface.
-- **Cell count:** approximately 274,455 cells total. The number actually visible depends on the current filter combination; the bottom strip reports it.
+- **Cell count:** approximately 274,455 cells total. The number actually visible depends on the current filter combination; the [visible-cell readout](/filters/overview#visible-cell-readout) in the Filters tab reports it.
 - **Specimen mix:** every cell originates from one of 3 specimens, pooled by default. Use **Anatomy → specimen** to restrict to one specimen, or **Colors → Specimen** to paint by source specimen. See [Specimens](/filters/anatomy#specimens).
 
 ## Color encoding

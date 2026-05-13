@@ -44,7 +44,7 @@ With two or more stimuli selected, the **Stim correlation** color scheme paints 
 
 The responsive floor is conservative by default (`r = 0.1`). Lower it to include weakly correlated cells; raise it for a stricter "definitely responding" set.
 
-The **saturation** anchor on the same Settings row affects only the [Stim correlation color ramp](./colors#stim-correlation); it does not change the filter result. The cell-count readout in the bottom strip reports how many cells remain visible.
+The **saturation** anchor on the same Settings row affects only the [Stim correlation color ramp](./colors#stim-correlation); it does not change the filter result. The [visible-cell readout](./overview#visible-cell-readout) in the Filters tab reports how many cells remain visible.
 
 ## Worked example
 
