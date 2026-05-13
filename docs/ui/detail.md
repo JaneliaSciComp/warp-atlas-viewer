@@ -61,6 +61,17 @@ Strongly negative bars are meaningful signals, identifying inhibitory or anti-co
 
 Above the charts, the panel reports how the selection partitions across the 3 source specimens as counts. A selection dominated by a single specimen warrants a check that the finding holds across all three.
 
+## Using the panel with the paper
+
+For paper-guided inspection, use the Detail panel as a sanity check on the visible cells:
+
+- the gene bars should match the marker identity implied by the subtype or gene filter,
+- the ΔF/F trace should show peaks or suppressions at the shaded stimulus windows relevant to the figure,
+- the correlation chart is the best place to confirm negative-response examples, because the Stim correlation color ramp clamps negative values to the dim end,
+- the per-specimen breakdown helps separate a cross-specimen population from a view dominated by one fish.
+
+The panel summarizes the current viewer selection. It does not show trial-by-trial variability, behavioral regressors such as swimming, or manuscript-level statistical tests.
+
 ## Selection precedence
 
 When multiple sources could populate the Detail panel, the following order applies:

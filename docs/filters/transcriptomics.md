@@ -35,6 +35,8 @@ A single dropdown over the 333 molecularly defined subtypes (plus an "all" optio
 
 Subtype names follow the convention `gene1_gene2[_gene3]`, after the dominant markers of the cluster (e.g. `pou4f2_cckb`, `gad1b_tph2_gfra1a`). Index 0 is reserved for *Unassigned* (cells the upstream clustering did not confidently label).
 
+The subtype labels come from the manuscript's molecular-subtype pipeline and are based on binary expression combinations for the subtype marker set. They should be read as cluster labels, not as exhaustive lists of every gene detected in a cell. Use Gene mode and the Detail-panel gene bars when you need to inspect raw spot-count patterns directly.
+
 ::: warning URL dataset coupling
 The Help-tab presets resolve subtypes by name, but shareable URLs persist the selected subtype as its current dataset index. Links are therefore tied to the cluster ordering in the bundle they were created against. See [Preprocessing](/preprocess#cluster-alignment).
 :::

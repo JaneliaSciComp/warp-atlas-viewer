@@ -29,6 +29,8 @@ Only cells with valid coordinates are retained; approximately 274,455 cells pass
 
 The published calcium traces are 268 samples at 2 Hz. A 2× boxcar downsample yields 134 samples at 1 Hz. The same downsample is applied to the stimulus regressors so that on-window timings remain aligned with the cell traces.
 
+These traces are representative mean stimulus cycles from the published post-processed arrays, not raw trial-by-trial recordings. The downsampling changes only the display bundle; it does not re-estimate response correlations.
+
 ### Trace quantization
 
 The downsampled traces are affine-quantized to uint16 over an auto-fit range. The quantization step is roughly three orders of magnitude below the per-sample measurement noise, making the conversion effectively lossless. The resulting file fits below the browser's per-resource HTTP-cache limit and therefore persists across reloads.

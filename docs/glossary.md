@@ -34,7 +34,7 @@ description: Terms and abbreviations used in the WARP Atlas Viewer and these doc
 : The 41 marker genes in the dataset, listed in the Transcriptomics card's gene selector.
 
 **Subtype** / **cluster**
-: One of 333 molecularly defined functional groups, named `gene1_gene2[_gene3]` after their dominant markers (e.g. `pou4f2_cckb`). Index 0 is *Unassigned*.
+: One of 333 molecularly defined groups, named `gene1_gene2[_gene3]` after their dominant markers (e.g. `pou4f2_cckb`). Index 0 is *Unassigned*. Subtype names are cluster labels, not a complete list of every expressed gene.
 
 **Gene richness**
 : The number of panel genes a cell expresses. Used as the default driver of the Gene expression color scheme when no gene is pinned.
@@ -68,7 +68,7 @@ description: Terms and abbreviations used in the WARP Atlas Viewer and these doc
 : A discrete set of colors used by the Region (16-way) and Specimen (3-way) schemes.
 
 **t-SNE**
-: A non-linear dimensionality reduction (Stochastic Neighbor Embedding) that places transcriptomically similar cells nearby in 2D. The viewer's t-SNE panel renders a precomputed embedding.
+: A non-linear dimensionality reduction that places transcriptomically similar cells nearby in 2D. The viewer's t-SNE panel renders a precomputed embedding.
 
 **Lasso**
 : A polygon drawn in the t-SNE to select the enclosed cells. See [Selections](/selections).

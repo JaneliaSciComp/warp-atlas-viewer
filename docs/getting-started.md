@@ -51,4 +51,4 @@ See the [full glossary](/glossary) for additional terms.
 
 - [Layout & panels](/ui/panels) — function of each panel.
 - [How filters combine](/filters/overview) — AND between cards, OR or AND within a card.
-- [Reproducing findings from the paper](/findings) — single-click presets.
+- [Exploring findings from the paper](/findings) — single-click presets.

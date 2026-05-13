@@ -31,6 +31,10 @@ The same threshold drives:
 - the Visual Stimuli filter card (visibility, this page),
 - the [Stim correlation color scheme](./colors#stim-correlation) (dim end of the plasma ramp).
 
+::: warning Display threshold, not statistical significance
+The responsive floor is an interactive viewer threshold. It is useful for screening cells, but it is not a p-value, confidence interval, or substitute for the statistical criteria used in the manuscript.
+:::
+
 ## OR versus AND
 
 - `OR` *(default)* — retain cells responsive to **any** of the selected stimuli. The set grows as stimuli are added.
@@ -48,7 +52,7 @@ The **saturation** anchor on the same Settings row affects only the [Stim correl
 
 ## Worked example
 
-Reproducing the abstract's observation that `pou4f2_cckb` is a dark-flash population:
+Exploring the abstract's observation that `pou4f2_cckb` is a dark-flash population:
 
 | Card | Setting |
 |---|---|

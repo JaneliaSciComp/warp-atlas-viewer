@@ -18,6 +18,8 @@ The WARP dataset is hosted on [Figshare](https://figshare.com/s/d1d19b105c4f7486
 
 The viewer does not read these files directly; they are first converted by a one-time preprocessing step.
 
+The functional quantities shown in the viewer are summary arrays from the published analysis pipeline. The viewer does not load raw imaging movies, raw trial series, electrophysiology traces, or the full behavioral analyses used in the manuscript.
+
 ## Preprocessing
 
 A Python script reduces the published arrays to web-friendly binary blobs and a JSON manifest. This stage incorporates several decisions about which cells to retain and how each quantity is encoded — see [Preprocessing](/preprocess) for the full list. The principal transformations are:

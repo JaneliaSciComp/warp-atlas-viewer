@@ -68,7 +68,7 @@ The colored value depends on the Visual Stimuli selection:
 The dim end of the ramp anchors at **Settings → responsive floor (r ≥)**; the bright end at **saturation (r ≥)**. Cells below the floor appear dim, reflecting non-responsiveness. See [Settings → Stim correlation cutoffs](/settings#stim-correlation-cutoffs).
 
 ::: warning Negative correlations
-Strongly anti-correlated cells clamp to the dim end of the ramp. To identify them as a population, select a single stimulus and look for cells that are dim in regions where they would be expected to be bright. The `gad1b_tph2_gfra1a` preset in [Findings](/findings) is a worked example.
+Strongly anti-correlated cells clamp to the dim end of the ramp. To confirm a negative-response population, select a single stimulus and inspect the Detail panel's per-stimulus correlation bars. Switching to **Colors → Region** or **Specimen** keeps the same filtered cells visible with a categorical palette. The `gad1b_tph2_gfra1a` preset in [Findings](/findings) is a worked example.
 :::
 
 ## Activity

@@ -99,7 +99,7 @@ export default defineConfig({
       {
         text: 'Reference',
         items: [
-          { text: 'Reproducing findings', link: '/findings' },
+          { text: 'Exploring findings', link: '/findings' },
           { text: 'Glossary', link: '/glossary' },
           { text: 'Troubleshooting', link: '/troubleshooting' },
         ],

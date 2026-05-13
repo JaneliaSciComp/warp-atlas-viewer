@@ -27,7 +27,7 @@ features:
   - title: Stateful URLs
     details: The URL hash encodes filters, settings, camera, t-SNE viewport, panel visibility, lasso polygon, and focused neuron, allowing views to be reproduced from a link.
   - title: Paper figure presets
-    details: The Help tab provides preset views that recapitulate specific findings from Marquez-Legorreta, Fleishman, Hesselink et al. (bioRxiv 2026).
+    details: The Help tab provides preset views for exploring specific findings from Marquez-Legorreta, Fleishman, Hesselink et al. (bioRxiv 2026).
 ---
 
 ## Scope of this documentation
@@ -39,6 +39,6 @@ This site is the end-user guide for the WARP Atlas Viewer. It covers:
 - The semantics of [each color scheme](/filters/colors).
 - The [data flow](/data-flow) from the published dataset to the rendered point cloud.
 - How to interpret [each visualization](/ui/detail#charts) in the detail panel.
-- How to reproduce [specific findings](/findings) from the paper.
+- How to explore [specific findings](/findings) from the paper.
 
 Readers new to the viewer should begin with the [Quick start](/getting-started). For unexpected behavior, see [Troubleshooting](/troubleshooting).
