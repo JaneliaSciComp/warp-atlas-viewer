@@ -79,6 +79,18 @@ html.dark {
   -webkit-text-fill-color: var(--vp-c-brand-1) !important;
 }
 
+/* The hero's `.text` and `.tagline` lines get a tight 592px cap by
+   default, which makes our one-sentence subheadline wrap into a
+   narrow column. Widen the whole .main column so the text breathes
+   on desktop while still wrapping nicely on small screens. */
+.VPHero .container .main {
+  max-width: 100%;
+}
+.VPHero .text,
+.VPHero .tagline {
+  max-width: 880px;
+}
+
 /* Mono inline code that doesn't fight prose */
 .vp-doc :not(pre) > code {
   background: rgba(64, 64, 64, 0.4);
