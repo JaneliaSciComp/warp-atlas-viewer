@@ -76,7 +76,8 @@ export default function App() {
   // t-SNE drag can persist while the user clicks through individual
   // neurons. Click on a neuron → focus it (DetailPanel shows just that
   // cell). Click on empty space → unfocus (DetailPanel reverts to the
-  // group). Clear button clears both.
+  // group). The t-SNE clear-selection button drops the lasso only;
+  // focus is cleared separately by clicking empty space.
   const [focusedNeuron, setFocusedNeuron] = useState<number | null>(
     INITIAL_URL_STATE?.focusedNeuron ?? null,
   );

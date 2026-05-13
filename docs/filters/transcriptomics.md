@@ -14,7 +14,7 @@ A multi-select over the 41 panel genes, combined with `OR` or `AND`.
 - `OR` — retain cells expressing **any** of the selected genes. Widens the visible set as genes are added.
 - `AND` — retain cells expressing **all** of the selected genes. Narrows quickly; useful for co-expression questions.
 
-The `‹ ›` arrows step through the panel in alphabetical order. With **Colors → Gene expression** active, this provides a rapid traversal of single-gene expression maps.
+Use **+ add gene** to insert a gene row, then choose the marker from that row's dropdown. Additional rows add more genes to the same filter; the remove button beside a row drops that gene. With **Colors → Gene expression** active, changing the single selected gene switches the displayed single-gene expression map.
 
 ### What counts as "expressing" a gene
 
@@ -35,8 +35,8 @@ A single dropdown over the 333 molecularly defined subtypes (plus an "all" optio
 
 Subtype names follow the convention `gene1_gene2[_gene3]`, after the dominant markers of the cluster (e.g. `pou4f2_cckb`, `gad1b_tph2_gfra1a`). Index 0 is reserved for *Unassigned* (cells the upstream clustering did not confidently label).
 
-::: warning Names, not indices
-The viewer references subtypes by **name** in shareable URLs and presets. Cluster names are stable across dataset versions; indices may shift. See [Preprocessing](/preprocess#cluster-alignment).
+::: warning URL dataset coupling
+The Help-tab presets resolve subtypes by name, but shareable URLs persist the selected subtype as its current dataset index. Links are therefore tied to the cluster ordering in the bundle they were created against. See [Preprocessing](/preprocess#cluster-alignment).
 :::
 
 ### Gene mode with no selection

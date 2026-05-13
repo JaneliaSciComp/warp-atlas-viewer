@@ -9,15 +9,15 @@ The legend in the top-right of the 3D viewer adapts to the active **Colors** sch
 
 | Active scheme | Legend content |
 |---|---|
-| **Simple** | A single accent-color swatch, indicating that all visible cells are uniformly highlighted. |
+| **Simple** | No legend is displayed; all visible cells use the same highlight color. |
 | **Region** | 16 colored swatches labeled with region names, plus *Unassigned*. |
 | **Gene expression** | A plasma ramp with numeric anchors. With no gene pinned, anchors are gene-richness counts; with one gene, FISH spot counts; with multiple genes, values reflect the **Settings → Multi-gene coloring** selection (max / sum / richness). |
 | **Stim correlation** | A plasma ramp annotated with Pearson r anchors. The lower anchor is the responsive floor; the upper is the saturation anchor (both from Settings). |
 | **Activity** | A plasma ramp annotated with ΔF/F anchors (floor and ceiling, from Settings). Cells below the floor are dim; cells above the ceiling saturate. |
 | **Specimen** | Three swatches, one per source specimen. |
 
-::: tip Empty legend
-The legend is empty when no Colors scheme is active. The default is **Region**, so this should not occur in normal use; if it does, refresh — the URL hash may have decoded to an undefined mode.
+::: tip Simple mode
+Simple mode intentionally leaves the legend empty because there is no category or numeric ramp to decode.
 :::
 
 ## Plasma ramp

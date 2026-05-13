@@ -5,11 +5,11 @@ description: Interpretation of the gene bar chart, ΔF/F trace, and per-stimulus
 
 # Detail panel
 
-The right-edge sidebar. It populates whenever a [selection](/selections) is active:
+The right-edge sidebar. It displays the active focus, lasso selection, or current filter intersection:
 
 - **Click-focus on a cell** → the panel displays that one cell.
-- **Lasso selection** → the panel displays the *mean* across the lasso.
-- **No selection** → the panel displays the mean across the [filter intersection](/filters/overview) (i.e. whatever is currently visible).
+- **Lasso selection** → the panel displays the *mean* across the lasso, unless a focused cell is also active.
+- **No explicit selection, active filters** → the panel displays the mean across the [filter intersection](/filters/overview) (i.e. whatever is currently visible).
 - **Empty filter and no selection** → the panel prompts for a selection.
 
 The **‹** handle on the panel's left edge collapses it.
@@ -46,20 +46,20 @@ Single-cell calcium traces are intrinsically noisy. For most interpretation, las
 
 ### 3. Per-stimulus correlation
 
-A bar chart of the Pearson r between the (mean) trace and each of the 8 stimulus regressors.
+A bar chart of the mean per-cell Pearson r values for the current selection. For a single focused cell this is that cell's r for each stimulus; for a group, each bar is the average of the selected cells' precomputed correlations.
 
 - **X-axis:** the 8 stimuli, in order.
 - **Y-axis:** Pearson r (can be negative).
 - Positive r corresponds to activation during the stimulus on-window; negative r corresponds to suppression.
-- The [Stim correlation Colors scheme](/filters/colors#stim-correlation) paints the brain by the same value.
+- The [Stim correlation Colors scheme](/filters/colors#stim-correlation) paints each cell by its own per-stimulus correlation, using the same underlying values before any group averaging.
 
 ::: tip Reading negative correlations
 Strongly negative bars are meaningful signals, identifying inhibitory or anti-correlated populations. The dorsal-raphe `gad1b_tph2_gfra1a` preset ([Findings](/findings)) provides a worked example.
 :::
 
-### 4. Per-specimen breakdown
+### Selection summary and per-specimen breakdown {#per-specimen-breakdown}
 
-Below the charts, the panel reports how the selection partitions across the 3 source specimens (counts and percentages). A selection dominated by a single specimen warrants a check that the finding holds across all three.
+Above the charts, the panel reports how the selection partitions across the 3 source specimens as counts. A selection dominated by a single specimen warrants a check that the finding holds across all three.
 
 ## Selection precedence
 
@@ -70,4 +70,4 @@ When multiple sources could populate the Detail panel, the following order appli
 3. **Filter intersection** — used when nothing is explicitly selected.
 4. **Empty** — prompt shown when neither filter nor selection produces any cells.
 
-To clear level 1, click empty space in the 3D viewer or use the clear-selection button. To clear level 2, use the same clear-selection button at the top of the t-SNE.
+To clear level 1, click empty space in the 3D viewer or t-SNE panel. To clear level 2, use the clear-selection button at the top of the t-SNE.

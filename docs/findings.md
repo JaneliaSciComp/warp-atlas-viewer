@@ -11,7 +11,7 @@ The **Help** tab in the bottom panel provides preset views that reconfigure the 
 - sets **Transcriptomics** (Gene or Subtype mode, with one selection),
 - sets the **Visual Stimuli** selection,
 - clears any active selection (focused cell or lasso),
-- leaves Anatomy and Settings unchanged.
+- resets Anatomy to all regions/specimens while leaving Settings unchanged.
 
 The state produced by each preset is fully captured by the URL hash, so the resulting view can be shared directly from the address bar.
 
@@ -72,5 +72,5 @@ Dorsal-raphe `gad1b_tph2_gfra1a` cells are *negatively* correlated with forward 
 - **Visual Stimuli:** `[motion forward]`
 
 ::: tip Why are they dim?
-The Stim correlation plasma ramp anchors at the [responsive floor](/settings#stim-correlation-cutoffs) (default `r = 0.1`). Cells below this threshold — including strongly anti-correlated ones — map to the dim end of the ramp. Negative-correlation populations are a meaningful category, and the dim coloring reflects the choice of a single positive-only ramp. Switching to **Colors → Region** retains the same cells with a categorical palette.
+The Stim correlation plasma ramp anchors at the [responsive floor](/settings#stim-correlation-cutoffs) (default `r = 0.30`). Cells below this threshold — including strongly anti-correlated ones — map to the dim end of the ramp. Negative-correlation populations are a meaningful category, and the dim coloring reflects the choice of a single positive-only ramp. Switching to **Colors → Region** retains the same cells with a categorical palette.
 :::

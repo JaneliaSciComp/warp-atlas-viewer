@@ -13,9 +13,9 @@ A **↺ reset settings** button at the top of the tab reverts everything to defa
 
 ## Cell point size
 
-Base point size in pixels for both the 3D viewer and the t-SNE scatter. Selected cells receive an additional 1.5× boost.
+Base point size in pixels for both the 3D viewer and the t-SNE scatter. Cells in a t-SNE lasso selection receive an additional 1.5× boost; a focused cell is brightened and marked with a white ring.
 
-- **Default:** approximately 3 px on standard DPI displays. Increase on high-DPI screens or when cells appear undersized.
+- **Default:** `8.5`.
 - **Range:** 2 – 20.
 
 ## Camera panning
@@ -51,7 +51,7 @@ Two anchors on the same row:
   - the [Stim correlation color scheme](/filters/colors#stim-correlation) (dim end of the ramp).
 - **saturation (r ≥)** — cells with r above this anchor saturate at the bright end of the ramp.
 
-Defaults are floor `0.1` and saturation `0.6`. Lower the floor to be more permissive; raise it to be stricter.
+Defaults are floor `0.30` and saturation `0.65`. Lower the floor to be more permissive; raise it to be stricter.
 
 ## Activity ΔF/F anchors
 

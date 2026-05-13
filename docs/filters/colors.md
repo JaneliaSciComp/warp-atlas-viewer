@@ -41,7 +41,7 @@ This is the default when switching to **Colors → Gene expression** without fir
 
 Pinning exactly one gene in **Transcriptomics** colors the plasma ramp by that gene's raw FISH spot count per cell — the conventional single-gene expression map.
 
-The `‹ ›` arrows in **Transcriptomics → Gene** step through the panel in alphabetical order.
+Use **Transcriptomics → + add gene** to pin a gene, then change the row dropdown to switch the single-gene expression map.
 
 ### Multi-gene mode (2+ genes pinned)
 

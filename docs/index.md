@@ -25,7 +25,7 @@ features:
   - title: Per-cell inspection
     details: Selecting a cell exposes its gene spot-count profile, mean ΔF/F trace with stimulus on-windows shaded, and per-stimulus correlation.
   - title: Stateful URLs
-    details: The URL hash encodes filters, settings, camera, t-SNE viewport, lasso polygon, and focused neuron, allowing any view to be reproduced from a link.
+    details: The URL hash encodes filters, settings, camera, t-SNE viewport, panel visibility, lasso polygon, and focused neuron, allowing views to be reproduced from a link.
   - title: Paper figure presets
     details: The Help tab provides preset views that recapitulate specific findings from Marquez-Legorreta, Fleishman, Hesselink et al. (bioRxiv 2026).
 ---

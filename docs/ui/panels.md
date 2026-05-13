@@ -11,7 +11,7 @@ The viewer occupies a single full-screen page divided into four regions:
 
 ## 3D viewer
 
-The large area filling most of the screen. Every visible cell is rendered as a GPU point in mapzebrain coordinates. The [color legend](/ui/legend) appears in the top-right corner. See [3D viewer](/ui/viewer) for controls.
+The large area filling most of the screen. Every visible cell is rendered as a GPU point in mapzebrain coordinates. The [color legend](/ui/legend) appears in the top-right corner for color schemes that need a mapping. See [3D viewer](/ui/viewer) for controls.
 
 ## t-SNE panel
 
@@ -19,7 +19,7 @@ Bottom-right. A 2D scatter plot of every cell's t-SNE embedding; transcriptomica
 
 ## Detail panel
 
-Right edge. Populates on click-focus or lasso selection, displaying a gene bar chart, the mean ΔF/F trace overlaid with stimulus on-windows, and a per-stimulus correlation chart. See [Detail panel](/ui/detail).
+Right edge. Populates on click-focus, lasso selection, or the current filter intersection, displaying a gene bar chart, the mean ΔF/F trace overlaid with stimulus on-windows, and a per-stimulus correlation chart. See [Detail panel](/ui/detail).
 
 ::: tip Collapse handle
 Click the **‹** handle on the right edge of the 3D viewer to toggle the Detail panel.
@@ -41,8 +41,8 @@ Click the **⌄** handle at the bottom edge of the 3D viewer to hide the filter 
 
 Top-right corner of the 3D viewer. The legend adapts to the active color scheme:
 
-- **Simple / Region / Specimen** — categorical swatches.
+- **Region / Specimen** — categorical swatches.
+- **Simple** — no legend; all visible cells use the same highlight color.
 - **Gene expression / Stim correlation / Activity** — plasma ramp with numeric anchors.
 
 See [Color legend](/ui/legend) for the details of each variant.
-

@@ -27,7 +27,7 @@ Per-specimen views appear in three places:
 |---|---|
 | [**Colors → Specimen**](./colors#specimen) | Paint each cell by source specimen; useful for assessing per-specimen coverage and registration consistency. |
 | **Anatomy → specimen** *(this card)* | Restrict visibility to one specimen; useful for verifying that a finding holds in each individual. |
-| [**Detail panel** per-specimen breakdown](/ui/detail#per-specimen-breakdown) | Counts and percentages by specimen for the current selection. |
+| [**Detail panel** per-specimen breakdown](/ui/detail#per-specimen-breakdown) | Counts by specimen for the current selection. |
 
 ## Combinations
 

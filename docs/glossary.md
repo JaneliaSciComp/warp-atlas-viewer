@@ -54,7 +54,7 @@ description: Terms and abbreviations used in the WARP Atlas Viewer and these doc
 : Linear correlation coefficient. Used as the per-cell, per-stimulus responsiveness score.
 
 **Responsive floor**
-: The Pearson r threshold above which a cell is considered responsive. Default `r = 0.1`. Adjustable in [Settings](/settings#stim-correlation-cutoffs).
+: The Pearson r threshold above which a cell is considered responsive. Default `r = 0.30`. Adjustable in [Settings](/settings#stim-correlation-cutoffs).
 
 **On-window**
 : The interval during which a stimulus was on. Shown as a vertical shaded band on the Detail panel's ΔF/F trace.

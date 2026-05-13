@@ -24,7 +24,7 @@ A single representative cycle (~134 s) presents all 8 stimuli sequentially. The 
 
 ## Definition of "responsive"
 
-A cell is considered responsive to a stimulus when its Pearson r with the corresponding regressor meets the **responsive floor** in [Settings → Stim correlation cutoffs](/settings#stim-correlation-cutoffs). The default is `r ≥ 0.1`.
+A cell is considered responsive to a stimulus when its Pearson r with the corresponding regressor meets the **responsive floor** in [Settings → Stim correlation cutoffs](/settings#stim-correlation-cutoffs). The default is `r ≥ 0.30`.
 
 The same threshold drives:
 
@@ -42,7 +42,7 @@ With two or more stimuli selected, the **Stim correlation** color scheme paints 
 
 ## Adjusting the threshold
 
-The responsive floor is conservative by default (`r = 0.1`). Lower it to include weakly correlated cells; raise it for a stricter "definitely responding" set.
+The responsive floor is conservative by default (`r = 0.30`). Lower it to include weakly correlated cells; raise it for a stricter "definitely responding" set.
 
 The **saturation** anchor on the same Settings row affects only the [Stim correlation color ramp](./colors#stim-correlation); it does not change the filter result. The [visible-cell readout](./overview#visible-cell-readout) in the Filters tab reports how many cells remain visible.
 

@@ -19,7 +19,7 @@ The **Colors** card controls how visible cells are *painted*. The remaining thre
 
 Each filter card has an "everything passes" default, typically a dropdown set to **all**. A card in this state contributes nothing to the AND chain. Selecting any other value narrows the visible set.
 
-The Filters tab's **Reset** button reverts every card to its "all" default in one action.
+The Filters tab's **Reset** button restores the viewer's default filter state in one action: Transcriptomics and Visual Stimuli return to no selection, Anatomy's region and specimen controls return to "all", and Colors returns to the default Region scheme.
 
 ### Visible-cell readout {#visible-cell-readout}
 
@@ -49,7 +49,7 @@ The visible cells are gene-positive, stimulus-responsive, and anatomically const
 
 ## "Responsive": threshold
 
-A cell is considered responsive to a stimulus if its Pearson r with the corresponding regressor meets the **responsive floor** in [Settings](/settings#stim-correlation-cutoffs). The default is `r ≥ 0.1`; raising it imposes a stricter criterion, lowering it a more permissive one.
+A cell is considered responsive to a stimulus if its Pearson r with the corresponding regressor meets the **responsive floor** in [Settings](/settings#stim-correlation-cutoffs). The default is `r ≥ 0.30`; raising it imposes a stricter criterion, lowering it a more permissive one.
 
 The same floor is used by:
 

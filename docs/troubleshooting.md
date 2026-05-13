@@ -23,18 +23,18 @@ Both panels can be collapsed:
 
 Click either handle to restore the panel.
 
-## A shared URL opens to an empty view
+## A shared URL does not restore the lasso
 
-Shared URLs may exceed the browser's hash limit (~2 KB) when the lasso polygon is large. The viewer handles this in two stages:
+Shared URLs may exceed the viewer's hash cap, currently 6,000 bytes, when the lasso polygon is large. The viewer handles this in two stages:
 
 1. The lasso polygon is dropped; everything else is preserved.
 2. If still too long, the entire hash is dropped and the link opens in the default view.
 
-If a recipient reports an empty view, redraw the lasso with fewer vertices and resend. See [Sharing views → Limitations](/sharing#limitations).
+If a recipient reports that the lasso is missing, redraw it with fewer vertices and resend. See [Sharing views → Limitations](/sharing#limitations).
 
 ## Cells appear too small or too large
 
-Adjust **Settings → Cell point size**. High-DPI displays generally benefit from a larger value. Selected cells receive an additional 1.5× boost.
+Adjust **Settings → Cell point size**. High-DPI displays generally benefit from a larger value. Lasso-selected cells receive an additional 1.5× boost, while a focused cell is marked with a white ring.
 
 ## Camera orientation feels lost after rotating
 
@@ -53,13 +53,13 @@ If **Colors → Gene expression** is active and the brain appears uniformly dark
 
 - No gene is pinned and Subtype mode is active, so the scheme falls back to [gene richness](/filters/colors#gene-richness-when-nothing-is-pinned). Try the **log scale** toggle in the same card.
 - The **Gene plasma ceiling** in Settings may be set too high for the dataset's spot-count distribution, mapping typical values to the dim end. Reduce the ceiling.
-- The currently pinned gene may be genuinely sparse. Use **‹ ›** to step through other genes.
+- The currently pinned gene may be genuinely sparse. Choose another gene from the Transcriptomics gene row dropdown.
 
 ## "Stim correlation" view appears uniformly dim
 
 If **Colors → Stim correlation** is active and almost every cell is dim:
 
-- The **responsive floor (r ≥)** may be too high. The default is `0.1`; values above `0.3` will hide most cells.
+- The **responsive floor (r ≥)** may be too high. The default is `0.30`; higher values will hide increasingly many cells.
 - The selected stimulus may have few responsive cells.
 - The region in view may not encode the modality being queried.
 

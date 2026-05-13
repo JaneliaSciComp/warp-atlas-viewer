@@ -17,7 +17,7 @@ The 3D viewer and the t-SNE panel display the same cells in two coordinate syste
 ## Suggested first session
 
 1. **Set Colors → Region** and orbit the 3D viewer to inspect the anatomical layout. ([Colors reference](/filters/colors))
-2. **Switch Colors → Gene expression** and step through the panel with the **‹ ›** arrows. With no gene selected, cells are colored by [gene richness](/filters/colors#gene-richness-when-nothing-is-pinned) — the number of panel genes detected per cell.
+2. **Switch Colors → Gene expression.** With no gene selected, cells are colored by [gene richness](/filters/colors#gene-richness-when-nothing-is-pinned) — the number of panel genes detected per cell. To inspect a single-gene map, use **Transcriptomics → + add gene** and choose a gene from the row dropdown.
 3. **In Transcriptomics, select Subtype mode** and choose, for example, `pou4f2_cckb`. Most of this cluster is located in the optic tectum. ([Subtype filter](/filters/transcriptomics#subtype-mode))
 4. **Co-expression view.** Set Colors → **Stim correlation**, select a stimulus in **Visual Stimuli**, and pin a single gene in **Transcriptomics**. The remaining cells are gene-positive and colored by their response strength to the chosen stimulus.
 5. **Click any cell** to populate the [Detail panel](/ui/detail) with its per-gene spot counts, mean ΔF/F trace with stimulus on-windows shaded, and per-stimulus correlation chart.

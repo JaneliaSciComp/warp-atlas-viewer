@@ -31,12 +31,12 @@ Click any cell:
 - in the **3D viewer** to focus it,
 - in the **t-SNE** to focus the same cell.
 
-The Detail panel switches to single-cell mode, and the focused cell is rendered at 1.5× size with an outline color in both views.
+The Detail panel switches to single-cell mode. The focused cell is brightened and marked with a white ring in both views.
 
 To clear the focus:
 
 - click empty space in the 3D viewer, or
-- use the **clear-selection** button at the top of the t-SNE panel.
+- click empty space in the t-SNE panel.
 
 ## Lasso in the t-SNE
 
@@ -44,12 +44,12 @@ Dragging in the t-SNE defines a polygon; all enclosed cells become the selection
 
 Lasso behavior:
 
-- A lasso drawn while a cell is focused replaces the focus.
-- Clicking a cell after a lasso replaces the lasso with single-cell focus.
-- The lasso polygon is included in the URL hash, so a shared link reproduces it.
+- A lasso drawn while a cell is focused does not clear the focus; the focus still drives the Detail panel until it is cleared.
+- Clicking a cell after drawing a lasso focuses that cell while retaining the lasso group.
+- The lasso polygon is included in the URL hash when it fits within the hash cap, so most shared links reproduce it.
 
 ::: warning Large lassos may exceed the URL hash limit
-Browsers cap the URL hash at approximately 2 KB. If a lasso polygon contains many vertices, the application drops the lasso vertices from the hash, logs a warning, and re-encodes the URL without them. The lasso continues to function locally, but cannot be shared. Redraw the lasso with fewer vertices to share again.
+The viewer caps encoded URL state at 6,000 bytes. If a lasso polygon contains many vertices, the application drops the lasso vertices from the hash, logs a warning, and re-encodes the URL without them. The lasso continues to function locally, but cannot be shared. Redraw the lasso with fewer vertices to share again.
 :::
 
 ## Precedence
@@ -61,11 +61,11 @@ When multiple sources could drive the Detail panel, the following order applies:
 3. **Filter intersection** — used when nothing is explicitly selected.
 4. **Empty** — the Detail panel shows a prompt.
 
-To "step back" one level, clear the current selection: clicking empty space drops the focus, and the clear-selection button drops the lasso.
+To "step back" one level, clear the current focus or lasso: clicking empty space drops the focus, and the clear-selection button drops the lasso.
 
 ## Clearing the selection
 
-The clear-selection button at the top of the t-SNE panel removes both the focused cell and the lasso in one action. Filter cards are unaffected.
+The clear-selection button at the top of the t-SNE panel removes the active lasso selection. It does not clear a focused cell; click empty space in either view to clear focus. Filter cards are unaffected.
 
 ## See also
 
