@@ -1,11 +1,11 @@
 ---
 title: Exploring findings
-description: Preset views in the Help tab for exploring specific findings from the WARP paper.
+description: Preset views in the About tab for exploring specific findings from the WARP paper.
 ---
 
 # Exploring findings from the paper
 
-The **Help** tab in the bottom panel provides preset views that reconfigure the filters and color scheme around specific findings from [Marquez-Legorreta, Fleishman, Hesselink et al. (bioRxiv 2026)](https://www.biorxiv.org/content/10.64898/2026.02.07.704095v1). Applying a preset:
+The **About** tab in the bottom panel provides preset views that reconfigure the filters and color scheme around specific findings from [Marquez-Legorreta, Fleishman, Hesselink et al. (bioRxiv 2026)](https://www.biorxiv.org/content/10.64898/2026.02.07.704095v1). Applying a preset:
 
 - sets the **Colors** scheme,
 - sets **Transcriptomics** (Gene or Subtype mode, with one selection),

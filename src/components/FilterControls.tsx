@@ -3,7 +3,7 @@ import type { NeuronDataset, FilterState, SettingsState } from '../data/types';
 import { ActivityCard } from './filters/ActivityCard';
 import { AnatomyCard } from './filters/AnatomyCard';
 import { ColorsCard } from './filters/ColorsCard';
-import { HelpTab } from './filters/HelpTab';
+import { AboutTab } from './filters/AboutTab';
 import { SettingsTab } from './filters/SettingsTab';
 import { SwimCard } from './filters/SwimCard';
 import { TranscriptomicsCard } from './filters/TranscriptomicsCard';
@@ -23,7 +23,7 @@ interface Props {
    *  reset button so the current state of "how many cells am I looking
    *  at?" is visible without leaving the Filters tab. */
   visibleCount: number;
-  /** Apply a preset view (Help-tab "reproduce a finding" buttons).
+  /** Apply a preset view (About-tab "reproduce a finding" buttons).
    *  Caller is expected to base this on INITIAL_FILTER and clear any
    *  user-explicit selections so the preset starts from a clean state. */
   applyView: (preset: Partial<FilterState>) => void;
@@ -33,11 +33,11 @@ interface Props {
   onActivityPlayingChange: (playing: boolean) => void;
 }
 
-type Tab = 'filters' | 'settings' | 'help';
+type Tab = 'filters' | 'settings' | 'about';
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'filters', label: 'Filters' },
   { id: 'settings', label: 'Settings' },
-  { id: 'help', label: 'Help' },
+  { id: 'about', label: 'About' },
 ];
 
 export function FilterControls({ data, filter, setFilter, settings, setSettings, uniqueFishIds, onReset, visibleCount, applyView, onActivityPlayingChange }: Props) {
@@ -100,7 +100,7 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
         {tab === 'settings' && (
           <SettingsTab settings={settings} setSettings={setSettings} />
         )}
-        {tab === 'help' && <HelpTab data={data} applyView={applyView} />}
+        {tab === 'about' && <AboutTab data={data} applyView={applyView} />}
       </div>
     </div>
   );

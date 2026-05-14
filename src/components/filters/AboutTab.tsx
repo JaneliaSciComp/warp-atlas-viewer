@@ -1,6 +1,6 @@
 import type { NeuronDataset, FilterState, ColorMode, SwimMode } from '../../data/types';
 
-/** A "reproduce this finding" preset for the Help tab. References the
+/** A "reproduce this finding" preset for the About tab. References the
  *  dataset by name (cluster/gene name strings, stimulus indices) so
  *  presets stay valid if cluster IDs shift between dataset versions. */
 interface FindingPreset {
@@ -112,7 +112,7 @@ function buildPresetFilter(p: FindingPreset, data: NeuronDataset): Partial<Filte
   return out;
 }
 
-export function HelpTab({
+export function AboutTab({
   data,
   applyView,
 }: {

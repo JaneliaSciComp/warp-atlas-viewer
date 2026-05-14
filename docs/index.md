@@ -24,7 +24,7 @@ features:
   - title: Stateful URLs
     details: The URL hash encodes filters, settings, camera, t-SNE viewport, panel visibility, lasso polygon, and focused neuron, allowing views to be reproduced from a link.
   - title: Paper figure presets
-    details: The Help tab provides preset views for exploring specific findings from Marquez-Legorreta, Fleishman, Hesselink et al. (bioRxiv 2026).
+    details: The About tab provides preset views for exploring specific findings from Marquez-Legorreta, Fleishman, Hesselink et al. (bioRxiv 2026).
 ---
 
 ## Scope of this documentation

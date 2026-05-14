@@ -277,7 +277,7 @@ export default function App() {
     setFilter(INITIAL_FILTER);
   }, []);
 
-  // Help-tab "reproduce a finding" buttons jump straight into a preset
+  // About-tab "reproduce a finding" buttons jump straight into a preset
   // view: replace the filter (no merge — leftover state from prior
   // exploration would muddy the reproduction), and clear the
   // user-explicit selections so the preset's filter-derived intersection
