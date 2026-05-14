@@ -25,6 +25,22 @@ export function TranscriptomicsCard({
 }) {
   const onClusterChange = (v: number) => update({ selectedCluster: v });
 
+  // Cluster 0 is reserved for "Unassigned" — cells the upstream
+  // pipeline couldn't classify. Filtering to it on first entry into
+  // Subtype mode produces an almost-empty brain, so when the toggle
+  // flips to Subtype while selectedCluster still points at Unassigned,
+  // promote to the first real cluster.
+  const onTxModeChange = (m: FilterState['txMode']) => {
+    if (m === 'subtype' && data.clusterNames[filter.selectedCluster] === 'Unassigned') {
+      const firstReal = data.clusterNames.findIndex((c) => c !== 'Unassigned');
+      if (firstReal >= 0) {
+        update({ txMode: m, selectedCluster: firstReal });
+        return;
+      }
+    }
+    update({ txMode: m });
+  };
+
   // ── Multi-gene helpers ─────────────────────────────────────────────
   const sel = filter.selectedGenes;
   const G = data.geneNames.length;
@@ -69,7 +85,7 @@ export function TranscriptomicsCard({
     <Card title="Transcriptomics">
       <KindToggle
         value={filter.txMode}
-        onChange={(m) => update({ txMode: m })}
+        onChange={onTxModeChange}
         options={[
           { value: 'all', label: 'All' },
           { value: 'gene', label: 'Gene' },
