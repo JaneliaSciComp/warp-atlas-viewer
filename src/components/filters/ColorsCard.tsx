@@ -2,13 +2,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { NeuronDataset, FilterState, ColorMode } from '../../data/types';
 import { Card, Select } from './shared';
 
+// Order mirrors the filter cards along the bottom strip
+// (Transcriptomics → Visual Stimuli → Swim → Anatomy), with Simple
+// first as the no-concept default.
 const COLOR_SCHEMES: Array<{ value: ColorMode; label: string }> = [
   { value: 'highlight', label: 'Simple' },
-  { value: 'region', label: 'Region' },
   { value: 'gene', label: 'Gene expression' },
   { value: 'stim', label: 'Stim correlation' },
-  { value: 'swim', label: 'Swim correlation' },
   { value: 'activity', label: 'Activity' },
+  { value: 'swim', label: 'Swim correlation' },
+  { value: 'region', label: 'Region' },
   { value: 'fish', label: 'Specimen' },
 ];
 

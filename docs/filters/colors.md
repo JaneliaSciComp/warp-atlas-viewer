@@ -17,16 +17,6 @@ Uniform highlight. Every visible cell is painted in the viewer's accent color. F
 
 **When to use:** to inspect the spatial distribution of the filtered subset.
 
-## Region
-
-Categorical palette over 16 focal anatomical regions, plus *Unassigned* at index 0.
-
-**When to use:** anatomical overview; a sensible default first look.
-
-::: tip Region granularity
-The viewer exposes the 16 focal groupings carried in the dataset (rather than the finer ~112-region reference atlas). See [Preprocessing → Region names](/preprocess#anatomy-mapping).
-:::
-
 ## Gene expression
 
 Plasma ramp over FISH spot counts.
@@ -71,18 +61,6 @@ The dim end of the ramp anchors at **Settings → responsive floor (r ≥)**; th
 Strongly anti-correlated cells clamp to the dim end of the ramp. To confirm a negative-response population, select a single stimulus and inspect the Detail panel's per-stimulus correlation bars. Switching to **Colors → Region** or **Specimen** keeps the same filtered cells visible with a categorical palette. The `gad1b_tph2_gfra1a` preset in [Findings](/findings) is a worked example.
 :::
 
-## Swim correlation
-
-Divergent ramp (blue → near-white → red) over the signed per-cell Pearson r against estimated swim power. Unlike the plasma-based schemes, this one is **two-sided**:
-
-- Blue cells: anti-correlated with swimming (`r ≤ −swimLo`).
-- Near-white cells: unresponsive (`|r| < swimLo`, the deadband).
-- Red cells: swim-driven (`r ≥ +swimLo`).
-
-The ramp anchors symmetrically at `±swimLo` (deadband boundary, where the ramp leaves the neutral midpoint) and `±swimHi` (saturation). Both are configurable in [Settings → Swim correlation cutoffs](/settings#swim-correlation-cutoffs); defaults are `0.10` and `0.35`.
-
-Useful when combined with a Transcriptomics filter to ask "is this gene/subtype swim-driven, anti-swim, or unresponsive?" See the [Swim card](./swim) for the matching filter and the [Detail panel histogram](/ui/detail#swim-correlation) for the per-cell distribution view.
-
 ## Activity
 
 Plasma ramp over the mean ΔF/F trace at a scrubbable time point. The Colors card exposes a **time slider**, a **‹ ›** stepper, and a **▶ / ⏸** playback control that traverses the 134 s representative cycle.
@@ -96,6 +74,28 @@ The activity time is part of the URL hash, so a shared link reproduces the exact
 :::
 
 The plasma anchors are **Settings → Activity ΔF/F anchors**: `floor` clamps the dim end and `ceiling` saturates the bright end. See [Settings → Activity ΔF/F anchors](/settings#activity-f-f-anchors).
+
+## Swim correlation
+
+Divergent ramp (blue → near-white → red) over the signed per-cell Pearson r against estimated swim power. Unlike the plasma-based schemes, this one is **two-sided**:
+
+- Blue cells: anti-correlated with swimming (`r ≤ −swimLo`).
+- Near-white cells: unresponsive (`|r| < swimLo`, the deadband).
+- Red cells: swim-driven (`r ≥ +swimLo`).
+
+The ramp anchors symmetrically at `±swimLo` (deadband boundary, where the ramp leaves the neutral midpoint) and `±swimHi` (saturation). Both are configurable in [Settings → Swim correlation cutoffs](/settings#swim-correlation-cutoffs); defaults are `0.10` and `0.35`.
+
+Useful when combined with a Transcriptomics filter to ask "is this gene/subtype swim-driven, anti-swim, or unresponsive?" See the [Swim card](./swim) for the matching filter and the [Detail panel histogram](/ui/detail#swim-correlation) for the per-cell distribution view.
+
+## Region
+
+Categorical palette over 16 focal anatomical regions, plus *Unassigned* at index 0.
+
+**When to use:** anatomical overview; a sensible default first look.
+
+::: tip Region granularity
+The viewer exposes the 16 focal groupings carried in the dataset (rather than the finer ~112-region reference atlas). See [Preprocessing → Region names](/preprocess#anatomy-mapping).
+:::
 
 ## Specimen
 
