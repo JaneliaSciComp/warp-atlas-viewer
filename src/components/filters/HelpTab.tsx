@@ -1,4 +1,4 @@
-import type { NeuronDataset, FilterState, ColorMode } from '../../data/types';
+import type { NeuronDataset, FilterState, ColorMode, SwimMode } from '../../data/types';
 
 /** A "reproduce this finding" preset for the Help tab. References the
  *  dataset by name (cluster/gene name strings, stimulus indices) so
@@ -16,6 +16,9 @@ interface FindingPreset {
   gene?: string;
   /** Stimulus indices (0..7) — these are stable across dataset versions. */
   stimuli?: number[];
+  /** Optional swim filter, e.g. 'positive' to keep only swim-driven cells.
+   *  Used when the paper's claim links a gene or cluster to swimming. */
+  swimMode?: SwimMode;
 }
 
 const FINDINGS: FindingPreset[] = [
@@ -64,21 +67,21 @@ const FINDINGS: FindingPreset[] = [
     stimuli: [4, 5],
   },
   {
-    title: 'otpa expression — motor-coding cells',
+    title: 'otpa+ swim-related neurons',
     figure: 'Figure 3G',
     description:
-      'Brain map of otpa transcript counts. otpa is enriched in cells whose activity correlates with swimming.',
+      'otpa-expressing neurons whose calcium activity correlates with swim power. The visible set is gene-positive AND swim-driven, painted by otpa spot count.',
     colorMode: 'gene',
     gene: 'otpa',
+    swimMode: 'positive',
   },
   {
-    title: 'gad1b_tph2_gfra1a — anti-correlated raphe',
+    title: 'gad1b_tph2_gfra1a — anti-forward-motion raphe',
     figure: 'Figure 5D',
     description:
-      'Dorsal-raphe gad1b_tph2_gfra1a cells are negatively correlated with forward visual motion / swimming. Cells with the strongest negative r appear dim.',
-    colorMode: 'stim',
+      'One of the 15 largest multi-gene subtypes negatively correlated with forward visual motion (Fig 5D). The Detail-panel per-stimulus chart shows the cluster\'s negative forward-motion bar; the new Swim correlation histogram exposes the per-cell distribution. The stim color ramp is positive-only, so no visual stimulus filter is applied — switch the Colors card to inspect the cluster.',
+    colorMode: 'highlight',
     cluster: 'gad1b_tph2_gfra1a',
-    stimuli: [0],
   },
 ];
 
@@ -100,6 +103,9 @@ function buildPresetFilter(p: FindingPreset, data: NeuronDataset): Partial<Filte
   }
   if (p.stimuli && p.stimuli.length > 0) {
     out.selectedStimuli = [...p.stimuli].sort((a, b) => a - b);
+  }
+  if (p.swimMode) {
+    out.swimMode = p.swimMode;
   }
   return out;
 }

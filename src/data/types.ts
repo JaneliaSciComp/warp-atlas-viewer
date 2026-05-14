@@ -168,11 +168,12 @@ export interface SettingsState {
   /** Below this correlation, cells are "non-responsive" and dimmed
    *  by the Stim scheme; the Activity filter also requires a cell to
    *  exceed this floor for at least one selected stimulus. Default
-   *  0.30 — the conventional zebrafish-imaging responsive floor. */
+   *  0.13 — the paper's full-vector responsive threshold (the 90th
+   *  percentile per-stimulus, averaged, rounded). */
   stimLo: number;
   /** Above this correlation, the Stim scheme's plasma palette is
-   *  saturated. Default 0.65 — roughly the 97th percentile of
-   *  positive correlations in typical datasets. */
+   *  saturated. Default 0.30 — roughly the 99th percentile of the
+   *  cycle-wide stimulus-correlation distribution. */
   stimHi: number;
   /** Upper anchor for the Gene scheme's plasma palette (raw FISH spot
    *  count). Cells expressing more than this saturate at the bright
@@ -218,9 +219,9 @@ export interface SettingsState {
   activityHi: number;
   /** Magnitude floor for the swim-correlation filter and the dim end of
    *  the swim color ramp. Symmetric: 'positive' mode keeps r ≥ +swimLo,
-   *  'negative' mode keeps r ≤ −swimLo. Default 0.15 — swim correlations
-   *  in WARP are tighter than visual-stimulus correlations (p5 ≈ −0.13,
-   *  p95 ≈ +0.35), so a 0.30 floor would hide almost everything. */
+   *  'negative' mode keeps r ≤ −swimLo. Default 0.10 — the paper's
+   *  swim-correlation cutoff (page 12: R>0.1 / R<-0.1 are the swim-
+   *  related thresholds). */
   swimLo: number;
   /** Saturation anchor for the swim color ramp. |r| ≥ swimHi clamps to
    *  the ramp end. Default 0.35 — roughly the 95th percentile of
@@ -229,8 +230,8 @@ export interface SettingsState {
 }
 
 export const DEFAULT_SETTINGS: SettingsState = {
-  stimLo: 0.30,
-  stimHi: 0.65,
+  stimLo: 0.13,
+  stimHi: 0.30,
   geneMaxSpots: 1000,
   geneStrict: true,
   geneMultiColor: 'max',
@@ -238,7 +239,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
   enablePan: false,
   activityLo: 0.0,
   activityHi: 1.5,
-  swimLo: 0.15,
+  swimLo: 0.10,
   swimHi: 0.35,
 };
 

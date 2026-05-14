@@ -85,7 +85,13 @@ def main():
     fish_id = np.load(PP / 'fish_id.npy')            # (N,)    59 / 63 / 71
     tsne = np.load(PP / 'tsne_results_20240527.npy') # (N, 2)
     trace = np.load(PP / 'dff_traceAllavg.npy')      # (N, 268)
-    stim_corr = np.load(PP / 'high_corr_perSimMix.npy')   # (N, 8)
+    # big_corr_regsAllMix is the cycle-wide Pearson r between each cell's
+    # activity trace and the stimulus regressor (max of regular + delayed).
+    # This is the array the paper uses for Fig 5C/D and for naming
+    # stimulus-responsive subtypes — the windowed/median variant
+    # (high_corr_perSimMix) skews positive and doesn't reproduce the
+    # paper's anti-correlated cluster listings.
+    stim_corr = np.load(PP / 'big_corr_regsAllMix.npy')  # (N, 8)
     swim_corr = np.load(PP / 'swim_corr_All.npy')        # (N,)  Pearson r vs swim power
     cluster_names_raw = np.load(PP / 'good_cls_names.npy')  # (332,)
     regressors_avg = np.load(PP / 'regressors_avg.npy')     # (8, 268)
