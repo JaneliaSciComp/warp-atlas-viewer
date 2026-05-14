@@ -1,11 +1,11 @@
 ---
 title: Colors
-description: The six color schemes and their semantics.
+description: The seven color schemes and their semantics.
 ---
 
 # Colors
 
-The Colors card determines how visible cells are painted. There are six schemes; each maps a per-cell quantity onto a categorical palette or a plasma ramp.
+The Colors card determines how visible cells are painted. There are seven schemes; each maps a per-cell quantity onto a categorical palette, a plasma ramp, or (for swim) a divergent ramp.
 
 ::: tip Colors is not a filter
 The Colors card never removes cells from the view. To restrict the visible set, use the other three filter cards. See [How filters combine](./overview).

@@ -56,7 +56,7 @@ After loading, all per-cell quantities are held in a single in-memory dataset:
 
 On each render the viewer:
 
-1. Walks the cell array once, computing per-cell visibility (from the four filter cards), color (RGBA), and size.
+1. Walks the cell array once, computing per-cell visibility (from the active filter cards), color (RGBA), and size.
 2. Uploads the resulting buffers to the GPU.
 3. Draws the full point cloud in a single GPU draw call using a custom shader.
 

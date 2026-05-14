@@ -26,7 +26,7 @@ The 3D viewer and the t-SNE panel display the same cells in two coordinate syste
 
 ![Conceptual layout of the WARP viewer: 3D viewer occupies the top-left, the filter strip the bottom-left, the t-SNE panel the bottom-right, and the detail panel the right edge.](/layout-overview.svg)
 
-- **Filters determine which cells are visible.** Four cards combine under logical AND. ([Filtering rules](/filters/overview))
+- **Filters determine which cells are visible.** Four cards (Transcriptomics, Visual Stimuli, Swim, Anatomy) combine under logical AND. ([Filtering rules](/filters/overview))
 - **Selections are independent of filters.** A focused cell or lasso selection is retained across filter changes. ([Selections](/selections))
 - **Colors determine how visible cells are painted.** The Colors card and the Settings tab control the palette. ([Colors](/filters/colors))
 - **The Detail panel reflects the current selection,** falling back to the filter intersection when nothing is explicitly selected. ([Detail panel](/ui/detail))

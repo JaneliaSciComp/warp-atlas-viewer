@@ -19,9 +19,9 @@ features:
   - title: Linked anatomical and transcriptomic views
     details: Approximately 274,000 neurons are rendered as a single point cloud in mapzebrain coordinates, with a paired t-SNE projection in which selections propagate across views.
   - title: Compositional filtering
-    details: Transcriptomic, stimulus-response, and anatomical criteria can be combined with logical AND. A fourth card controls how the resulting cells are colored.
-  - title: Six color encodings
-    details: Uniform highlight, anatomical region, gene expression (single- and multi-gene), stimulus correlation, time-resolved ΔF/F, and source specimen.
+    details: Transcriptomic, stimulus-response, swim-behavior, and anatomical criteria can be combined with logical AND. A fifth card controls how the resulting cells are colored.
+  - title: Seven color encodings
+    details: Uniform highlight, anatomical region, gene expression (single- and multi-gene), stimulus correlation, swim correlation (signed, divergent ramp), time-resolved ΔF/F, and source specimen.
   - title: Per-cell inspection
     details: Selecting a cell exposes its gene spot-count profile, mean ΔF/F trace with stimulus on-windows shaded, and per-stimulus correlation.
   - title: Stateful URLs

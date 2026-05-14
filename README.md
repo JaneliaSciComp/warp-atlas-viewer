@@ -6,17 +6,19 @@ The tool runs entirely in the browser, with no backend. It loads typed-array bin
 
 ## What you can do with it
 
-Three filter cards (**Transcriptomics × Visual Stimuli × Anatomy**) combine with logical AND to keep a subset of cells visible. A fourth card (**Colors**) decides how the visible cells are painted.
+Four filter cards (**Transcriptomics × Visual Stimuli × Swim × Anatomy**) combine with logical AND to keep a subset of cells visible. A fifth card (**Colors**) decides how the visible cells are painted.
 
 - **Colors**: pick how cells are painted.
   - *Simple*: single-color highlight (everything visible is colored yellow).
   - *Region*: categorical palette over 16 focal anatomical regions.
   - *Gene expression*: plasma ramp over FISH spot counts. With no gene pinned the ramp shows **gene richness** (how many of the 41 panel genes each cell expresses). Pin a single gene to see its spot-count map; pin multiple to drive *max / sum / richness* (chosen in Settings). Toggle log ↔ linear scale.
   - *Stim correlation*: plasma ramp over Pearson r against the selected visual stimulus regressor. With no stim picked, max r across all 8 stimuli; with one picked, that stim's r; with several, max across the picks.
+  - *Swim correlation*: divergent ramp (blue → white → red) over signed Pearson r vs estimated swim power, anchored symmetrically at ±swimLo / ±swimHi.
   - *Activity*: plasma ramp over the mean ΔF/F trace at a scrubbable time point; an inline play button steps through the 134 s representative cycle.
   - *Specimen*: categorical palette over the 3 source fish.
 - **Transcriptomics**: keep cells expressing one or more genes (combined with OR / AND), or cells in a single named subtype (e.g. `pou4f2_cckb`).
 - **Visual Stimuli**: keep cells responsive to one or more of 8 stimuli (OR / AND); icons render the stimulus identity. Responsiveness threshold is tunable in Settings.
+- **Swim**: keep cells correlated (+ swim-driven) or anti-correlated (− anti-swim) with estimated swim power; magnitude threshold tunable in Settings.
 - **Anatomy**: isolate one of 16 regions and/or one of 3 fish specimens.
 
 Selections are independent of filters:

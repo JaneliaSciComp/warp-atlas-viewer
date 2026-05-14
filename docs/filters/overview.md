@@ -12,7 +12,7 @@ The Filters tab contains five cards:
 The `×` between cards denotes logical **AND**: a cell must pass every active card to remain visible.
 
 ::: tip Colors is not a filter
-The **Colors** card controls how visible cells are *painted*. The remaining four cards determine which cells are visible. The cards share the same tab and UI pattern, but the Colors card never removes cells from the view.
+The **Colors** card controls how visible cells are *painted*. The other four cards determine which cells are visible. They share the same tab and UI pattern, but the Colors card never removes cells from the view.
 :::
 
 ## A card set to "all" does not filter

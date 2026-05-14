@@ -183,16 +183,17 @@ export function HelpTab({
           Filtering
         </div>
         <p className="text-neutral-400 leading-snug">
-          The four cards in the Filters tab combine with logical AND
+          The five cards in the Filters tab combine with logical AND
           (that's what the <span className="text-neutral-200">×</span>{' '}
           between them means): a cell has to pass every active card
           to stay visible. A card set to <span className="text-neutral-200">all</span>{' '}
           (or with nothing selected) doesn't filter anything out.
         </p>
         <ul className="list-disc list-inside space-y-0.5 text-neutral-400 leading-snug">
-          <li><span className="text-neutral-200">Colors</span> — how the visible cells are coloured. Six schemes: <span className="text-neutral-200">Simple</span> (uniform yellow highlight), <span className="text-neutral-200">Region</span> (categorical), <span className="text-neutral-200">Gene expression</span> (plasma over FISH spot counts; log/linear toggle), <span className="text-neutral-200">Stim correlation</span> (plasma over Pearson r), <span className="text-neutral-200">Activity</span> (plasma over the ΔF/F trace at a scrubbable time point, with a play button stepping through the 134-second cycle), <span className="text-neutral-200">Specimen</span> (categorical by source fish).</li>
-          <li><span className="text-neutral-200">Transcriptomics</span> — keep cells expressing one or more selected genes (combined with <span className="text-neutral-200">OR / AND</span>), or cells belonging to a single functional subtype (e.g. <span className="text-neutral-200">pou4f2_cckb</span>)</li>
+          <li><span className="text-neutral-200">Colors</span> — how the visible cells are coloured. Seven schemes: <span className="text-neutral-200">Simple</span> (uniform yellow highlight), <span className="text-neutral-200">Region</span> (categorical), <span className="text-neutral-200">Gene expression</span> (plasma over FISH spot counts; log/linear toggle), <span className="text-neutral-200">Stim correlation</span> (plasma over Pearson r), <span className="text-neutral-200">Swim correlation</span> (divergent ramp over signed Pearson r vs swim power), <span className="text-neutral-200">Activity</span> (plasma over the ΔF/F trace at a scrubbable time point, with a play button stepping through the 134-second cycle), <span className="text-neutral-200">Specimen</span> (categorical by source fish).</li>
+          <li><span className="text-neutral-200">Transcriptomics</span> — keep cells expressing one or more selected genes (combined with <span className="text-neutral-200">OR / AND</span>), or cells belonging to a single molecular subtype (e.g. <span className="text-neutral-200">pou4f2_cckb</span>)</li>
           <li><span className="text-neutral-200">Visual Stimuli</span> — keep only cells whose calcium response correlates with the selected stimuli; the <span className="text-neutral-200">OR / AND</span> toggle picks whether <em>any one</em> match is enough (default) or <em>every</em> selected stimulus must clear the threshold (correlation threshold is in the Settings tab)</li>
+          <li><span className="text-neutral-200">Swim</span> — keep cells whose activity correlates (or anti-correlates) with estimated swim power. Two independent toggles: <span className="text-neutral-200">+ swim-driven</span> and <span className="text-neutral-200">− anti-swim</span>; magnitude threshold in Settings.</li>
           <li><span className="text-neutral-200">Anatomy</span> — isolate one of 16 brain regions, or one of the 3 fish specimens</li>
         </ul>
       </section>
@@ -220,7 +221,7 @@ export function HelpTab({
         </div>
         <ol className="list-decimal list-inside space-y-0.5 text-neutral-400 leading-snug">
           <li>Set <span className="text-neutral-200">Colors → Region</span> and orbit the 3D viewer to see the anatomy.</li>
-          <li>Switch <span className="text-neutral-200">Colors → Gene expression</span> and step through genes with the ‹ › arrows.</li>
+          <li>Switch <span className="text-neutral-200">Colors → Gene expression</span>; with no gene pinned, cells are coloured by richness across the 41-gene panel. Use <span className="text-neutral-200">Transcriptomics → + add gene</span> to pin a single gene and inspect its map.</li>
           <li>In <span className="text-neutral-200">Transcriptomics</span> flip to <span className="text-neutral-200">Subtype</span> and pick e.g. <span className="text-neutral-200">pou4f2_cckb</span> — most of the cluster lands in the optic tectum.</li>
           <li>Co-expression view: set <span className="text-neutral-200">Colors → Stim correlation</span>, pick a stimulus in <span className="text-neutral-200">Visual Stimuli</span>, and pick a single gene in <span className="text-neutral-200">Transcriptomics</span> — the remaining cells are gene-positive, coloured by how strongly they respond to the stimulus.</li>
           <li>Click any cell to fill in the details panel: per-gene spot counts, mean ΔF/F trace with each stimulus's on-window shaded, and a per-stimulus correlation bar chart.</li>
