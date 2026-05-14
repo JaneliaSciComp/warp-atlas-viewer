@@ -4,6 +4,19 @@ import { useData } from 'vitepress';
 
 const { Layout } = DefaultTheme;
 const { theme } = useData();
+
+// VitePress's global click handler intercepts internal-looking links
+// and tries to navigate via its SPA router — which 404s for the
+// sibling viewer subpath. Bypass it: stop the event before VitePress
+// sees it and trigger a full-page navigation.
+function launchViewer(e: MouseEvent) {
+  // Let modified clicks (cmd/ctrl/shift/middle) fall through to the
+  // browser's native open-in-new-tab / new-window behaviour.
+  if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+  e.preventDefault();
+  e.stopPropagation();
+  window.location.href = (theme.value as any).viewerUrl;
+}
 </script>
 
 <template>
@@ -17,7 +30,7 @@ const { theme } = useData();
     <template #home-hero-actions-after>
       <Teleport to=".VPHero .actions" defer>
         <div class="action viewer-action">
-          <a class="viewer-cta-button" :href="(theme as any).viewerUrl">Launch the viewer</a>
+          <a class="viewer-cta-button" :href="(theme as any).viewerUrl" @click="launchViewer">Launch the viewer</a>
         </div>
       </Teleport>
     </template>
