@@ -286,12 +286,13 @@ export function BrainViewer({
     const span = Math.max(max[0] - min[0], max[1] - min[1], max[2] - min[2]);
     return [0, 0, span * 0.95] as [number, number, number];
   }, [data]);
+  // initialCamera is the URL-restored seed. Capture it once at mount in
+  // a ref so a later prop update (e.g. a parent re-emitting the URL
+  // state) can't yank the camera mid-interaction.
+  const mountCameraRef = useRef(initialCamera);
   const camPosition = useMemo(() => {
-    if (initialCamera) return initialCamera.pos;
+    if (mountCameraRef.current) return mountCameraRef.current.pos;
     return defaultCamPosition;
-    // initialCamera intentionally only consulted on first mount; we
-    // don't want a remote URL update yanking the camera mid-interaction.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defaultCamPosition]);
 
   // Track the pointer-down position so we can distinguish a click (no
