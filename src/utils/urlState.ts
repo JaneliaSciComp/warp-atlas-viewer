@@ -44,6 +44,9 @@ export interface PersistedState {
    *  reproduces the original layout, and so collapse → re-expand
    *  restores the last dragged size instead of the default. */
   bottomHeight?: number;
+  /** Width of the right detail panel in pixels. Same persistence
+   *  reasoning as bottomHeight. */
+  detailWidth?: number;
   camera?: CameraState;
   umap?: UmapViewport;
   /** Lasso polygon vertices in t-SNE data coords, flat array
@@ -220,11 +223,14 @@ function validatePersisted(raw: Record<string, unknown>): PersistedState {
   }
   if (typeof raw.detail === 'boolean') out.detail = raw.detail;
   if (typeof raw.bottom === 'boolean') out.bottom = raw.bottom;
-  // Clamp to a generous window so a hostile URL can't pin the panel
-  // off-screen or smaller than its content. App's drag handler applies
+  // Clamp to a generous window so a hostile URL can't pin a panel
+  // off-screen or smaller than its content. App's drag handlers apply
   // the same bounds at runtime.
   if (isFiniteNum(raw.bottomHeight)) {
     out.bottomHeight = clamp(raw.bottomHeight, 120, 1200);
+  }
+  if (isFiniteNum(raw.detailWidth)) {
+    out.detailWidth = clamp(raw.detailWidth, 240, 800);
   }
   const cam = validateCamera(raw.camera);
   if (cam) out.camera = cam;

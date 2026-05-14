@@ -44,12 +44,16 @@ const INITIAL_FILTER: FilterState = {
   swimMode: 'off',
 };
 
-const DETAIL_PANEL_WIDTH = 360;
-// Bottom-panel resize bounds. The default also acts as the
-// expand-without-history target when no URL value is restored.
+// Panel resize bounds. The defaults also act as the expand-without-
+// history target when no URL value is restored. validatePersisted
+// enforces the same min/max so a hostile URL can't pin a panel
+// off-screen.
 const BOTTOM_HEIGHT_DEFAULT = 352;
 const BOTTOM_HEIGHT_MIN = 120;
 const BOTTOM_HEIGHT_MAX = 1200;
+const DETAIL_WIDTH_DEFAULT = 360;
+const DETAIL_WIDTH_MIN = 240;
+const DETAIL_WIDTH_MAX = 800;
 
 // Read the URL hash exactly once at module load. Subsequent updates go
 // through history.replaceState so the in-app state is always the source
@@ -91,6 +95,9 @@ export default function App() {
   // the user's last dragged size rather than the default.
   const [bottomHeight, setBottomHeight] = useState(
     INITIAL_URL_STATE?.bottomHeight ?? BOTTOM_HEIGHT_DEFAULT,
+  );
+  const [detailWidth, setDetailWidth] = useState(
+    INITIAL_URL_STATE?.detailWidth ?? DETAIL_WIDTH_DEFAULT,
   );
   // Single-neuron focus is independent of the group selection so a
   // t-SNE drag can persist while the user clicks through individual
@@ -195,6 +202,8 @@ export default function App() {
         bottom: bottomOpen ? undefined : false,
         bottomHeight:
           bottomHeight !== BOTTOM_HEIGHT_DEFAULT ? Math.round(bottomHeight) : undefined,
+        detailWidth:
+          detailWidth !== DETAIL_WIDTH_DEFAULT ? Math.round(detailWidth) : undefined,
         camera: cam,
         umap,
       };
@@ -226,7 +235,7 @@ export default function App() {
       const target = `${window.location.pathname}${window.location.search}${hash}`;
       window.history.replaceState(null, '', target);
     }, URL_DEBOUNCE_MS);
-  }, [filter, settings, focusedNeuron, detailOpen, bottomOpen, bottomHeight, lassoPoly]);
+  }, [filter, settings, focusedNeuron, detailOpen, bottomOpen, bottomHeight, detailWidth, lassoPoly]);
   // Schedule a URL write whenever React state changes.
   useEffect(() => {
     scheduleUrlWrite();
@@ -332,10 +341,10 @@ export default function App() {
   const outerLayout = useMemo(
     () => ({
       gridTemplateColumns: detailOpen
-        ? `minmax(0, 1fr) ${DETAIL_PANEL_WIDTH}px`
+        ? `minmax(0, 1fr) ${detailWidth}px`
         : 'minmax(0, 1fr)',
     }),
-    [detailOpen],
+    [detailOpen, detailWidth],
   );
   // Drag handler for the bottom-panel resize strip. Records the
   // pointerdown anchor and updates bottomHeight in real time via
@@ -359,6 +368,30 @@ export default function App() {
   }, []);
   const onResizeUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     dragRef.current = null;
+    if ((e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    }
+  }, []);
+
+  // Detail-panel resize: same setPointerCapture pattern, X axis,
+  // negated delta so dragging left grows the panel.
+  const detailDragRef = useRef<{ x: number; w: number } | null>(null);
+  const onDetailResizeDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    detailDragRef.current = { x: e.clientX, w: detailWidth };
+    e.preventDefault();
+  }, [detailWidth]);
+  const onDetailResizeMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const d = detailDragRef.current;
+    if (!d) return;
+    const next = Math.max(
+      DETAIL_WIDTH_MIN,
+      Math.min(DETAIL_WIDTH_MAX, d.w - (e.clientX - d.x)),
+    );
+    setDetailWidth(next);
+  }, []);
+  const onDetailResizeUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    detailDragRef.current = null;
     if ((e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) {
       (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     }
@@ -532,6 +565,17 @@ export default function App() {
             main column reclaims the width. */}
         {detailOpen && (
           <aside className="relative min-h-0 min-w-0 border-l border-neutral-800 bg-neutral-900">
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize detail panel"
+              onPointerDown={onDetailResizeDown}
+              onPointerMove={onDetailResizeMove}
+              onPointerUp={onDetailResizeUp}
+              onPointerCancel={onDetailResizeUp}
+              title="Drag to resize"
+              className="absolute top-0 bottom-0 left-0 w-1.5 z-20 cursor-col-resize bg-transparent hover:bg-yellow-300/30 transition-colors"
+            />
             <DetailPanel data={data} filter={filter} settings={settings} selection={effectiveSelection} focusedNeuron={focusedNeuron} />
           </aside>
         )}
@@ -547,7 +591,7 @@ export default function App() {
         onClick={() => setDetailOpen((o) => !o)}
         title={detailOpen ? 'hide details' : 'show details'}
         aria-label={detailOpen ? 'hide details panel' : 'show details panel'}
-        style={detailOpen ? { right: DETAIL_PANEL_WIDTH } : { right: 0 }}
+        style={detailOpen ? { right: detailWidth } : { right: 0 }}
         className="absolute top-1/2 -translate-y-1/2 z-30 bg-neutral-900/90 border border-r-0 border-neutral-700 text-neutral-200 py-3 px-1.5 rounded-l text-xs font-mono hover:bg-neutral-800"
       >
         {detailOpen ? '›' : '‹'}
