@@ -8,6 +8,7 @@ import { useUniqueFishIds } from './hooks/useUniqueFishIds';
 import { BrainViewer } from './components/BrainViewer';
 import { DetailPanel } from './components/DetailPanel';
 import { FilterControls } from './components/FilterControls';
+import { LinksMenu } from './components/LinksMenu';
 import { UmapPanel } from './components/UmapPanel';
 import { ColorLegend } from './components/ColorLegend';
 import { anyFilterActive, cellInSet } from './utils/coloring';
@@ -356,14 +357,17 @@ export default function App() {
             {data.count.toLocaleString()} cells pooled from {uniqueFishIds.length} fish{data.source === 'mock' ? ' (mock)' : ''}
           </p>
         </div>
-        <a
-          href="https://www.janelia.org"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Janelia Research Campus"
-        >
-          <img src={janeliaLogoUrl} alt="Janelia Research Campus" className="h-10 block" />
-        </a>
+        <div className="flex items-center gap-4">
+          <LinksMenu />
+          <a
+            href="https://www.janelia.org"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Janelia Research Campus"
+          >
+            <img src={janeliaLogoUrl} alt="Janelia Research Campus" className="h-10 block" />
+          </a>
+        </div>
       </header>
       <div className="flex-1 grid min-h-0" style={outerLayout}>
         {/* Main column: brain viewer on top, filters + t-SNE on bottom. */}
