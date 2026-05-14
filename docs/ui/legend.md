@@ -17,10 +17,6 @@ The legend in the top-right of the 3D viewer adapts to the active **Colors** sch
 | **Activity** | A plasma ramp annotated with ΔF/F anchors (floor and ceiling, from Settings). Cells below the floor are dim; cells above the ceiling saturate. |
 | **Specimen** | Three swatches, one per source specimen. |
 
-::: tip Simple mode
-Simple mode intentionally leaves the legend empty because there is no category or numeric ramp to decode.
-:::
-
 ## Plasma ramp
 
 The Gene expression, Stim correlation, and Activity schemes share a single plasma colormap (dark purple → magenta → orange → yellow). Plasma is perceptually uniform and color-blind safe.

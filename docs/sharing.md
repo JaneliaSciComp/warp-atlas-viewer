@@ -19,12 +19,6 @@ Every meaningful piece of view state is encoded in the URL hash (the `#…` port
 | **Activity time** | When Colors is set to Activity, the current sample index. |
 | **Panel visibility** | Whether the Detail panel or bottom panel is collapsed. |
 
-## What is *not* in the hash
-
-- The loaded cells, gene names, cluster names, and similar dataset content — these are common to all users.
-- Activity playback state. The cursor position is encoded, but whether playback is running is not.
-- Detail-panel scroll position.
-
 ## Sharing
 
 1. Configure the view as desired.

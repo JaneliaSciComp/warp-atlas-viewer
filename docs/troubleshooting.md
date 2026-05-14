@@ -5,15 +5,6 @@ description: Common failure modes and how to resolve them.
 
 # Troubleshooting
 
-## "Loading WARP atlas…" never completes, or "Error loading data" is shown
-
-The viewer attempted to fetch the preprocessed dataset and failed.
-
-1. Open the browser's DevTools and check the **Network** tab.
-2. If `preprocessed/neurons.json` returns 404, the preprocessed bundle is missing from the server hosting the viewer.
-3. To inspect the UI without the real data, append `?mock=1` to the URL.
-4. If the manifest loads but one or more `.bin` blobs fail, the JS console reports the failing path.
-
 ## Detail or bottom panels have disappeared
 
 Both panels can be collapsed:
