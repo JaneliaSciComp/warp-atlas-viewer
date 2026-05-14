@@ -152,6 +152,11 @@ function PointCloud({
         baseSize: { value: settings.pointSize },
       },
     });
+    // settings.pointSize is captured only as the initial uniform
+    // value; later changes flow through the effect below by mutating
+    // markerMaterial.uniforms.baseSize.value. Re-creating the whole
+    // ShaderMaterial on every slider tick would be wasteful.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gl]);
 
   useEffect(() => {

@@ -133,6 +133,10 @@ export default function App() {
       }
     }
     selectionRestoredRef.current = true;
+    // `filter` and `settings` are read intentionally only here from the
+    // URL-restored useState initializers — adding them as deps would
+    // re-fire the lasso restore on every filter/settings change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, setIndices]);
 
   // Activity-playback in-progress flag. When true, the URL writer
