@@ -21,24 +21,9 @@ interface FindingPreset {
   swimMode?: SwimMode;
 }
 
+// Ordered to follow the manuscript figures so a reader can walk through
+// the paper alongside the viewer.
 const FINDINGS: FindingPreset[] = [
-  {
-    title: 'pou4f2_cckb dimming-light response',
-    figure: 'Figure 5F · abstract',
-    description:
-      'Tectal pou4f2_cckb subtype is positively correlated with the dark-flash stimulus — the cckb-pou4f2 luminance-coding population highlighted in the abstract.',
-    colorMode: 'stim',
-    cluster: 'pou4f2_cckb',
-    stimuli: [4],
-  },
-  {
-    title: 'pvalb7_eomesa task-related neurons',
-    figure: 'Figure 4D-E · abstract',
-    description:
-      'Hippocampal-like pvalb7+/eomesa+ population in the dorsal pallium with task-structured calcium activity.',
-    colorMode: 'highlight',
-    cluster: 'pvalb7_eomesa',
-  },
   {
     title: 'calb2a_nefma — forward visual motion',
     figure: 'Figure 3C',
@@ -76,12 +61,29 @@ const FINDINGS: FindingPreset[] = [
     swimMode: 'positive',
   },
   {
+    title: 'pvalb7_eomesa task-related neurons',
+    figure: 'Figure 4D-E · abstract',
+    description:
+      'Hippocampal-like pvalb7+/eomesa+ population in the dorsal pallium with task-structured calcium activity.',
+    colorMode: 'highlight',
+    cluster: 'pvalb7_eomesa',
+  },
+  {
     title: 'gad1b_tph2_gfra1a — anti-forward-motion raphe',
     figure: 'Figure 5D',
     description:
       'One of the 15 largest multi-gene subtypes negatively correlated with forward visual motion (Fig 5D). The Detail-panel per-stimulus chart shows the cluster\'s negative forward-motion bar; the new Swim correlation histogram exposes the per-cell distribution. The stim color ramp is positive-only, so no visual stimulus filter is applied — switch the Colors card to inspect the cluster.',
     colorMode: 'highlight',
     cluster: 'gad1b_tph2_gfra1a',
+  },
+  {
+    title: 'pou4f2_cckb dimming-light response',
+    figure: 'Figure 5F · abstract',
+    description:
+      'Tectal pou4f2_cckb subtype is positively correlated with the dark-flash stimulus — the cckb-pou4f2 luminance-coding population highlighted in the abstract.',
+    colorMode: 'stim',
+    cluster: 'pou4f2_cckb',
+    stimuli: [4],
   },
 ];
 

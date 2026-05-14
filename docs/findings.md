@@ -9,7 +9,7 @@ The **Help** tab in the bottom panel provides preset views that reconfigure the 
 
 - sets the **Colors** scheme,
 - sets **Transcriptomics** (Gene or Subtype mode, with one selection),
-- sets the **Visual Stimuli** selection,
+- sets the **Visual Stimuli** and/or **Swim** selection where relevant,
 - clears any active selection (focused cell or lasso),
 - resets Anatomy to all regions/specimens while leaving Settings unchanged.
 
@@ -21,24 +21,7 @@ The presets are designed for reading the paper alongside the viewer. They do not
 
 ## Presets
 
-### `pou4f2_cckb` — dimming-light response (Figure 5F, abstract)
-
-The tectal `pou4f2_cckb` subtype is positively correlated with the dark-flash stimulus, corresponding to the luminance-coding population highlighted in the abstract.
-
-- **Colors:** `Stim correlation`
-- **Transcriptomics:** Subtype = `pou4f2_cckb`
-- **Visual Stimuli:** `[dark]`
-
-What to look for: cells concentrated in the optic tectum, with positive dark-flash correlation in the Detail panel. Looming responses can also be explored by adding the loom stimuli.
-
-### `pvalb7_eomesa` — task-related neurons (Figure 4D–E, abstract)
-
-A hippocampal-like pvalb7⁺ / eomesa⁺ population in the dorsal pallium with task-structured calcium activity.
-
-- **Colors:** `Simple`
-- **Transcriptomics:** Subtype = `pvalb7_eomesa`
-
-What to look for: a telencephalic / dorsal-pallial distribution. Use the Detail panel trace and per-stimulus bars to inspect task structure, and **Colors → Specimen** to check whether the filtered population is represented across fish.
+Presets are ordered to follow the manuscript figures, so a reader can step through Fig 3 → Fig 5 alongside the paper.
 
 ### `calb2a_nefma` — forward visual motion (Figure 3C)
 
@@ -80,6 +63,15 @@ What to look for: optic-tectum cells with flash-driven correlation bars. Use **A
 
 What to look for: a hindbrain-weighted subset of `otpa+` cells (the paper highlights medial-hindbrain neurons in particular). The Detail-panel swim histogram should show a positive mean by construction. Drop the Swim filter to see the full `otpa+` expression landscape for comparison.
 
+### `pvalb7_eomesa` — task-related neurons (Figure 4D–E, abstract)
+
+A hippocampal-like pvalb7⁺ / eomesa⁺ population in the dorsal pallium with task-structured calcium activity.
+
+- **Colors:** `Simple`
+- **Transcriptomics:** Subtype = `pvalb7_eomesa`
+
+What to look for: a telencephalic / dorsal-pallial distribution. Use the Detail panel trace and per-stimulus bars to inspect task structure, and **Colors → Specimen** to check whether the filtered population is represented across fish.
+
 ### `gad1b_tph2_gfra1a` — anti-forward-motion raphe (Figure 5D)
 
 Dorsal-raphe `gad1b_tph2_gfra1a` cells, one of the 15 largest multi-gene subtypes negatively correlated with forward visual motion (Fig 5D). The whole cluster is highlighted; the anti-correlation shows up in the Detail panel rather than in the 3D coloring (the Stim color ramp is positive-only).
@@ -93,4 +85,12 @@ What to look for:
 - the **swim correlation histogram** at the bottom of the Detail panel — exposes the per-cell distribution, including the cluster's anti-swim tail,
 - the cluster's **anatomical signature** in the 3D viewer (a subset is in Superior raphe, though most cells in the cluster fall outside the viewer's 16 focal regions and carry the *Unassigned* label).
 
-The previous version of this preset added a `[motion forward]` stimulus filter, but the Visual Stimuli filter is one-sided (`r ≥ +floor`), so it retained the positive outliers — the opposite of the paper's finding. The current preset drops that filter so the cluster's actual signature is visible.
+### `pou4f2_cckb` — dimming-light response (Figure 5F, abstract)
+
+The tectal `pou4f2_cckb` subtype is positively correlated with the dark-flash stimulus, corresponding to the luminance-coding population highlighted in the abstract.
+
+- **Colors:** `Stim correlation`
+- **Transcriptomics:** Subtype = `pou4f2_cckb`
+- **Visual Stimuli:** `[dark]`
+
+What to look for: cells concentrated in the optic tectum, with positive dark-flash correlation in the Detail panel. Looming responses can also be explored by adding the loom stimuli.
