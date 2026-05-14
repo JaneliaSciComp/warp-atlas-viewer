@@ -50,8 +50,8 @@ No backend, no database, no auth. Everything is static files plus client-side re
 ## Setup
 
 ```bash
-git clone git@github.com:JaneliaSciComp/warp-website.git
-cd warp-website
+git clone git@github.com:JaneliaSciComp/warp-atlas-viewer.git
+cd warp-atlas-viewer
 npm install
 ```
 
@@ -145,11 +145,11 @@ The dev server uses the same `WARP_ALLOWED_HOSTS` config as the main
 app (see [Local dev-server config](#local-dev-server-config)).
 
 For deployment to GitHub Pages at a project subpath (e.g.
-`https://JaneliaSciComp.github.io/warp-website/`), set `DOCS_BASE`
+`https://JaneliaSciComp.github.io/warp-atlas-viewer/`), set `DOCS_BASE`
 at build time so internal links resolve correctly:
 
 ```bash
-DOCS_BASE=/warp-website/ npm run docs:build
+DOCS_BASE=/warp-atlas-viewer/ npm run docs:build
 ```
 
 Default is `/`, which is correct for root-deployed sites or local

@@ -2,7 +2,7 @@ import { defineConfig } from 'vitepress';
 import { allowedHosts } from '../../scripts/devEnv.mjs';
 
 // Set DOCS_BASE at build time for GitHub Pages project sites
-// (e.g. DOCS_BASE=/warp-website/ npm run docs:build).
+// (e.g. DOCS_BASE=/warp-atlas-viewer/ npm run docs:build).
 // Defaults to '/' so local dev and root-deployed sites work as-is.
 const base = process.env.DOCS_BASE ?? '/';
 
@@ -47,7 +47,7 @@ export default defineConfig({
         text: 'Links',
         items: [
           { text: 'Paper (bioRxiv)', link: 'https://www.biorxiv.org/content/10.64898/2026.02.07.704095v1' },
-          { text: 'Source code', link: 'https://github.com/JaneliaSciComp/warp-website' },
+          { text: 'Source code', link: 'https://github.com/JaneliaSciComp/warp-atlas-viewer' },
           { text: 'Dataset (Figshare)', link: 'https://figshare.com/s/d1d19b105c4f74865c32' },
         ],
       },
@@ -108,7 +108,7 @@ export default defineConfig({
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/JaneliaSciComp/warp-website' },
+      { icon: 'github', link: 'https://github.com/JaneliaSciComp/warp-atlas-viewer' },
     ],
 
     search: {
@@ -128,7 +128,7 @@ export default defineConfig({
 
     editLink: {
       pattern:
-        'https://github.com/JaneliaSciComp/warp-website/edit/main/docs/:path',
+        'https://github.com/JaneliaSciComp/warp-atlas-viewer/edit/main/docs/:path',
       text: 'Edit this page on GitHub',
     },
   },

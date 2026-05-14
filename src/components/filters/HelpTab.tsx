@@ -308,12 +308,12 @@ export function HelpTab({
         <p className="text-neutral-400 leading-snug">
           The source for this viewer lives at{' '}
           <a
-            href="https://github.com/JaneliaSciComp/warp-website"
+            href="https://github.com/JaneliaSciComp/warp-atlas-viewer"
             target="_blank"
             rel="noopener noreferrer"
             className="text-yellow-300 hover:underline"
           >
-            github.com/JaneliaSciComp/warp-website
+            github.com/JaneliaSciComp/warp-atlas-viewer
           </a>
           . File an issue or open a PR there.
         </p>
