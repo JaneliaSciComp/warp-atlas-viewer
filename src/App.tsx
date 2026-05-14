@@ -112,7 +112,21 @@ export default function App() {
     const lasso = INITIAL_URL_STATE?.lasso;
     if (lasso && lasso.length >= 6 && lasso.length % 2 === 0) {
       const poly = new Float32Array(lasso);
-      const indices = cellsInPolygon(data.umap, data.count, poly);
+      let indices = cellsInPolygon(data.umap, data.count, poly);
+      // Match the live lasso semantics: when a filter is active, the
+      // selection excludes out-of-filter (dim) cells inside the
+      // polygon. `filter` and `settings` already carry the URL-
+      // restored values from the useState initializers; sanitize the
+      // filter inline to match the setFilter() call above so a stale
+      // gene/cluster/stim index doesn't fault cellInSet.
+      const sanitized = sanitizeFilterAgainstDataset(filter, data);
+      if (anyFilterActive(data, sanitized)) {
+        const kept: number[] = [];
+        for (let k = 0; k < indices.length; k++) {
+          if (cellInSet(data, sanitized, settings, indices[k])) kept.push(indices[k]);
+        }
+        indices = new Uint32Array(kept);
+      }
       if (indices.length > 0) {
         setIndices(indices, 'umap');
         setLassoPoly(poly);
@@ -437,6 +451,7 @@ export default function App() {
               </div>
               <UmapPanel
                 data={data}
+                filter={filter}
                 settings={settings}
                 selection={selection}
                 coloring={coloring}

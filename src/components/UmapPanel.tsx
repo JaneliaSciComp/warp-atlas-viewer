@@ -1,11 +1,17 @@
 import { useEffect, useRef, useMemo, useCallback, useState } from 'react';
-import type { NeuronDataset, SelectionState, SettingsState } from '../data/types';
+import type { FilterState, NeuronDataset, SelectionState, SettingsState } from '../data/types';
 import type { UmapViewport } from '../utils/urlState';
 import type { SharedColoring } from '../hooks/useColoring';
+import { anyFilterActive, cellInSet } from '../utils/coloring';
 import { pointInPolygon } from '../utils/polygon';
 
 interface Props {
   data: NeuronDataset;
+  /** Active filter state. Used to keep t-SNE click + lasso selection
+   *  consistent with the 3D viewer: dimmed (out-of-filter) cells are
+   *  not pickable when something visible is nearby, and the lasso
+   *  ignores them entirely. */
+  filter: FilterState;
   settings: SettingsState;
   selection: SelectionState;
   /** Shared base coloring (filter+settings+selection are baked in
@@ -38,6 +44,7 @@ const INITIAL_VIEWPORT: Viewport = { zoom: 1, panX: 0, panY: 0 };
 
 export function UmapPanel({
   data,
+  filter,
   settings,
   selection,
   coloring,
@@ -401,25 +408,37 @@ export function UmapPanel({
     const isTap = pts.length < 3 || (bxmax - bxmin < 3 && bymax - bymin < 3);
     if (isTap) {
       // Click handling: find the nearest neuron within ~16 px and
-      // focus it (mirrors the 3D viewer's click-to-focus). If nothing
-      // is close enough, treat the empty click as "unfocus" — the
-      // lasso selection stays put either way.
+      // focus it (mirrors the 3D viewer's click-to-focus). When a
+      // filter is active, in-filter cells outrank out-of-filter ones
+      // regardless of distance — dimmed cells should not steal a
+      // click that's also near a coloured cell. Out-of-filter cells
+      // are only considered if no in-filter cell is in the window.
       const cx = pts[0][0], cy = pts[0][1];
       const PIX_THRESH_SQ = 16 * 16;
-      let nearest = -1;
-      let nearestDist = PIX_THRESH_SQ;
+      const filterActive = anyFilterActive(data, filter);
+      let bestI = -1;
+      let bestD2 = PIX_THRESH_SQ;
+      let bestInFilter = false;
       for (let i = 0; i < data.count; i++) {
         const [px, py] = project(data.umap[i * 2], data.umap[i * 2 + 1], size.w, size.h, viewport);
         if (px < cx - 16 || px > cx + 16 || py < cy - 16 || py > cy + 16) continue;
         const dx = px - cx;
         const dy = py - cy;
-        const ds = dx * dx + dy * dy;
-        if (ds < nearestDist) {
-          nearestDist = ds;
-          nearest = i;
+        const d2 = dx * dx + dy * dy;
+        if (d2 >= PIX_THRESH_SQ) continue;
+        const inFilter = !filterActive || cellInSet(data, filter, settings, i);
+        if (inFilter) {
+          if (!bestInFilter || d2 < bestD2) {
+            bestInFilter = true;
+            bestD2 = d2;
+            bestI = i;
+          }
+        } else if (!bestInFilter && d2 < bestD2) {
+          bestD2 = d2;
+          bestI = i;
         }
       }
-      onFocus(nearest >= 0 ? nearest : null);
+      onFocus(bestI >= 0 ? bestI : null);
       return;
     }
     // Flatten the pixel-space polygon once; the shared pointInPolygon
@@ -429,11 +448,17 @@ export function UmapPanel({
       polyPx[p * 2] = pts[p][0];
       polyPx[p * 2 + 1] = pts[p][1];
     }
+    // Lassoing across dimmed (out-of-filter) cells should not pull
+    // them into the selection — they aren't visibly there. When a
+    // filter is active, exclude cells that fail the filter predicate.
+    const filterActive = anyFilterActive(data, filter);
     const out: number[] = [];
     for (let i = 0; i < data.count; i++) {
       const [px, py] = project(data.umap[i * 2], data.umap[i * 2 + 1], size.w, size.h, viewport);
       if (px < bxmin || px > bxmax || py < bymin || py > bymax) continue;
-      if (pointInPolygon(px, py, polyPx)) out.push(i);
+      if (!pointInPolygon(px, py, polyPx)) continue;
+      if (filterActive && !cellInSet(data, filter, settings, i)) continue;
+      out.push(i);
     }
     // Capture the polygon in t-SNE data coords too — App round-trips
     // it through the URL hash, way smaller than serializing thousands
