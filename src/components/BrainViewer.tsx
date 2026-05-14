@@ -2,7 +2,7 @@ import { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { TrackballControls } from '@react-three/drei';
 import * as THREE from 'three';
-import type { NeuronDataset, FilterState, SelectionState, SettingsState } from '../data/types';
+import type { NeuronDataset, FilterState, SettingsState } from '../data/types';
 import type { CameraState } from '../utils/urlState';
 import { allocColoring, anyFilterActive, cellInSet } from '../utils/coloring';
 import type { SharedColoring } from '../hooks/useColoring';
@@ -13,7 +13,6 @@ interface Props {
   data: NeuronDataset;
   filter: FilterState;
   settings: SettingsState;
-  selection: SelectionState;
   /** Shared base coloring computed once in App. We copy it into our
    *  own buffers so we can stamp the focused-neuron brighter on top
    *  without corrupting what UmapPanel reads. */
@@ -264,7 +263,6 @@ export function BrainViewer({
   data,
   filter,
   settings,
-  selection,
   coloring,
   focusedNeuron,
   onFocus,
@@ -420,7 +418,6 @@ function CameraSync({
   // The drei controls wire themselves in via makeDefault; useThree
   // exposes the instance on .controls. Use any to avoid a public-API
   // dependency on TrackballControlsImpl.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const controls = useThree((s) => s.controls) as any;
   const restoredRef = useRef(false);
   const lastRef = useRef<CameraState | null>(null);

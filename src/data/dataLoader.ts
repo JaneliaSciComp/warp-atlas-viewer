@@ -1,7 +1,7 @@
 import type { NeuronDataset } from './types';
 import { generateMockData } from './mockData';
 
-interface ManifestV2 {
+export interface ManifestV2 {
   version: 2;
   count: number;
   traceLength: number;
@@ -78,7 +78,7 @@ export async function loadNeuronDataset(
  *  assumes these are well-formed (counts drive typed-array sizes, bounds
  *  drive camera framing, quant drives trace decoding), so catching
  *  malformed values here saves a forensic dive later. */
-function validateManifest(m: ManifestV2): void {
+export function validateManifest(m: ManifestV2): void {
   const posInt = (name: string, v: unknown) => {
     if (!Number.isInteger(v) || (v as number) <= 0) {
       throw new Error(`manifest.${name} must be a positive integer (got ${JSON.stringify(v)})`);
@@ -128,7 +128,7 @@ function validateManifest(m: ManifestV2): void {
  *  truncated, has the wrong dtype, or was paired with the wrong manifest
  *  — all of which would otherwise silently produce mis-shaped typed
  *  arrays that read past valid data or NaN downstream. */
-function expectedBytes(
+export function expectedBytes(
   key: keyof ManifestV2['files'],
   m: ManifestV2,
 ): number {
@@ -151,7 +151,7 @@ function expectedBytes(
   }
 }
 
-function validateBuffer(
+export function validateBuffer(
   fileName: string,
   buf: ArrayBuffer,
   expected: number,

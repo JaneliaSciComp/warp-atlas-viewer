@@ -168,7 +168,7 @@ export function applyColoring(
   selection: SelectionState,
   out: ColoringResult,
 ): void {
-  const { count, regionIds, clusterIds, geneCounts, geneBinary, stimulusCorr, swimCorr, activityTrace, traceLength } = ds;
+  const { count, regionIds, geneCounts, geneBinary, stimulusCorr, swimCorr, activityTrace, traceLength } = ds;
   const { colors, alphas, sizes } = out;
   const G = ds.geneNames.length;
   const S = ds.stimulusNames.length;

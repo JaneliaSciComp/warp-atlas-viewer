@@ -322,7 +322,6 @@ export function UmapPanel({
       const vp = viewportRef.current;
       const factor = Math.exp(-e.deltaY * 0.0015);
       const newZoom = Math.max(0.25, Math.min(1000, vp.zoom * factor));
-      const ratio = newZoom / vp.zoom;
       // Anchor: keep the point under the cursor fixed during zoom.
       // px_new = (panX_new) + (px_old - panX_old) * ratio  (approx — see
       // derivation below). Solving so cursor stays put:

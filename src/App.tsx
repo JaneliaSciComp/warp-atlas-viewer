@@ -395,7 +395,6 @@ export default function App() {
                 data={data}
                 filter={filter}
                 settings={settings}
-                selection={selection}
                 coloring={coloring}
                 focusedNeuron={focusedNeuron}
                 onFocus={setFocusedNeuron}
