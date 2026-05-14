@@ -139,12 +139,15 @@ export function AboutTab({
           >
             paper
           </a>
-          ), each one mapped to (1) a 3D position in the brain,
-          (2) expression counts for 41 genes, (3) one of 333
-          molecularly-defined subtypes, and (4) a calcium response
-          to 8 visual stimuli. The 3D viewer and the t-SNE show the
-          same cells in two spaces — anything you select in one is
-          highlighted in the other.
+          ), pooled from 3 fish into a shared mapzebrain reference
+          frame. Each cell carries (1) a 3D position, (2) expression
+          counts for 41 genes, (3) one of 333 molecularly-defined
+          subtypes, (4) a calcium response to 8 visual stimuli, and
+          (5) a correlation between its activity and swim power. The
+          3D viewer and the t-SNE show the same cells in two spaces —
+          anything you select in one is highlighted in the other. The
+          Details panel summarizes the current selection: a single
+          cell's profile, or aggregate stats across a group.
         </p>
       </section>
 
