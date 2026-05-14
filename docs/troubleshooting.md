@@ -51,7 +51,7 @@ The renderer caps playback at approximately 60 fps and advances multiple samples
 
 If **Colors → Gene expression** is active and the brain appears uniformly dark:
 
-- No gene is pinned and Subtype mode is active, so the scheme falls back to [gene richness](/filters/colors#gene-richness-when-nothing-is-pinned). Try the **log scale** toggle in the same card.
+- No gene is pinned (the Transcriptomics toggle is set to **Subtype** or **All**, or **Gene** mode has no genes added), so the scheme falls back to [gene richness](/filters/colors#gene-richness-when-nothing-is-pinned). Try the **log scale** toggle in the same card.
 - The **Gene plasma ceiling** in Settings may be set too high for the dataset's spot-count distribution, mapping typical values to the dim end. Reduce the ceiling.
 - The currently pinned gene may be genuinely sparse. Choose another gene from the Transcriptomics gene row dropdown.
 

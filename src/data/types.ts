@@ -56,12 +56,14 @@ export type ColorMode = 'highlight' | 'region' | 'gene' | 'stim' | 'swim' | 'act
  *  pair of booleans into one of these four states. */
 export type SwimMode = 'off' | 'positive' | 'negative' | 'both';
 export type GeneScale = 'log' | 'linear';
-/** Which sub-filter the Transcriptomics panel exposes. 'all' applies
- *  no transcriptomics filter — gene rows and the cluster dropdown are
- *  hidden, gene-coloring falls back to richness across the 41-gene
- *  panel. selectedGenes / selectedCluster are PRESERVED across mode
- *  flips so the user can return to Gene or Subtype without losing
- *  their previously picked gene(s)/cluster. */
+/** Which sub-filter the Transcriptomics panel exposes:
+ *    'all'     → no transcriptomics filter; gene rows and the cluster
+ *                dropdown are hidden, gene-coloring falls back to
+ *                richness across the 41-gene panel.
+ *    'gene'    → filter by selectedGenes (combined per geneLogic).
+ *    'subtype' → filter by selectedCluster.
+ *  selectedGenes and selectedCluster persist across mode flips, so
+ *  switching modes never loses the user's previous pick. */
 export type TxMode = 'all' | 'gene' | 'subtype';
 
 /**
@@ -69,12 +71,13 @@ export type TxMode = 'all' | 'gene' | 'subtype';
  *
  * The current rendering must be 100% described by the fields that the
  * user can currently see in the bottom-panel UI. Several fields below
- * (selectedCluster, selectedStimulus, geneScale, geneLogic,
- * activitySample) PERSIST across UI flips for ergonomics — when the
- * user toggles between Gene/Subtype or empties their gene list (or
- * flips Color scheme away from Activity and back), we keep their
- * prior pick so they don't lose it. That persistence is fine ONLY as
- * long as those fields don't influence rendering when they're hidden.
+ * (selectedGenes, selectedCluster, selectedStimulus, geneScale,
+ * geneLogic, activitySample) PERSIST across UI flips for ergonomics —
+ * the user can switch the txMode toggle (All / Gene / Subtype), empty
+ * their gene list, or flip the Color scheme away from Activity and
+ * back without losing their previous pick. That persistence is fine
+ * ONLY as long as those fields don't influence rendering when they're
+ * hidden.
  *
  * Rule for any code path that reads one of these fields:
  *   1. Check the visibility predicate first (e.g. for geneLogic:
@@ -121,9 +124,9 @@ export interface FilterState {
    *  is controlled by `settings.geneStrict`. Only meaningful when
    *  selectedGenes.length >= 2. */
   geneLogic: GeneLogic;
-  /** Always 0..C-1. Persists across txMode flips. The "no cluster
-   *  filter" state is represented by txMode === 'all' rather than a
-   *  separate flag. */
+  /** Cluster index this cell is filtered to when txMode === 'subtype'.
+   *  Always 0..C-1. Persists across txMode flips so flipping back to
+   *  Subtype restores the previously picked cluster. */
   selectedCluster: number;
 
   // ── Activity filter ───────────────────────────────────────────────

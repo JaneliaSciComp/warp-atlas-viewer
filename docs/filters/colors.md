@@ -33,7 +33,7 @@ Plasma ramp over FISH spot counts.
 
 ### Gene richness (no gene pinned)
 
-If no single gene is pinned in **Transcriptomics** — that is, the gene set is empty or Subtype mode is active — every cell is painted by **gene richness**: the number of panel genes the cell expresses. Brighter cells are transcriptomically richer.
+If no single gene is pinned in **Transcriptomics** — that is, the gene set is empty or the toggle is set to **Subtype** or **All** — every cell is painted by **gene richness**: the number of panel genes the cell expresses. Brighter cells are transcriptomically richer.
 
 This is the default when switching to **Colors → Gene expression** without first selecting a gene.
 

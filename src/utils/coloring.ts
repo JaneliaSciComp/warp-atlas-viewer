@@ -31,8 +31,9 @@ export function allocColoring(n: number): ColoringResult {
 export interface CellPredicates {
   /** Whether the cell is in the isolated region (or no region is isolated). */
   inRegion: boolean;
-  /** Whether the cell passes the active gene/cluster filter. True if
-   *  the relevant filter is "all" or txMode points the other way. */
+  /** Whether the cell passes the active gene/cluster filter. Always
+   *  true when txMode is 'all', or when in Gene mode with no genes
+   *  pinned. */
   passesTx: boolean;
   /** Whether the cell passes the active stimulus filter. */
   passesStim: boolean;

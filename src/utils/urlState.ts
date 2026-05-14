@@ -139,10 +139,9 @@ function validateFilter(raw: unknown): Partial<FilterState> {
   }
   if (isString(f.geneLogic, GENE_LOGICS)) out.geneLogic = f.geneLogic;
   if (isInt(f.selectedCluster) && f.selectedCluster >= 0) out.selectedCluster = f.selectedCluster;
-  // Pre-"All" share links encoded "no transcriptomics filter" as
-  // txMode='subtype' + clusterAll=true. Migrate that to txMode='all' so
-  // the legend and the toggle stay in sync. The old clusterAll field is
-  // otherwise ignored.
+  // Some incoming URLs encode "no transcriptomics filter" as
+  // txMode='subtype' with a clusterAll=true side-flag instead of the
+  // canonical txMode='all'. Normalize so legend + toggle stay in sync.
   if (out.txMode === 'subtype' && f.clusterAll === true) out.txMode = 'all';
   if (Array.isArray(f.selectedStimuli)) {
     const ids = f.selectedStimuli.filter((x): x is number => isInt(x) && x >= 0);

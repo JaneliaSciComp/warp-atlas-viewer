@@ -5,7 +5,7 @@ description: Filter by gene expression (multi-select with OR or AND) or by molec
 
 # Transcriptomics
 
-This card filters by gene expression. It has two modes, selectable with the **Gene / Subtype** toggle at the top.
+This card filters by gene expression. It has three modes, selectable with the **All / Gene / Subtype** toggle at the top. **All** applies no transcriptomics filter — use it to clear a gene or subtype selection without removing it row-by-row.
 
 ## Gene mode
 
@@ -31,19 +31,19 @@ Use **binary call** to track the published calls. Switch to **any detected** to 
 
 ## Subtype mode
 
-A single dropdown over the 333 molecularly defined subtypes (plus an "all" option). Selecting one restricts visibility to cells in that cluster.
+A single dropdown over the 333 molecularly defined subtypes. Selecting one restricts visibility to cells in that cluster. To see every subtype with no cluster filter, switch the toggle to **All**.
 
 Subtype names follow the convention `gene1_gene2[_gene3]`, after the dominant markers of the cluster (e.g. `pou4f2_cckb`, `gad1b_tph2_gfra1a`). Index 0 is reserved for *Unassigned* (cells the upstream clustering did not confidently label).
 
 The subtype labels come from the manuscript's molecular-subtype pipeline and are based on binary expression combinations for the subtype marker set. They should be read as cluster labels, not as exhaustive lists of every gene detected in a cell. Use Gene mode and the Detail-panel gene bars when you need to inspect raw spot-count patterns directly.
 
 ::: warning URL dataset coupling
-The Help-tab presets resolve subtypes by name, but shareable URLs persist the selected subtype as its current dataset index. Links are therefore tied to the cluster ordering in the bundle they were created against. See [Preprocessing](/preprocess#cluster-alignment).
+The About-tab presets resolve subtypes by name, but shareable URLs persist the selected subtype as its current dataset index. Links are therefore tied to the cluster ordering in the bundle they were created against. See [Preprocessing](/preprocess#cluster-alignment).
 :::
 
 ### Gene mode with no selection
 
-Switching to Gene mode with no genes selected — under either OR or AND — retains all cells (vacuously true). To filter, select at least one gene.
+Switching to Gene mode with no genes selected — under either OR or AND — retains all cells (vacuously true). To filter, select at least one gene. The **All** toggle is the explicit "no transcriptomics filter" state and is equivalent in effect.
 
 ## Common combinations
 

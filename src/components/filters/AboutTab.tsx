@@ -72,7 +72,7 @@ const FINDINGS: FindingPreset[] = [
     title: 'gad1b_tph2_gfra1a — anti-forward-motion raphe',
     figure: 'Figure 5D',
     description:
-      'One of the 15 largest multi-gene subtypes negatively correlated with forward visual motion (Fig 5D). The Detail-panel per-stimulus chart shows the cluster\'s negative forward-motion bar; the new Swim correlation histogram exposes the per-cell distribution. The stim color ramp is positive-only, so no visual stimulus filter is applied — switch the Colors card to inspect the cluster.',
+      'One of the 15 largest multi-gene subtypes negatively correlated with forward visual motion (Fig 5D). The Detail-panel per-stimulus chart shows the cluster\'s negative forward-motion bar; the Swim correlation histogram exposes the per-cell distribution. The stim color ramp is positive-only, so no visual stimulus filter is applied — switch the Colors card to inspect the cluster.',
     colorMode: 'highlight',
     cluster: 'gad1b_tph2_gfra1a',
   },
