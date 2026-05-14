@@ -45,6 +45,11 @@ const INITIAL_FILTER: FilterState = {
 };
 
 const DETAIL_PANEL_WIDTH = 360;
+// Bottom-panel resize bounds. The default also acts as the
+// expand-without-history target when no URL value is restored.
+const BOTTOM_HEIGHT_DEFAULT = 352;
+const BOTTOM_HEIGHT_MIN = 120;
+const BOTTOM_HEIGHT_MAX = 1200;
 
 // Read the URL hash exactly once at module load. Subsequent updates go
 // through history.replaceState so the in-app state is always the source
@@ -81,6 +86,12 @@ export default function App() {
   // hidden when not in use to give the brain viewer / t-SNE the full width.
   const [detailOpen, setDetailOpen] = useState(INITIAL_URL_STATE?.detail ?? true);
   const [bottomOpen, setBottomOpen] = useState(INITIAL_URL_STATE?.bottom ?? true);
+  // Bottom-row height in pixels. Persisted so a share link reproduces
+  // the original layout, and so a collapse → re-expand cycle restores
+  // the user's last dragged size rather than the default.
+  const [bottomHeight, setBottomHeight] = useState(
+    INITIAL_URL_STATE?.bottomHeight ?? BOTTOM_HEIGHT_DEFAULT,
+  );
   // Single-neuron focus is independent of the group selection so a
   // t-SNE drag can persist while the user clicks through individual
   // neurons. Click on a neuron → focus it (DetailPanel shows just that
@@ -182,6 +193,8 @@ export default function App() {
         focusedNeuron: focusedNeuron ?? undefined,
         detail: detailOpen ? undefined : false,
         bottom: bottomOpen ? undefined : false,
+        bottomHeight:
+          bottomHeight !== BOTTOM_HEIGHT_DEFAULT ? Math.round(bottomHeight) : undefined,
         camera: cam,
         umap,
       };
@@ -213,7 +226,7 @@ export default function App() {
       const target = `${window.location.pathname}${window.location.search}${hash}`;
       window.history.replaceState(null, '', target);
     }, URL_DEBOUNCE_MS);
-  }, [filter, settings, focusedNeuron, detailOpen, bottomOpen, lassoPoly]);
+  }, [filter, settings, focusedNeuron, detailOpen, bottomOpen, bottomHeight, lassoPoly]);
   // Schedule a URL write whenever React state changes.
   useEffect(() => {
     scheduleUrlWrite();
@@ -324,15 +337,44 @@ export default function App() {
     }),
     [detailOpen],
   );
+  // Drag handler for the bottom-panel resize strip. Records the
+  // pointerdown anchor and updates bottomHeight in real time via
+  // setPointerCapture so the cursor can travel anywhere without
+  // losing the gesture. The clamp matches validatePersisted's bounds
+  // so URL-restored and live values share the same range.
+  const dragRef = useRef<{ y: number; h: number } | null>(null);
+  const onResizeDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    dragRef.current = { y: e.clientY, h: bottomHeight };
+    e.preventDefault();
+  }, [bottomHeight]);
+  const onResizeMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const next = Math.max(
+      BOTTOM_HEIGHT_MIN,
+      Math.min(BOTTOM_HEIGHT_MAX, d.h - (e.clientY - d.y)),
+    );
+    setBottomHeight(next);
+  }, []);
+  const onResizeUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    dragRef.current = null;
+    if ((e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    }
+  }, []);
+
   // Inside the main column, two rows: brain viewer + bottom bar
   // (filters + t-SNE). When the bottom bar is hidden the second row
   // collapses and the brain viewer reclaims the full height.
   const mainLayout = useMemo(
     () => ({
       gridTemplateColumns: 'minmax(0, 1fr)',
-      gridTemplateRows: bottomOpen ? 'minmax(0, 1fr) 352px' : 'minmax(0, 1fr)',
+      gridTemplateRows: bottomOpen
+        ? `minmax(0, 1fr) ${bottomHeight}px`
+        : 'minmax(0, 1fr)',
     }),
-    [bottomOpen],
+    [bottomOpen, bottomHeight],
   );
 
   if (error) {
@@ -416,6 +458,19 @@ export default function App() {
                 uniqueFishIds={uniqueFishIds}
               />
             </div>
+            {bottomOpen && (
+              <div
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label="Resize bottom panel"
+                onPointerDown={onResizeDown}
+                onPointerMove={onResizeMove}
+                onPointerUp={onResizeUp}
+                onPointerCancel={onResizeUp}
+                title="Drag to resize"
+                className="absolute bottom-0 left-0 right-0 h-1.5 z-20 cursor-row-resize bg-transparent hover:bg-yellow-300/30 transition-colors"
+              />
+            )}
             <button
               onClick={() => setBottomOpen((o) => !o)}
               title={bottomOpen ? 'hide bottom panel' : 'show bottom panel'}

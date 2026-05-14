@@ -40,6 +40,10 @@ export interface PersistedState {
   focusedNeuron?: number;
   detail?: boolean;
   bottom?: boolean;
+  /** Height of the bottom panel in pixels. Persisted so a share link
+   *  reproduces the original layout, and so collapse → re-expand
+   *  restores the last dragged size instead of the default. */
+  bottomHeight?: number;
   camera?: CameraState;
   umap?: UmapViewport;
   /** Lasso polygon vertices in t-SNE data coords, flat array
@@ -216,6 +220,12 @@ function validatePersisted(raw: Record<string, unknown>): PersistedState {
   }
   if (typeof raw.detail === 'boolean') out.detail = raw.detail;
   if (typeof raw.bottom === 'boolean') out.bottom = raw.bottom;
+  // Clamp to a generous window so a hostile URL can't pin the panel
+  // off-screen or smaller than its content. App's drag handler applies
+  // the same bounds at runtime.
+  if (isFiniteNum(raw.bottomHeight)) {
+    out.bottomHeight = clamp(raw.bottomHeight, 120, 1200);
+  }
   const cam = validateCamera(raw.camera);
   if (cam) out.camera = cam;
   const vp = validateViewport(raw.umap);
