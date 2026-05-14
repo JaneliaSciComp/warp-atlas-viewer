@@ -182,6 +182,30 @@ The shared loader lives at `scripts/devEnv.mjs`; both
 `vite.config.ts` and `docs/.vitepress/config.ts` import its
 `allowedHosts` export.
 
+### Tests, lint, and the check pipeline
+
+```bash
+npm test           # one-shot run (vitest), CI-friendly
+npm run test:watch # watch mode for development
+npm run lint       # ESLint
+npm run check      # tsc --noEmit && eslint . && vitest run && vite build
+```
+
+`npm test` runs the vitest unit suite against the pure-function
+surface: `cellPasses` / `cellInSet` / `anyFilterActive` across the
+filter matrix, the URL-hash encode/decode roundtrip plus its schema
+rejection, `pointInPolygon` / `cellsInPolygon`, and the
+`validateManifest` / `expectedBytes` / `validateBuffer`
+data-load invariants. Test files live next to their source as
+`*.test.ts`.
+
+`npm run lint` is `eslint-plugin-react-hooks` (classic
+`rules-of-hooks` + `exhaustive-deps`) — hook-correctness only, not
+stylistic.
+
+`npm run check` is the aggregate gate suitable for CI; everything
+needs to pass.
+
 ## Project layout
 
 ```
@@ -191,7 +215,7 @@ src/
   components/
     BrainViewer.tsx                 3D point cloud + custom shader, hover/click pick
     DetailPanel.tsx                 right sidebar: gene bar chart, activity trace, stim corr
-    FilterControls.tsx              tab shell (Filters / Settings / Help)
+    FilterControls.tsx              tab shell (Filters / Settings / About)
     UmapPanel.tsx                   2D t-SNE scatter with linked lasso + pan/zoom
     ColorLegend.tsx                 mode-aware legend (top-right of viewer)
     filters/
@@ -200,7 +224,7 @@ src/
       ActivityCard.tsx              stimulus icons + OR/AND logic
       AnatomyCard.tsx               region + specimen dropdowns
       SettingsTab.tsx               tunable cutoffs, ramps, point size, etc.
-      HelpTab.tsx                   guide + "reproduce a finding" presets
+      AboutTab.tsx                  intro + docs link + paper-finding presets
       shared.tsx                    Card / Select / KindToggle / ResetButton
   shaders/
     neuron.vert.glsl, neuron.frag.glsl
