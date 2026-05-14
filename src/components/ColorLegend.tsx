@@ -133,12 +133,12 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
   }
   if (filter.colorMode === 'gene') {
     // Sub-modes (mirrors the painting branches in coloring.ts):
-    //   0 genes (or subtype mode) → richness over the full 41-gene panel
+    //   txMode != 'gene' OR 0 genes → richness over the full 41-gene panel
     //   1 gene → plasma over its raw FISH spot count
     //   2+ genes → driven by settings.geneMultiColor (max/sum/richness)
     const sel = filter.selectedGenes;
     const useRichness =
-      filter.txMode === 'subtype' || (filter.txMode === 'gene' && sel.length === 0);
+      filter.txMode !== 'gene' || sel.length === 0;
     const multiGenes = filter.txMode === 'gene' && sel.length >= 2;
     const multiMode = settings.geneMultiColor;
     // "Richness within selection" reuses the richness branch but

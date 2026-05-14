@@ -1,5 +1,5 @@
 import type { NeuronDataset, FilterState } from '../../data/types';
-import { ALL_OPTION, Card, KindToggle, Select } from './shared';
+import { Card, KindToggle, Select } from './shared';
 
 /** Dedupe an array of integer indices while preserving insertion
  *  order — used so the gene-filter rows render in the order the user
@@ -23,11 +23,7 @@ export function TranscriptomicsCard({
   filter: FilterState;
   update: (p: Partial<FilterState>) => void;
 }) {
-  const onClusterChange = (v: number) => {
-    if (v < 0) update({ clusterAll: true });
-    else update({ clusterAll: false, selectedCluster: v });
-  };
-  const clusterValue = filter.clusterAll ? -1 : filter.selectedCluster;
+  const onClusterChange = (v: number) => update({ selectedCluster: v });
 
   // ── Multi-gene helpers ─────────────────────────────────────────────
   const sel = filter.selectedGenes;
@@ -75,11 +71,12 @@ export function TranscriptomicsCard({
         value={filter.txMode}
         onChange={(m) => update({ txMode: m })}
         options={[
+          { value: 'all', label: 'All' },
           { value: 'gene', label: 'Gene' },
           { value: 'subtype', label: 'Subtype' },
         ]}
       />
-      {filter.txMode === 'gene' ? (
+      {filter.txMode === 'all' ? null : filter.txMode === 'gene' ? (
         <>
           {sel.map((g, rowIdx) => (
             <div key={rowIdx} className="flex items-center gap-1">
@@ -139,14 +136,11 @@ export function TranscriptomicsCard({
       ) : (
         <Select
           label="cluster"
-          value={clusterValue}
+          value={filter.selectedCluster}
           onChange={onClusterChange}
-          options={[
-            ALL_OPTION,
-            ...data.clusterNames
-              .map((c, i) => ({ value: i, label: c }))
-              .sort((a, b) => a.label.localeCompare(b.label)),
-          ]}
+          options={data.clusterNames
+            .map((c, i) => ({ value: i, label: c }))
+            .sort((a, b) => a.label.localeCompare(b.label))}
           arrows
         />
       )}

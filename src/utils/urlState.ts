@@ -103,7 +103,7 @@ export function decodeHash(hash: string): PersistedState | null {
 
 const COLOR_MODES = new Set<ColorMode>(['highlight', 'region', 'gene', 'stim', 'activity', 'fish']);
 const GENE_SCALES = new Set<GeneScale>(['log', 'linear']);
-const TX_MODES = new Set<TxMode>(['gene', 'subtype']);
+const TX_MODES = new Set<TxMode>(['all', 'gene', 'subtype']);
 const GENE_LOGICS = new Set<GeneLogic>(['or', 'and']);
 const STIM_LOGICS = new Set<StimLogic>(['or', 'and']);
 const GENE_MULTI_COLORS = new Set<GeneMultiColor>(['max', 'sum', 'richness']);
@@ -139,7 +139,11 @@ function validateFilter(raw: unknown): Partial<FilterState> {
   }
   if (isString(f.geneLogic, GENE_LOGICS)) out.geneLogic = f.geneLogic;
   if (isInt(f.selectedCluster) && f.selectedCluster >= 0) out.selectedCluster = f.selectedCluster;
-  if (typeof f.clusterAll === 'boolean') out.clusterAll = f.clusterAll;
+  // Pre-"All" share links encoded "no transcriptomics filter" as
+  // txMode='subtype' + clusterAll=true. Migrate that to txMode='all' so
+  // the legend and the toggle stay in sync. The old clusterAll field is
+  // otherwise ignored.
+  if (out.txMode === 'subtype' && f.clusterAll === true) out.txMode = 'all';
   if (Array.isArray(f.selectedStimuli)) {
     const ids = f.selectedStimuli.filter((x): x is number => isInt(x) && x >= 0);
     out.selectedStimuli = Array.from(new Set(ids)).sort((a, b) => a - b);

@@ -56,10 +56,13 @@ export type ColorMode = 'highlight' | 'region' | 'gene' | 'stim' | 'swim' | 'act
  *  pair of booleans into one of these four states. */
 export type SwimMode = 'off' | 'positive' | 'negative' | 'both';
 export type GeneScale = 'log' | 'linear';
-/** Which sub-filter the Transcriptomics panel exposes. The inactive
- *  sub-filter's index is preserved so the user can flip back to it
- *  without losing the previously picked gene/cluster. */
-export type TxMode = 'gene' | 'subtype';
+/** Which sub-filter the Transcriptomics panel exposes. 'all' applies
+ *  no transcriptomics filter — gene rows and the cluster dropdown are
+ *  hidden, gene-coloring falls back to richness across the 41-gene
+ *  panel. selectedGenes / selectedCluster are PRESERVED across mode
+ *  flips so the user can return to Gene or Subtype without losing
+ *  their previously picked gene(s)/cluster. */
+export type TxMode = 'all' | 'gene' | 'subtype';
 
 /**
  * INVARIANT — visible-state-only rendering:
@@ -118,10 +121,10 @@ export interface FilterState {
    *  is controlled by `settings.geneStrict`. Only meaningful when
    *  selectedGenes.length >= 2. */
   geneLogic: GeneLogic;
-  /** Always 0..C-1. Persists across txMode flips and "all" picks. */
+  /** Always 0..C-1. Persists across txMode flips. The "no cluster
+   *  filter" state is represented by txMode === 'all' rather than a
+   *  separate flag. */
   selectedCluster: number;
-  /** Subtype-branch equivalent of "no cluster filter". */
-  clusterAll: boolean;
 
   // ── Activity filter ───────────────────────────────────────────────
   /** Indices of stimuli the user has toggled ON in the Activity panel.

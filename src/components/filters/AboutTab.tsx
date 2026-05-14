@@ -95,7 +95,6 @@ function buildPresetFilter(p: FindingPreset, data: NeuronDataset): Partial<Filte
     if (idx < 0) return null;
     out.txMode = 'subtype';
     out.selectedCluster = idx;
-    out.clusterAll = false;
   }
   if (p.gene) {
     const idx = data.geneNames.indexOf(p.gene);

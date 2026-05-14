@@ -38,7 +38,6 @@ const INITIAL_FILTER: FilterState = {
   selectedGenes: [],
   geneLogic: 'or',
   selectedCluster: 0,
-  clusterAll: true,
   selectedStimuli: [],
   stimLogic: 'or',
   activitySample: 0,

@@ -60,7 +60,7 @@ export function cellPasses(
 
   const genes = filter.selectedGenes;
   const geneActive = filter.txMode === 'gene' && genes.length > 0;
-  const clusterActive = filter.txMode === 'subtype' && !filter.clusterAll;
+  const clusterActive = filter.txMode === 'subtype';
   let passesTx = true;
   if (geneActive) {
     const strict = settings.geneStrict;
@@ -140,7 +140,7 @@ export function anyFilterActive(ds: NeuronDataset, filter: FilterState): boolean
     filter.isolatedRegion >= 0 ||
     filter.isolatedFish >= 0 ||
     (filter.txMode === 'gene' && filter.selectedGenes.length > 0) ||
-    (filter.txMode === 'subtype' && !filter.clusterAll) ||
+    filter.txMode === 'subtype' ||
     stimsActive ||
     filter.swimMode !== 'off'
   );
@@ -213,8 +213,7 @@ export function applyColoring(
   //                (same predicate the filter uses), 0..N
   const geneSel = filter.selectedGenes;
   const useRichness =
-    filter.txMode === 'subtype' ||
-    (filter.txMode === 'gene' && geneSel.length === 0);
+    filter.txMode !== 'gene' || geneSel.length === 0;
   const RICHNESS_LOG_DEN = Math.log(1 + G);
   const multiGenes = filter.txMode === 'gene' && geneSel.length >= 2;
   const geneMultiMode = settings.geneMultiColor;
