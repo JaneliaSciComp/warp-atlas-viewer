@@ -4,19 +4,6 @@ import { useData } from 'vitepress';
 
 const { Layout } = DefaultTheme;
 const { theme } = useData();
-
-// VitePress's global click handler intercepts internal-looking links
-// and tries to navigate via its SPA router — which 404s for the
-// sibling viewer subpath. Bypass it: stop the event before VitePress
-// sees it and trigger a full-page navigation.
-function launchViewer(e: MouseEvent) {
-  // Let modified clicks (cmd/ctrl/shift/middle) fall through to the
-  // browser's native open-in-new-tab / new-window behaviour.
-  if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-  e.preventDefault();
-  e.stopPropagation();
-  window.location.href = (theme.value as any).viewerUrl;
-}
 </script>
 
 <template>
@@ -26,11 +13,18 @@ function launchViewer(e: MouseEvent) {
      can't live there directly. Teleport injects an extra <div class="action">
      into the existing actions container at mount time, with `defer` so
      the target exists by the time the move runs. Styles are unscoped
-     because teleported content sits outside this component's data-v scope. -->
+     because teleported content sits outside this component's data-v scope.
+     target="_blank" on the anchor both opens the viewer in a new tab
+     and makes VitePress's SPA router skip its click intercept. -->
     <template #home-hero-actions-after>
       <Teleport to=".VPHero .actions" defer>
         <div class="action viewer-action">
-          <a class="viewer-cta-button" :href="(theme as any).viewerUrl" @click="launchViewer">Launch the viewer</a>
+          <a
+            class="viewer-cta-button"
+            :href="(theme as any).viewerUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+          >Launch the viewer</a>
         </div>
       </Teleport>
     </template>

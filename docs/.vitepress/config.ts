@@ -15,7 +15,7 @@ const viewerUrl = base.replace(/docs\/?$/, '') || '/';
 export default defineConfig({
   base,
   lang: 'en-US',
-  title: 'WARP Atlas Viewer',
+  title: 'WARP Atlas Viewer Docs',
   description:
     'User documentation for the WARP Atlas Viewer — a browser-based viewer for the larval-zebrafish whole-brain transcriptomic + functional atlas.',
   cleanUrls: true,
@@ -57,7 +57,10 @@ export default defineConfig({
       {
         text: 'Links',
         items: [
-          { text: 'Viewer', link: viewerUrl },
+          // target=_blank both opens the sibling viewer in a new tab
+          // and tells VitePress to skip its SPA router intercept. The
+          // matching external-link arrow is added by custom.css below.
+          { text: 'Viewer', link: viewerUrl, target: '_blank', rel: 'noopener noreferrer' },
           { text: 'Paper (bioRxiv)', link: 'https://www.biorxiv.org/content/10.64898/2026.02.07.704095v1' },
           { text: 'Source code', link: 'https://github.com/JaneliaSciComp/warp-atlas-viewer' },
           { text: 'Dataset (Figshare)', link: 'https://figshare.com/s/d1d19b105c4f74865c32' },
