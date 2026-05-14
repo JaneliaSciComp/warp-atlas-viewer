@@ -116,6 +116,13 @@ function PointCloud({
     return g;
   }, []);
 
+  // The marker material is created once per renderer. Subsequent
+  // pointSize changes flow through the effect below by mutating
+  // baseSize.value in place — re-creating the ShaderMaterial on every
+  // slider tick would be wasteful. Capturing only the mount-time value
+  // via a ref makes that "initial value, then mutate" contract
+  // structural so the linter doesn't have to take our word for it.
+  const initialPointSize = useRef(settings.pointSize).current;
   const markerMaterial = useMemo(() => {
     return new THREE.ShaderMaterial({
       vertexShader: `
@@ -149,15 +156,10 @@ function PointCloud({
       depthTest: false,
       uniforms: {
         pixelRatio: { value: gl.getPixelRatio() },
-        baseSize: { value: settings.pointSize },
+        baseSize: { value: initialPointSize },
       },
     });
-    // settings.pointSize is captured only as the initial uniform
-    // value; later changes flow through the effect below by mutating
-    // markerMaterial.uniforms.baseSize.value. Re-creating the whole
-    // ShaderMaterial on every slider tick would be wasteful.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gl]);
+  }, [gl, initialPointSize]);
 
   useEffect(() => {
     markerMaterial.uniforms.baseSize.value = settings.pointSize;

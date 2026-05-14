@@ -52,17 +52,25 @@ const DETAIL_PANEL_WIDTH = 360;
 const INITIAL_URL_STATE =
   typeof window !== 'undefined' ? decodeHash(window.location.hash) : null;
 
+// Materialize the merged-with-defaults initial filter/settings at module
+// load too, so the useState initializers and the lasso-restore effect
+// (which re-applies the filter-aware predicate at mount time) share one
+// source of truth. Effects can read these without pulling React state
+// into their dep arrays.
+const INITIAL_FILTER_STATE: FilterState = {
+  ...INITIAL_FILTER,
+  ...(INITIAL_URL_STATE?.filter ?? {}),
+};
+const INITIAL_SETTINGS_STATE: SettingsState = {
+  ...DEFAULT_SETTINGS,
+  ...(INITIAL_URL_STATE?.settings ?? {}),
+};
+
 export default function App() {
   const { data, error, progress } = useNeuronData();
   const uniqueFishIds = useUniqueFishIds(data);
-  const [filter, setFilter] = useState<FilterState>(() => ({
-    ...INITIAL_FILTER,
-    ...(INITIAL_URL_STATE?.filter ?? {}),
-  }));
-  const [settings, setSettings] = useState<SettingsState>(() => ({
-    ...DEFAULT_SETTINGS,
-    ...(INITIAL_URL_STATE?.settings ?? {}),
-  }));
+  const [filter, setFilter] = useState<FilterState>(INITIAL_FILTER_STATE);
+  const [settings, setSettings] = useState<SettingsState>(INITIAL_SETTINGS_STATE);
   const { selection, setIndices, clear } = useSelection();
   // Shared per-cell coloring (colors / alphas / sizes) — computed once
   // per filter/settings/selection change and passed to both BrainViewer
@@ -115,15 +123,15 @@ export default function App() {
       let indices = cellsInPolygon(data.umap, data.count, poly);
       // Match the live lasso semantics: when a filter is active, the
       // selection excludes out-of-filter (dim) cells inside the
-      // polygon. `filter` and `settings` already carry the URL-
-      // restored values from the useState initializers; sanitize the
-      // filter inline to match the setFilter() call above so a stale
-      // gene/cluster/stim index doesn't fault cellInSet.
-      const sanitized = sanitizeFilterAgainstDataset(filter, data);
+      // polygon. We read INITIAL_FILTER_STATE / INITIAL_SETTINGS_STATE
+      // directly (instead of the React `filter`/`settings`) so this
+      // restore is unambiguously a one-shot mount-time computation —
+      // future filter changes can't reach back in and re-fire it.
+      const sanitized = sanitizeFilterAgainstDataset(INITIAL_FILTER_STATE, data);
       if (anyFilterActive(data, sanitized)) {
         const kept: number[] = [];
         for (let k = 0; k < indices.length; k++) {
-          if (cellInSet(data, sanitized, settings, indices[k])) kept.push(indices[k]);
+          if (cellInSet(data, sanitized, INITIAL_SETTINGS_STATE, indices[k])) kept.push(indices[k]);
         }
         indices = new Uint32Array(kept);
       }
@@ -133,10 +141,6 @@ export default function App() {
       }
     }
     selectionRestoredRef.current = true;
-    // `filter` and `settings` are read intentionally only here from the
-    // URL-restored useState initializers — adding them as deps would
-    // re-fire the lasso restore on every filter/settings change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, setIndices]);
 
   // Activity-playback in-progress flag. When true, the URL writer
