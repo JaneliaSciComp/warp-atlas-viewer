@@ -119,6 +119,10 @@ export function HelpTab({
   data: NeuronDataset;
   applyView: (preset: Partial<FilterState>) => void;
 }) {
+  // Set at build time by scripts/bundle.sh (./docs/ in the combined
+  // bundle); omitted in dev builds with no separate docs deployment.
+  const docsUrl = import.meta.env.VITE_WARP_DOCS_URL;
+
   return (
     <div className="flex flex-col gap-4 pb-3 text-xs font-mono text-neutral-300 max-w-2xl">
       <section className="flex flex-col gap-1">
@@ -146,95 +150,35 @@ export function HelpTab({
 
       <section className="flex flex-col gap-1">
         <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
-          Panels
-        </div>
-        <ul className="list-disc list-inside space-y-0.5 text-neutral-400 leading-snug">
-          <li><span className="text-neutral-200">3D viewer</span> — anatomical view; legend top-right</li>
-          <li><span className="text-neutral-200">t-SNE</span> (bottom right) — cells grouped by transcriptomic similarity</li>
-          <li><span className="text-neutral-200">Details</span> (right edge, click the ‹ handle to toggle) — populated when you click a cell or lasso a group</li>
-          <li><span className="text-neutral-200">Filters / Settings / Help</span> — this strip; the <span className="inline-block -translate-y-[3px]">⌄</span> handle at the bottom edge of the 3D viewer hides it</li>
-        </ul>
-      </section>
-
-      <section className="flex flex-col gap-1">
-        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
-          Mouse
-        </div>
-        <ul className="list-disc list-inside space-y-0.5 text-neutral-400 leading-snug">
-          <li><span className="text-neutral-200">3D</span>: drag to orbit · wheel to zoom · hover for ID/region/top genes · click a cell to focus it in the details panel (right-drag to pan can be enabled in Settings)</li>
-          <li><span className="text-neutral-200">t-SNE</span>: drag to lasso-select · click a cell to focus · right-drag or shift+drag to pan · wheel to zoom</li>
-        </ul>
-      </section>
-
-      <section className="flex flex-col gap-1">
-        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
-          Selections
-        </div>
-        <ul className="list-disc list-inside space-y-0.5 text-neutral-400 leading-snug">
-          <li>Click a cell in the 3D viewer to focus it; the <span className="text-neutral-200">Details</span> panel switches to that one cell.</li>
-          <li>Drag in the t-SNE to lasso a group; the same cells light up in the 3D viewer.</li>
-          <li>Selections survive every filter change — you can change filters without losing what you picked. When nothing's selected, the Details panel falls back to whatever the filter intersection produces.</li>
-          <li>Use the <span className="text-neutral-200">clear selection</span> button (top of the t-SNE panel) or click empty space in the 3D viewer to drop them.</li>
-        </ul>
-      </section>
-
-      <section className="flex flex-col gap-1">
-        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
-          Filtering
+          Documentation
         </div>
         <p className="text-neutral-400 leading-snug">
-          The five cards in the Filters tab combine with logical AND
-          (that's what the <span className="text-neutral-200">×</span>{' '}
-          between them means): a cell has to pass every active card
-          to stay visible. A card set to <span className="text-neutral-200">all</span>{' '}
-          (or with nothing selected) doesn't filter anything out.
+          A full user guide covers the interface panels, each filter
+          card and colour scheme, selections, settings, and how to
+          share a view via URL.
+          {docsUrl ? (
+            <>
+              {' '}
+              <a
+                href={docsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-yellow-300 hover:underline"
+              >
+                Open the docs →
+              </a>
+            </>
+          ) : null}
         </p>
-        <ul className="list-disc list-inside space-y-0.5 text-neutral-400 leading-snug">
-          <li><span className="text-neutral-200">Colors</span> — how the visible cells are coloured. Seven schemes: <span className="text-neutral-200">Simple</span> (uniform yellow highlight), <span className="text-neutral-200">Region</span> (categorical), <span className="text-neutral-200">Gene expression</span> (plasma over FISH spot counts; log/linear toggle), <span className="text-neutral-200">Stim correlation</span> (plasma over Pearson r), <span className="text-neutral-200">Swim correlation</span> (divergent ramp over signed Pearson r vs swim power), <span className="text-neutral-200">Activity</span> (plasma over the ΔF/F trace at a scrubbable time point, with a play button stepping through the 134-second cycle), <span className="text-neutral-200">Specimen</span> (categorical by source fish).</li>
-          <li><span className="text-neutral-200">Transcriptomics</span> — keep cells expressing one or more selected genes (combined with <span className="text-neutral-200">OR / AND</span>), or cells belonging to a single molecular subtype (e.g. <span className="text-neutral-200">pou4f2_cckb</span>)</li>
-          <li><span className="text-neutral-200">Visual Stimuli</span> — keep only cells whose calcium response correlates with the selected stimuli; the <span className="text-neutral-200">OR / AND</span> toggle picks whether <em>any one</em> match is enough (default) or <em>every</em> selected stimulus must clear the threshold (correlation threshold is in the Settings tab)</li>
-          <li><span className="text-neutral-200">Swim</span> — keep cells whose activity correlates (or anti-correlates) with estimated swim power. Two independent toggles: <span className="text-neutral-200">+ swim-driven</span> and <span className="text-neutral-200">− anti-swim</span>; magnitude threshold in Settings.</li>
-          <li><span className="text-neutral-200">Anatomy</span> — isolate one of 16 brain regions, or one of the 3 fish specimens</li>
-        </ul>
       </section>
 
       <section className="flex flex-col gap-1">
         <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
-          Specimens
+          Explore findings from the paper
         </div>
         <p className="text-neutral-400 leading-snug">
-          The atlas pools cells from 3 individual fish (originally
-          imaged as Fish 1 / 2 / 3) into a shared mapzebrain
-          coordinate frame. Every dot is one real cell from one real
-          fish; the per-specimen breakdown surfaces in three places:
-        </p>
-        <ul className="list-disc list-inside space-y-0.5 text-neutral-400 leading-snug">
-          <li><span className="text-neutral-200">Colors → Specimen</span> — paint each cell by its source fish (categorical) so per-fish coverage and registration consistency become visible.</li>
-          <li><span className="text-neutral-200">Anatomy → specimen</span> — keep only cells from one fish; useful for sanity-checking whether a finding holds in every individual.</li>
-          <li>The <span className="text-neutral-200">Details</span> panel shows a per-fish breakdown of any selection so you can spot a population that's driven by a single specimen.</li>
-        </ul>
-      </section>
-
-      <section className="flex flex-col gap-1">
-        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
-          Try this first
-        </div>
-        <ol className="list-decimal list-inside space-y-0.5 text-neutral-400 leading-snug">
-          <li>Set <span className="text-neutral-200">Colors → Region</span> and orbit the 3D viewer to see the anatomy.</li>
-          <li>Switch <span className="text-neutral-200">Colors → Gene expression</span>; with no gene pinned, cells are coloured by richness across the 41-gene panel. Use <span className="text-neutral-200">Transcriptomics → + add gene</span> to pin a single gene and inspect its map.</li>
-          <li>In <span className="text-neutral-200">Transcriptomics</span> flip to <span className="text-neutral-200">Subtype</span> and pick e.g. <span className="text-neutral-200">pou4f2_cckb</span> — most of the cluster lands in the optic tectum.</li>
-          <li>Co-expression view: set <span className="text-neutral-200">Colors → Stim correlation</span>, pick a stimulus in <span className="text-neutral-200">Visual Stimuli</span>, and pick a single gene in <span className="text-neutral-200">Transcriptomics</span> — the remaining cells are gene-positive, coloured by how strongly they respond to the stimulus.</li>
-          <li>Click any cell to fill in the details panel: per-gene spot counts, mean ΔF/F trace with each stimulus's on-window shaded, and a per-stimulus correlation bar chart.</li>
-        </ol>
-      </section>
-
-      <section className="flex flex-col gap-1">
-        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
-          Reproduce a finding from the paper
-        </div>
-        <p className="text-neutral-400 leading-snug">
-          Each button sets the filters/colour scheme to reproduce a
-          specific finding from the{' '}
+          Each button applies the filters and colour scheme that
+          surface a specific finding from the{' '}
           <a
             href="https://www.biorxiv.org/content/10.64898/2026.02.07.704095v1"
             target="_blank"
@@ -274,30 +218,6 @@ export function HelpTab({
               </li>
             );
           })}
-        </ul>
-      </section>
-
-      <section className="flex flex-col gap-1">
-        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
-          Sharing a view
-        </div>
-        <p className="text-neutral-400 leading-snug">
-          The URL hash mirrors the full app state — filters, settings,
-          camera, t-SNE viewport, lasso polygon, focused neuron. Copy the
-          URL to share whatever you're currently looking at; opening it
-          elsewhere restores the same view.
-        </p>
-      </section>
-
-      <section className="flex flex-col gap-1">
-        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
-          Notes
-        </div>
-        <ul className="list-disc list-inside space-y-0.5 text-neutral-400 leading-snug">
-          <li>The activity-trace x-axis is in seconds; one 134-second cycle contains all 8 stimuli back-to-back.</li>
-          <li><span className="text-neutral-200">Gene richness:</span> in the <span className="text-neutral-200">Gene expression</span> colour scheme, if no single gene is pinned in <span className="text-neutral-200">Transcriptomics</span> (gene set to "all", or you're in Subtype mode), each cell is coloured by how many of the 41 panel genes it expresses. Pin a gene to switch to the classic single-gene FISH spot-count map.</li>
-          <li><span className="text-neutral-200">Multi-gene coloring:</span> with 2+ genes pinned, the <span className="text-neutral-200">Gene expression</span> scheme honours the <span className="text-neutral-200">Max / Sum / Richness</span> pick in the <span className="text-neutral-200">Settings</span> tab — strongest single gene, total spot count, or count of "on" genes per the binary-call predicate.</li>
-          <li><span className="text-neutral-200">Stim correlation, max across selected:</span> with the <span className="text-neutral-200">Stim correlation</span> colour scheme, picking exactly one stimulus paints by that stimulus's Pearson r. With nothing picked the cell is coloured by its <em>max</em> correlation across every stimulus; with two or more picked, by max across just the selected set (independent of the OR/AND filter logic).</li>
         </ul>
       </section>
 
