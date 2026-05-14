@@ -11,9 +11,6 @@ hero:
     - theme: alt
       text: Read the paper
       link: https://www.biorxiv.org/content/10.64898/2026.02.07.704095v1
-    - theme: alt
-      text: Source code
-      link: https://github.com/JaneliaSciComp/warp-atlas-viewer
 
 features:
   - title: Linked anatomical and transcriptomic views

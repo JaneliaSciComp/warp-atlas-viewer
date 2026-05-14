@@ -18,11 +18,23 @@ if [ ! -d preprocessed ] || [ ! -f preprocessed/neurons.json ]; then
 fi
 
 echo "==> Building app bundle..."
+# Surface the in-bundle docs to LinksMenu via Vite's build-time env. The
+# relative path keeps dist/ relocatable; the docs site itself is built
+# below with an absolute DOCS_BASE because VitePress needs that.
+export VITE_WARP_DOCS_URL=./docs/
 npm run build
 
 echo "==> Copying preprocessed data into dist/..."
 rm -rf dist/preprocessed
 cp -r preprocessed dist/preprocessed
+
+echo "==> Building docs into dist/docs/..."
+# VitePress needs an absolute base. Default assumes the bundle is served
+# at the host root; override for sub-path deployments, e.g.
+#   DOCS_BASE=/warp-website/docs/ bash scripts/bundle.sh
+DOCS_BASE="${DOCS_BASE:-/docs/}" npm run docs:build
+rm -rf dist/docs
+cp -r docs/.vitepress/dist dist/docs
 
 bytes=$(du -sb dist 2>/dev/null | cut -f1 || du -sk dist | awk '{print $1*1024}')
 human=$(du -sh dist | cut -f1)

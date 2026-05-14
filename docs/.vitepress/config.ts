@@ -6,6 +6,12 @@ import { allowedHosts } from '../../scripts/devEnv.mjs';
 // Defaults to '/' so local dev and root-deployed sites work as-is.
 const base = process.env.DOCS_BASE ?? '/';
 
+// The viewer lives one level above the docs in the combined bundle
+// (see scripts/bundle.sh — viewer at $BASE/, docs at $BASE/docs/). Strip
+// the trailing /docs/ to derive the viewer URL so a single DOCS_BASE
+// override drives both sides.
+const viewerUrl = base.replace(/docs\/?$/, '') || '/';
+
 export default defineConfig({
   base,
   lang: 'en-US',
@@ -38,6 +44,11 @@ export default defineConfig({
   themeConfig: {
     siteTitle: 'WARP Atlas Viewer · Docs',
 
+    // Exposed to the custom Layout so the home-page "Open viewer"
+    // button can link out to the sibling viewer deployment without
+    // VitePress prefixing it with `base`.
+    viewerUrl,
+
     nav: [
       { text: 'Guide', link: '/getting-started', activeMatch: '/(getting-started|ui|filters|settings|selections|sharing)' },
       { text: 'Data', link: '/data-flow', activeMatch: '/(data-flow|preprocess)' },
@@ -46,6 +57,7 @@ export default defineConfig({
       {
         text: 'Links',
         items: [
+          { text: 'Viewer', link: viewerUrl },
           { text: 'Paper (bioRxiv)', link: 'https://www.biorxiv.org/content/10.64898/2026.02.07.704095v1' },
           { text: 'Source code', link: 'https://github.com/JaneliaSciComp/warp-atlas-viewer' },
           { text: 'Dataset (Figshare)', link: 'https://figshare.com/s/d1d19b105c4f74865c32' },
