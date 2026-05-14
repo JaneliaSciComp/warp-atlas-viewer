@@ -15,6 +15,14 @@ export default defineConfig({
     // Set WARP_ALLOWED_HOSTS in .env.local (gitignored) to add your
     // own dev hostnames — see .env.local.example.
     allowedHosts,
+    // The docs site is its own Vite project (VitePress) — nothing in
+    // docs/ is imported by the viewer's module graph, so HMR has no
+    // reason to watch it. Skipping the whole tree also avoids a
+    // chokidar crash (errno -116) on NFS-style filesystems when
+    // `scripts/bundle.sh` wipes docs/.vitepress/dist/ mid-flight.
+    watch: {
+      ignored: ['**/docs/**'],
+    },
   },
   assetsInclude: ['**/*.glsl', '**/*.vert', '**/*.frag'],
 });
