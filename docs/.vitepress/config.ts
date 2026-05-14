@@ -78,6 +78,7 @@ export default defineConfig({
           { text: 'Colors', link: '/filters/colors' },
           { text: 'Transcriptomics', link: '/filters/transcriptomics' },
           { text: 'Visual Stimuli', link: '/filters/stimuli' },
+          { text: 'Swim correlation', link: '/filters/swim' },
           { text: 'Anatomy', link: '/filters/anatomy' },
         ],
       },

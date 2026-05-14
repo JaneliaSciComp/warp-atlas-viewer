@@ -54,7 +54,10 @@ description: Terms and abbreviations used in the WARP Atlas Viewer and these doc
 : Linear correlation coefficient. Used as the per-cell, per-stimulus responsiveness score.
 
 **Responsive floor**
-: The Pearson r threshold above which a cell is considered responsive. Default `r = 0.30`. Adjustable in [Settings](/settings#stim-correlation-cutoffs).
+: The Pearson r threshold above which a cell is considered responsive. Default `r = 0.13`, matching the manuscript's full-vector cutoff. Adjustable in [Settings](/settings#stim-correlation-cutoffs).
+
+**Swim correlation**
+: Per-cell Pearson r between calcium activity and estimated swim power (the windowed variance of the ephys tail-electrode channel). Signed: positive = swim-driven, negative = anti-correlated with swimming. Surfaced through the [Swim card](/filters/swim) and the swim color scheme.
 
 **On-window**
 : The interval during which a stimulus was on. Shown as a vertical shaded band on the Detail panel's ΔF/F trace.

@@ -51,7 +51,16 @@ Two anchors on the same row:
   - the [Stim correlation color scheme](/filters/colors#stim-correlation) (dim end of the ramp).
 - **saturation (r ≥)** — cells with r above this anchor saturate at the bright end of the ramp.
 
-Defaults are floor `0.30` and saturation `0.65`. Lower the floor to be more permissive; raise it to be stricter.
+Defaults are floor `0.13` and saturation `0.30`. The floor matches the manuscript's full-vector responsive threshold (Methods: "Selecting positively and negatively correlated neurons"); the saturation sits near the 99th percentile of the cycle-wide correlation distribution. Lower the floor to be more permissive; raise it to be stricter.
+
+## Swim correlation cutoffs
+
+Two anchors for the signed per-cell correlation between calcium activity and estimated swim power:
+
+- **responsive floor (|r| ≥)** — magnitude below which a cell is treated as unresponsive (neutral midpoint of the divergent color ramp; rejected by the swim filter unless `swimMode` is `off`).
+- **saturation (|r| ≥)** — magnitude at which the divergent ramp reaches its endpoints.
+
+Defaults are floor `0.10` and saturation `0.35`. The floor matches the manuscript's swim-correlation cutoff (Methods: "Correlation to swimming behavior"; R > 0.1 / R < −0.1 identifies the swim-related subtypes). Lower the floor to be more permissive in either direction.
 
 ## Activity ΔF/F anchors
 

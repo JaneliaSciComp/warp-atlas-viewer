@@ -57,6 +57,23 @@ A bar chart of the mean per-cell Pearson r values for the current selection. For
 Strongly negative bars are meaningful signals, identifying inhibitory or anti-correlated populations. The dorsal-raphe `gad1b_tph2_gfra1a` preset ([Findings](/findings)) provides a worked example.
 :::
 
+### 4. Swim correlation {#swim-correlation}
+
+A 40-bin histogram of the selection's per-cell Pearson r against estimated swim power.
+
+- **X-axis:** signed r over `[−1, +1]`, with ticks at `±1`, `±0.5`, and `0`.
+- **Y-axis:** count per bin (hidden, but encoded in bar height).
+- **Bar colors:** each bin is painted with the same coolwarm divergent map used by the Swim color scheme — so the histogram is visually consistent with the 3D viewer when Colors → Swim correlation is active.
+- **Shaded gray band:** the `±swimLo` deadband (cells inside it count as "off" for the pro/anti/off summary).
+- **Dashed gray line:** `r = 0`.
+- **Yellow vertical line, labeled "mean":** the selection's mean r.
+
+For a single focused cell the histogram collapses to a single bar at that cell's r; the summary line below reads `r = …`. For a group selection the summary line shows mean, range, and the pro / anti / off partition counts using `swimLo` as the boundary.
+
+::: tip Why a histogram instead of a single bar?
+Swim correlation is signed and biologically interesting on both sides. A selection that's 50% strongly positive and 50% strongly negative averages to ~0, which would look unresponsive under a mean-only display. The histogram exposes that bimodality directly.
+:::
+
 ### Selection summary and per-specimen breakdown {#per-specimen-breakdown}
 
 Above the charts, the panel reports how the selection partitions across the 3 source specimens as counts. A selection dominated by a single specimen warrants a check that the finding holds across all three.
@@ -67,10 +84,11 @@ For paper-guided inspection, use the Detail panel as a sanity check on the visib
 
 - the gene bars should match the marker identity implied by the subtype or gene filter,
 - the ΔF/F trace should show peaks or suppressions at the shaded stimulus windows relevant to the figure,
-- the correlation chart is the best place to confirm negative-response examples, because the Stim correlation color ramp clamps negative values to the dim end,
+- the per-stimulus correlation chart is the best place to confirm negative stimulus-response examples (the Stim correlation color ramp is positive-only),
+- the swim correlation histogram is the analogous tool for swim-related findings, and uniquely exposes within-selection distribution shape,
 - the per-specimen breakdown helps separate a cross-specimen population from a view dominated by one fish.
 
-The panel summarizes the current viewer selection. It does not show trial-by-trial variability, behavioral regressors such as swimming, or manuscript-level statistical tests.
+The panel summarizes the current viewer selection. It does not show trial-by-trial variability or manuscript-level statistical tests.
 
 ## Selection precedence
 

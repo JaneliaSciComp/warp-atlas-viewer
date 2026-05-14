@@ -47,7 +47,8 @@ After loading, all per-cell quantities are held in a single in-memory dataset:
 - per-cell gene spot counts (41 genes) and curated binary gene calls,
 - transcriptomic cluster, anatomical region, and source-specimen indices,
 - quantized mean ΔF/F traces (134 samples per cell),
-- per-stimulus Pearson correlations (8 stimuli per cell),
+- per-stimulus Pearson correlations (8 stimuli per cell, cycle-wide),
+- per-cell Pearson correlation against estimated swim power,
 - name arrays for genes, clusters, regions, and stimuli,
 - supporting metadata including the trace sample rate and stimulus on-windows.
 

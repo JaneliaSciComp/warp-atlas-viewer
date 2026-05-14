@@ -5,14 +5,14 @@ description: The AND-between-cards / OR-or-AND-within-card rule that determines 
 
 # How filters combine
 
-The Filters tab contains four cards:
+The Filters tab contains five cards:
 
-![Four filter cards in a row — Colors, Transcriptomics, Visual Stimuli, and Anatomy — combined by logical AND.](/filter-cards.svg)
+![Five filter cards in a row — Colors, Transcriptomics, Visual Stimuli, Swim, and Anatomy — combined by logical AND.](/filter-cards.svg)
 
 The `×` between cards denotes logical **AND**: a cell must pass every active card to remain visible.
 
 ::: tip Colors is not a filter
-The **Colors** card controls how visible cells are *painted*. The remaining three cards determine which cells are visible. The cards share the same tab and UI pattern, but the Colors card never removes cells from the view.
+The **Colors** card controls how visible cells are *painted*. The remaining four cards determine which cells are visible. The cards share the same tab and UI pattern, but the Colors card never removes cells from the view.
 :::
 
 ## A card set to "all" does not filter
@@ -49,7 +49,7 @@ The visible cells are gene-positive, stimulus-responsive, and anatomically const
 
 ## "Responsive": threshold
 
-A cell is considered responsive to a stimulus if its Pearson r with the corresponding regressor meets the **responsive floor** in [Settings](/settings#stim-correlation-cutoffs). The default is `r ≥ 0.30`; raising it imposes a stricter criterion, lowering it a more permissive one.
+A cell is considered responsive to a stimulus if its Pearson r with the corresponding regressor meets the **responsive floor** in [Settings](/settings#stim-correlation-cutoffs). The default is `r ≥ 0.13` (the manuscript's full-vector threshold); raising it imposes a stricter criterion, lowering it a more permissive one.
 
 The same floor is used by:
 
@@ -62,7 +62,8 @@ A click-focused cell or lasso group is retained across filter changes, even when
 
 ## Next
 
-- [Colors](./colors) — the six color schemes.
+- [Colors](./colors) — the seven color schemes.
 - [Transcriptomics](./transcriptomics) — gene multi-select and subtype dropdown.
 - [Visual Stimuli](./stimuli) — the 8 stimuli and OR / AND logic.
+- [Swim correlation](./swim) — the behavioral regressor channel.
 - [Anatomy](./anatomy) — region and specimen filters.

@@ -70,25 +70,27 @@ Tectal `pou4f2_cckb_chata` cells respond to both bright and dark flashes; the tw
 
 What to look for: optic-tectum cells with flash-driven correlation bars. Use **AND** if you want the stricter subset responsive to both flashes under the current responsive floor.
 
-### `otpa` expression — motor-coding cells (Figure 3G)
+### `otpa`+ swim-related neurons (Figure 3G)
 
-Whole-brain map of `otpa` transcript counts. `otpa` is enriched in cells whose activity correlates with swimming behavior.
+`otpa`-expressing neurons whose calcium activity correlates with swim power — the motor-coding population the paper maps in Fig 3G. The visible set is `otpa+ AND swim-driven`, painted by `otpa` spot count.
 
 - **Colors:** `Gene expression`
 - **Transcriptomics:** Gene = `[otpa]`
+- **Swim:** `+ swim-driven` (`r ≥ +swimLo`)
 
-What to look for: the whole-brain `otpa` expression landscape. Figure 3G in the paper is restricted to swimming-related consensus neurons; this preset does not apply the manuscript's swim-correlation filter because the viewer exposes visual-stimulus correlations, not the full swim-behavior analysis.
+What to look for: a hindbrain-weighted subset of `otpa+` cells (the paper highlights medial-hindbrain neurons in particular). The Detail-panel swim histogram should show a positive mean by construction. Drop the Swim filter to see the full `otpa+` expression landscape for comparison.
 
-### `gad1b_tph2_gfra1a` — anti-correlated raphe (Figure 5D)
+### `gad1b_tph2_gfra1a` — anti-forward-motion raphe (Figure 5D)
 
-Dorsal-raphe `gad1b_tph2_gfra1a` cells are *negatively* correlated with forward visual motion and swimming. Cells with the strongest negative correlation appear at the **dim** end of the plasma ramp, which clamps negative values.
+Dorsal-raphe `gad1b_tph2_gfra1a` cells, one of the 15 largest multi-gene subtypes negatively correlated with forward visual motion (Fig 5D). The whole cluster is highlighted; the anti-correlation shows up in the Detail panel rather than in the 3D coloring (the Stim color ramp is positive-only).
 
-- **Colors:** `Stim correlation`
+- **Colors:** `Simple`
 - **Transcriptomics:** Subtype = `gad1b_tph2_gfra1a`
-- **Visual Stimuli:** `[motion forward]`
 
-What to look for: dorsal-raphe cells whose Detail-panel correlation bar for forward motion is negative. Because the plasma ramp is positive-only, the correlation chart is the clearest confirmation for this preset.
+What to look for:
 
-::: tip Why are they dim?
-The Stim correlation plasma ramp anchors at the [responsive floor](/settings#stim-correlation-cutoffs) (default `r = 0.30`). Cells below this threshold — including strongly anti-correlated ones — map to the dim end of the ramp. Negative-correlation populations are a meaningful category, and the dim coloring reflects the choice of a single positive-only ramp. Switching to **Colors → Region** retains the same cells with a categorical palette.
-:::
+- the **Detail panel's per-stimulus correlation chart** — the leftmost bar (forward motion) should be negative, while the other bars are near zero or modestly positive,
+- the **swim correlation histogram** at the bottom of the Detail panel — exposes the per-cell distribution, including the cluster's anti-swim tail,
+- the cluster's **anatomical signature** in the 3D viewer (a subset is in Superior raphe, though most cells in the cluster fall outside the viewer's 16 focal regions and carry the *Unassigned* label).
+
+The previous version of this preset added a `[motion forward]` stimulus filter, but the Visual Stimuli filter is one-sided (`r ≥ +floor`), so it retained the positive outliers — the opposite of the paper's finding. The current preset drops that filter so the cluster's actual signature is visible.
