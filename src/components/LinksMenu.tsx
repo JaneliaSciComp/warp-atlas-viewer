@@ -71,10 +71,10 @@ export function LinksMenu() {
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex items-center gap-1 px-2 py-1 text-xs font-mono text-neutral-300 hover:text-neutral-100"
+        className="flex items-center gap-1 px-2 py-1 text-sm font-medium text-yellow-300 hover:text-yellow-200"
       >
         Links
-        <span aria-hidden className="text-[10px] leading-none">▾</span>
+        <ChevronDownIcon />
       </button>
       {open && (
         <div
@@ -89,7 +89,7 @@ export function LinksMenu() {
               rel="noopener noreferrer"
               role="menuitem"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono text-neutral-300 hover:bg-neutral-800 hover:text-neutral-100"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-neutral-100 hover:bg-neutral-800 hover:text-yellow-300"
             >
               <span>{l.text}</span>
               <ExternalLinkIcon />
@@ -98,6 +98,27 @@ export function LinksMenu() {
         </div>
       )}
     </div>
+  );
+}
+
+// Mirrors VitePress's .vpi-chevron-down icon (24×24, round caps, 2px
+// stroke). Pure CSS rotation is avoided in favor of the down-pointing
+// path so the markup stays self-explanatory.
+function ChevronDownIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
   );
 }
 
