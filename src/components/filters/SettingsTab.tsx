@@ -57,15 +57,15 @@ export function SettingsTab({
           Ghost cells outside filter
         </div>
         <p className="text-neutral-400 leading-snug">
-          How aggressively to ghost cells that don't pass the active
-          filters. At <span className="text-neutral-200">0</span> they
-          render at the normal dim and stay pickable. Crank up to fade
-          them further toward invisible and remove them from the click
-          picker so foreground cells in the brain's interior aren't
-          occluded.
+          How visible cells outside the active filters are. At
+          <span className="text-neutral-200"> 0</span> they're
+          invisible and the click pickers skip them so clicks pass
+          through to the cells you actually filtered for. Turn up to
+          fade them back in toward the standard dim; above the
+          midpoint they become pickable again.
         </p>
         <NumberRow
-          label="ghost intensity"
+          label="ghost visibility"
           value={settings.ghostIntensity}
           min={0}
           max={1}

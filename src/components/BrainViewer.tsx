@@ -228,7 +228,10 @@ function PointCloud({
     // no in-filter cell is within the pick window — and not at all
     // when ghost mode is on, since they're effectively invisible.
     const filterActive = anyFilterActive(data, filter);
-    const ghost = filterActive && settings.ghostIntensity > 0;
+    // Below half visibility, ghosts are too faint to aim at — skip
+    // them in the picker so clicks always land on cells the user can
+    // actually see.
+    const ghost = filterActive && settings.ghostIntensity < 0.5;
     let bestI = -1;
     let bestD2 = Infinity;
     let bestZ = Infinity;

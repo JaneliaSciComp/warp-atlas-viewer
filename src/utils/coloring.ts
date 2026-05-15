@@ -4,12 +4,10 @@ import { regionColor, fishColor, plasma, coolwarm } from './colorMaps';
 const DIM_RGB: [number, number, number] = [0.30, 0.30, 0.32];
 const DIM_ALPHA = 0.10;
 const LIFT_ALPHA = 0.50;
-// Floors that the dim/lift alphas and the point-size factor approach
-// at full ghost intensity. The user-set ghostIntensity (0..1) linearly
-// interpolates from the no-ghost endpoint (DIM_ALPHA / LIFT_ALPHA /
-// 1.0) toward these floors.
-const GHOST_ALPHA_FLOOR = 0.02;
-const GHOST_LIFT_FLOOR = 0.15;
+// Point-size floor for fully-ghosted cells. ghostIntensity (0..1)
+// scales alpha linearly from 0 → DIM_ALPHA / LIFT_ALPHA and size from
+// this floor → 1.0 ×. Keeps cells from blooming when they're already
+// near-invisible — a smaller dot leaves more pixels clean.
 const GHOST_SIZE_FLOOR = 0.55;
 const HIGHLIGHT_BOOST_SIZE = 1.5;
 
@@ -400,20 +398,20 @@ export function applyColoring(
     if (!inSet) {
       // Two-tier dim: anatomical-context lift when the cell is inside
       // the focused region but fails another predicate; otherwise the
-      // full background dim. ghostIntensity (0..1) lerps the alpha and
-      // point size between the no-ghost endpoint and the near-invisible
-      // floor so the user can dial the dim cells from "useful
-      // anatomical context" all the way down to "barely there".
+      // full background dim. ghostIntensity (0..1) is the *visibility*
+      // of the ghost cells:
+      //   0 → alpha 0, near-floor size: cells effectively gone
+      //   1 → DIM_ALPHA / LIFT_ALPHA, full point size: standard dim
+      // No filter active means no ghosts to fade — full dim regardless.
       r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2];
       const liftBranch = inRegion && isolatedRegion >= 0;
-      if (filterActive && ghostIntensity > 0) {
+      const baseAlpha = liftBranch ? LIFT_ALPHA : DIM_ALPHA;
+      if (filterActive) {
         const t = ghostIntensity;
-        const baseAlpha = liftBranch ? LIFT_ALPHA : DIM_ALPHA;
-        const floorAlpha = liftBranch ? GHOST_LIFT_FLOOR : GHOST_ALPHA_FLOOR;
-        alpha = baseAlpha + (floorAlpha - baseAlpha) * t;
-        size *= 1 + (GHOST_SIZE_FLOOR - 1) * t;
+        alpha = baseAlpha * t;
+        size *= GHOST_SIZE_FLOOR + (1 - GHOST_SIZE_FLOOR) * t;
       } else {
-        alpha = liftBranch ? LIFT_ALPHA : DIM_ALPHA;
+        alpha = baseAlpha;
       }
     } else {
       switch (filter.colorMode) {

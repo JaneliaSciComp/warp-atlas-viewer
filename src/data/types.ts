@@ -263,14 +263,14 @@ export interface SettingsState {
    *  the ramp end. Default 0.35 — roughly the 95th percentile of
    *  positive swim correlations in WARP. */
   swimHi: number;
-  /** Intensity of the "ghost" effect on out-of-filter cells, 0..1.
-   *  0 → no ghosting (cells render at the normal dim alpha and stay
-   *      pickable); identical to the pre-ghost behavior.
-   *  1 → max ghosting (alpha, lift alpha, and point size all drop to
-   *      their floor; cells are excluded from the click pickers).
-   *  Intermediate values linearly interpolate alpha + size. Any value
-   *  > 0 removes out-of-filter cells from the pickers — the moment we
-   *  call them "ghosts" they shouldn't catch clicks. */
+  /** Visibility of out-of-filter cells (ghosts), 0..1.
+   *  0 → cells are invisible (alpha 0) and the click pickers skip
+   *      them entirely.
+   *  1 → cells render at the standard dim alpha (matches the
+   *      pre-ghost behaviour) and are fully pickable.
+   *  Intermediate values linearly scale alpha and point size; the
+   *  pickers re-enable above the midpoint so users only catch
+   *  clicks on cells that are genuinely visible enough to aim at. */
   ghostIntensity: number;
 }
 
@@ -287,7 +287,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
   activityHi: 1.5,
   swimLo: 0.10,
   swimHi: 0.35,
-  ghostIntensity: 0.25,
+  ghostIntensity: 0.75,
 };
 
 export interface SelectionState {
