@@ -71,10 +71,17 @@ export function TranscriptomicsCard({
   };
   // For each row, the dropdown lists all genes except those already
   // selected on OTHER rows — so the user can't add the same gene twice.
+  // Labels include the paper's per-gene spot-count threshold (from the
+  // manifest) so the user can see what cutoff each gene used.
+  const thresholds = data.geneThresholdsDefault;
+  const labelForGene = (i: number) => {
+    const thr = thresholds[i];
+    return thr > 0 ? `${data.geneNames[i]} (≥ ${thr})` : data.geneNames[i];
+  };
   const rowOptions = (rowIdx: number) => {
     const otherUsed = new Set(sel.filter((_, k) => k !== rowIdx));
     return data.geneNames
-      .map((name, i) => ({ value: i, label: name }))
+      .map((_, i) => ({ value: i, label: labelForGene(i) }))
       .filter((o) => !otherUsed.has(o.value))
       .sort((a, b) => a.label.localeCompare(b.label));
   };

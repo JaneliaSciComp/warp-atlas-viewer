@@ -30,6 +30,7 @@ const TEST_DATA: NeuronDataset = {
   traceLength: 1,
   traceSampleRateHz: 1,
   geneNames: ['g0', 'g1'],
+  geneThresholdsDefault: [1, 1],
   regionNames: ['r0', 'r1'],
   stimulusNames: ['stim_0', 'stim_1'],
   clusterNames: ['c0', 'c1'],
@@ -98,7 +99,7 @@ describe('cellPasses', () => {
     const lenient = (() => {
       const out: number[] = [];
       for (let i = 0; i < TEST_DATA.count; i++) {
-        if (cellInSet(TEST_DATA, f, { ...DEFAULT_SETTINGS, geneStrict: false }, i)) out.push(i);
+        if (cellInSet(TEST_DATA, f, { ...DEFAULT_SETTINGS, geneThresholdMode: 'global', geneThresholdGlobal: 1 }, i)) out.push(i);
       }
       return out;
     })();

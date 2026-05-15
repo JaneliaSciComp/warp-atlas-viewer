@@ -78,9 +78,10 @@ export function cellPasses(
   const clusterActive = filter.txMode === 'subtype';
   let passesTx = true;
   if (geneActive) {
-    const strict = settings.geneStrict;
+    const usePaper = settings.geneThresholdMode === 'paper';
+    const globalThr = settings.geneThresholdGlobal;
     const hit = (g: number) =>
-      strict ? ds.geneBinary[i * G + g] === 1 : ds.geneCounts[i * G + g] > 0;
+      usePaper ? ds.geneBinary[i * G + g] === 1 : ds.geneCounts[i * G + g] >= globalThr;
     if (filter.geneLogic === 'and') {
       passesTx = true;
       for (let k = 0; k < genes.length; k++) {
@@ -283,7 +284,8 @@ export function applyColoring(
   const geneFilterActive = txMode === 'gene' && geneSelLen > 0;
   const clusterFilterActive = txMode === 'subtype';
   const geneLogicAnd = filter.geneLogic === 'and';
-  const geneStrict = settings.geneStrict;
+  const usePaperGeneThr = settings.geneThresholdMode === 'paper';
+  const globalGeneThr = settings.geneThresholdGlobal;
   const selectedCluster = filter.selectedCluster;
   const stimSelArr2 = filter.selectedStimuli;
   const stimSelLen = stimSelArr2.length;
@@ -324,14 +326,14 @@ export function applyColoring(
       if (geneLogicAnd) {
         for (let k = 0; k < geneSelLen; k++) {
           const gi = geneSelArr[k];
-          const ok = geneStrict ? geneBinary[base + gi] === 1 : geneCounts[base + gi] > 0;
+          const ok = usePaperGeneThr ? geneBinary[base + gi] === 1 : geneCounts[base + gi] >= globalGeneThr;
           if (!ok) { passesTx = false; break; }
         }
       } else {
         passesTx = false;
         for (let k = 0; k < geneSelLen; k++) {
           const gi = geneSelArr[k];
-          const ok = geneStrict ? geneBinary[base + gi] === 1 : geneCounts[base + gi] > 0;
+          const ok = usePaperGeneThr ? geneBinary[base + gi] === 1 : geneCounts[base + gi] >= globalGeneThr;
           if (ok) { passesTx = true; break; }
         }
       }
@@ -427,12 +429,13 @@ export function applyColoring(
             const N = geneSel.length;
             if (geneMultiMode === 'richness') {
               // # of selected genes the cell expresses by the same
-              // predicate the filter uses (binary or spot-count > 0).
+              // predicate the filter uses (paper binary call or
+              // geneCounts ≥ user-set global threshold).
               let n = 0;
-              if (settings.geneStrict) {
+              if (usePaperGeneThr) {
                 for (let k = 0; k < N; k++) if (geneBinary[base + geneSel[k]] === 1) n++;
               } else {
-                for (let k = 0; k < N; k++) if (geneCounts[base + geneSel[k]] > 0) n++;
+                for (let k = 0; k < N; k++) if (geneCounts[base + geneSel[k]] >= globalGeneThr) n++;
               }
               raw = n;
               v = useLog

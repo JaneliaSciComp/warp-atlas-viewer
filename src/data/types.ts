@@ -34,6 +34,12 @@ export interface NeuronDataset {
 
   /** Metadata. */
   geneNames: string[];
+  /** Paper's per-gene spot-count cutoff used to compute the binary
+   *  positive/negative call (BinaryGenes_All). Length matches
+   *  geneNames. Surfaced in the Transcriptomics gene tooltip and used
+   *  by the Settings "Paper" gene-threshold mode as documentation
+   *  only — the actual binary call lives in geneBinary. */
+  geneThresholdsDefault: number[];
   regionNames: string[];
   stimulusNames: string[];
   clusterNames: string[];
@@ -120,8 +126,9 @@ export interface FilterState {
   /** How multi-gene selections combine in the gene filter:
    *    'or'  → cell passes iff it expresses AT LEAST ONE selected gene
    *    'and' → cell passes iff it expresses EVERY selected gene
-   *  Whether "expresses" means the curated binary call or raw counts
-   *  is controlled by `settings.geneStrict`. Only meaningful when
+   *  Whether "expresses" means the paper's binary call or a custom
+   *  spot-count threshold is controlled by
+   *  `settings.geneThresholdMode`. Only meaningful when
    *  selectedGenes.length >= 2. */
   geneLogic: GeneLogic;
   /** Cluster index this cell is filtered to when txMode === 'subtype'.
@@ -178,6 +185,7 @@ export type StimLogic = 'or' | 'and';
 export type StimMode = 'off' | 'positive' | 'negative' | 'both';
 export type GeneLogic = 'or' | 'and';
 export type GeneMultiColor = 'max' | 'sum' | 'richness';
+export type GeneThresholdMode = 'paper' | 'global';
 
 /** User-tunable rendering parameters that aren't filters per se —
  *  e.g. the calcium-imaging thresholds that anchor the Stim color
@@ -200,22 +208,30 @@ export interface SettingsState {
    *  end. Different probes / datasets have different practical
    *  ceilings; 1000 is a sensible default. */
   geneMaxSpots: number;
-  /** Predicate the gene filter (and the "richness" multi-gene color
-   *  mode) uses to decide whether a cell "expresses" a given gene:
-   *    true  → curated binary call (geneBinary[i*G+g] === 1)
-   *    false → any detected expression (geneCounts[i*G+g] > 0)
-   *  Binary is the dataset's conservative classification; "any
-   *  detected" is more permissive and matches the classic "raw > 0"
-   *  reading of FISH counts. */
-  geneStrict: boolean;
+  /** Which spot-count threshold the gene filter (and the "richness"
+   *  multi-gene color mode) uses to decide whether a cell "expresses"
+   *  a given gene:
+   *    'paper'  → curated binary call (geneBinary[i*G+g] === 1) — the
+   *               paper's per-gene cutoffs (Marquez-Legorreta et al.,
+   *               Methods: Identifying positive cells; usually 25,
+   *               adjusted per gene/fish in Data S1).
+   *    'global' → geneCounts[i*G+g] >= settings.geneThresholdGlobal,
+   *               applied uniformly to every gene. Lets the user dial
+   *               in their own cutoff (e.g. 1 for "any detected").
+   *  Default 'paper' so the viewer mirrors the manuscript by default. */
+  geneThresholdMode: GeneThresholdMode;
+  /** Global spot-count cutoff used when `geneThresholdMode === 'global'`.
+   *  Single integer applied across the whole gene panel. Default 25 —
+   *  the paper's minimum default threshold. Ignored in 'paper' mode. */
+  geneThresholdGlobal: number;
   /** When 2+ genes are selected, what the Gene color scheme paints by:
    *    'max'      → max spot count across the selected genes (mirror
    *                 of stim coloring; the default)
    *    'sum'      → sum of spot counts; emphasises cells that express
    *                 multiple selected markers strongly
    *    'richness' → how many of the selected genes are "on" per the
-   *                 same predicate the filter uses (binary call when
-   *                 settings.geneStrict, otherwise count > 0); ranges 0..N
+   *                 same predicate the filter uses (paper binary call
+   *                 or count ≥ geneThresholdGlobal); ranges 0..N
    *  Single-gene coloring and richness over the full panel are
    *  unaffected by this setting. */
   geneMultiColor: GeneMultiColor;
@@ -262,7 +278,8 @@ export const DEFAULT_SETTINGS: SettingsState = {
   stimLo: 0.13,
   stimHi: 0.30,
   geneMaxSpots: 1000,
-  geneStrict: true,
+  geneThresholdMode: 'paper',
+  geneThresholdGlobal: 25,
   geneMultiColor: 'max',
   pointSize: 8.5,
   enablePan: false,

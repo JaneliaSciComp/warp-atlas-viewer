@@ -233,29 +233,43 @@ export function SettingsTab({
 
       <section className="flex flex-col gap-2">
         <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
-          Gene expression predicate
+          Gene expression threshold
         </div>
         <p className="text-neutral-400 leading-snug">
           How "expresses a gene" is decided for the gene filter and the
           richness multi-gene coloring.
-          <span className="text-neutral-200"> Binary call</span> uses
-          the dataset's curated, conservative classification
-          (geneBinary === 1).
-          <span className="text-neutral-200"> Any detected</span> is
-          more permissive — any raw FISH spot count above zero.
+          <span className="text-neutral-200"> Paper</span> uses the
+          paper's per-gene cutoffs (typically 25 spots, adjusted per
+          gene/fish via the Maximum-Deviation approach; see Methods →
+          "Identifying positive cells", Data S1). The per-gene
+          threshold is shown in each gene-row tooltip.
+          <span className="text-neutral-200"> Global</span> applies a
+          single user-set spot count to every gene — useful for
+          sweeping looser/stricter cutoffs uniformly. Set to 1 for
+          "any detected".
         </p>
-        <label
-          className="flex items-center gap-1 text-xs text-neutral-300 cursor-pointer select-none"
-          title="checked: curated binary call (geneBinary === 1). unchecked: any detected expression (raw spot count > 0)."
-        >
-          <input
-            type="checkbox"
-            checked={settings.geneStrict}
-            onChange={(e) => update({ geneStrict: e.target.checked })}
-            className="accent-neutral-300"
+        <div className="flex items-center gap-2">
+          <KindToggle
+            value={settings.geneThresholdMode}
+            onChange={(v) => update({ geneThresholdMode: v })}
+            options={[
+              { value: 'paper', label: 'Paper' },
+              { value: 'global', label: 'Global' },
+            ]}
           />
-          binary call
-        </label>
+        </div>
+        <div
+          className={settings.geneThresholdMode === 'global' ? 'opacity-100' : 'opacity-40 pointer-events-none'}
+        >
+          <NumberRow
+            label="global threshold (spots)"
+            value={settings.geneThresholdGlobal}
+            min={1}
+            max={500}
+            step={1}
+            onChange={(v) => update({ geneThresholdGlobal: Math.max(1, Math.round(v)) })}
+          />
+        </div>
       </section>
 
     </div>
