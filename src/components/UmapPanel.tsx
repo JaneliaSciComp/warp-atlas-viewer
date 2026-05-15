@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, useCallback, useState } from 'react';
+import { useEffect, useRef, useMemo, useCallback, useLayoutEffect, useState } from 'react';
 import type { FilterState, NeuronDataset, SelectionState, SettingsState } from '../data/types';
 import type { UmapViewport } from '../utils/urlState';
 import type { SharedColoring } from '../hooks/useColoring';
@@ -58,6 +58,17 @@ export function UmapPanel({
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 400, h: 200 });
   const [viewport, setViewport] = useState<Viewport>(initialViewport ?? INITIAL_VIEWPORT);
+  const measureContainerSize = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return null;
+    const rect = el.getBoundingClientRect();
+    const next = {
+      w: Math.max(50, Math.floor(rect.width)),
+      h: Math.max(50, Math.floor(rect.height)),
+    };
+    setSize((prev) => (prev.w === next.w && prev.h === next.h ? prev : next));
+    return next;
+  }, []);
   // Refs mirroring viewport so handlers (which capture closures) and the
   // wheel listener (passive: false on the DOM node) see the latest values
   // without re-binding.
@@ -120,18 +131,19 @@ export function UmapPanel({
     [umapBounds],
   );
 
-  // Resize observer
-  useEffect(() => {
-    if (!containerRef.current) return;
+  // Resize observer. Use a layout effect and the live bounding rect so
+  // canvas state tracks the visible plot area before paint. Reset also
+  // calls this directly to avoid centering against a stale pre-resize size.
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    measureContainerSize();
     const ro = new ResizeObserver((entries) => {
-      for (const e of entries) {
-        const r = e.contentRect;
-        setSize({ w: Math.max(50, Math.floor(r.width)), h: Math.max(50, Math.floor(r.height)) });
-      }
+      if (entries.length > 0) measureContainerSize();
     });
-    ro.observe(containerRef.current);
+    ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [measureContainerSize]);
 
   // Offscreen canvas caches the scatter render. During a lasso drag we
   // re-blit this onto the visible canvas (cheap) instead of looping
@@ -478,7 +490,10 @@ export function UmapPanel({
     onSelect(new Uint32Array(out), dataPoly);
   };
 
-  const resetView = () => setViewport(INITIAL_VIEWPORT);
+  const resetView = () => {
+    measureContainerSize();
+    setViewport(INITIAL_VIEWPORT);
+  };
   const zoomedIn = viewport.zoom !== 1 || viewport.panX !== 0 || viewport.panY !== 0;
 
   return (
@@ -504,14 +519,14 @@ export function UmapPanel({
           )}
         </div>
       </div>
-      <div ref={containerRef} className="relative flex-1 min-h-0 min-w-0">
+      <div ref={containerRef} className="relative flex-1 min-h-0 min-w-0 overflow-hidden">
         <canvas
           ref={canvasRef}
           onPointerDown={onDown}
           onPointerMove={onMove}
           onPointerUp={onUp}
           onContextMenu={(e) => e.preventDefault()}
-          className={'block ' + (drag?.kind === 'pan' ? 'cursor-grabbing' : 'cursor-crosshair')}
+          className={'absolute left-0 top-0 block ' + (drag?.kind === 'pan' ? 'cursor-grabbing' : 'cursor-crosshair')}
         />
         {selection.indices.length > 0 && (
           <div className="absolute top-2 right-2 text-xs text-neutral-400 font-mono pointer-events-none leading-tight">

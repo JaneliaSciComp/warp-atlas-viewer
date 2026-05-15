@@ -45,9 +45,10 @@ const INITIAL_FILTER: FilterState = {
 };
 
 // Panel resize bounds. The defaults also act as the expand-without-
-// history target when no URL value is restored. validatePersisted
-// enforces the same min/max so a hostile URL can't pin a panel
-// off-screen.
+// history target when no URL value is restored. Persisted values are
+// clamped to these static bounds, while the live layout also caps the
+// bottom row to the currently visible app height so it cannot be clipped
+// by the root viewport.
 const BOTTOM_HEIGHT_DEFAULT = 352;
 const BOTTOM_HEIGHT_MIN = 120;
 const BOTTOM_HEIGHT_MAX = 1200;
@@ -99,6 +100,28 @@ export default function App() {
   const [detailWidth, setDetailWidth] = useState(
     INITIAL_URL_STATE?.detailWidth ?? DETAIL_WIDTH_DEFAULT,
   );
+  // Height available to the main viewer area after the header. The bottom
+  // panel can be restored from a large URL/window value, but the rendered
+  // row must never exceed this visible area; otherwise the t-SNE canvas
+  // measures off-screen pixels and "reset view" recenters into clipped
+  // space.
+  const mainAreaRef = useRef<HTMLDivElement>(null);
+  const [mainAreaHeight, setMainAreaHeight] = useState(0);
+  useEffect(() => {
+    const el = mainAreaRef.current;
+    if (!el) return;
+    const setMeasuredHeight = (height: number) => {
+      const next = Math.max(0, Math.floor(height));
+      setMainAreaHeight((prev) => (prev === next ? prev : next));
+    };
+    setMeasuredHeight(el.getBoundingClientRect().height);
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setMeasuredHeight(entry.contentRect.height);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   // Single-neuron focus is independent of the group selection so a
   // t-SNE drag can persist while the user clicks through individual
   // neurons. Click on a neuron → focus it (DetailPanel shows just that
@@ -346,11 +369,18 @@ export default function App() {
     }),
     [detailOpen, detailWidth],
   );
+  const liveBottomHeightMax = mainAreaHeight > 0
+    ? Math.max(BOTTOM_HEIGHT_MIN, Math.min(BOTTOM_HEIGHT_MAX, mainAreaHeight))
+    : BOTTOM_HEIGHT_MAX;
+  const visibleBottomHeight = mainAreaHeight > 0
+    ? Math.min(bottomHeight, mainAreaHeight)
+    : bottomHeight;
+
   // Drag handler for the bottom-panel resize strip. Records the
   // pointerdown anchor and updates bottomHeight in real time via
   // setPointerCapture so the cursor can travel anywhere without
-  // losing the gesture. The clamp matches validatePersisted's bounds
-  // so URL-restored and live values share the same range.
+  // losing the gesture. The live upper bound also respects the current
+  // app height so dragging cannot allocate an off-screen bottom row.
   const dragRef = useRef<{ y: number; h: number } | null>(null);
   const onResizeDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -362,10 +392,10 @@ export default function App() {
     if (!d) return;
     const next = Math.max(
       BOTTOM_HEIGHT_MIN,
-      Math.min(BOTTOM_HEIGHT_MAX, d.h - (e.clientY - d.y)),
+      Math.min(liveBottomHeightMax, d.h - (e.clientY - d.y)),
     );
     setBottomHeight(next);
-  }, []);
+  }, [liveBottomHeightMax]);
   const onResizeUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     dragRef.current = null;
     if ((e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) {
@@ -404,10 +434,10 @@ export default function App() {
     () => ({
       gridTemplateColumns: 'minmax(0, 1fr)',
       gridTemplateRows: bottomOpen
-        ? `minmax(0, 1fr) ${bottomHeight}px`
+        ? `minmax(0, 1fr) ${visibleBottomHeight}px`
         : 'minmax(0, 1fr)',
     }),
-    [bottomOpen, bottomHeight],
+    [bottomOpen, visibleBottomHeight],
   );
 
   if (error) {
@@ -465,7 +495,7 @@ export default function App() {
           </a>
         </div>
       </header>
-      <div className="flex-1 grid min-h-0" style={outerLayout}>
+      <div ref={mainAreaRef} className="flex-1 grid min-h-0" style={outerLayout}>
         {/* Main column: brain viewer on top, filters + t-SNE on bottom. */}
         <div className="grid min-h-0 min-w-0" style={mainLayout}>
           {/* Top: 3D viewer + legend + clear-selection button + the
@@ -528,7 +558,7 @@ export default function App() {
           {bottomOpen && (
             <div
               className="row-start-2 col-start-1 grid min-h-0 min-w-0"
-              style={{ gridTemplateColumns: 'minmax(0, 1fr) 320px' }}
+              style={{ gridTemplateColumns: 'minmax(0, 1fr) min(320px, 100%)' }}
             >
               <div className="flex flex-col bg-neutral-800 min-h-0 min-w-0 overflow-hidden">
                 <FilterControls
