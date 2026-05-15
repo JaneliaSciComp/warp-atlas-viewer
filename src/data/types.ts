@@ -144,6 +144,19 @@ export interface FilterState {
    *            stimulus
    *  Only matters when `selectedStimuli.length >= 2`. */
   stimLogic: StimLogic;
+  /** Which signed band of stimulus correlation the Activity card
+   *  keeps. Mirrors SwimMode:
+   *    'off'      → no stim correlation filter (every cell qualifies
+   *                 regardless of r; selectedStimuli only changes the
+   *                 color-mode tint)
+   *    'positive' → r ≥ +settings.stimLo (paper's classic "stim-driven")
+   *    'negative' → r ≤ -settings.stimLo (anti-correlated cells)
+   *    'both'     → |r| ≥ settings.stimLo (union; matches the paper's
+   *                 "magnitude" filter)
+   *  Default 'positive' so existing share URLs keep their meaning. The
+   *  filter is only evaluated when `selectedStimuli` is non-empty AND
+   *  `stimMode !== 'off'`. */
+  stimMode: StimMode;
 
   // ── Swim (behavioral) filter ─────────────────────────────────────
   /** Which signed band of swim-power correlation the swim card keeps.
@@ -162,6 +175,7 @@ export interface FilterState {
 }
 
 export type StimLogic = 'or' | 'and';
+export type StimMode = 'off' | 'positive' | 'negative' | 'both';
 export type GeneLogic = 'or' | 'and';
 export type GeneMultiColor = 'max' | 'sum' | 'richness';
 

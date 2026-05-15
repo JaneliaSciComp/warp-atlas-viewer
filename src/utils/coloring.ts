@@ -96,23 +96,30 @@ export function cellPasses(
     passesTx = ds.clusterIds[i] === filter.selectedCluster;
   }
 
-  // Activity filter: an empty selection means "don't filter by activity
-  // at all". Any non-empty selection is a real filter — combined per
-  // `stimLogic`: 'or' passes if at least one of the chosen stimuli is
-  // above the user-tunable responsive floor (settings.stimLo); 'and'
-  // requires every chosen stimulus to clear the floor.
+  // Activity filter: an empty selection OR stimMode 'off' means "don't
+  // filter by activity at all". Otherwise we check each selected
+  // stimulus's r against the configured band:
+  //   positive → r ≥ +stimLo, negative → r ≤ -stimLo, both → |r| ≥ stimLo
+  // and combine across stimuli per stimLogic.
   const stims = filter.selectedStimuli;
-  const stimActive = stims.length > 0;
+  const stimActive = stims.length > 0 && filter.stimMode !== 'off';
   let passesStim = true;
   if (stimActive) {
+    const lo = settings.stimLo;
+    const mode = filter.stimMode;
+    const check = (r: number): boolean => {
+      if (mode === 'positive') return r >= lo;
+      if (mode === 'negative') return r <= -lo;
+      return r >= lo || r <= -lo; // 'both'
+    };
     if (filter.stimLogic === 'and') {
       for (let k = 0; k < stims.length; k++) {
-        if (ds.stimulusCorr[i * S + stims[k]] < settings.stimLo) { passesStim = false; break; }
+        if (!check(ds.stimulusCorr[i * S + stims[k]])) { passesStim = false; break; }
       }
     } else {
       passesStim = false;
       for (let k = 0; k < stims.length; k++) {
-        if (ds.stimulusCorr[i * S + stims[k]] >= settings.stimLo) { passesStim = true; break; }
+        if (check(ds.stimulusCorr[i * S + stims[k]])) { passesStim = true; break; }
       }
     }
   }
@@ -150,7 +157,7 @@ export function cellInSet(
  *  filter is active whenever any stimulus is toggled on; an empty
  *  selection means "no constraint". */
 export function anyFilterActive(ds: NeuronDataset, filter: FilterState): boolean {
-  const stimsActive = filter.selectedStimuli.length > 0;
+  const stimsActive = filter.selectedStimuli.length > 0 && filter.stimMode !== 'off';
   return (
     filter.isolatedRegion >= 0 ||
     filter.isolatedFish >= 0 ||
@@ -282,7 +289,11 @@ export function applyColoring(
   const stimSelLen = stimSelArr2.length;
   const stimLogicAnd = filter.stimLogic === 'and';
   const stimLoFilter = settings.stimLo;
-  const stimActive = stimSelLen > 0;
+  const stimMode = filter.stimMode;
+  const stimActive = stimSelLen > 0 && stimMode !== 'off';
+  // Sign-aware predicate (encoded as ints to keep the hot loop branchless):
+  //   0 = positive (r >= +lo), 1 = negative (r <= -lo), 2 = both (|r| >= lo)
+  const stimModeCode = stimMode === 'negative' ? 1 : stimMode === 'both' ? 2 : 0;
   const swimMode = filter.swimMode;
   const swimFilterActive = swimMode !== 'off';
   const swimLoFilter = settings.swimLo;
@@ -332,12 +343,20 @@ export function applyColoring(
       const baseS = i * S;
       if (stimLogicAnd) {
         for (let k = 0; k < stimSelLen; k++) {
-          if (stimulusCorr[baseS + stimSelArr2[k]] < stimLoFilter) { passesStim = false; break; }
+          const r = stimulusCorr[baseS + stimSelArr2[k]];
+          const ok = stimModeCode === 0 ? r >= stimLoFilter
+            : stimModeCode === 1 ? r <= -stimLoFilter
+            : r >= stimLoFilter || r <= -stimLoFilter;
+          if (!ok) { passesStim = false; break; }
         }
       } else {
         passesStim = false;
         for (let k = 0; k < stimSelLen; k++) {
-          if (stimulusCorr[baseS + stimSelArr2[k]] >= stimLoFilter) { passesStim = true; break; }
+          const r = stimulusCorr[baseS + stimSelArr2[k]];
+          const ok = stimModeCode === 0 ? r >= stimLoFilter
+            : stimModeCode === 1 ? r <= -stimLoFilter
+            : r >= stimLoFilter || r <= -stimLoFilter;
+          if (ok) { passesStim = true; break; }
         }
       }
     }
@@ -485,44 +504,49 @@ export function applyColoring(
           break;
         }
         case 'stim': {
-          // 1D plasma over normalized stim correlation, anchored at the
-          // user-configurable thresholds in SettingsState: r ≤ stimLo is
-          // the "stim-unresponsive" floor (faint backdrop), r ≥ stimHi
-          // saturates plasma's bright end. Co-coding emerges by composing
-          // this scheme with a single-gene filter — the gene predicate
-          // drops gene-negative cells, leaving only gene+ cells painted
-          // by their stim correlation.
+          // Divergent coolwarm ramp over signed stim correlation,
+          // anchored symmetrically at ±stimLo (neutral deadband) and
+          // ±stimHi (saturation). Mirrors the swim color scheme — sign
+          // reads as colour, magnitude as intensity. With one stimulus
+          // selected we paint by its signed r; otherwise we pick the
+          // signed r with the largest magnitude (so an r = -0.5 wins
+          // over r = +0.2, faithfully representing "most stim-coupled
+          // direction").
           let rawA: number;
           if (!useStimMax) {
             rawA = stimulusCorr[i * S + stimSel[0]];
           } else if (stimMaxIndices === null) {
-            // Max over every stimulus index 0..S-1.
             const base = i * S;
             let m = stimulusCorr[base];
+            let mAbs = Math.abs(m);
             for (let j = 1; j < S; j++) {
               const c = stimulusCorr[base + j];
-              if (c > m) m = c;
+              const a2 = Math.abs(c);
+              if (a2 > mAbs) { m = c; mAbs = a2; }
             }
             rawA = m;
           } else {
-            // Max over the user-selected subset.
             const base = i * S;
             let m = stimulusCorr[base + stimMaxIndices[0]];
+            let mAbs = Math.abs(m);
             for (let k = 1; k < stimMaxIndices.length; k++) {
               const c = stimulusCorr[base + stimMaxIndices[k]];
-              if (c > m) m = c;
+              const a2 = Math.abs(c);
+              if (a2 > mAbs) { m = c; mAbs = a2; }
             }
             rawA = m;
           }
-          const v = Math.max(0, Math.min(1, (rawA - stimLo) / stimRange));
-          if (v <= 0) {
-            r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2];
-            alpha = isolatedRegion >= 0 ? LIFT_ALPHA : 0.10;
+          const mag = Math.abs(rawA);
+          let v: number;
+          if (mag <= stimLo) {
+            v = 0;
           } else {
-            const c = plasma(v);
-            r = c[0]; g = c[1]; b = c[2];
-            alpha = 1.0;
+            v = Math.min(1, (mag - stimLo) / stimRange);
           }
+          const signed = rawA >= 0 ? v : -v;
+          const c = coolwarm(signed);
+          r = c[0]; g = c[1]; b = c[2];
+          alpha = 1.0;
           break;
         }
         case 'swim': {

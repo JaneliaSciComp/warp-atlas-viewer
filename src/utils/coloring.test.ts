@@ -48,6 +48,7 @@ const BASE_FILTER: FilterState = {
   selectedCluster: 0,
   selectedStimuli: [],
   stimLogic: 'or',
+  stimMode: 'positive',
   activitySample: 0,
   swimMode: 'off',
 };

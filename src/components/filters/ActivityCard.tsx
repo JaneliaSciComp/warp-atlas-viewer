@@ -1,6 +1,16 @@
-import type { NeuronDataset, FilterState } from '../../data/types';
+import type { NeuronDataset, FilterState, StimMode } from '../../data/types';
 import { STIM_ICONS, STIM_LABELS } from '../../utils/stimAssets';
 import { Card, KindToggle } from './shared';
+
+// Two independent toggles ('+ stim-driven' and '− anti-stim') backed by
+// a single FilterState.stimMode enum, mirroring the swim card's shape.
+// The four legal modes are the four boolean combinations.
+function pickStimMode(positive: boolean, negative: boolean): StimMode {
+  if (positive && negative) return 'both';
+  if (positive) return 'positive';
+  if (negative) return 'negative';
+  return 'off';
+}
 
 export function ActivityCard({
   data,
@@ -20,6 +30,8 @@ export function ActivityCard({
   };
   const hasSel = filter.selectedStimuli.length > 0;
   const logicMeaningful = filter.selectedStimuli.length >= 2;
+  const positive = filter.stimMode === 'positive' || filter.stimMode === 'both';
+  const negative = filter.stimMode === 'negative' || filter.stimMode === 'both';
   return (
     <Card title="Visual Stimuli">
       <div className="grid grid-cols-4 gap-1">
@@ -49,6 +61,22 @@ export function ActivityCard({
             </button>
           );
         })}
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <ToggleButton
+          pressed={positive}
+          onClick={() => update({ stimMode: pickStimMode(!positive, negative) })}
+          title="cells whose activity is positively correlated with the selected stimulus regressor (r ≥ +stimLo)"
+        >
+          + stim-driven
+        </ToggleButton>
+        <ToggleButton
+          pressed={negative}
+          onClick={() => update({ stimMode: pickStimMode(positive, !negative) })}
+          title="cells whose activity is anti-correlated with the selected stimulus regressor (r ≤ −stimLo)"
+        >
+          − anti-stim
+        </ToggleButton>
       </div>
       <div
         className={
@@ -83,5 +111,33 @@ export function ActivityCard({
         </button>
       </div>
     </Card>
+  );
+}
+
+function ToggleButton({
+  pressed,
+  onClick,
+  title,
+  children,
+}: {
+  pressed: boolean;
+  onClick: () => void;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={pressed}
+      title={title}
+      className={
+        'px-2 py-1 text-xs font-mono rounded border transition-[border-color,box-shadow,opacity,background-color] ' +
+        (pressed
+          ? 'border-yellow-300 ring-1 ring-yellow-300/60 bg-neutral-900 text-neutral-100'
+          : 'border-neutral-700 bg-neutral-900/60 text-neutral-400 hover:text-neutral-200 hover:border-neutral-500')
+      }
+    >
+      {children}
+    </button>
   );
 }

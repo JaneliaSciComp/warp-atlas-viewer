@@ -20,6 +20,8 @@ import type {
   NeuronDataset,
   SettingsState,
   StimLogic,
+  StimMode,
+  SwimMode,
   TxMode,
 } from '../data/types';
 
@@ -108,11 +110,13 @@ export function decodeHash(hash: string): PersistedState | null {
 // arity, count, traceLength, …) are enforced separately by
 // sanitizeAgainstDataset below, called after `data` resolves.
 
-const COLOR_MODES = new Set<ColorMode>(['highlight', 'region', 'gene', 'stim', 'activity', 'fish']);
+const COLOR_MODES = new Set<ColorMode>(['highlight', 'region', 'gene', 'stim', 'swim', 'activity', 'fish']);
 const GENE_SCALES = new Set<GeneScale>(['log', 'linear']);
 const TX_MODES = new Set<TxMode>(['all', 'gene', 'subtype']);
 const GENE_LOGICS = new Set<GeneLogic>(['or', 'and']);
 const STIM_LOGICS = new Set<StimLogic>(['or', 'and']);
+const STIM_MODES = new Set<StimMode>(['off', 'positive', 'negative', 'both']);
+const SWIM_MODES = new Set<SwimMode>(['off', 'positive', 'negative', 'both']);
 const GENE_MULTI_COLORS = new Set<GeneMultiColor>(['max', 'sum', 'richness']);
 
 function isFiniteNum(v: unknown): v is number {
@@ -151,6 +155,8 @@ function validateFilter(raw: unknown): Partial<FilterState> {
     out.selectedStimuli = Array.from(new Set(ids)).sort((a, b) => a - b);
   }
   if (isString(f.stimLogic, STIM_LOGICS)) out.stimLogic = f.stimLogic;
+  if (isString(f.stimMode, STIM_MODES)) out.stimMode = f.stimMode;
+  if (isString(f.swimMode, SWIM_MODES)) out.swimMode = f.swimMode;
   if (isInt(f.activitySample) && f.activitySample >= 0) out.activitySample = f.activitySample;
   return out;
 }

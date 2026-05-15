@@ -1,4 +1,4 @@
-import type { NeuronDataset, FilterState, ColorMode, SwimMode } from '../../data/types';
+import type { NeuronDataset, FilterState, ColorMode, StimMode, SwimMode } from '../../data/types';
 import { version as appVersion } from '../../../package.json';
 
 /** A "reproduce this finding" preset for the About tab. References the
@@ -20,6 +20,10 @@ interface FindingPreset {
   /** Optional swim filter, e.g. 'positive' to keep only swim-driven cells.
    *  Used when the paper's claim links a gene or cluster to swimming. */
   swimMode?: SwimMode;
+  /** Optional stim correlation band; only meaningful when `stimuli` is
+   *  also set. Mirrors the swim card: 'positive' (r ≥ +stimLo),
+   *  'negative' (r ≤ −stimLo), or 'both' (|r| ≥ stimLo). */
+  stimMode?: StimMode;
 }
 
 // Ordered to follow the manuscript figures so a reader can walk through
@@ -73,9 +77,11 @@ const FINDINGS: FindingPreset[] = [
     title: 'gad1b_tph2_gfra1a — anti-forward-motion raphe',
     figure: 'Figure 5D',
     description:
-      'One of the 15 largest multi-gene subtypes negatively correlated with forward visual motion (Fig 5D). The Detail-panel per-stimulus chart shows the cluster\'s negative forward-motion bar; the Swim correlation histogram exposes the per-cell distribution. The stim color ramp is positive-only, so no visual stimulus filter is applied — switch the Colors card to inspect the cluster.',
-    colorMode: 'highlight',
+      'One of the 15 largest multi-gene subtypes negatively correlated with forward visual motion (Fig 5D). The cluster filter plus the negative stim-correlation band keeps only the anti-correlated forward-motion responders; the divergent stim color ramp paints them on the blue (anti) end.',
+    colorMode: 'stim',
     cluster: 'gad1b_tph2_gfra1a',
+    stimuli: [0],
+    stimMode: 'negative',
   },
   {
     title: 'pou4f2_cckb dimming-light response',
@@ -108,6 +114,9 @@ function buildPresetFilter(p: FindingPreset, data: NeuronDataset): Partial<Filte
   }
   if (p.swimMode) {
     out.swimMode = p.swimMode;
+  }
+  if (p.stimMode) {
+    out.stimMode = p.stimMode;
   }
   return out;
 }

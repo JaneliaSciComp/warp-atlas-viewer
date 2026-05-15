@@ -323,36 +323,57 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
       </div>
     );
   }
-  // stim correlation — 1D plasma from STIM_LO to STIM_HI, mirroring the
-  // gene scheme's structure. Co-coding falls out by composing this with
-  // a single-gene filter. The scheme follows the Activity panel's
-  // selection: empty/full → max across every stimulus; one toggle →
-  // that stim's correlation; a 2..S-1 subset → max across the subset.
+  // stim correlation — divergent coolwarm ramp from -stimHi to +stimHi.
+  // Sign reads as colour (blue → red), magnitude as intensity. Mirrors
+  // the swim legend so the two signed-correlation maps share visual
+  // vocabulary. Selection rules: empty/full → max-abs across every
+  // stimulus; one toggle → that stim's signed correlation; 2..S-1 →
+  // max-abs across the subset.
   const sel = filter.selectedStimuli;
   const S = data.stimulusNames.length;
   const stimTitle =
     sel.length === 1
       ? `Stim: ${data.stimulusNames[sel[0]]}`
       : sel.length === 0 || sel.length === S
-        ? 'Stim: max across all'
-        : `Stim: max across ${sel.length}`;
-  // Use the user-configured stim cutoffs as the bar's anchor points.
-  // The mid tick is the simple average; if stimHi <= stimLo the divisor
-  // collapses, so guard against it.
-  const stimLo = settings.stimLo;
-  const stimHi = settings.stimHi;
-  const stimRange = Math.max(0.001, stimHi - stimLo);
-  const stimMid = (stimLo + stimHi) / 2;
-  const ticks = [stimLo, stimMid, stimHi];
-  const tickPos = (t: number) => ((t - stimLo) / stimRange) * 100;
+        ? 'Stim: max |r| across all'
+        : `Stim: max |r| across ${sel.length}`;
+  const lo = settings.stimLo;
+  const hi = settings.stimHi;
+  const range = Math.max(0.001, 2 * hi); // -hi → +hi
+  const ticks = [-hi, -lo, 0, lo, hi];
+  const tickPos = (t: number) => ((t + hi) / range) * 100;
   return (
-    <GradientLegend
-      title={stimTitle}
-      axisLabel="stim correlation r"
-      ticks={ticks}
-      tickPos={tickPos}
-      formatTick={(t) => t.toFixed(2)}
-      positionStyle={positionStyle}
-    />
+    <div
+      style={positionStyle}
+      className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200"
+    >
+      <div className="text-neutral-400 mb-1 whitespace-nowrap">{stimTitle}</div>
+      <div className="relative w-32">
+        <div className="h-3 border border-neutral-700" style={{ background: COOLWARM_GRADIENT }} />
+        <div className="relative h-3 mt-0.5 text-[9px] text-neutral-400">
+          {ticks.map((t, idx) => {
+            const transform =
+              idx === 0
+                ? 'translateX(0)'
+                : idx === ticks.length - 1
+                  ? 'translateX(-100%)'
+                  : 'translateX(-50%)';
+            return (
+              <span
+                key={t}
+                className="absolute"
+                style={{
+                  left: `${Math.min(100, Math.max(0, tickPos(t)))}%`,
+                  transform,
+                }}
+              >
+                {t === 0 ? '0' : t.toFixed(2)}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+      <div className="text-[9px] text-neutral-500 mt-3">Pearson r vs stimulus regressor</div>
+    </div>
   );
 }
