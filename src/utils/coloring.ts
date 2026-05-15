@@ -117,7 +117,7 @@ export function cellPasses(
   const stimActive = stims.length > 0 && filter.stimMode !== 'off';
   let passesStim = true;
   if (stimActive) {
-    const lo = settings.stimLo;
+    const lo = Math.max(0, settings.stimLo);
     const mode = filter.stimMode;
     const check = (r: number): boolean => {
       if (mode === 'positive') return r >= lo;
@@ -219,15 +219,17 @@ export function applyColoring(
   const isolatedRegion = filter.isolatedRegion;
   // Stim cutoffs come from user settings; STIM_RANGE is derived. We
   // tolerate stimHi <= stimLo by clamping the divisor to something
-  // small but positive so plasma still maps without dividing by zero.
-  const stimLo = settings.stimLo;
-  const stimRange = Math.max(0.001, settings.stimHi - settings.stimLo);
+  // small but positive so the ramp still maps without dividing by zero.
+  const stimLo = Math.max(0, settings.stimLo);
+  const stimHi = Math.max(stimLo + 0.001, settings.stimHi);
+  const stimRange = Math.max(0.001, stimHi - stimLo);
   // Swim coloring anchors: symmetric around 0. Below |r| = swimLo the
   // cell maps to the neutral midpoint of the divergent ramp; above
   // |r| = swimHi it saturates at the corresponding end. Clamp the divisor
   // so swimHi <= swimLo (transient slider state) doesn't divide by zero.
-  const swimLoSetting = settings.swimLo;
-  const swimRange = Math.max(0.001, settings.swimHi - settings.swimLo);
+  const swimLoSetting = Math.max(0, settings.swimLo);
+  const swimHi = Math.max(swimLoSetting + 0.001, settings.swimHi);
+  const swimRange = Math.max(0.001, swimHi - swimLoSetting);
   // Gene scheme anchors and the per-cell base size also come from
   // settings.
   const geneMaxSpots = Math.max(1, settings.geneMaxSpots);
@@ -301,7 +303,7 @@ export function applyColoring(
   const stimSelArr2 = filter.selectedStimuli;
   const stimSelLen = stimSelArr2.length;
   const stimLogicAnd = filter.stimLogic === 'and';
-  const stimLoFilter = settings.stimLo;
+  const stimLoFilter = stimLo;
   const stimMode = filter.stimMode;
   const stimActive = stimSelLen > 0 && stimMode !== 'off';
   // Sign-aware predicate (encoded as ints to keep the hot loop branchless):
@@ -309,7 +311,7 @@ export function applyColoring(
   const stimModeCode = stimMode === 'negative' ? 1 : stimMode === 'both' ? 2 : 0;
   const swimMode = filter.swimMode;
   const swimFilterActive = swimMode !== 'off';
-  const swimLoFilter = settings.swimLo;
+  const swimLoFilter = swimLoSetting;
   const filterActive =
     isoRegion >= 0 ||
     isoFish >= 0 ||

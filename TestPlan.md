@@ -38,7 +38,7 @@ Validate each of the seven color schemes renders correctly with no other filters
 
 ### A5. Stim correlation
 - Setup: Colors=Stim correlation, all other filters "all".
-- Expected: plasma gradient by **max Pearson r across all 8 stimuli** for each cell. Legend ticks span the configured r range. Cells below Settings → "responsive floor (r ≥)" appear dim; cells at/above Settings → "saturation" hit the brightest plasma end.
+- Expected: divergent ramp by signed **max Pearson r across all 8 stimuli** for each cell. Legend labels span the configured r range and omit crowded optional anchors when needed. Cells inside Settings → "responsive floor (|r| ≥)" map to the neutral midpoint; cells at/above Settings → "saturation" hit the ramp endpoints.
 - Tweak the floor / saturation in Settings and confirm the legend tick scale and the dim/bright partition responds.
 - Toggle ON one stimulus in Visual Stimuli: the map should switch to that stim's r (a stricter, sparser response pattern). Toggle ON a second: now it's the max across the two selected stims.
 - Pass if the gradient tracks max-r when nothing's picked and the selected-subset's max when stims are picked.
@@ -99,8 +99,8 @@ The `×` between filter cards is logical AND. A card set to "all" doesn't restri
 
 ### B6. Co-coding (Stim color × gene filter)
 - Setup: Colors=Stim correlation. Transcriptomics → Gene → add a gene. Anatomy=all. Visual Stimuli → pick a stim. Swim=off.
-- Expected: only gene-positive cells are kept; among those, plasma encodes their r against the selected stim.
-- Pass if a sparse, gene-positive, plasma-by-stim-r map appears.
+- Expected: only gene-positive cells are kept; among those, the divergent ramp encodes their signed r against the selected stim.
+- Pass if a sparse, gene-positive, signed-r stim map appears.
 
 ### B7. Swim filter
 - Setup: Colors=Region, all other filters "all". Swim card → toggle "+ swim-driven" ON.

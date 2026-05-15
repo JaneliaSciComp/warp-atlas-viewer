@@ -50,7 +50,7 @@ If **Colors → Gene expression** is active and the brain appears uniformly dark
 
 If **Colors → Stim correlation** is active and almost every cell is dim:
 
-- The **responsive floor (r ≥)** may be too high. The default is `0.13`; values much above that will hide increasingly many cells.
+- The **responsive floor (|r| ≥)** may be too high. The default is `0.13`; values much above that will hide increasingly many cells.
 - The selected stimulus may have few responsive cells.
 - The region in view may not encode the modality being queried.
 

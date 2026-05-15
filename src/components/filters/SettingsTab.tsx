@@ -145,21 +145,22 @@ export function SettingsTab({
           Stim correlation cutoffs
         </div>
         <p className="text-neutral-400 leading-snug">
-          Pearson r thresholds for stimulus correlation. Cells below the
-          floor are treated as non-responsive (dim in the Stim color
-          scheme; rejected by the Activity filter). Cells above the
-          saturation point map to plasma's bright end.
+          Pearson r magnitude thresholds for stimulus correlation. Cells
+          inside the floor are treated as non-responsive (neutral in the
+          Stim color scheme; rejected by the Activity filter when a sign
+          band is enabled). Cells past saturation clamp to the divergent
+          ramp endpoints.
         </p>
         <NumberRow
-          label="responsive floor (r ≥)"
+          label="responsive floor (|r| ≥)"
           value={settings.stimLo}
-          min={-1}
+          min={0}
           max={settings.stimHi - 0.01}
           step={0.05}
-          onChange={(v) => update({ stimLo: v })}
+          onChange={(v) => update({ stimLo: Math.max(0, v) })}
         />
         <NumberRow
-          label="saturation (r ≥)"
+          label="saturation (|r| ≥)"
           value={settings.stimHi}
           min={settings.stimLo + 0.01}
           max={1}

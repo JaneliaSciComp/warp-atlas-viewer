@@ -58,8 +58,8 @@ This setting has no effect with a single gene pinned.
 
 Two anchors for the signed per-cell Pearson r between calcium activity and the stimulus regressor:
 
-- **responsive floor (r ≥)** — the magnitude floor for the stim filter (cells must clear `±stimLo` per the active direction toggle on the [Visual Stimuli card](/filters/stimuli#direction-toggles)) and the **deadband** boundary for the divergent [Stim correlation color ramp](/filters/colors#stim-correlation).
-- **saturation (r ≥)** — magnitude at which the divergent ramp reaches its endpoints. Does not affect the filter.
+- **responsive floor (|r| ≥)** — the magnitude floor for the stim filter (cells must clear `±stimLo` per the active direction toggle on the [Visual Stimuli card](/filters/stimuli#direction-toggles)) and the **deadband** boundary for the divergent [Stim correlation color ramp](/filters/colors#stim-correlation).
+- **saturation (|r| ≥)** — magnitude at which the divergent ramp reaches its endpoints. Does not affect the filter.
 
 Defaults are floor `0.13` and saturation `0.30`. The floor matches the manuscript's full-vector responsive threshold (Methods: "Selecting positively and negatively correlated neurons"); the saturation sits near the 99th percentile of the cycle-wide correlation distribution.
 

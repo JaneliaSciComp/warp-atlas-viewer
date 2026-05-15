@@ -13,8 +13,8 @@ interface Props {
   uniqueFishIds: Uint8Array;
 }
 
-// The plasma gradient strip is identical across the gene / activity /
-// stim legends; build the CSS string once at module load.
+// The plasma gradient strip is identical across the gene and activity
+// legends; build the CSS string once at module load.
 const PLASMA_STOP_COUNT = 16;
 const PLASMA_GRADIENT = `linear-gradient(to right, ${Array.from(
   { length: PLASMA_STOP_COUNT },
@@ -45,7 +45,8 @@ const COOLWARM_GRADIENT_OPAQUE = `linear-gradient(to right, ${Array.from(
 interface GradientLegendProps {
   title: ReactNode;
   axisLabel: string;
-  ticks: number[];
+  ticks: GradientTickSpec[];
+  gradient?: string;
   /** Position of a tick along the bar in 0..100 percent. */
   tickPos: (t: number) => number;
   /** Formatter for tick labels (default: `String`). Gene legend uses
@@ -54,18 +55,127 @@ interface GradientLegendProps {
   positionStyle: CSSProperties;
 }
 
-/** Shared gradient-bar legend used by the gene, activity, and stim
- *  color modes. The three branches differ only in title, ticks, tick
- *  format, and axis label — extracted here so each mode's branch in
- *  ColorLegend stays focused on computing those four things. */
+interface GradientTick {
+  value: number;
+  /** Higher priority ticks claim label space first. */
+  priority?: number;
+}
+
+type GradientTickSpec = number | GradientTick;
+
+interface VisibleTick {
+  value: number;
+  label: string;
+  leftPct: number;
+  transform: string;
+  bounds: { left: number; right: number };
+}
+
+const LEGEND_BAR_WIDTH_PX = 128; // Tailwind w-32.
+const TICK_LABEL_GAP_PX = 1;
+const TICK_MONO_CHAR_WIDTH_PX = 5.4; // text-[9px] monospace, conservative.
+
+function normalizeTick(tick: GradientTickSpec, idx: number, len: number) {
+  const value = typeof tick === 'number' ? tick : tick.value;
+  const isEndpoint = idx === 0 || idx === len - 1;
+  return {
+    value: Object.is(value, -0) ? 0 : value,
+    idx,
+    priority: typeof tick === 'number'
+      ? isEndpoint
+        ? 100
+        : 0
+      : tick.priority ?? (isEndpoint ? 100 : 0),
+  };
+}
+
+function labelBounds(leftPct: number, label: string): VisibleTick['bounds'] & { transform: string } {
+  const x = (leftPct / 100) * LEGEND_BAR_WIDTH_PX;
+  const width = label.length * TICK_MONO_CHAR_WIDTH_PX;
+
+  if (x - width / 2 < 0) {
+    return { left: x, right: x + width, transform: 'translateX(0)' };
+  }
+  if (x + width / 2 > LEGEND_BAR_WIDTH_PX) {
+    return { left: x - width, right: x, transform: 'translateX(-100%)' };
+  }
+  return { left: x - width / 2, right: x + width / 2, transform: 'translateX(-50%)' };
+}
+
+function overlaps(a: VisibleTick['bounds'], b: VisibleTick['bounds']) {
+  return a.left < b.right + TICK_LABEL_GAP_PX && b.left < a.right + TICK_LABEL_GAP_PX;
+}
+
+function clampPct(pct: number) {
+  return Number.isFinite(pct) ? Math.min(100, Math.max(0, pct)) : 0;
+}
+
+export function chooseVisibleTicks(
+  ticks: GradientTickSpec[],
+  tickPos: (t: number) => number,
+  formatTick: (t: number) => string,
+): VisibleTick[] {
+  const byValue = new Map<number, ReturnType<typeof normalizeTick>>();
+  ticks.forEach((tick, idx) => {
+    const candidate = normalizeTick(tick, idx, ticks.length);
+    const previous = byValue.get(candidate.value);
+    if (!previous || candidate.priority > previous.priority) {
+      byValue.set(candidate.value, candidate);
+    }
+  });
+
+  const candidates = Array.from(byValue.values()).sort(
+    (a, b) => b.priority - a.priority || a.idx - b.idx,
+  );
+  const visible: VisibleTick[] = [];
+
+  for (const candidate of candidates) {
+    const leftPct = clampPct(tickPos(candidate.value));
+    const label = formatTick(candidate.value);
+    const { left, right, transform } = labelBounds(leftPct, label);
+    const next = {
+      value: candidate.value,
+      label,
+      leftPct,
+      transform,
+      bounds: { left, right },
+    };
+    if (!visible.some((tick) => overlaps(tick.bounds, next.bounds))) {
+      visible.push(next);
+    }
+  }
+
+  return visible.sort((a, b) => a.leftPct - b.leftPct);
+}
+
+export function signedCorrelationTicks(lo: number, hi: number): GradientTickSpec[] {
+  return [
+    { value: -hi, priority: 100 },
+    { value: hi, priority: 100 },
+    { value: 0, priority: 90 },
+    { value: -lo, priority: 50 },
+    { value: lo, priority: 50 },
+  ];
+}
+
+export function formatCorrelationTick(t: number) {
+  return Math.abs(t) < 0.0005 ? '0' : t.toFixed(2);
+}
+
+/** Shared gradient-bar legend used by the continuous color modes. The
+ *  branches differ only in title, gradient, ticks, tick format, and axis
+ *  label, so tick layout lives here instead of being copied per mode. */
 function GradientLegend({
   title,
   axisLabel,
   ticks,
+  gradient = PLASMA_GRADIENT,
   tickPos,
   formatTick = String,
   positionStyle,
 }: GradientLegendProps) {
+  const visibleTicks = chooseVisibleTicks(ticks, tickPos, formatTick);
+
   return (
     <div
       style={positionStyle}
@@ -73,31 +183,20 @@ function GradientLegend({
     >
       <div className="text-neutral-400 mb-1 whitespace-nowrap">{title}</div>
       <div className="relative w-32">
-        <div className="h-3 border border-neutral-700" style={{ background: PLASMA_GRADIENT }} />
+        <div className="h-3 border border-neutral-700" style={{ background: gradient }} />
         <div className="relative h-3 mt-0.5 text-[9px] text-neutral-400">
-          {ticks.map((t, idx) => {
-            // Anchor the first/last tick label to the bar edge instead
-            // of centering it, so e.g. "1000" doesn't overflow past
-            // the gradient's right edge into the legend's border.
-            const transform =
-              idx === 0
-                ? 'translateX(0)'
-                : idx === ticks.length - 1
-                  ? 'translateX(-100%)'
-                  : 'translateX(-50%)';
-            return (
-              <span
-                key={t}
-                className="absolute"
-                style={{
-                  left: `${Math.min(100, Math.max(0, tickPos(t)))}%`,
-                  transform,
-                }}
-              >
-                {formatTick(t)}
-              </span>
-            );
-          })}
+          {visibleTicks.map((tick) => (
+            <span
+              key={`${tick.value}:${tick.label}:${tick.leftPct}`}
+              className="absolute"
+              style={{
+                left: `${tick.leftPct}%`,
+                transform: tick.transform,
+              }}
+            >
+              {tick.label}
+            </span>
+          ))}
         </div>
       </div>
       <div className="text-[9px] text-neutral-500 mt-3">{axisLabel}</div>
@@ -297,51 +396,21 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
     // floor (swimLo) marking the inner dead-band where cells map to
     // the neutral midpoint. Symmetric so positive and negative
     // populations read by sign-of-color rather than magnitude alone.
-    const lo = settings.swimLo;
-    const hi = settings.swimHi;
+    const lo = Math.max(0, settings.swimLo);
+    const hi = Math.max(lo + 0.001, settings.swimHi);
     const range = Math.max(0.001, 2 * hi); // -hi → +hi
-    const ticks = [-hi, -lo, 0, lo, hi];
+    const ticks = signedCorrelationTicks(lo, hi);
     const tickPos = (t: number) => ((t + hi) / range) * 100;
     return (
-      <div
-        style={positionStyle}
-        className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200"
-      >
-        <div className="text-neutral-400 mb-1 whitespace-nowrap">Swim correlation</div>
-        <div className="relative w-32">
-          <div
-            className="h-3 border border-neutral-700"
-            style={{
-              background: settings.fadeWeakCorrelation
-                ? COOLWARM_GRADIENT_FADED
-                : COOLWARM_GRADIENT_OPAQUE,
-            }}
-          />
-          <div className="relative h-3 mt-0.5 text-[9px] text-neutral-400">
-            {ticks.map((t, idx) => {
-              const transform =
-                idx === 0
-                  ? 'translateX(0)'
-                  : idx === ticks.length - 1
-                    ? 'translateX(-100%)'
-                    : 'translateX(-50%)';
-              return (
-                <span
-                  key={t}
-                  className="absolute"
-                  style={{
-                    left: `${Math.min(100, Math.max(0, tickPos(t)))}%`,
-                    transform,
-                  }}
-                >
-                  {t === 0 ? '0' : t.toFixed(2)}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-        <div className="text-[9px] text-neutral-500 mt-3">Pearson r vs swim power</div>
-      </div>
+      <GradientLegend
+        title="Swim correlation"
+        axisLabel="Pearson r vs swim power"
+        ticks={ticks}
+        gradient={settings.fadeWeakCorrelation ? COOLWARM_GRADIENT_FADED : COOLWARM_GRADIENT_OPAQUE}
+        tickPos={tickPos}
+        formatTick={formatCorrelationTick}
+        positionStyle={positionStyle}
+      />
     );
   }
   // stim correlation — divergent coolwarm ramp from -stimHi to +stimHi.
@@ -361,50 +430,20 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
       : sel.length === 0 || sel.length === S
         ? 'Stim: max |r| across all'
         : `Stim: max |r| across ${sel.length}`;
-  const lo = settings.stimLo;
-  const hi = settings.stimHi;
+  const lo = Math.max(0, settings.stimLo);
+  const hi = Math.max(lo + 0.001, settings.stimHi);
   const range = Math.max(0.001, 2 * hi); // -hi → +hi
-  const ticks = [-hi, -lo, 0, lo, hi];
+  const ticks = signedCorrelationTicks(lo, hi);
   const tickPos = (t: number) => ((t + hi) / range) * 100;
   return (
-    <div
-      style={positionStyle}
-      className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200"
-    >
-      <div className="text-neutral-400 mb-1 whitespace-nowrap">{stimTitle}</div>
-      <div className="relative w-32">
-        <div
-          className="h-3 border border-neutral-700"
-          style={{
-            background: settings.fadeWeakCorrelation
-              ? COOLWARM_GRADIENT_FADED
-              : COOLWARM_GRADIENT_OPAQUE,
-          }}
-        />
-        <div className="relative h-3 mt-0.5 text-[9px] text-neutral-400">
-          {ticks.map((t, idx) => {
-            const transform =
-              idx === 0
-                ? 'translateX(0)'
-                : idx === ticks.length - 1
-                  ? 'translateX(-100%)'
-                  : 'translateX(-50%)';
-            return (
-              <span
-                key={t}
-                className="absolute"
-                style={{
-                  left: `${Math.min(100, Math.max(0, tickPos(t)))}%`,
-                  transform,
-                }}
-              >
-                {t === 0 ? '0' : t.toFixed(2)}
-              </span>
-            );
-          })}
-        </div>
-      </div>
-      <div className="text-[9px] text-neutral-500 mt-3">Pearson r vs stimulus regressor</div>
-    </div>
+    <GradientLegend
+      title={stimTitle}
+      axisLabel="Pearson r vs stimulus regressor"
+      ticks={ticks}
+      gradient={settings.fadeWeakCorrelation ? COOLWARM_GRADIENT_FADED : COOLWARM_GRADIENT_OPAQUE}
+      tickPos={tickPos}
+      formatTick={formatCorrelationTick}
+      positionStyle={positionStyle}
+    />
   );
 }

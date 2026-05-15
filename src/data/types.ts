@@ -193,14 +193,15 @@ export type GeneThresholdMode = 'paper' | 'global';
  *  (separate from FilterState) so "reset filters" doesn't clobber it
  *  and the Settings tab has a clean home for its controls. */
 export interface SettingsState {
-  /** Below this correlation, cells are "non-responsive" and dimmed
-   *  by the Stim scheme; the Activity filter also requires a cell to
-   *  exceed this floor for at least one selected stimulus. Default
+  /** Below this correlation magnitude, cells are "non-responsive" and
+   *  map to the neutral midpoint in the Stim scheme; the Activity filter
+   *  also requires a cell to exceed this floor for at least one selected
+   *  stimulus in the enabled sign band. Default
    *  0.13 — the paper's full-vector responsive threshold (the 90th
    *  percentile per-stimulus, averaged, rounded). */
   stimLo: number;
-  /** Above this correlation, the Stim scheme's plasma palette is
-   *  saturated. Default 0.30 — roughly the 99th percentile of the
+  /** Above this correlation magnitude, the Stim scheme's divergent
+   *  palette is saturated. Default 0.30 — roughly the 99th percentile of the
    *  cycle-wide stimulus-correlation distribution. */
   stimHi: number;
   /** Upper anchor for the Gene scheme's plasma palette (raw FISH spot

@@ -170,10 +170,10 @@ function validateSettings(raw: unknown): Partial<SettingsState> {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
   const s = raw as Record<string, unknown>;
   const out: Partial<SettingsState> = {};
-  // Correlations live in [-1, 1]; lo/hi ordering is enforced by the
-  // settings UI, not here (the user can transiently invert them).
-  if (isFiniteNum(s.stimLo)) out.stimLo = clamp(s.stimLo, -1, 1);
-  if (isFiniteNum(s.stimHi)) out.stimHi = clamp(s.stimHi, -1, 1);
+  // Stim cutoffs are magnitudes in [0, 1]; positive/negative sign is
+  // represented by FilterState.stimMode.
+  if (isFiniteNum(s.stimLo)) out.stimLo = clamp(s.stimLo, 0, 1);
+  if (isFiniteNum(s.stimHi)) out.stimHi = clamp(s.stimHi, 0, 1);
   if (isFiniteNum(s.geneMaxSpots) && s.geneMaxSpots > 0) {
     out.geneMaxSpots = clamp(s.geneMaxSpots, 1, 100000);
   }

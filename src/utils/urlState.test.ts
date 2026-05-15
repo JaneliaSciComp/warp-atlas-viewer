@@ -81,6 +81,15 @@ describe('encodeHash / decodeHash', () => {
     const decoded = decodeHash(hash);
     expect(decoded?.filter?.selectedGenes).toEqual([1, 3, 5]);
   });
+
+  it('clamps stimulus cutoffs as nonnegative magnitudes', () => {
+    const hash = encodeHash({
+      settings: { stimLo: -0.2, stimHi: -0.5 } as Partial<SettingsState>,
+    });
+    const decoded = decodeHash(hash);
+    expect(decoded?.settings?.stimLo).toBe(0);
+    expect(decoded?.settings?.stimHi).toBe(0);
+  });
 });
 
 describe('diffFilter', () => {
