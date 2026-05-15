@@ -1,4 +1,5 @@
 import type { NeuronDataset, FilterState, ColorMode, SwimMode } from '../../data/types';
+import { version as appVersion } from '../../../package.json';
 
 /** A "reproduce this finding" preset for the About tab. References the
  *  dataset by name (cluster/gene name strings, stimulus indices) so
@@ -245,7 +246,7 @@ export function AboutTab({
         © {(() => {
           const y = new Date().getFullYear();
           return y > 2026 ? `2026-${y}` : '2026';
-        })()} HHMI
+        })()} HHMI · v{appVersion}
       </p>
     </div>
   );
