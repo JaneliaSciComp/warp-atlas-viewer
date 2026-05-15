@@ -35,6 +35,12 @@ export function useColoring(
     applyColoring(data, filter, settings, selection, result);
     setRevision((r) => r + 1);
   }, [data, filter, settings, selection, result]);
-  if (!result) return null;
-  return { result, revision };
+  // Memoize the wrapper so its identity tracks (result, revision) — not
+  // App's render cadence. Without this, consumers that put `coloring`
+  // in an effect dep list see a new object every parent render and
+  // re-fire the (expensive) effect even when the buffers haven't moved.
+  return useMemo(
+    () => (result ? { result, revision } : null),
+    [result, revision],
+  );
 }
