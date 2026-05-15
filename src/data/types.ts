@@ -287,7 +287,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
   activityHi: 1.5,
   swimLo: 0.10,
   swimHi: 0.35,
-  ghostIntensity: 0.5,
+  ghostIntensity: 0.25,
 };
 
 export interface SelectionState {
