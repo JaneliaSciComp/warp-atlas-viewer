@@ -50,24 +50,30 @@ function sampleStops(stops: Array<[number, number, number]>, t: number): [number
   return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
 }
 
-// Tableau10-style qualitative palette, extended to 16 for region count.
+// WARP region palette — colors sampled from the paper's brain-region
+// legend (data/brain_regions.png), which goes anterior → posterior in a
+// rainbow (Pal red → InfMO purple). The array is indexed by Brain_reg
+// data-index 0..16, so the rainbow ordering shows up reversed here:
+// data index 1 (InfMO) maps to the paper's last color; data index 16
+// (Pal) maps to the first. Index 0 (Unassigned) is a neutral gray.
 export const REGION_PALETTE: Array<[number, number, number]> = [
-  [0.298, 0.447, 0.690], // blue
-  [0.867, 0.518, 0.322], // orange
-  [0.333, 0.659, 0.408], // green
-  [0.769, 0.306, 0.322], // red
-  [0.506, 0.447, 0.702], // purple
-  [0.576, 0.471, 0.376], // brown
-  [0.855, 0.545, 0.765], // pink
-  [0.549, 0.549, 0.549], // gray
-  [0.800, 0.725, 0.455], // yellow-tan
-  [0.392, 0.710, 0.804], // cyan
-  [0.945, 0.769, 0.486], // sand
-  [0.612, 0.788, 0.451], // lime
-  [0.420, 0.624, 0.529], // teal
-  [0.722, 0.376, 0.443], // rose
-  [0.467, 0.408, 0.671], // violet
-  [0.353, 0.502, 0.412], // forest
+  [0.40, 0.40, 0.42],          // 0  Unassigned (dedicated gray)
+  [0.435, 0.075, 0.518],       // 1  InfMO
+  [0.310, 0.039, 0.600],       // 2  IntMO
+  [0.004, 0.000, 0.745],       // 3  SupMO
+  [0.133, 0.325, 0.839],       // 4  SupRaphe
+  [0.255, 0.576, 0.843],       // 5  Cb
+  [0.298, 0.655, 0.659],       // 6  Tg
+  [0.290, 0.639, 0.427],       // 7  NI
+  [0.290, 0.639, 0.184],       // 8  OTpv
+  [0.369, 0.804, 0.235],       // 9  OTnp
+  [0.443, 0.953, 0.286],       // 10 Pt
+  [0.753, 0.992, 0.314],       // 11 preTh
+  [0.933, 0.914, 0.302],       // 12 Th
+  [0.957, 0.753, 0.259],       // 13 Hab
+  [0.925, 0.369, 0.165],       // 14 HypTh
+  [0.843, 0.180, 0.125],       // 15 SubP
+  [0.749, 0.157, 0.106],       // 16 Pal
 ];
 
 export function regionColor(idx: number): [number, number, number] {

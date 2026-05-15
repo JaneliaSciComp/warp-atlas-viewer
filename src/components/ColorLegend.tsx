@@ -1,6 +1,7 @@
 import type { ReactNode, CSSProperties } from 'react';
 import type { NeuronDataset, FilterState, SettingsState } from '../data/types';
 import { regionColor, fishColor, plasma, coolwarm, rgbToHex } from '../utils/colorMaps';
+import { REGION_PAPER_ORDER } from '../utils/constants';
 
 interface Props {
   data: NeuronDataset;
@@ -94,19 +95,28 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
   const positionStyle = { top: 8, right: 8 } as const;
 
   if (filter.colorMode === 'region') {
+    // Paper-canonical order (Pal → … → InfMO → Unassigned) so the legend
+    // matches the manuscript's figure captions. Fall back to data-index
+    // order for datasets whose region count doesn't match the WARP
+    // 17-entry layout.
+    const matchesPaperLayout =
+      data.regionNames.length === REGION_PAPER_ORDER.length;
+    const order = matchesPaperLayout
+      ? REGION_PAPER_ORDER
+      : data.regionNames.map((_, i) => i);
     return (
       <div
         style={positionStyle}
-        className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200 max-h-72 overflow-y-auto"
+        className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200 whitespace-nowrap"
       >
         <div className="text-neutral-400 mb-1">Brain region</div>
-        {data.regionNames.map((r, i) => (
+        {order.map((i) => (
           <div key={i} className="flex items-center gap-1.5">
             <span
-              className="inline-block w-3 h-3 rounded-sm"
+              className="inline-block w-3 h-3 shrink-0 rounded-sm border border-neutral-600"
               style={{ background: rgbToHex(regionColor(i)) }}
             />
-            <span>{r}</span>
+            <span>{data.regionNames[i]}</span>
           </div>
         ))}
       </div>

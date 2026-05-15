@@ -36,27 +36,43 @@ GENE_ORDER = [
 assert len(GENE_ORDER) == 41
 
 # Brain_reg values 1..16 index 16 anatomical groupings the paper focuses
-# on, with 0 meaning "outside any focal region". Mapping recovered by
-# intersecting Brain_reg with BrainRegions_All (cells × 112 atlas regions)
-# and reading the dominant overlap from data/Fish1/region_names.npy.
+# on, with 0 meaning "outside any focal region". Names are the paper's
+# (Marquez-Legorreta et al., Figure 5 / S6 captions) abbreviations. Full
+# names corresponding to each abbreviation:
+#   InfMO     Inferior Medulla Oblongata
+#   IntMO     Intermediate Medulla Oblongata
+#   SupMO     Superior Medulla Oblongata
+#   SupRaphe  Superior dorsal raphe
+#   Cb        Cerebellum
+#   Tg        Tegmentum
+#   NI        Nucleus Isthmi
+#   OTpv      Optic tectum periventricular layer
+#   OTnp      Optic tectum neuropil
+#   Pt        Pretectum
+#   preTh     Prethalamus
+#   Th        Dorsal Thalamus
+#   Hab       Habenula
+#   HypTh     Hypothalamus
+#   SubP      Subpallium
+#   Pal       Dorsal Pallium
 BRAIN_REG_NAMES = [
-    'Unassigned',                  # 0   (76,511 cells, mixed — not a focal region)
-    'Inferior medulla',            # 1
-    'Intermediate medulla',        # 2
-    'Superior medulla',            # 3
-    'Superior raphe',              # 4
-    'Cerebellum',                  # 5
-    'Tegmentum',                   # 6   (midbrain, ventral)
-    'Superior ventral medulla',    # 7
-    'Optic tectum',                # 8   (midbrain, dorsal)
-    'Tectal neuropil',             # 9   (midbrain)
-    'Pretectum',                   # 10
-    'Prethalamus',                 # 11
-    'Dorsal thalamus',             # 12
-    'Habenula',                    # 13
-    'Hypothalamus',                # 14
-    'Ventral telencephalon',       # 15  (subpallium)
-    'Dorsal telencephalon',        # 16  (pallium)
+    'Unassigned',   # 0 (76,511 cells, mixed — not a focal region)
+    'InfMO',        # 1
+    'IntMO',        # 2
+    'SupMO',        # 3
+    'SupRaphe',     # 4
+    'Cb',           # 5
+    'Tg',           # 6
+    'NI',           # 7
+    'OTpv',         # 8
+    'OTnp',         # 9
+    'Pt',           # 10
+    'preTh',        # 11
+    'Th',           # 12
+    'Hab',          # 13
+    'HypTh',        # 14
+    'SubP',         # 15
+    'Pal',          # 16
 ]
 assert len(BRAIN_REG_NAMES) == 17  # 0 + 16
 
