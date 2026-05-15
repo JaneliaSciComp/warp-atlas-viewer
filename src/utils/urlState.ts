@@ -190,7 +190,7 @@ function validateSettings(raw: unknown): Partial<SettingsState> {
   if (isFiniteNum(s.activityHi)) out.activityHi = clamp(s.activityHi, -5, 10);
   if (isFiniteNum(s.swimLo)) out.swimLo = clamp(s.swimLo, 0, 1);
   if (isFiniteNum(s.swimHi)) out.swimHi = clamp(s.swimHi, 0, 1);
-  if (typeof s.ghostUnselected === 'boolean') out.ghostUnselected = s.ghostUnselected;
+  if (isFiniteNum(s.ghostIntensity)) out.ghostIntensity = clamp(s.ghostIntensity, 0, 1);
   return out;
 }
 

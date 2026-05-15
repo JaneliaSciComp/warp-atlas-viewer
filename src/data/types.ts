@@ -263,15 +263,15 @@ export interface SettingsState {
    *  the ramp end. Default 0.35 — roughly the 95th percentile of
    *  positive swim correlations in WARP. */
   swimHi: number;
-  /** When true, out-of-filter cells render close to invisible (very
-   *  low alpha + smaller point size) and the click pickers in the 3D
-   *  viewer and t-SNE skip them entirely. The user can still see the
-   *  brain silhouette through the residual haze, but foreground in-set
-   *  cells in the brain's interior aren't occluded and clicks always
-   *  land on visible cells. When false, dimmed cells retain enough
-   *  alpha to serve as anatomical context and remain pickable when no
-   *  in-filter cell is nearby. */
-  ghostUnselected: boolean;
+  /** Intensity of the "ghost" effect on out-of-filter cells, 0..1.
+   *  0 → no ghosting (cells render at the normal dim alpha and stay
+   *      pickable); identical to the pre-ghost behavior.
+   *  1 → max ghosting (alpha, lift alpha, and point size all drop to
+   *      their floor; cells are excluded from the click pickers).
+   *  Intermediate values linearly interpolate alpha + size. Any value
+   *  > 0 removes out-of-filter cells from the pickers — the moment we
+   *  call them "ghosts" they shouldn't catch clicks. */
+  ghostIntensity: number;
 }
 
 export const DEFAULT_SETTINGS: SettingsState = {
@@ -287,7 +287,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
   activityHi: 1.5,
   swimLo: 0.10,
   swimHi: 0.35,
-  ghostUnselected: true,
+  ghostIntensity: 0.5,
 };
 
 export interface SelectionState {

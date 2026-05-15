@@ -428,7 +428,7 @@ export function UmapPanel({
       const cx = pts[0][0], cy = pts[0][1];
       const PIX_THRESH_SQ = 16 * 16;
       const filterActive = anyFilterActive(data, filter);
-      const ghost = filterActive && settings.ghostUnselected;
+      const ghost = filterActive && settings.ghostIntensity > 0;
       let bestI = -1;
       let bestD2 = PIX_THRESH_SQ;
       let bestInFilter = false;

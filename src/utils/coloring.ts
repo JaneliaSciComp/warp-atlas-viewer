@@ -4,11 +4,13 @@ import { regionColor, fishColor, plasma, coolwarm } from './colorMaps';
 const DIM_RGB: [number, number, number] = [0.30, 0.30, 0.32];
 const DIM_ALPHA = 0.10;
 const LIFT_ALPHA = 0.50;
-// Ghost mode alphas / size factor — close to invisible so foreground
-// in-set cells in the brain's interior aren't occluded by the dim haze.
-const GHOST_ALPHA = 0.03;
-const GHOST_LIFT_ALPHA = 0.20;
-const GHOST_SIZE_FACTOR = 0.6;
+// Floors that the dim/lift alphas and the point-size factor approach
+// at full ghost intensity. The user-set ghostIntensity (0..1) linearly
+// interpolates from the no-ghost endpoint (DIM_ALPHA / LIFT_ALPHA /
+// 1.0) toward these floors.
+const GHOST_ALPHA_FLOOR = 0.02;
+const GHOST_LIFT_FLOOR = 0.15;
+const GHOST_SIZE_FLOOR = 0.55;
 const HIGHLIGHT_BOOST_SIZE = 1.5;
 
 // Stim correlation thresholds, the gene plasma ceiling, and the base
@@ -306,6 +308,9 @@ export function applyColoring(
     clusterFilterActive ||
     stimActive ||
     swimFilterActive;
+  // Clamp ghostIntensity into [0, 1] so a hostile URL value can't
+  // overshoot the floor / send size below 0.
+  const ghostIntensity = Math.max(0, Math.min(1, settings.ghostIntensity));
   // Collect filter-set indices in a single pass so App doesn't need a
   // second 274k-cell walk for the filter-derived effective selection
   // or the visible-cell counter. Allocate worst-case once, slice at the
@@ -380,14 +385,20 @@ export function applyColoring(
     if (!inSet) {
       // Two-tier dim: anatomical-context lift when the cell is inside
       // the focused region but fails another predicate; otherwise the
-      // full background dim. In ghost mode the alphas and size drop
-      // further so foreground in-set cells aren't occluded.
+      // full background dim. ghostIntensity (0..1) lerps the alpha and
+      // point size between the no-ghost endpoint and the near-invisible
+      // floor so the user can dial the dim cells from "useful
+      // anatomical context" all the way down to "barely there".
       r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2];
-      if (settings.ghostUnselected && filterActive) {
-        alpha = (inRegion && isolatedRegion >= 0) ? GHOST_LIFT_ALPHA : GHOST_ALPHA;
-        size *= GHOST_SIZE_FACTOR;
+      const liftBranch = inRegion && isolatedRegion >= 0;
+      if (filterActive && ghostIntensity > 0) {
+        const t = ghostIntensity;
+        const baseAlpha = liftBranch ? LIFT_ALPHA : DIM_ALPHA;
+        const floorAlpha = liftBranch ? GHOST_LIFT_FLOOR : GHOST_ALPHA_FLOOR;
+        alpha = baseAlpha + (floorAlpha - baseAlpha) * t;
+        size *= 1 + (GHOST_SIZE_FLOOR - 1) * t;
       } else {
-        alpha = (inRegion && isolatedRegion >= 0) ? LIFT_ALPHA : DIM_ALPHA;
+        alpha = liftBranch ? LIFT_ALPHA : DIM_ALPHA;
       }
     } else {
       switch (filter.colorMode) {

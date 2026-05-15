@@ -57,24 +57,21 @@ export function SettingsTab({
           Ghost cells outside filter
         </div>
         <p className="text-neutral-400 leading-snug">
-          When on, cells that don't pass the active filters render
-          close to invisible and clicks pass through them to whatever's
-          underneath. Foreground cells in the brain's interior aren't
-          occluded by the dim haze, but you lose some anatomical
-          context. When off, dimmed cells stay visible and pickable.
+          How aggressively to ghost cells that don't pass the active
+          filters. At <span className="text-neutral-200">0</span> they
+          render at the normal dim and stay pickable. Crank up to fade
+          them further toward invisible and remove them from the click
+          picker so foreground cells in the brain's interior aren't
+          occluded.
         </p>
-        <label
-          className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
-          title="hide out-of-filter cells: drops their alpha and skips them in the click picker"
-        >
-          <input
-            type="checkbox"
-            checked={settings.ghostUnselected}
-            onChange={(e) => update({ ghostUnselected: e.target.checked })}
-            className="accent-neutral-300"
-          />
-          ghost cells outside filter
-        </label>
+        <NumberRow
+          label="ghost intensity"
+          value={settings.ghostIntensity}
+          min={0}
+          max={1}
+          step={0.05}
+          onChange={(v) => update({ ghostIntensity: Math.max(0, Math.min(1, v)) })}
+        />
       </section>
 
       <section className="flex flex-col gap-2">
