@@ -4,6 +4,11 @@ import { regionColor, fishColor, plasma, coolwarm } from './colorMaps';
 const DIM_RGB: [number, number, number] = [0.30, 0.30, 0.32];
 const DIM_ALPHA = 0.10;
 const LIFT_ALPHA = 0.50;
+// Ghost mode alphas / size factor — close to invisible so foreground
+// in-set cells in the brain's interior aren't occluded by the dim haze.
+const GHOST_ALPHA = 0.03;
+const GHOST_LIFT_ALPHA = 0.20;
+const GHOST_SIZE_FACTOR = 0.6;
 const HIGHLIGHT_BOOST_SIZE = 1.5;
 
 // Stim correlation thresholds, the gene plasma ceiling, and the base
@@ -354,9 +359,15 @@ export function applyColoring(
     if (!inSet) {
       // Two-tier dim: anatomical-context lift when the cell is inside
       // the focused region but fails another predicate; otherwise the
-      // full background dim.
+      // full background dim. In ghost mode the alphas and size drop
+      // further so foreground in-set cells aren't occluded.
       r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2];
-      alpha = (inRegion && isolatedRegion >= 0) ? LIFT_ALPHA : DIM_ALPHA;
+      if (settings.ghostUnselected && filterActive) {
+        alpha = (inRegion && isolatedRegion >= 0) ? GHOST_LIFT_ALPHA : GHOST_ALPHA;
+        size *= GHOST_SIZE_FACTOR;
+      } else {
+        alpha = (inRegion && isolatedRegion >= 0) ? LIFT_ALPHA : DIM_ALPHA;
+      }
     } else {
       switch (filter.colorMode) {
         case 'region': {

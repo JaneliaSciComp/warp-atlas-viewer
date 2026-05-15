@@ -12,18 +12,9 @@ export function SettingsTab({
   const update = (patch: Partial<SettingsState>) =>
     setSettings({ ...settings, ...patch });
   const reset = () => setSettings(DEFAULT_SETTINGS);
-  const dirty =
-    settings.stimLo !== DEFAULT_SETTINGS.stimLo ||
-    settings.stimHi !== DEFAULT_SETTINGS.stimHi ||
-    settings.geneMaxSpots !== DEFAULT_SETTINGS.geneMaxSpots ||
-    settings.geneStrict !== DEFAULT_SETTINGS.geneStrict ||
-    settings.geneMultiColor !== DEFAULT_SETTINGS.geneMultiColor ||
-    settings.pointSize !== DEFAULT_SETTINGS.pointSize ||
-    settings.enablePan !== DEFAULT_SETTINGS.enablePan ||
-    settings.activityLo !== DEFAULT_SETTINGS.activityLo ||
-    settings.activityHi !== DEFAULT_SETTINGS.activityHi ||
-    settings.swimLo !== DEFAULT_SETTINGS.swimLo ||
-    settings.swimHi !== DEFAULT_SETTINGS.swimHi;
+  const dirty = (Object.keys(DEFAULT_SETTINGS) as Array<keyof typeof DEFAULT_SETTINGS>).some(
+    (k) => settings[k] !== DEFAULT_SETTINGS[k],
+  );
   return (
     <div className="flex flex-col gap-6 pb-3 text-xs font-mono text-neutral-300 max-w-2xl">
       <button
@@ -59,6 +50,31 @@ export function SettingsTab({
           step={0.5}
           onChange={(v) => update({ pointSize: v })}
         />
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+          Ghost cells outside filter
+        </div>
+        <p className="text-neutral-400 leading-snug">
+          When on, cells that don't pass the active filters render
+          close to invisible and clicks pass through them to whatever's
+          underneath. Foreground cells in the brain's interior aren't
+          occluded by the dim haze, but you lose some anatomical
+          context. When off, dimmed cells stay visible and pickable.
+        </p>
+        <label
+          className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
+          title="hide out-of-filter cells: drops their alpha and skips them in the click picker"
+        >
+          <input
+            type="checkbox"
+            checked={settings.ghostUnselected}
+            onChange={(e) => update({ ghostUnselected: e.target.checked })}
+            className="accent-neutral-300"
+          />
+          ghost cells outside filter
+        </label>
       </section>
 
       <section className="flex flex-col gap-2">

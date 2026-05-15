@@ -233,6 +233,15 @@ export interface SettingsState {
    *  the ramp end. Default 0.35 — roughly the 95th percentile of
    *  positive swim correlations in WARP. */
   swimHi: number;
+  /** When true, out-of-filter cells render close to invisible (very
+   *  low alpha + smaller point size) and the click pickers in the 3D
+   *  viewer and t-SNE skip them entirely. The user can still see the
+   *  brain silhouette through the residual haze, but foreground in-set
+   *  cells in the brain's interior aren't occluded and clicks always
+   *  land on visible cells. When false, dimmed cells retain enough
+   *  alpha to serve as anatomical context and remain pickable when no
+   *  in-filter cell is nearby. */
+  ghostUnselected: boolean;
 }
 
 export const DEFAULT_SETTINGS: SettingsState = {
@@ -247,6 +256,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
   activityHi: 1.5,
   swimLo: 0.10,
   swimHi: 0.35,
+  ghostUnselected: true,
 };
 
 export interface SelectionState {

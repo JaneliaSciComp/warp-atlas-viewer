@@ -212,8 +212,10 @@ function PointCloud({
     // are visually de-emphasized, so a click on a coloured cell that
     // happens to sit a hair behind a greyed-out one should still land
     // on the coloured cell. Out-of-filter cells are only considered if
-    // no in-filter cell is within the pick window.
+    // no in-filter cell is within the pick window — and not at all
+    // when ghost mode is on, since they're effectively invisible.
     const filterActive = anyFilterActive(data, filter);
+    const ghost = filterActive && settings.ghostUnselected;
     let bestI = -1;
     let bestD2 = Infinity;
     let bestZ = Infinity;
@@ -243,7 +245,7 @@ function PointCloud({
           bestZ = depth;
           bestI = i;
         }
-      } else if (!bestInFilter) {
+      } else if (!bestInFilter && !ghost) {
         if (d2 < bestD2 || (d2 === bestD2 && depth < bestZ)) {
           bestD2 = d2;
           bestZ = depth;

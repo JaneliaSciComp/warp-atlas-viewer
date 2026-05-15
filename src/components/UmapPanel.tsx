@@ -423,10 +423,12 @@ export function UmapPanel({
       // filter is active, in-filter cells outrank out-of-filter ones
       // regardless of distance — dimmed cells should not steal a
       // click that's also near a coloured cell. Out-of-filter cells
-      // are only considered if no in-filter cell is in the window.
+      // are only considered if no in-filter cell is in the window,
+      // and not at all when ghost mode is on (they're invisible).
       const cx = pts[0][0], cy = pts[0][1];
       const PIX_THRESH_SQ = 16 * 16;
       const filterActive = anyFilterActive(data, filter);
+      const ghost = filterActive && settings.ghostUnselected;
       let bestI = -1;
       let bestD2 = PIX_THRESH_SQ;
       let bestInFilter = false;
@@ -444,7 +446,7 @@ export function UmapPanel({
             bestD2 = d2;
             bestI = i;
           }
-        } else if (!bestInFilter && d2 < bestD2) {
+        } else if (!bestInFilter && !ghost && d2 < bestD2) {
           bestD2 = d2;
           bestI = i;
         }

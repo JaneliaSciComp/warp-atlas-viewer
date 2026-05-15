@@ -177,6 +177,9 @@ function validateSettings(raw: unknown): Partial<SettingsState> {
   // baseline); 10 is a generous upper bound for activityHi.
   if (isFiniteNum(s.activityLo)) out.activityLo = clamp(s.activityLo, -5, 10);
   if (isFiniteNum(s.activityHi)) out.activityHi = clamp(s.activityHi, -5, 10);
+  if (isFiniteNum(s.swimLo)) out.swimLo = clamp(s.swimLo, 0, 1);
+  if (isFiniteNum(s.swimHi)) out.swimHi = clamp(s.swimHi, 0, 1);
+  if (typeof s.ghostUnselected === 'boolean') out.ghostUnselected = s.ghostUnselected;
   return out;
 }
 
