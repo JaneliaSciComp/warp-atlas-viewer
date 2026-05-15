@@ -2,6 +2,7 @@ import type { ReactNode, CSSProperties } from 'react';
 import type { NeuronDataset, FilterState, SettingsState } from '../data/types';
 import { regionColor, fishColor, plasma, coolwarm, rgbToHex } from '../utils/colorMaps';
 import { REGION_PAPER_ORDER } from '../utils/constants';
+import { STIM_LABELS } from '../utils/stimAssets';
 
 interface Props {
   data: NeuronDataset;
@@ -351,9 +352,12 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
   // max-abs across the subset.
   const sel = filter.selectedStimuli;
   const S = data.stimulusNames.length;
+  // Prefer the cleaned-up human label ('motion forward' etc.) over the
+  // dataset's generic 'stim_N' for the single-stim title; fall back to
+  // the manifest name if a label isn't defined for that index.
   const stimTitle =
     sel.length === 1
-      ? `Stim: ${data.stimulusNames[sel[0]]}`
+      ? `Stim: ${STIM_LABELS[sel[0]] ?? data.stimulusNames[sel[0]]}`
       : sel.length === 0 || sel.length === S
         ? 'Stim: max |r| across all'
         : `Stim: max |r| across ${sel.length}`;

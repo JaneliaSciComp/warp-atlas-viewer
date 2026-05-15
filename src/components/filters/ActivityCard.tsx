@@ -2,9 +2,9 @@ import type { NeuronDataset, FilterState, StimMode } from '../../data/types';
 import { STIM_ICONS, STIM_LABELS } from '../../utils/stimAssets';
 import { Card, KindToggle } from './shared';
 
-// Two independent toggles ('+ stim-driven' and '− anti-stim') backed by
-// a single FilterState.stimMode enum, mirroring the swim card's shape.
-// The four legal modes are the four boolean combinations.
+// Two independent toggles ('+ correlated' and '− anti-correlated')
+// backed by a single FilterState.stimMode enum. The four legal modes
+// correspond to the four boolean combinations.
 function pickStimMode(positive: boolean, negative: boolean): StimMode {
   if (positive && negative) return 'both';
   if (positive) return 'positive';
@@ -29,9 +29,18 @@ export function ActivityCard({
     update({ selectedStimuli: Array.from(next).sort((a, b) => a - b) });
   };
   const hasSel = filter.selectedStimuli.length > 0;
-  const logicMeaningful = filter.selectedStimuli.length >= 2;
+  const filterArmed = filter.stimMode !== 'off';
+  // OR/AND only matters when the stim filter is actually evaluating
+  // (mode != 'off') AND 2+ stimuli are selected so the combine logic
+  // has something to combine.
+  const logicMeaningful = filter.selectedStimuli.length >= 2 && filterArmed;
   const positive = filter.stimMode === 'positive' || filter.stimMode === 'both';
   const negative = filter.stimMode === 'negative' || filter.stimMode === 'both';
+  const logicTitle = logicMeaningful
+    ? 'OR: cells responsive to any selected stimulus. AND: cells responsive to every selected stimulus.'
+    : !filterArmed
+      ? 'Enable + correlated or − anti-correlated to activate the stim filter; OR / AND combines multiple stimuli once it\'s on.'
+      : 'Combine logic for multi-stimulus selections (only matters with 2+ stimuli toggled on).';
   return (
     <Card title="Visual Stimuli">
       <div className="grid grid-cols-4 gap-1">
@@ -62,54 +71,48 @@ export function ActivityCard({
           );
         })}
       </div>
-      <div className="flex flex-col gap-1.5">
-        <ToggleButton
-          pressed={positive}
-          onClick={() => update({ stimMode: pickStimMode(!positive, negative) })}
-          title="cells whose activity is positively correlated with the selected stimulus regressor (r ≥ +stimLo)"
-        >
-          + stim-driven
-        </ToggleButton>
-        <ToggleButton
-          pressed={negative}
-          onClick={() => update({ stimMode: pickStimMode(positive, !negative) })}
-          title="cells whose activity is anti-correlated with the selected stimulus regressor (r ≤ −stimLo)"
-        >
-          − anti-stim
-        </ToggleButton>
-      </div>
-      <div
-        className={
-          'flex items-center gap-3 ' +
-          (logicMeaningful ? 'opacity-100' : 'opacity-50')
-        }
-        title={
-          logicMeaningful
-            ? 'OR: cells responsive to any selected stimulus. AND: cells responsive to every selected stimulus.'
-            : 'Combine logic for multi-stimulus selections (only matters with 2+ stimuli toggled on).'
-        }
-      >
-        <KindToggle
-          value={filter.stimLogic}
-          onChange={(v) => update({ stimLogic: v })}
-          options={[
-            { value: 'or', label: 'OR' },
-            { value: 'and', label: 'AND' },
-          ]}
-        />
-        <button
-          onClick={() => update({ selectedStimuli: [] })}
-          disabled={!hasSel}
-          className={
-            'ml-2 text-[10px] font-mono ' +
-            (hasSel
-              ? 'text-neutral-300 hover:text-neutral-100'
-              : 'text-neutral-600 cursor-default')
-          }
-        >
-          clear
-        </button>
-      </div>
+      {hasSel && (
+        <>
+          <div className="flex flex-col gap-1.5">
+            <ToggleButton
+              pressed={positive}
+              onClick={() => update({ stimMode: pickStimMode(!positive, negative) })}
+              title="cells whose activity is positively correlated with the selected stimulus regressor (r ≥ +stimLo)"
+            >
+              + correlated
+            </ToggleButton>
+            <ToggleButton
+              pressed={negative}
+              onClick={() => update({ stimMode: pickStimMode(positive, !negative) })}
+              title="cells whose activity is anti-correlated with the selected stimulus regressor (r ≤ −stimLo)"
+            >
+              − anti-correlated
+            </ToggleButton>
+          </div>
+          <div
+            className={
+              'flex items-center gap-3 ' +
+              (logicMeaningful ? 'opacity-100' : 'opacity-50')
+            }
+            title={logicTitle}
+          >
+            <KindToggle
+              value={filter.stimLogic}
+              onChange={(v) => update({ stimLogic: v })}
+              options={[
+                { value: 'or', label: 'OR' },
+                { value: 'and', label: 'AND' },
+              ]}
+            />
+            <button
+              onClick={() => update({ selectedStimuli: [] })}
+              className="ml-2 text-[10px] font-mono text-neutral-300 hover:text-neutral-100"
+            >
+              clear
+            </button>
+          </div>
+        </>
+      )}
     </Card>
   );
 }

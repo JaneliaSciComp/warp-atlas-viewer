@@ -321,6 +321,12 @@ export function applyColoring(
   // overshoot the floor / send size below 0.
   const ghostIntensity = Math.max(0, Math.min(1, settings.ghostIntensity));
   const fadeWeak = settings.fadeWeakCorrelation;
+  // visibleCount is the count of cells the user actually sees on
+  // screen, not the count of cells passing the filter. We bump it
+  // for cells whose final alpha is above this threshold — that way
+  // fade-by-magnitude (which knocks low-|r| cells down to alpha ~0.12)
+  // is reflected in the counter even when no filter is active.
+  const VISIBLE_ALPHA_THRESHOLD = 0.5;
   // Single-pass bucket fill into a draw-order buffer:
   //   out-of-set indices fill from the front (outCursor ↑)
   //   in-set     indices fill from the back  (inCursor  ↓)
@@ -395,7 +401,6 @@ export function applyColoring(
     }
     const inSet = inRegion && passesTx && passesStim && passesSwim;
     if (inSet) {
-      visibleCount++;
       if (drawOrder) drawOrder[--inCursor] = i;
     } else if (drawOrder) {
       drawOrder[outCursor++] = i;
@@ -539,35 +544,48 @@ export function applyColoring(
         case 'stim': {
           // Divergent coolwarm ramp over signed stim correlation,
           // anchored symmetrically at ±stimLo (neutral deadband) and
-          // ±stimHi (saturation). Mirrors the swim color scheme — sign
-          // reads as colour, magnitude as intensity. With one stimulus
-          // selected we paint by its signed r; otherwise we pick the
-          // signed r with the largest magnitude (so an r = -0.5 wins
-          // over r = +0.2, faithfully representing "most stim-coupled
-          // direction").
+          // ±stimHi (saturation). With one stimulus selected we paint
+          // by its signed r. With multiple stimuli the rep we pick
+          // tracks the filter direction:
+          //   stimMode 'positive' → max-positive r (cells passing the
+          //     + filter colored by their strongest positive evidence)
+          //   stimMode 'negative' → min-negative r
+          //   stimMode 'both' or 'off' → max-|r| (most stim-coupled
+          //     direction, either sign)
+          // This keeps the coloring consistent with the filter: with
+          // + correlated on you shouldn't see blue cells, etc.
           let rawA: number;
           if (!useStimMax) {
             rawA = stimulusCorr[i * S + stimSel[0]];
-          } else if (stimMaxIndices === null) {
-            const base = i * S;
-            let m = stimulusCorr[base];
-            let mAbs = Math.abs(m);
-            for (let j = 1; j < S; j++) {
-              const c = stimulusCorr[base + j];
-              const a2 = Math.abs(c);
-              if (a2 > mAbs) { m = c; mAbs = a2; }
-            }
-            rawA = m;
           } else {
-            const base = i * S;
-            let m = stimulusCorr[base + stimMaxIndices[0]];
-            let mAbs = Math.abs(m);
-            for (let k = 1; k < stimMaxIndices.length; k++) {
-              const c = stimulusCorr[base + stimMaxIndices[k]];
-              const a2 = Math.abs(c);
-              if (a2 > mAbs) { m = c; mAbs = a2; }
+            const baseIdx = i * S;
+            const indices = stimMaxIndices;
+            const N = indices ? indices.length : S;
+            if (stimMode === 'positive') {
+              let m = -Infinity;
+              for (let j = 0; j < N; j++) {
+                const c = stimulusCorr[baseIdx + (indices ? indices[j] : j)];
+                if (c > m) m = c;
+              }
+              rawA = m;
+            } else if (stimMode === 'negative') {
+              let m = Infinity;
+              for (let j = 0; j < N; j++) {
+                const c = stimulusCorr[baseIdx + (indices ? indices[j] : j)];
+                if (c < m) m = c;
+              }
+              rawA = m;
+            } else {
+              // 'both' or 'off' — max-|r|
+              let m = stimulusCorr[baseIdx + (indices ? indices[0] : 0)];
+              let mAbs = Math.abs(m);
+              for (let j = 1; j < N; j++) {
+                const c = stimulusCorr[baseIdx + (indices ? indices[j] : j)];
+                const a2 = Math.abs(c);
+                if (a2 > mAbs) { m = c; mAbs = a2; }
+              }
+              rawA = m;
             }
-            rawA = m;
           }
           const mag = Math.abs(rawA);
           let v: number;
@@ -579,10 +597,6 @@ export function applyColoring(
           const signed = rawA >= 0 ? v : -v;
           const c = coolwarm(signed);
           r = c[0]; g = c[1]; b = c[2];
-          // Alpha tracks magnitude when fadeWeakCorrelation is on so
-          // cells near the deadband midpoint don't bloom (coolwarm's
-          // bright neutral midpoint is the visual problem we're
-          // dodging). Floor keeps neutral cells faintly visible.
           alpha = fadeWeak ? FADE_FLOOR + (1 - FADE_FLOOR) * v : 1.0;
           break;
         }
@@ -627,6 +641,8 @@ export function applyColoring(
       }
     }
 
+    if (alpha >= VISIBLE_ALPHA_THRESHOLD) visibleCount++;
+
     colors[i * 3] = r;
     colors[i * 3 + 1] = g;
     colors[i * 3 + 2] = b;
@@ -644,7 +660,7 @@ export function applyColoring(
       ? drawOrder.slice(inCursor)
       : null;
   return {
-    visibleCount: filterActive ? visibleCount : count,
+    visibleCount,
     filterSelection,
     drawOrder,
   };
