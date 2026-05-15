@@ -238,7 +238,8 @@ export interface SettingsState {
   geneMultiColor: GeneMultiColor;
   /** Base 3D point size (pixels) for every cell, used by both the 3D
    *  viewer and the t-SNE scatter. Display-density preference; raise
-   *  on high-DPI screens or when cells look too small. */
+   *  on high-DPI screens or when cells look too small. Overridden by
+   *  `autoSizing` when that is enabled. */
   pointSize: number;
   /** Whether the user can pan (translate) the 3D camera. When false,
    *  the orbit target stays locked at the volume center so rotation
@@ -271,8 +272,15 @@ export interface SettingsState {
    *      pre-ghost behaviour) and are fully pickable.
    *  Intermediate values linearly scale alpha and point size; the
    *  pickers re-enable above the midpoint so users only catch
-   *  clicks on cells that are genuinely visible enough to aim at. */
+   *  clicks on cells that are genuinely visible enough to aim at.
+   *  Overridden by `autoSizing` when that is enabled. */
   ghostIntensity: number;
+  /** When true, `pointSize` and `ghostIntensity` are derived from the
+   *  filter-passing cell count rather than read from settings — small
+   *  filtered sets get bigger dots and dimmer ghosts, full views get
+   *  smaller dots and brighter ghosts. Disables the manual sliders.
+   *  See applyColoring for the lerp endpoints. */
+  autoSizing: boolean;
   /** When true, the swim + stim divergent color modes scale alpha by
    *  |r| so cells near the neutral midpoint fade into the background
    *  instead of competing with the colored extremes (coolwarm's
@@ -296,6 +304,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
   swimLo: 0.10,
   swimHi: 0.35,
   ghostIntensity: 0.6,
+  autoSizing: true,
   fadeWeakCorrelation: true,
 };
 

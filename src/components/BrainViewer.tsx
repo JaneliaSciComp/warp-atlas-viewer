@@ -174,9 +174,13 @@ function PointCloud({
     });
   }, [gl, initialPointSize]);
 
+  // Marker tracks the *effective* point size used by the cell shader so
+  // the focus ring stays sized relative to the dots it surrounds even
+  // when autoSizing is on.
+  const effectiveMarkerSize = coloring?.effectivePointSize ?? settings.pointSize;
   useEffect(() => {
-    markerMaterial.uniforms.baseSize.value = settings.pointSize;
-  }, [markerMaterial, settings.pointSize]);
+    markerMaterial.uniforms.baseSize.value = effectiveMarkerSize;
+  }, [markerMaterial, effectiveMarkerSize]);
 
   useEffect(() => {
     if (focusedNeuron == null || focusedNeuron < 0 || focusedNeuron >= data.count) {
@@ -230,8 +234,10 @@ function PointCloud({
     const filterActive = anyFilterActive(data, filter);
     // Below half visibility, ghosts are too faint to aim at — skip
     // them in the picker so clicks always land on cells the user can
-    // actually see.
-    const ghost = filterActive && settings.ghostIntensity < 0.5;
+    // actually see. Use coloring's effective ghost intensity so this
+    // tracks autoSizing too.
+    const effGhost = coloring?.effectiveGhostIntensity ?? settings.ghostIntensity;
+    const ghost = filterActive && effGhost < 0.5;
     let bestI = -1;
     let bestD2 = Infinity;
     let bestZ = Infinity;

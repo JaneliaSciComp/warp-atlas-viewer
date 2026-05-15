@@ -201,7 +201,11 @@ export function UmapPanel({
     // [dx, dy, weight, dx, dy, weight, ...] array of physical-pixel
     // offsets with smoothstep edge weights for AA. Built once per
     // render instead of per cell.
-    const dotSize = Math.max(1, settings.pointSize * 0.18 * Math.sqrt(viewport.zoom));
+    // Track the effective point size from coloring so autoSizing
+    // applies to the t-SNE scatter too. Falls back to the user setting
+    // on the very first paint before stats are populated.
+    const effPointSize = coloring.effectivePointSize ?? settings.pointSize;
+    const dotSize = Math.max(1, effPointSize * 0.18 * Math.sqrt(viewport.zoom));
     const radius = dotSize / 2;
     const radiusPhys = radius * dpr;
     const stampR = Math.ceil(radiusPhys + 1);
@@ -439,7 +443,8 @@ export function UmapPanel({
       const cx = pts[0][0], cy = pts[0][1];
       const PIX_THRESH_SQ = 16 * 16;
       const filterActive = anyFilterActive(data, filter);
-      const ghost = filterActive && settings.ghostIntensity < 0.5;
+      const effGhost = coloring?.effectiveGhostIntensity ?? settings.ghostIntensity;
+      const ghost = filterActive && effGhost < 0.5;
       let bestI = -1;
       let bestD2 = PIX_THRESH_SQ;
       let bestInFilter = false;

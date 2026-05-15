@@ -34,44 +34,53 @@ export function SettingsTab({
 
       <section className="flex flex-col gap-2">
         <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
-          Cell point size
+          Point density
         </div>
         <p className="text-neutral-400 leading-snug">
-          Base point size in pixels for the 3D viewer and t-SNE
-          scatter. Bump up on high-DPI screens or when cells look
-          undersized; user-selected cells still get an extra ×1.5
-          boost on top.
+          Base point size for the 3D and t-SNE scatters and the
+          visibility of cells outside the active filters (ghosts).
+          <span className="text-neutral-200"> Auto</span> derives
+          both from the filter-passing cell count — small selections
+          get bigger dots and dimmer ghosts, full views get smaller
+          dots and brighter ghosts. Turn auto off to set the values
+          by hand.
         </p>
-        <NumberRow
-          label="point size (px)"
-          value={settings.pointSize}
-          min={2}
-          max={20}
-          step={0.5}
-          onChange={(v) => update({ pointSize: v })}
-        />
-      </section>
-
-      <section className="flex flex-col gap-2">
-        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
-          Ghost cells outside filter
+        <label
+          className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
+          title="adjust point size and ghost visibility from the visible cell count"
+        >
+          <input
+            type="checkbox"
+            checked={settings.autoSizing}
+            onChange={(e) => update({ autoSizing: e.target.checked })}
+            className="accent-neutral-300"
+          />
+          auto
+        </label>
+        <div
+          className={
+            settings.autoSizing
+              ? 'opacity-40 pointer-events-none'
+              : 'opacity-100'
+          }
+        >
+          <NumberRow
+            label="point size (px)"
+            value={settings.pointSize}
+            min={2}
+            max={20}
+            step={0.5}
+            onChange={(v) => update({ pointSize: v })}
+          />
+          <NumberRow
+            label="ghost visibility"
+            value={settings.ghostIntensity}
+            min={0}
+            max={1}
+            step={0.05}
+            onChange={(v) => update({ ghostIntensity: Math.max(0, Math.min(1, v)) })}
+          />
         </div>
-        <p className="text-neutral-400 leading-snug">
-          How visible cells outside the active filters are. At
-          <span className="text-neutral-200"> 0</span> they're
-          invisible and the click pickers skip them so clicks pass
-          through to the cells you actually filtered for. Turn up to
-          fade them back in toward the standard dim; above the
-          midpoint they become pickable again.
-        </p>
-        <NumberRow
-          label="ghost visibility"
-          value={settings.ghostIntensity}
-          min={0}
-          max={1}
-          step={0.05}
-          onChange={(v) => update({ ghostIntensity: Math.max(0, Math.min(1, v)) })}
-        />
       </section>
 
       <section className="flex flex-col gap-2">

@@ -28,6 +28,12 @@ export interface SharedColoring {
    *  active (every cell is in-set; renderers fall back to natural
    *  index order). */
   drawOrder: Uint32Array | null;
+  /** Point size used by the last paint pass (auto-sized when
+   *  settings.autoSizing is on, else settings.pointSize). Pickers and
+   *  marker geometry consume this so they stay in step. */
+  effectivePointSize: number;
+  /** Ghost intensity used by the last paint pass. */
+  effectiveGhostIntensity: number;
 }
 
 /** Shared per-cell coloring keyed on (data, filter, settings,
@@ -45,14 +51,22 @@ export function useColoring(
   const result = useMemo(() => (data ? allocColoring(data.count) : null), [data]);
   const [revision, setRevision] = useState(0);
   // Stats produced by applyColoring (visibleCount, filterSelection,
-  // drawOrder) come out of the same pass that paints. Stash them in a
-  // ref keyed to the published revision so consumers reading them
-  // stay in sync.
+  // drawOrder, effective sizing) come out of the same pass that paints.
+  // Stash them in a ref keyed to the published revision so consumers
+  // reading them stay in sync.
   const statsRef = useRef<{
     visibleCount: number;
     filterSelection: Uint32Array | null;
     drawOrder: Uint32Array | null;
-  }>({ visibleCount: 0, filterSelection: null, drawOrder: null });
+    effectivePointSize: number;
+    effectiveGhostIntensity: number;
+  }>({
+    visibleCount: 0,
+    filterSelection: null,
+    drawOrder: null,
+    effectivePointSize: 10,
+    effectiveGhostIntensity: 0.6,
+  });
   useEffect(() => {
     if (!data || !result) return;
     statsRef.current = applyColoring(data, filter, settings, selection, result);
@@ -71,6 +85,8 @@ export function useColoring(
             visibleCount: statsRef.current.visibleCount,
             filterSelection: statsRef.current.filterSelection,
             drawOrder: statsRef.current.drawOrder,
+            effectivePointSize: statsRef.current.effectivePointSize,
+            effectiveGhostIntensity: statsRef.current.effectiveGhostIntensity,
           }
         : null,
     [result, revision],

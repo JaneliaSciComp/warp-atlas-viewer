@@ -35,7 +35,9 @@ export function allocColoring(n: number): ColoringResult {
 }
 
 export interface ColoringStats {
-  /** Number of cells that passed the filter intersection (inSet count). */
+  /** Number of cells whose final alpha clears the visibility threshold
+   *  (≥ 0.5). Drives the "cells visible" readout — reflects both filter
+   *  membership and fade-by-magnitude / ghost slider attenuation. */
   visibleCount: number;
   /** Indices of cells in the filter intersection — populated only when
    *  at least one filter dimension is active. Used as the filter-derived
@@ -47,6 +49,17 @@ export interface ColoringStats {
    *  dim haze regardless of source order or true 3D depth. Null when
    *  no filter is active (every cell is in-set, no reorder needed). */
   drawOrder: Uint32Array | null;
+  /** Point size actually used during this paint pass. Equal to
+   *  settings.pointSize when autoSizing is off; otherwise derived
+   *  from the in-set count (50 cells → 20 px, all cells → 10 px,
+   *  lerped between). Picker / marker geometry should use this
+   *  rather than settings.pointSize. */
+  effectivePointSize: number;
+  /** Ghost intensity actually used during this paint pass. Same
+   *  derivation pattern as effectivePointSize (50 cells → 0.25,
+   *  all cells → 0.75). The pickers test against this to decide
+   *  whether out-of-filter cells are clickable. */
+  effectiveGhostIntensity: number;
 }
 
 /** Per-cell predicate evaluator. Bundled together so the same logic
@@ -234,7 +247,10 @@ export function applyColoring(
   // settings.
   const geneMaxSpots = Math.max(1, settings.geneMaxSpots);
   const geneLogDen = Math.log(1 + geneMaxSpots);
-  const baseSize = settings.pointSize;
+  // baseSize and ghostIntensity become effective values after the
+  // predicate pass below — when autoSizing is on they lerp from the
+  // (50 cells → 20px, 0.25) end to the (all cells → 10px, 0.75) end
+  // based on inSetCount.
   // The Gene color scheme paints by the selected genes when at least
   // one is in focus via Transcriptomics; otherwise it paints by
   // transcriptomic richness across the full 41-gene panel (# of
@@ -319,9 +335,6 @@ export function applyColoring(
     clusterFilterActive ||
     stimActive ||
     swimFilterActive;
-  // Clamp ghostIntensity into [0, 1] so a hostile URL value can't
-  // overshoot the floor / send size below 0.
-  const ghostIntensity = Math.max(0, Math.min(1, settings.ghostIntensity));
   const fadeWeak = settings.fadeWeakCorrelation;
   // visibleCount is the count of cells the user actually sees on
   // screen, not the count of cells passing the filter. We bump it
@@ -342,11 +355,16 @@ export function applyColoring(
   const drawOrder = filterActive ? new Uint32Array(count) : null;
   let outCursor = 0;
   let inCursor = count;
-  let visibleCount = 0;
+  // Per-cell predicate result reused by pass 2 — Uint8Array is the
+  // cheapest densely-packed boolean store and ~274 KB at our typical
+  // count.
+  const inSetArr = new Uint8Array(count);
+  let inSetCount = 0;
 
+  // ── Pass 1: predicate + drawOrder partition + inSet count ─────────
+  // We need inSetCount BEFORE pass 2 so autoSizing can derive the
+  // effective point size + ghost intensity from it.
   for (let i = 0; i < count; i++) {
-    let r = 0, g = 0, b = 0, alpha = 0.85, size = baseSize;
-
     const inRegion =
       (isoRegion < 0 || regionIds[i] === isoRegion) &&
       (isoFish < 0 || fishIds[i] === isoFish);
@@ -403,24 +421,60 @@ export function applyColoring(
     }
     const inSet = inRegion && passesTx && passesStim && passesSwim;
     if (inSet) {
+      inSetCount++;
+      inSetArr[i] = 1;
       if (drawOrder) drawOrder[--inCursor] = i;
     } else if (drawOrder) {
       drawOrder[outCursor++] = i;
     }
+  }
+
+  // ── Effective point size + ghost intensity ────────────────────────
+  // Auto mode lerps in *log space* between (50 cells → 20 px / ghost
+  // 0.25) and (count → 10 px / ghost 0.75). Log space matches how cell
+  // density actually scales — every 10× more cells should drop the
+  // point size by roughly the same amount — so the curve drops fast
+  // early and flattens near the floor. Sample values for count≈274 k:
+  //    n=50   →  20 px, 0.25
+  //    n=1 k  →  16.5,  0.43
+  //    n=10 k →  13.8,  0.56
+  //    n=50 k →  12,    0.65
+  //    n=100k →  11.2,  0.69
+  //    n=count→  10,    0.75
+  const AUTO_MIN_INSET = 50;
+  const logHi = Math.log(Math.max(AUTO_MIN_INSET + 1, count));
+  const logLo = Math.log(AUTO_MIN_INSET);
+  const autoT = settings.autoSizing
+    ? Math.max(0, Math.min(1, (Math.log(Math.max(AUTO_MIN_INSET, inSetCount)) - logLo) / (logHi - logLo)))
+    : 0;
+  const effectivePointSize = settings.autoSizing
+    ? 20 - 10 * autoT
+    : Math.max(0.001, settings.pointSize);
+  const effectiveGhostIntensity = settings.autoSizing
+    ? 0.25 + 0.5 * autoT
+    : Math.max(0, Math.min(1, settings.ghostIntensity));
+
+  // ── Pass 2: paint ─────────────────────────────────────────────────
+  let visibleCount = 0;
+  for (let i = 0; i < count; i++) {
+    const inSet = inSetArr[i] === 1;
+    let r = 0, g = 0, b = 0, alpha = 0.85, size = effectivePointSize;
 
     if (!inSet) {
       // Two-tier dim: anatomical-context lift when the cell is inside
       // the focused region but fails another predicate; otherwise the
-      // full background dim. ghostIntensity (0..1) is the *visibility*
-      // of the ghost cells:
-      //   0 → alpha 0, near-floor size: cells effectively gone
-      //   1 → DIM_ALPHA / LIFT_ALPHA, full point size: standard dim
-      // No filter active means no ghosts to fade — full dim regardless.
+      // full background dim. effectiveGhostIntensity (0..1) is the
+      // *visibility* of the ghost cells (0 = invisible, 1 = standard
+      // dim). Re-derive inRegion here since the pass-1 local fell out
+      // of scope.
       r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2];
+      const inRegion =
+        (isoRegion < 0 || regionIds[i] === isoRegion) &&
+        (isoFish < 0 || fishIds[i] === isoFish);
       const liftBranch = inRegion && isolatedRegion >= 0;
       const baseAlpha = liftBranch ? LIFT_ALPHA : DIM_ALPHA;
       if (filterActive) {
-        const t = ghostIntensity;
+        const t = effectiveGhostIntensity;
         alpha = baseAlpha * t;
         size *= GHOST_SIZE_FLOOR + (1 - GHOST_SIZE_FLOOR) * t;
       } else {
@@ -670,5 +724,7 @@ export function applyColoring(
     visibleCount,
     filterSelection,
     drawOrder,
+    effectivePointSize,
+    effectiveGhostIntensity,
   };
 }
