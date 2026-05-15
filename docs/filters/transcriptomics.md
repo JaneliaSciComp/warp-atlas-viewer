@@ -18,15 +18,17 @@ Use **+ add gene** to insert a gene row, then choose the marker from that row's 
 
 ### What counts as "expressing" a gene
 
-Controlled by **Settings → Gene expression predicate**:
+Controlled by **Settings → Gene expression threshold**:
 
-- **Binary call** *(default)* — uses the curated, conservative classification from the manuscript pipeline.
-- **Any detected** — more permissive; any non-zero raw FISH spot count.
+- **Paper** *(default)* — uses the paper's per-gene spot-count cutoffs (Marquez-Legorreta et al., Methods → "Identifying positive cells"; typically 25 spots, adjusted per gene/fish per Data S1). Backed by `BinaryGenes_All` from the manifest.
+- **Global** — applies a single user-set spot-count threshold uniformly across all genes via `geneCounts >= threshold`. Default 25; set to 1 for "any detected".
 
 The same predicate is used for the **Richness** count in [multi-gene coloring](./colors#multi-gene-mode-2-genes-pinned).
 
-::: tip When to change the predicate
-Use **binary call** to track the published calls. Switch to **any detected** to investigate low-level expression that the binary call rejects (sparse markers, sub-threshold detections); expect noisier maps.
+::: tip When to switch modes
+Use **Paper** to track the published calls. Switch to **Global** for sensitivity analysis — sweep stricter or looser cutoffs uniformly across the panel to see which markers are sensitive to threshold choice.
+
+Global threshold currently only affects the **gene filter** and the richness coloring. Molecular subtype membership is precomputed from the paper's per-gene thresholds and does not recompute when you change the global threshold.
 :::
 
 ## Subtype mode

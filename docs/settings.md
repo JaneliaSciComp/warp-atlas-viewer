@@ -1,6 +1,6 @@
 ---
 title: Settings
-description: Threshold cutoffs, ramp anchors, point size, and the gene-expression predicate.
+description: Threshold cutoffs, ramp anchors, point size, the ghost slider, and the gene-expression threshold mode.
 ---
 
 # Settings
@@ -15,8 +15,20 @@ A **↺ reset settings** button at the top of the tab reverts everything to defa
 
 Base point size in pixels for both the 3D viewer and the t-SNE scatter. Cells in a t-SNE lasso selection receive an additional 1.5× boost; a focused cell is brightened and marked with a white ring.
 
-- **Default:** `8.5`.
+- **Default:** `10`.
 - **Range:** 2 – 20.
+
+## Ghost cells outside filter
+
+Slider controlling the *visibility* of cells that don't pass the active filters (`ghostIntensity`, 0..1).
+
+- **`0`** → cells render at the standard dim alpha and remain pickable.
+- **`1`** → cells fade close to invisible (alpha ~0.02), their point size drops to 0.55× the base, and the click pickers in the 3D viewer and t-SNE skip them entirely.
+- Intermediate values lerp alpha and point size between those endpoints. Pickability flips off as soon as the slider leaves 0, so any non-zero ghosting also takes the cells out of click contention — useful when you want clicks to fall through the dim haze to whatever's underneath.
+
+**Default:** `0.6`.
+
+The setting also drives the *render order*: out-of-filter cells render first and in-filter cells render last, so the foreground (in-set) cells never get occluded by the dim background regardless of true 3D depth.
 
 ## Camera panning
 
@@ -38,20 +50,18 @@ Controls what the [Gene color scheme](/filters/colors#multi-gene-mode-2-genes-pi
 
 - **Max** — strongest single gene per cell.
 - **Sum** — total spot count across the pinned genes; emphasizes co-expression strength.
-- **Richness** — count of pinned genes a cell expresses, using the [gene-expression predicate](#gene-expression-predicate) below.
+- **Richness** — count of pinned genes a cell expresses, using the [gene-expression threshold](#gene-expression-threshold) below.
 
 This setting has no effect with a single gene pinned.
 
 ## Stim correlation cutoffs
 
-Two anchors on the same row:
+Two anchors for the signed per-cell Pearson r between calcium activity and the stimulus regressor:
 
-- **responsive floor (r ≥)** — cells below this Pearson r are treated as non-responsive. Used by both:
-  - the [Visual Stimuli filter](/filters/stimuli#how-responsive-is-defined) (visibility),
-  - the [Stim correlation color scheme](/filters/colors#stim-correlation) (dim end of the ramp).
-- **saturation (r ≥)** — cells with r above this anchor saturate at the bright end of the ramp.
+- **responsive floor (r ≥)** — the magnitude floor for the stim filter (cells must clear `±stimLo` per the active direction toggle on the [Visual Stimuli card](/filters/stimuli#direction-toggles)) and the **deadband** boundary for the divergent [Stim correlation color ramp](/filters/colors#stim-correlation).
+- **saturation (r ≥)** — magnitude at which the divergent ramp reaches its endpoints. Does not affect the filter.
 
-Defaults are floor `0.13` and saturation `0.30`. The floor matches the manuscript's full-vector responsive threshold (Methods: "Selecting positively and negatively correlated neurons"); the saturation sits near the 99th percentile of the cycle-wide correlation distribution. Lower the floor to be more permissive; raise it to be stricter.
+Defaults are floor `0.13` and saturation `0.30`. The floor matches the manuscript's full-vector responsive threshold (Methods: "Selecting positively and negatively correlated neurons"); the saturation sits near the 99th percentile of the cycle-wide correlation distribution.
 
 ## Swim correlation cutoffs
 
@@ -62,6 +72,14 @@ Two anchors for the signed per-cell correlation between calcium activity and est
 
 Defaults are floor `0.10` and saturation `0.35`. The floor matches the manuscript's swim-correlation cutoff (Methods: "Correlation to swimming behavior"; R > 0.1 / R < −0.1 identifies the swim-related subtypes). Lower the floor to be more permissive in either direction.
 
+## Fade weak correlations
+
+When **on** *(default)*, the [Stim](/filters/colors#stim-correlation) and [Swim](/filters/colors#swim-correlation) divergent color ramps scale alpha by `|r|` so cells near the neutral midpoint fade into the dark background instead of competing with the colored extremes. Floor at 0.12 keeps midpoint cells faintly visible.
+
+When **off**, every in-set cell renders at full opacity, including the bright midpoint of the divergent ramp — which can dominate visually on a dark background.
+
+This setting interacts with the `visibleCount` reported in the [Filters tab](/filters/overview#visible-cell-readout): a cell counts as visible when its final alpha is ≥ 0.5, so cells faded out by this setting drop out of the count as well as out of the visual.
+
 ## Activity ΔF/F anchors
 
 Two anchors for the [Activity color scheme](/filters/colors#activity):
@@ -71,12 +89,16 @@ Two anchors for the [Activity color scheme](/filters/colors#activity):
 
 The default range accommodates quiet cells at the dim end while allowing peaks to saturate.
 
-## Gene expression predicate
+## Gene expression threshold
 
 Defines what counts as "expressing" a gene, for the [gene filter](/filters/transcriptomics#what-counts-as-expressing-a-gene) and for the [Richness multi-gene coloring](#multi-gene-coloring) above:
 
-- **Binary call** *(default)* — uses the curated, conservative classification from the manuscript pipeline.
-- **Any detected** — more permissive; any non-zero raw FISH spot count.
+- **Paper** *(default)* — uses the paper's per-gene spot-count cutoffs (Marquez-Legorreta et al., Methods → "Identifying positive cells", typically 25 spots, adjusted per gene/fish per Data S1). Backed by `BinaryGenes_All` from the manifest.
+- **Global** — applies a single user-set spot-count threshold uniformly across all genes via `geneCounts >= threshold`. The companion "global threshold (spots)" numeric input sets the cutoff; default `25`. Set to 1 for "any detected".
+
+::: warning Subtypes are precomputed
+Switching to Global threshold currently only affects the *gene filter* and the *gene-richness coloring*. Molecular subtype membership is precomputed from the paper's thresholds in the manifest, so a Subtype-mode filter doesn't shift when you change the global threshold.
+:::
 
 ## What Settings does not control
 

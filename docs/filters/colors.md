@@ -5,7 +5,7 @@ description: The seven color schemes and their semantics.
 
 # Colors
 
-The Colors card determines how visible cells are painted. There are seven schemes; each maps a per-cell quantity onto a categorical palette, a plasma ramp, or (for swim) a divergent ramp.
+The Colors card determines how visible cells are painted. There are seven schemes; each maps a per-cell quantity onto a categorical palette, a plasma ramp, or (for stim and swim) a divergent ramp.
 
 ::: tip Colors is not a filter
 The Colors card never removes cells from the view. To restrict the visible set, use the other three filter cards. See [How filters combine](./overview).
@@ -47,18 +47,23 @@ A `log ↔ linear` toggle appears in the card when Colors is set to **Gene expre
 
 ## Stim correlation
 
-Plasma ramp over Pearson r against the selected visual-stimulus regressor.
+Divergent coolwarm ramp (blue → neutral → red) over the **signed** per-cell Pearson r against the selected visual-stimulus regressor. Sign reads as colour; magnitude reads as intensity.
 
-The colored value depends on the Visual Stimuli selection:
+The colored value depends on the Visual Stimuli selection and the active direction toggle:
 
-- **Nothing selected** — maximum r across all 8 stimuli, a general measure of stimulus-driven responsiveness.
-- **One selected** — that stimulus's r per cell; the conventional single-stimulus response map.
-- **Two or more selected** — maximum r across the selected stimuli, independent of whether the filter card is set to OR or AND.
+- **Nothing selected** — max-|r| across all 8 stimuli (signed): a general measure of stimulus-driven responsiveness, either polarity.
+- **One selected** — that stimulus's signed r per cell; the conventional single-stimulus response map.
+- **Two or more selected** — depends on the direction toggle:
+  - `+ correlated` armed → max-positive r across the selected stims.
+  - `− anti-correlated` armed → min-negative r across the selected stims.
+  - Both or off → max-|r| (signed).
 
-The dim end of the ramp anchors at **Settings → responsive floor (r ≥)**; the bright end at **saturation (r ≥)**. Cells below the floor appear dim, reflecting non-responsiveness. See [Settings → Stim correlation cutoffs](/settings#stim-correlation-cutoffs).
+This keeps the coloring consistent with the filter: with `+ correlated` on, cells passing the filter never get painted blue by a different selected stim's larger-magnitude negative correlation.
 
-::: warning Negative correlations
-Strongly anti-correlated cells clamp to the dim end of the ramp. To confirm a negative-response population, select a single stimulus and inspect the Detail panel's per-stimulus correlation bars. Switching to **Colors → Region** or **Specimen** keeps the same filtered cells visible with a categorical palette. The `gad1b_tph2_gfra1a` preset in [Findings](/findings) is a worked example.
+The ramp anchors symmetrically at **`±stimLo`** (deadband boundary; cells within `[-stimLo, +stimLo]` map to the neutral midpoint) and **`±stimHi`** (saturation). Both live in [Settings → Stim correlation cutoffs](/settings#stim-correlation-cutoffs); defaults are `0.13` and `0.30`.
+
+::: tip Fading weak correlations
+With **Settings → Fade weak correlations** on (default), the Stim and Swim color modes scale alpha by `|r|` so cells near the neutral midpoint fade into the dark background instead of competing with the colored extremes. Turn it off for unmodulated full-opacity coloring. See [Settings → Fade weak correlations](/settings#fade-weak-correlations).
 :::
 
 ## Activity
@@ -77,19 +82,23 @@ The plasma anchors are **Settings → Activity ΔF/F anchors**: `floor` clamps t
 
 ## Swim correlation
 
-Divergent ramp (blue → near-white → red) over the signed per-cell Pearson r against estimated swim power. Unlike the plasma-based schemes, this one is **two-sided**:
+Divergent coolwarm ramp (blue → neutral → red) over the signed per-cell Pearson r against estimated swim power. Two-sided:
 
 - Blue cells: anti-correlated with swimming (`r ≤ −swimLo`).
-- Near-white cells: unresponsive (`|r| < swimLo`, the deadband).
+- Near-neutral cells: unresponsive (`|r| < swimLo`, the deadband).
 - Red cells: swim-driven (`r ≥ +swimLo`).
 
 The ramp anchors symmetrically at `±swimLo` (deadband boundary, where the ramp leaves the neutral midpoint) and `±swimHi` (saturation). Both are configurable in [Settings → Swim correlation cutoffs](/settings#swim-correlation-cutoffs); defaults are `0.10` and `0.35`.
 
 Useful when combined with a Transcriptomics filter to ask "is this gene/subtype swim-driven, anti-swim, or unresponsive?" See the [Swim card](./swim) for the matching filter and the [Detail panel histogram](/ui/detail#swim-correlation) for the per-cell distribution view.
 
+The same **Fade weak correlations** setting that applies to Stim coloring also applies here (default on): cells near the deadband midpoint fade into the background.
+
 ## Region
 
 Categorical palette over 16 focal anatomical regions, plus *Unassigned* at index 0.
+
+The palette is sampled directly from the paper's region figure legend (anterior `Pal` = red → posterior `InfMO` = purple), with *Unassigned* rendered as a dedicated neutral gray.
 
 **When to use:** anatomical overview; a sensible default first look.
 

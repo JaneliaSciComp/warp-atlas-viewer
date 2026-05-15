@@ -49,7 +49,29 @@ Indices 1…332 in the cluster array correspond one-to-one with the 332 named su
 
 ### Region names {#anatomy-mapping}
 
-The dataset assigns each cell to one of 16 focal anatomical groupings (plus *Unassigned* at index 0). The preprocessor attaches human-readable names to these 16 indices; the names are recovered by majority overlap against the finer ~112-region reference atlas and are included in the bundle.
+The dataset assigns each cell to one of 16 focal anatomical groupings (plus *Unassigned* at index 0). The preprocessor attaches paper-canonical names to these 17 indices and emits them in the manifest:
+
+| `Brain_reg` | Abbreviation | Full name |
+|---:|---|---|
+| 0 | Unassigned | (cells outside the 16 focal groupings) |
+| 1 | InfMO | Inferior medulla oblongata |
+| 2 | IntMO | Intermediate medulla oblongata |
+| 3 | SupMO | Superior medulla oblongata |
+| 4 | SupRaphe | Superior dorsal raphe |
+| 5 | Cb | Cerebellum |
+| 6 | Tg | Tegmentum |
+| 7 | NI | Nucleus isthmi |
+| 8 | OTpv | Optic tectum periventricular layer |
+| 9 | OTnp | Optic tectum neuropil |
+| 10 | Pt | Pretectum |
+| 11 | preTh | Prethalamus |
+| 12 | Th | Dorsal thalamus |
+| 13 | Hab | Habenula |
+| 14 | HypTh | Hypothalamus |
+| 15 | SubP | Subpallium |
+| 16 | Pal | Dorsal pallium |
+
+The integer-to-name mapping isn't shipped with the source data — it was recovered by intersecting `Brain_reg.npy` with `BrainRegions_All.npy` (the cell × 112-atlas-region matrix) and resolving ties against the paper's 16-region list. Region colors are sampled directly from the paper's region figure legend (`data/brain_regions.png`); *Unassigned* is rendered as a dedicated neutral gray rather than a hue.
 
 ### Stimulus on-windows
 

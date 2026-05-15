@@ -18,7 +18,7 @@ features:
   - title: Compositional filtering
     details: Transcriptomic, stimulus-response, swim-behavior, and anatomical criteria can be combined with logical AND. A fifth card controls how the resulting cells are colored.
   - title: Seven color encodings
-    details: Uniform highlight, gene expression (single- and multi-gene), stimulus correlation, time-resolved ΔF/F, swim correlation (signed, divergent ramp), anatomical region, and source specimen.
+    details: Uniform highlight, gene expression (single- and multi-gene), stimulus correlation (signed, divergent ramp), time-resolved ΔF/F, swim correlation (signed, divergent ramp), anatomical region, and source specimen.
   - title: Per-cell inspection
     details: Selecting a cell exposes its gene spot-count profile, mean ΔF/F trace with stimulus on-windows shaded, and per-stimulus correlation.
   - title: Stateful URLs

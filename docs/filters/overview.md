@@ -23,38 +23,35 @@ The Filters tab's **Reset** button restores the viewer's default filter state in
 
 ### Visible-cell readout {#visible-cell-readout}
 
-A small readout next to the reset button reports the **number of cells currently visible** after the active filters. It serves as a quick confirmation that a filter combination has not inadvertently emptied the view.
+A small readout next to the reset button reports the **number of cells currently visible**. A cell counts as visible when its final rendered alpha is ≥ 0.5 — so cells dropped by the active filters, the ghost slider (see [Settings → Ghost cells](/settings#ghost-cells-outside-filter)), and the [fade-weak-correlations](/settings#fade-weak-correlations) alpha modulation all drop out of the count.
 
 ## OR versus AND within a card
 
 Two cards support a logical toggle on selections within them:
 
 - **Transcriptomics (gene mode)** — `OR` retains cells expressing **any** of the selected genes; `AND` retains cells expressing **all** of them.
-- **Visual Stimuli** — `OR` retains cells responsive to **any** of the selected stimuli; `AND` retains cells responsive to **all** of them.
+- **Visual Stimuli** — `OR` retains cells whose correlation passes the active direction toggle for **any** selected stim; `AND` requires the direction check to hold for **every** selected stim. The OR / AND row only takes effect when at least one direction toggle (`+ correlated` / `− anti-correlated`) is on; it grays out otherwise. See [Visual Stimuli → Direction toggles](./stimuli#direction-toggles).
 
 Anatomy provides no OR toggle: the region and specimen dropdowns each select a single value or "all".
 
 ## Worked example
 
-> "Cells that express both `otpa` and `slc17a7a`, are responsive to forward visual motion or the dark flash, and are located in the hindbrain — colored by stimulus correlation strength."
+> "Cells that express both `otpa` and `slc17a7a`, are positively correlated with forward visual motion or the dark flash, and are located in the optic tectum periventricular layer — colored by stimulus correlation strength."
 
 | Card | Setting |
 |---|---|
 | Colors | `Stim correlation` |
 | Transcriptomics | Gene mode, `[otpa, slc17a7a]`, **AND** |
-| Visual Stimuli | `[forward motion, dark flash]`, **OR** |
-| Anatomy | Region = `Hindbrain` |
+| Visual Stimuli | `[motion forward, dark]` + `+ correlated`, **OR** |
+| Anatomy | Region = `OTpv` |
 
-The visible cells are gene-positive, stimulus-responsive, and anatomically constrained. The plasma ramp in the legend indicates the strength of response.
+The visible cells are gene-positive, positively stim-correlated, and anatomically constrained. The divergent coolwarm ramp in the legend reads the signed strength of response.
 
 ## "Responsive": threshold
 
-A cell is considered responsive to a stimulus if its Pearson r with the corresponding regressor meets the **responsive floor** in [Settings](/settings#stim-correlation-cutoffs). The default is `r ≥ 0.13` (the manuscript's full-vector threshold); raising it imposes a stricter criterion, lowering it a more permissive one.
+A cell passes the stim filter if its Pearson r against the active stim's regressor clears `±stimLo` according to the direction toggle (`+ correlated`, `− anti-correlated`, both = `|r| ≥ stimLo`). `stimLo` lives in [Settings → Stim correlation cutoffs](/settings#stim-correlation-cutoffs). The default `r ≥ 0.13` is the manuscript's full-vector threshold; raising it imposes a stricter criterion, lowering it a more permissive one.
 
-The same floor is used by:
-
-- the **Visual Stimuli** filter card (visibility),
-- the **Stim correlation** color scheme (dim end of the plasma ramp).
+The same floor doubles as the **deadband boundary** for the [Stim correlation color scheme](/filters/colors#stim-correlation) (the divergent coolwarm ramp's neutral midpoint).
 
 ## Selections survive filter changes
 

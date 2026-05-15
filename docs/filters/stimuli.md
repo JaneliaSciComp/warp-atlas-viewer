@@ -1,11 +1,11 @@
 ---
 title: Visual Stimuli filter
-description: The 8 visual stimuli, the responsive-floor threshold, and OR / AND logic.
+description: The 8 visual stimuli, signed correlation modes, the responsive-floor threshold, and OR / AND logic.
 ---
 
 # Visual Stimuli
 
-This card filters by responsiveness to one or more visual stimuli. Each stimulus is represented by an icon button; selections combine under `OR` (default) or `AND`.
+This card filters by signed Pearson correlation with one or more visual-stimulus regressors. Each stimulus is represented by an icon button. Once you select at least one stimulus, two direction toggles and an OR / AND row appear.
 
 ## The eight stimuli
 
@@ -22,14 +22,27 @@ This card filters by responsiveness to one or more visual stimuli. Each stimulus
 
 A single representative cycle (~134 s) presents all 8 stimuli sequentially. The stimulus on-windows are shaded on the [Detail panel's mean ΔF/F trace](/ui/detail#mean-f-f-trace).
 
+## Direction toggles
+
+After selecting at least one stimulus icon, two toggles appear:
+
+- **`+ correlated`** — keep cells with `r ≥ +stimLo` for the selected stim(s) (positively correlated; the paper's classic "stim-driven").
+- **`− anti-correlated`** — keep cells with `r ≤ −stimLo` (anti-correlated).
+
+Both pressed = `|r| ≥ stimLo` (the union). Both unpressed = the stim filter is **off** — selected stim icons still drive the [Stim correlation coloring](./colors#stim-correlation), but no cells are filtered out by stim. In that state the OR / AND row grays out, since there's nothing for it to combine.
+
+The default state with an empty stim selection has `+ correlated` armed, so clicking the first stim icon immediately activates a positive-correlation filter.
+
 ## Definition of "responsive"
 
-A cell is considered responsive to a stimulus when its Pearson r with the corresponding regressor meets the **responsive floor** in [Settings → Stim correlation cutoffs](/settings#stim-correlation-cutoffs). The default is `r ≥ 0.13` — the manuscript's full-vector threshold (Methods).
+The `stimLo` and `stimHi` anchors live in [Settings → Stim correlation cutoffs](/settings#stim-correlation-cutoffs). The default `stimLo = 0.13` is the manuscript's full-vector threshold (the 90th-percentile-per-stimulus average, Methods).
 
-The same threshold drives:
+`stimLo` drives:
 
-- the Visual Stimuli filter card (visibility, this page),
-- the [Stim correlation color scheme](./colors#stim-correlation) (dim end of the plasma ramp).
+- the **filter floor** (cells must clear `±stimLo` per the active direction toggle),
+- the **deadband** in the [Stim correlation color scheme](./colors#stim-correlation) — within `[-stimLo, +stimLo]` cells map to the neutral midpoint of the divergent coolwarm ramp.
+
+`stimHi` sets where the divergent ramp saturates and doesn't affect the filter.
 
 ::: warning Display threshold, not statistical significance
 The responsive floor is an interactive viewer threshold. It is useful for screening cells, but it is not a p-value, confidence interval, or substitute for the statistical criteria used in the manuscript.
@@ -37,18 +50,20 @@ The responsive floor is an interactive viewer threshold. It is useful for screen
 
 ## OR versus AND
 
-- `OR` *(default)* — retain cells responsive to **any** of the selected stimuli. The set grows as stimuli are added.
-- `AND` — retain cells responsive to **every** selected stimulus. The set shrinks quickly; useful for identifying cells that generalize across modalities (e.g. both `dark` and `bright` flashes).
+OR / AND only matters when 2+ stimuli are selected *and* at least one direction toggle is on.
 
-::: tip Stim correlation max is independent of OR / AND
-With two or more stimuli selected, the **Stim correlation** color scheme paints cells by their maximum r across the selected set, regardless of whether the filter card is set to OR or AND. Filtering with AND while coloring by max is therefore a valid combination. See [Colors → Stim correlation](./colors#stim-correlation).
-:::
+- `OR` *(default)* — retain cells passing the direction check for **any** selected stimulus. The set grows as stimuli are added.
+- `AND` — retain cells passing the direction check for **every** selected stimulus. The set shrinks quickly; useful for identifying cells that generalize across modalities (e.g. responsive to both `dark` and `bright`).
 
-## Adjusting the threshold
+## Coloring follows the filter direction
 
-The responsive floor is `r = 0.13` by default. Lower it to include weakly correlated cells; raise it for a stricter "definitely responding" set.
+With 2+ stims selected, the [Stim correlation](./colors#stim-correlation) ramp picks the representative `r` so it matches the active direction toggle:
 
-The **saturation** anchor on the same Settings row affects only the [Stim correlation color ramp](./colors#stim-correlation); it does not change the filter result. The [visible-cell readout](./overview#visible-cell-readout) in the Filters tab reports how many cells remain visible.
+- `+ correlated` → max-positive r across the selected stims (cell colored by its strongest positive evidence).
+- `− anti-correlated` → min-negative r.
+- Both / off → max-|r| (signed).
+
+So a cell passing the `+ correlated` filter doesn't get colored blue by a different stim's larger-magnitude negative correlation.
 
 ## Worked example
 
@@ -58,7 +73,7 @@ Exploring the abstract's observation that `pou4f2_cckb` is a dark-flash populati
 |---|---|
 | Colors | `Stim correlation` |
 | Transcriptomics | Subtype = `pou4f2_cckb` |
-| Visual Stimuli | `[dark]` |
+| Visual Stimuli | `[dark]` + `+ correlated` (default) |
 | Anatomy | all |
 
-The remaining cells are `pou4f2_cckb` cluster members responsive to the dark flash, colored by correlation strength. This is preset #1 in the [Findings](/findings) page.
+The remaining cells are `pou4f2_cckb` cluster members positively correlated with the dark flash, colored by correlation strength. This is preset #1 in the [Findings](/findings) page.

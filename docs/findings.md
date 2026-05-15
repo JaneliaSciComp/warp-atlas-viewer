@@ -74,16 +74,18 @@ What to look for: a telencephalic / dorsal-pallial distribution. Use the Detail 
 
 ### `gad1b_tph2_gfra1a` — anti-forward-motion raphe (Figure 5D)
 
-Dorsal-raphe `gad1b_tph2_gfra1a` cells, one of the 15 largest multi-gene subtypes negatively correlated with forward visual motion (Fig 5D). The whole cluster is highlighted; the anti-correlation shows up in the Detail panel rather than in the 3D coloring (the Stim color ramp is positive-only).
+Dorsal-raphe `gad1b_tph2_gfra1a` cells, one of the 15 largest multi-gene subtypes negatively correlated with forward visual motion (Fig 5D). The preset combines the cluster filter with a stim filter on forward motion in `− anti-correlated` mode, so the 3D coloring (divergent coolwarm) directly shows the anti-correlation at the blue end of the ramp.
 
-- **Colors:** `Simple`
+- **Colors:** `Stim correlation`
 - **Transcriptomics:** Subtype = `gad1b_tph2_gfra1a`
+- **Visual Stimuli:** `[motion forward]` + `− anti-correlated`
 
 What to look for:
 
+- the cluster cells painted **blue** in the 3D viewer — the divergent ramp's negative end,
 - the **Detail panel's per-stimulus correlation chart** — the leftmost bar (forward motion) should be negative, while the other bars are near zero or modestly positive,
 - the **swim correlation histogram** at the bottom of the Detail panel — exposes the per-cell distribution, including the cluster's anti-swim tail,
-- the cluster's **anatomical signature** in the 3D viewer (a subset is in Superior raphe, though most cells in the cluster fall outside the viewer's 16 focal regions and carry the *Unassigned* label).
+- the cluster's **anatomical signature** in the 3D viewer (a subset is in SupRaphe, though most cells in the cluster fall outside the viewer's 16 focal regions and carry the *Unassigned* label).
 
 ### `pou4f2_cckb` — dimming-light response (Figure 5F, abstract)
 

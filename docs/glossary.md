@@ -28,7 +28,7 @@ description: Terms and abbreviations used in the WARP Atlas Viewer and these doc
 : The number of FISH transcript spots detected for one gene in one cell, prior to any binary call.
 
 **Binary call**
-: A curated, conservative per-cell classification of whether a gene is expressed, produced by the manuscript pipeline. Used as the default predicate for the [gene filter](/filters/transcriptomics#what-counts-as-expressing-a-gene) and for the [Richness multi-gene coloring](/filters/colors#multi-gene-mode-2-genes-pinned).
+: A curated, conservative per-cell classification of whether a gene is expressed, produced by the manuscript pipeline using per-gene spot-count thresholds (typically 25 spots, adjusted per gene/fish per Data S1). Used by the **Paper** mode of the [gene filter](/filters/transcriptomics#what-counts-as-expressing-a-gene) and the [Richness multi-gene coloring](/filters/colors#multi-gene-mode-2-genes-pinned). The **Global** mode replaces it with a single user-set spot-count threshold applied across the panel.
 
 **Gene panel**
 : The 41 marker genes in the dataset, listed in the Transcriptomics card's gene selector.
