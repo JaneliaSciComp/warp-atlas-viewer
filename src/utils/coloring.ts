@@ -24,6 +24,15 @@ export function allocColoring(n: number): ColoringResult {
   };
 }
 
+export interface ColoringStats {
+  /** Number of cells that passed the filter intersection (inSet count). */
+  visibleCount: number;
+  /** Indices of cells in the filter intersection — populated only when
+   *  at least one filter dimension is active. Used as the filter-derived
+   *  fallback selection when the user hasn't lassoed anything. */
+  filterSelection: Uint32Array | null;
+}
+
 /** Per-cell predicate evaluator. Bundled together so the same logic
  *  drives both `applyColoring` and the filter→selection effect in
  *  App.tsx, guaranteeing the visualization and the derived selection
@@ -167,8 +176,8 @@ export function applyColoring(
   settings: SettingsState,
   selection: SelectionState,
   out: ColoringResult,
-): void {
-  const { count, regionIds, geneCounts, geneBinary, stimulusCorr, swimCorr, activityTrace, traceLength } = ds;
+): ColoringStats {
+  const { count, regionIds, fishIds, clusterIds, geneCounts, geneBinary, stimulusCorr, swimCorr, activityTrace, traceLength } = ds;
   const { colors, alphas, sizes } = out;
   const G = ds.geneNames.length;
   const S = ds.stimulusNames.length;
@@ -250,18 +259,104 @@ export function applyColoring(
   // just clobber the anatomical-context lift.
   const isUserSelection = selection.source === '3d' || selection.source === 'umap';
 
+  // Filter predicate hoisted from cellPasses so the hot loop allocates
+  // nothing per cell — no closure, no result object. cellPasses still
+  // exists for single-cell callers (picker, lasso), where allocation
+  // cost is negligible.
+  const isoRegion = filter.isolatedRegion;
+  const isoFish = filter.isolatedFish;
+  const txMode = filter.txMode;
+  const geneSelArr = filter.selectedGenes;
+  const geneSelLen = geneSelArr.length;
+  const geneFilterActive = txMode === 'gene' && geneSelLen > 0;
+  const clusterFilterActive = txMode === 'subtype';
+  const geneLogicAnd = filter.geneLogic === 'and';
+  const geneStrict = settings.geneStrict;
+  const selectedCluster = filter.selectedCluster;
+  const stimSelArr2 = filter.selectedStimuli;
+  const stimSelLen = stimSelArr2.length;
+  const stimLogicAnd = filter.stimLogic === 'and';
+  const stimLoFilter = settings.stimLo;
+  const stimActive = stimSelLen > 0;
+  const swimMode = filter.swimMode;
+  const swimFilterActive = swimMode !== 'off';
+  const swimLoFilter = settings.swimLo;
+  const filterActive =
+    isoRegion >= 0 ||
+    isoFish >= 0 ||
+    geneFilterActive ||
+    clusterFilterActive ||
+    stimActive ||
+    swimFilterActive;
+  // Collect filter-set indices in a single pass so App doesn't need a
+  // second 274k-cell walk for the filter-derived effective selection
+  // or the visible-cell counter. Allocate worst-case once, slice at the
+  // end.
+  const filterIndices = filterActive ? new Uint32Array(count) : null;
+  let filterIdxLen = 0;
+  let visibleCount = 0;
+
   for (let i = 0; i < count; i++) {
     let r = 0, g = 0, b = 0, alpha = 0.85, size = baseSize;
 
-    const p = cellPasses(ds, filter, settings, i);
-    const inSet = p.inRegion && p.passesTx && p.passesStim && p.passesSwim;
+    const inRegion =
+      (isoRegion < 0 || regionIds[i] === isoRegion) &&
+      (isoFish < 0 || fishIds[i] === isoFish);
+    let passesTx = true;
+    if (geneFilterActive) {
+      const base = i * G;
+      if (geneLogicAnd) {
+        for (let k = 0; k < geneSelLen; k++) {
+          const gi = geneSelArr[k];
+          const ok = geneStrict ? geneBinary[base + gi] === 1 : geneCounts[base + gi] > 0;
+          if (!ok) { passesTx = false; break; }
+        }
+      } else {
+        passesTx = false;
+        for (let k = 0; k < geneSelLen; k++) {
+          const gi = geneSelArr[k];
+          const ok = geneStrict ? geneBinary[base + gi] === 1 : geneCounts[base + gi] > 0;
+          if (ok) { passesTx = true; break; }
+        }
+      }
+    } else if (clusterFilterActive) {
+      passesTx = clusterIds[i] === selectedCluster;
+    }
+    let passesStim = true;
+    if (stimActive) {
+      const baseS = i * S;
+      if (stimLogicAnd) {
+        for (let k = 0; k < stimSelLen; k++) {
+          if (stimulusCorr[baseS + stimSelArr2[k]] < stimLoFilter) { passesStim = false; break; }
+        }
+      } else {
+        passesStim = false;
+        for (let k = 0; k < stimSelLen; k++) {
+          if (stimulusCorr[baseS + stimSelArr2[k]] >= stimLoFilter) { passesStim = true; break; }
+        }
+      }
+    }
+    let passesSwim = true;
+    if (swimFilterActive) {
+      const sr = swimCorr[i];
+      switch (swimMode) {
+        case 'positive': passesSwim = sr >= swimLoFilter; break;
+        case 'negative': passesSwim = sr <= -swimLoFilter; break;
+        case 'both': passesSwim = sr >= swimLoFilter || sr <= -swimLoFilter; break;
+      }
+    }
+    const inSet = inRegion && passesTx && passesStim && passesSwim;
+    if (inSet) {
+      visibleCount++;
+      if (filterIndices) filterIndices[filterIdxLen++] = i;
+    }
 
     if (!inSet) {
       // Two-tier dim: anatomical-context lift when the cell is inside
       // the focused region but fails another predicate; otherwise the
       // full background dim.
       r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2];
-      alpha = (p.inRegion && isolatedRegion >= 0) ? LIFT_ALPHA : DIM_ALPHA;
+      alpha = (inRegion && isolatedRegion >= 0) ? LIFT_ALPHA : DIM_ALPHA;
     } else {
       switch (filter.colorMode) {
         case 'region': {
@@ -467,4 +562,12 @@ export function applyColoring(
     alphas[i] = alpha;
     sizes[i] = size;
   }
+
+  return {
+    visibleCount: filterActive ? visibleCount : count,
+    filterSelection:
+      filterIndices && filterIdxLen > 0
+        ? new Uint32Array(filterIndices.buffer, 0, filterIdxLen).slice()
+        : null,
+  };
 }

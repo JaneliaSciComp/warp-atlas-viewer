@@ -298,30 +298,21 @@ export default function App() {
   // intersection when the user hasn't selected anything, so derive an
   // "effective" selection: user selection wins; otherwise fall back to
   // the filter intersection if any filter is active; otherwise empty.
+  // Both effectiveSelection and visibleCount come out of the same
+  // applyColoring pass via useColoring — no separate 274k-cell walks
+  // here. effectiveSelection prefers the user's explicit lasso/click
+  // when there is one, else falls back to the filter-derived index
+  // list, else empty.
   const effectiveSelection = useMemo<SelectionState>(() => {
     if (!data) return selection;
     if (selection.indices.length > 0) return selection;
-    if (anyFilterActive(data, filter)) {
-      const out: number[] = [];
-      for (let i = 0; i < data.count; i++) {
-        if (cellInSet(data, filter, settings, i)) out.push(i);
-      }
-      return { indices: new Uint32Array(out), source: 'filter' };
+    if (coloring?.filterSelection) {
+      return { indices: coloring.filterSelection, source: 'filter' };
     }
     return selection;
-  }, [data, selection, filter, settings]);
+  }, [data, selection, coloring]);
 
-  // Cells visible after the active filters. With no filter active every
-  // cell is visible, so we can skip the per-cell pass.
-  const visibleCount = useMemo(() => {
-    if (!data) return 0;
-    if (!anyFilterActive(data, filter)) return data.count;
-    let n = 0;
-    for (let i = 0; i < data.count; i++) {
-      if (cellInSet(data, filter, settings, i)) n++;
-    }
-    return n;
-  }, [data, filter, settings]);
+  const visibleCount = data ? coloring?.visibleCount ?? data.count : 0;
 
   const handleUmapSelect = useCallback(
     (indices: Uint32Array, polygon: Float32Array | null) => {
