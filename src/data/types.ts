@@ -281,13 +281,13 @@ export const DEFAULT_SETTINGS: SettingsState = {
   geneThresholdMode: 'paper',
   geneThresholdGlobal: 25,
   geneMultiColor: 'max',
-  pointSize: 8.5,
+  pointSize: 10,
   enablePan: false,
   activityLo: 0.0,
   activityHi: 1.5,
   swimLo: 0.10,
   swimHi: 0.35,
-  ghostIntensity: 0.75,
+  ghostIntensity: 0.6,
 };
 
 export interface SelectionState {

@@ -2,7 +2,7 @@ import type { NeuronDataset, FilterState, SelectionState, SettingsState } from '
 import { regionColor, fishColor, plasma, coolwarm } from './colorMaps';
 
 const DIM_RGB: [number, number, number] = [0.30, 0.30, 0.32];
-const DIM_ALPHA = 0.10;
+const DIM_ALPHA = 0.22;
 const LIFT_ALPHA = 0.50;
 // Point-size floor for fully-ghosted cells. ghostIntensity (0..1)
 // scales alpha linearly from 0 → DIM_ALPHA / LIFT_ALPHA and size from
@@ -495,7 +495,7 @@ export function applyColoring(
             // in-region cells when a region is isolated so the region's
             // outline still reads through the plasma foreground.
             r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2];
-            alpha = isolatedRegion >= 0 ? LIFT_ALPHA : 0.10;
+            alpha = isolatedRegion >= 0 ? LIFT_ALPHA : DIM_ALPHA;
           } else {
             const c = plasma(v);
             r = c[0]; g = c[1]; b = c[2];
@@ -522,7 +522,7 @@ export function applyColoring(
           const v = Math.max(0, Math.min(1, (dff - ACTIVITY_LO) / activityRange));
           if (v <= 0) {
             r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2];
-            alpha = isolatedRegion >= 0 ? LIFT_ALPHA : 0.10;
+            alpha = isolatedRegion >= 0 ? LIFT_ALPHA : DIM_ALPHA;
           } else {
             const c = plasma(v);
             r = c[0]; g = c[1]; b = c[2];
