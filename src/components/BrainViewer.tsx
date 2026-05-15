@@ -104,6 +104,19 @@ function PointCloud({
     (geometry.attributes.instColor as THREE.BufferAttribute).needsUpdate = true;
     (geometry.attributes.instAlpha as THREE.BufferAttribute).needsUpdate = true;
     (geometry.attributes.instSize as THREE.BufferAttribute).needsUpdate = true;
+    // drawOrder partitions cells so out-of-filter indices come first
+    // and in-filter ones last. Setting it as the geometry's index
+    // buffer makes Three.js draw them in that order — combined with
+    // depthWrite: false (so the depth buffer doesn't enforce true 3D
+    // ordering for transparents) this guarantees in-set cells
+    // composite over the dim ghost haze regardless of where they
+    // sit in space. When no filter is active drawOrder is null and
+    // we clear the index so the renderer falls back to natural order.
+    if (coloring.drawOrder) {
+      geometry.setIndex(new THREE.BufferAttribute(coloring.drawOrder, 1));
+    } else if (geometry.index) {
+      geometry.setIndex(null);
+    }
   }, [data, coloring, focusedNeuron, buffers, geometry]);
 
   // Focused-neuron ring marker. Mirrors the t-SNE white outline: a

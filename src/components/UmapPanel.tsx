@@ -230,8 +230,14 @@ export function UmapPanel({
     const alphas = coloring.result.alphas;
     const umap = data.umap;
     const count = data.count;
+    // drawOrder (when present) places out-of-filter indices first and
+    // in-filter ones last. Stamping in that order makes in-set cells
+    // composite over the dim ghost haze. Falls back to natural index
+    // order when no filter is active.
+    const order = coloring.drawOrder;
 
-    for (let i = 0; i < count; i++) {
+    for (let k = 0; k < count; k++) {
+      const i = order ? order[k] : k;
       const a = alphas[i];
       if (a < 0.05) continue;
       const px = offsetX + (umap[i * 2] - xmin) * scale;

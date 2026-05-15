@@ -22,6 +22,12 @@ export interface SharedColoring {
    *  filter is active. Drives the filter-derived fallback for the
    *  DetailPanel selection. */
   filterSelection: Uint32Array | null;
+  /** Permutation of [0..count-1] with out-of-filter indices first and
+   *  in-filter indices last. Renderers consume this to guarantee in-set
+   *  cells composite over the dim ghost haze. Null when no filter is
+   *  active (every cell is in-set; renderers fall back to natural
+   *  index order). */
+  drawOrder: Uint32Array | null;
 }
 
 /** Shared per-cell coloring keyed on (data, filter, settings,
@@ -38,12 +44,15 @@ export function useColoring(
   // dataset changes (different `count`).
   const result = useMemo(() => (data ? allocColoring(data.count) : null), [data]);
   const [revision, setRevision] = useState(0);
-  // Stats produced by applyColoring (visibleCount, filterSelection)
-  // come out of the same pass that paints. Stash them in a ref keyed
-  // to the published revision so consumers reading them stay in sync.
-  const statsRef = useRef<{ visibleCount: number; filterSelection: Uint32Array | null }>(
-    { visibleCount: 0, filterSelection: null },
-  );
+  // Stats produced by applyColoring (visibleCount, filterSelection,
+  // drawOrder) come out of the same pass that paints. Stash them in a
+  // ref keyed to the published revision so consumers reading them
+  // stay in sync.
+  const statsRef = useRef<{
+    visibleCount: number;
+    filterSelection: Uint32Array | null;
+    drawOrder: Uint32Array | null;
+  }>({ visibleCount: 0, filterSelection: null, drawOrder: null });
   useEffect(() => {
     if (!data || !result) return;
     statsRef.current = applyColoring(data, filter, settings, selection, result);
@@ -61,6 +70,7 @@ export function useColoring(
             revision,
             visibleCount: statsRef.current.visibleCount,
             filterSelection: statsRef.current.filterSelection,
+            drawOrder: statsRef.current.drawOrder,
           }
         : null,
     [result, revision],

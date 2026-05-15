@@ -38,6 +38,12 @@ export interface ColoringStats {
    *  at least one filter dimension is active. Used as the filter-derived
    *  fallback selection when the user hasn't lassoed anything. */
   filterSelection: Uint32Array | null;
+  /** Permutation of [0..count-1] partitioned so out-of-filter cells
+   *  come first and in-filter cells come last. Renderers iterate
+   *  (or use as an index buffer) so in-set cells composite over the
+   *  dim haze regardless of source order or true 3D depth. Null when
+   *  no filter is active (every cell is in-set, no reorder needed). */
+  drawOrder: Uint32Array | null;
 }
 
 /** Per-cell predicate evaluator. Bundled together so the same logic
@@ -311,12 +317,19 @@ export function applyColoring(
   // Clamp ghostIntensity into [0, 1] so a hostile URL value can't
   // overshoot the floor / send size below 0.
   const ghostIntensity = Math.max(0, Math.min(1, settings.ghostIntensity));
-  // Collect filter-set indices in a single pass so App doesn't need a
-  // second 274k-cell walk for the filter-derived effective selection
-  // or the visible-cell counter. Allocate worst-case once, slice at the
-  // end.
-  const filterIndices = filterActive ? new Uint32Array(count) : null;
-  let filterIdxLen = 0;
+  // Single-pass bucket fill into a draw-order buffer:
+  //   out-of-set indices fill from the front (outCursor ↑)
+  //   in-set     indices fill from the back  (inCursor  ↓)
+  // After the loop the array is partitioned [out-of-set…, in-set…].
+  // The in-set portion ends up in reverse arrival order, but renderers
+  // and downstream selection consumers don't care about internal order.
+  // We slice the in-set tail for filterSelection (App's effective
+  // selection fallback) and pass the full buffer as drawOrder so
+  // renderers iterate or index-draw with in-set cells last — that
+  // guarantees they composite over the dim ghost haze.
+  const drawOrder = filterActive ? new Uint32Array(count) : null;
+  let outCursor = 0;
+  let inCursor = count;
   let visibleCount = 0;
 
   for (let i = 0; i < count; i++) {
@@ -379,7 +392,9 @@ export function applyColoring(
     const inSet = inRegion && passesTx && passesStim && passesSwim;
     if (inSet) {
       visibleCount++;
-      if (filterIndices) filterIndices[filterIdxLen++] = i;
+      if (drawOrder) drawOrder[--inCursor] = i;
+    } else if (drawOrder) {
+      drawOrder[outCursor++] = i;
     }
 
     if (!inSet) {
@@ -612,11 +627,18 @@ export function applyColoring(
     sizes[i] = size;
   }
 
+  // Slice the in-set tail out of drawOrder as filterSelection so App's
+  // effective-selection fallback gets a stable buffer (consumers must
+  // not see the underlying drawOrder mutate on the next filter change).
+  // The in-set indices land in reverse arrival order in drawOrder; that
+  // doesn't matter for the consumers, which treat selection as a set.
+  const filterSelection =
+    drawOrder && inCursor < count
+      ? drawOrder.slice(inCursor)
+      : null;
   return {
     visibleCount: filterActive ? visibleCount : count,
-    filterSelection:
-      filterIndices && filterIdxLen > 0
-        ? new Uint32Array(filterIndices.buffer, 0, filterIdxLen).slice()
-        : null,
+    filterSelection,
+    drawOrder,
   };
 }
