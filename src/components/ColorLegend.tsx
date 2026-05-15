@@ -416,11 +416,25 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
   // stim correlation — divergent coolwarm ramp from -stimHi to +stimHi.
   // Sign reads as colour (blue → red), magnitude as intensity. Mirrors
   // the swim legend so the two signed-correlation maps share visual
-  // vocabulary. Selection rules: empty/full → max-abs across every
-  // stimulus; one toggle → that stim's signed correlation; 2..S-1 →
-  // max-abs across the subset.
+  // vocabulary. The title describes the *representative r* the
+  // coloring is actually picking, which depends on the active direction
+  // (mirrors applyColoring's colorBias):
+  //   • 1 stim selected → signed r of that stim, title is its name.
+  //   • Multi-stim + filter inactive (no stims, or mode 'off') → max-|r|.
+  //   • Multi-stim + 'positive' → max r+; + 'negative' → min r-.
+  //   • Multi-stim + 'both' → max-|r|.
   const sel = filter.selectedStimuli;
   const S = data.stimulusNames.length;
+  const stimFilterActive = sel.length > 0 && filter.stimMode !== 'off';
+  const stimColorBias = stimFilterActive ? filter.stimMode : 'both';
+  // Phrasing for the multi-stim "rep" the coloring picks. Matches the
+  // applyColoring branches: max-positive / min-negative / max-|r|.
+  const stimRepPhrase =
+    stimColorBias === 'positive'
+      ? 'max r+'
+      : stimColorBias === 'negative'
+        ? 'min r−'
+        : 'max |r|';
   // Prefer the cleaned-up human label ('motion forward' etc.) over the
   // dataset's generic 'stim_N' for the single-stim title; fall back to
   // the manifest name if a label isn't defined for that index.
@@ -428,8 +442,8 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
     sel.length === 1
       ? `Stim: ${STIM_LABELS[sel[0]] ?? data.stimulusNames[sel[0]]}`
       : sel.length === 0 || sel.length === S
-        ? 'Stim: max |r| across all'
-        : `Stim: max |r| across ${sel.length}`;
+        ? `Stim: ${stimRepPhrase} across all`
+        : `Stim: ${stimRepPhrase} across ${sel.length}`;
   const lo = Math.max(0, settings.stimLo);
   const hi = Math.max(lo + 0.001, settings.stimHi);
   const range = Math.max(0.001, 2 * hi); // -hi → +hi
