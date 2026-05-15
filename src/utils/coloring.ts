@@ -547,15 +547,12 @@ export function applyColoring(
           // Divergent coolwarm ramp over signed stim correlation,
           // anchored symmetrically at ±stimLo (neutral deadband) and
           // ±stimHi (saturation). With one stimulus selected we paint
-          // by its signed r. With multiple stimuli the rep we pick
-          // tracks the filter direction:
-          //   stimMode 'positive' → max-positive r (cells passing the
-          //     + filter colored by their strongest positive evidence)
-          //   stimMode 'negative' → min-negative r
-          //   stimMode 'both' or 'off' → max-|r| (most stim-coupled
-          //     direction, either sign)
-          // This keeps the coloring consistent with the filter: with
-          // + correlated on you shouldn't see blue cells, etc.
+          // by its signed r. With multiple stimuli (or "all stims")
+          // the rep we pick tracks the filter direction WHEN the
+          // filter is active. With the filter inactive (no stims, or
+          // mode 'off') the coloring falls back to max-|r| so the
+          // map doesn't keep biasing toward a direction the user
+          // can no longer see in the UI.
           let rawA: number;
           if (!useStimMax) {
             rawA = stimulusCorr[i * S + stimSel[0]];
@@ -563,14 +560,22 @@ export function applyColoring(
             const baseIdx = i * S;
             const indices = stimMaxIndices;
             const N = indices ? indices.length : S;
-            if (stimMode === 'positive') {
+            // Directional bias in the coloring only applies when the
+            // sign-band filter is actually active (stims selected AND
+            // mode != 'off'). Without an active filter the +/-/both
+            // toggles are hidden, so the coloring should fall back to
+            // max-|r| regardless of the latent stimMode value —
+            // otherwise unselecting all stims would still "remember"
+            // the previous + or − choice and skew the map.
+            const colorBias = stimActive ? stimMode : 'both';
+            if (colorBias === 'positive') {
               let m = -Infinity;
               for (let j = 0; j < N; j++) {
                 const c = stimulusCorr[baseIdx + (indices ? indices[j] : j)];
                 if (c > m) m = c;
               }
               rawA = m;
-            } else if (stimMode === 'negative') {
+            } else if (colorBias === 'negative') {
               let m = Infinity;
               for (let j = 0; j < N; j++) {
                 const c = stimulusCorr[baseIdx + (indices ? indices[j] : j)];
