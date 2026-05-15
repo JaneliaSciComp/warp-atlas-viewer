@@ -20,10 +20,23 @@ const PLASMA_GRADIENT = `linear-gradient(to right, ${Array.from(
   (_, i) => rgbToHex(plasma(i / (PLASMA_STOP_COUNT - 1))),
 ).join(', ')})`;
 
-// Coolwarm divergent ramp used by the swim color scheme. Built once
-// the same way so the swim legend stays in sync with utils/colorMaps.
+// Coolwarm divergent ramp used by the swim + stim color schemes.
+// Two flavours: COOLWARM_GRADIENT_FADED scales alpha by |t| to mirror
+// the in-app rendering when fadeWeakCorrelation is on (neutral cells
+// fade so the bright midpoint doesn't bloom); COOLWARM_GRADIENT_OPAQUE
+// is the unmodulated gradient for when the setting is off.
 const COOLWARM_STOP_COUNT = 21;
-const COOLWARM_GRADIENT = `linear-gradient(to right, ${Array.from(
+const FADE_FLOOR = 0.12;
+const COOLWARM_GRADIENT_FADED = `linear-gradient(to right, ${Array.from(
+  { length: COOLWARM_STOP_COUNT },
+  (_, i) => {
+    const t = -1 + (2 * i) / (COOLWARM_STOP_COUNT - 1);
+    const [r, g, b] = coolwarm(t);
+    const a = FADE_FLOOR + (1 - FADE_FLOOR) * Math.abs(t);
+    return `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${a.toFixed(3)})`;
+  },
+).join(', ')})`;
+const COOLWARM_GRADIENT_OPAQUE = `linear-gradient(to right, ${Array.from(
   { length: COOLWARM_STOP_COUNT },
   (_, i) => rgbToHex(coolwarm(-1 + (2 * i) / (COOLWARM_STOP_COUNT - 1))),
 ).join(', ')})`;
@@ -295,7 +308,14 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
       >
         <div className="text-neutral-400 mb-1 whitespace-nowrap">Swim correlation</div>
         <div className="relative w-32">
-          <div className="h-3 border border-neutral-700" style={{ background: COOLWARM_GRADIENT }} />
+          <div
+            className="h-3 border border-neutral-700"
+            style={{
+              background: settings.fadeWeakCorrelation
+                ? COOLWARM_GRADIENT_FADED
+                : COOLWARM_GRADIENT_OPAQUE,
+            }}
+          />
           <div className="relative h-3 mt-0.5 text-[9px] text-neutral-400">
             {ticks.map((t, idx) => {
               const transform =
@@ -349,7 +369,14 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
     >
       <div className="text-neutral-400 mb-1 whitespace-nowrap">{stimTitle}</div>
       <div className="relative w-32">
-        <div className="h-3 border border-neutral-700" style={{ background: COOLWARM_GRADIENT }} />
+        <div
+          className="h-3 border border-neutral-700"
+          style={{
+            background: settings.fadeWeakCorrelation
+              ? COOLWARM_GRADIENT_FADED
+              : COOLWARM_GRADIENT_OPAQUE,
+          }}
+        />
         <div className="relative h-3 mt-0.5 text-[9px] text-neutral-400">
           {ticks.map((t, idx) => {
             const transform =

@@ -191,6 +191,7 @@ function validateSettings(raw: unknown): Partial<SettingsState> {
   if (isFiniteNum(s.swimLo)) out.swimLo = clamp(s.swimLo, 0, 1);
   if (isFiniteNum(s.swimHi)) out.swimHi = clamp(s.swimHi, 0, 1);
   if (isFiniteNum(s.ghostIntensity)) out.ghostIntensity = clamp(s.ghostIntensity, 0, 1);
+  if (typeof s.fadeWeakCorrelation === 'boolean') out.fadeWeakCorrelation = s.fadeWeakCorrelation;
   return out;
 }
 

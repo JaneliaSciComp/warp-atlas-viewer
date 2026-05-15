@@ -272,6 +272,13 @@ export interface SettingsState {
    *  pickers re-enable above the midpoint so users only catch
    *  clicks on cells that are genuinely visible enough to aim at. */
   ghostIntensity: number;
+  /** When true, the swim + stim divergent color modes scale alpha by
+   *  |r| so cells near the neutral midpoint fade into the background
+   *  instead of competing with the colored extremes (coolwarm's
+   *  near-white midpoint blooms on a dark background at full opacity).
+   *  When false, every in-set cell renders at full alpha regardless
+   *  of correlation magnitude. */
+  fadeWeakCorrelation: boolean;
 }
 
 export const DEFAULT_SETTINGS: SettingsState = {
@@ -288,6 +295,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
   swimLo: 0.10,
   swimHi: 0.35,
   ghostIntensity: 0.6,
+  fadeWeakCorrelation: true,
 };
 
 export interface SelectionState {

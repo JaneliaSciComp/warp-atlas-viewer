@@ -201,6 +201,31 @@ export function SettingsTab({
 
       <section className="flex flex-col gap-2">
         <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+          Fade weak correlations
+        </div>
+        <p className="text-neutral-400 leading-snug">
+          When on, the stim + swim color ramps scale alpha by |r|, so
+          cells near the neutral midpoint fade into the dark background
+          and the colored extremes stand out. When off, every in-set
+          cell renders at full opacity (including the bright midpoint
+          of the divergent ramp, which can dominate visually).
+        </p>
+        <label
+          className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
+          title="fade out cells with |r| near zero so the divergent ramp's neutral midpoint doesn't compete with the colored extremes"
+        >
+          <input
+            type="checkbox"
+            checked={settings.fadeWeakCorrelation}
+            onChange={(e) => update({ fadeWeakCorrelation: e.target.checked })}
+            className="accent-neutral-300"
+          />
+          fade weak correlations
+        </label>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
           Activity ΔF/F anchors
         </div>
         <p className="text-neutral-400 leading-snug">

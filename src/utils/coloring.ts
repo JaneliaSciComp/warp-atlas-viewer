@@ -9,6 +9,11 @@ const LIFT_ALPHA = 0.50;
 // this floor → 1.0 ×. Keeps cells from blooming when they're already
 // near-invisible — a smaller dot leaves more pixels clean.
 const GHOST_SIZE_FLOOR = 0.55;
+// Minimum alpha for cells at the neutral midpoint of the divergent
+// stim / swim color ramps when fadeWeakCorrelation is enabled. Keeps
+// near-zero-correlation cells faintly visible without letting them
+// bloom into the foreground at full opacity.
+const FADE_FLOOR = 0.12;
 const HIGHLIGHT_BOOST_SIZE = 1.5;
 
 // Stim correlation thresholds, the gene plasma ceiling, and the base
@@ -315,6 +320,7 @@ export function applyColoring(
   // Clamp ghostIntensity into [0, 1] so a hostile URL value can't
   // overshoot the floor / send size below 0.
   const ghostIntensity = Math.max(0, Math.min(1, settings.ghostIntensity));
+  const fadeWeak = settings.fadeWeakCorrelation;
   // Single-pass bucket fill into a draw-order buffer:
   //   out-of-set indices fill from the front (outCursor ↑)
   //   in-set     indices fill from the back  (inCursor  ↓)
@@ -573,16 +579,19 @@ export function applyColoring(
           const signed = rawA >= 0 ? v : -v;
           const c = coolwarm(signed);
           r = c[0]; g = c[1]; b = c[2];
-          alpha = 1.0;
+          // Alpha tracks magnitude when fadeWeakCorrelation is on so
+          // cells near the deadband midpoint don't bloom (coolwarm's
+          // bright neutral midpoint is the visual problem we're
+          // dodging). Floor keeps neutral cells faintly visible.
+          alpha = fadeWeak ? FADE_FLOOR + (1 - FADE_FLOOR) * v : 1.0;
           break;
         }
         case 'swim': {
           // Divergent ramp over signed swim correlation, anchored
           // symmetrically at ±swimLo (neutral midpoint) and ±swimHi
-          // (saturation). Unlike plasma-based schemes there is no
-          // "background" tier — neutral cells live at the midpoint of
-          // the ramp (near-white) rather than dimming, so the user can
-          // still see the brain silhouette for context.
+          // (saturation). When fadeWeakCorrelation is on, alpha
+          // tracks magnitude so the bright midpoint doesn't compete
+          // with the colored extremes.
           const rawS = swimCorr[i];
           const mag = Math.abs(rawS);
           // Map magnitude beyond the deadband [-swimLo, +swimLo] into
@@ -596,7 +605,7 @@ export function applyColoring(
           const signed = rawS >= 0 ? v : -v;
           const c = coolwarm(signed);
           r = c[0]; g = c[1]; b = c[2];
-          alpha = 1.0;
+          alpha = fadeWeak ? FADE_FLOOR + (1 - FADE_FLOOR) * v : 1.0;
           break;
         }
       }
