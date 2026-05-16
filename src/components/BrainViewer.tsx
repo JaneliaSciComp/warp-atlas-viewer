@@ -70,7 +70,29 @@ function PointCloud({
     return g;
   }, [data, buffers]);
 
-  const material = useMemo(() => {
+  // Two-pass rendering. Opaque-ish cells (α ≥ 0.5: region/fish/highlight
+  // colors at 0.85+, signal-saturated gene/stim/swim cells at 1.0) write
+  // depth so they correctly occlude cells behind them — fixes the
+  // "stratified" look where back cells punched through front cells.
+  // Transparent cells (α < 0.5: ghosts, fade-weak midpoints, dim
+  // backdrops) don't write depth so they still let near cells see
+  // through them. The fragment shader pre-filters by vAlpha so each
+  // material only renders its half.
+  const ALPHA_PASS_SPLIT = 0.5;
+  const opaqueMaterial = useMemo(() => {
+    return new THREE.ShaderMaterial({
+      vertexShader: vertSrc,
+      fragmentShader: fragSrc,
+      transparent: true,
+      depthWrite: true,
+      uniforms: {
+        pixelRatio: { value: gl.getPixelRatio() },
+        alphaMin: { value: ALPHA_PASS_SPLIT },
+        alphaMax: { value: 1e6 },
+      },
+    });
+  }, [gl]);
+  const transparentMaterial = useMemo(() => {
     return new THREE.ShaderMaterial({
       vertexShader: vertSrc,
       fragmentShader: fragSrc,
@@ -78,6 +100,8 @@ function PointCloud({
       depthWrite: false,
       uniforms: {
         pixelRatio: { value: gl.getPixelRatio() },
+        alphaMin: { value: 0 },
+        alphaMax: { value: ALPHA_PASS_SPLIT },
       },
     });
   }, [gl]);
@@ -284,7 +308,12 @@ function PointCloud({
 
   return (
     <group rotation={[0, 0, Math.PI / 2]}>
-      <points geometry={geometry} material={material} />
+      {/* Opaque pass first so its depth values are in place before the
+        * transparent pass reads them. Both points share the same
+        * geometry — the materials' alphaMin / alphaMax uniforms
+        * partition cells by alpha at the fragment level. */}
+      <points geometry={geometry} material={opaqueMaterial} renderOrder={0} />
+      <points geometry={geometry} material={transparentMaterial} renderOrder={1} />
       <points geometry={markerGeometry} material={markerMaterial} renderOrder={2} />
     </group>
   );
