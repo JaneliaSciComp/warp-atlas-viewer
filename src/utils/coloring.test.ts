@@ -30,7 +30,6 @@ const TEST_DATA: NeuronDataset = {
   traceLength: 1,
   traceSampleRateHz: 1,
   geneNames: ['g0', 'g1'],
-  geneThresholdsDefault: [1, 1],
   regionNames: ['r0', 'r1'],
   stimulusNames: ['stim_0', 'stim_1'],
   clusterNames: ['c0', 'c1'],

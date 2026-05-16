@@ -167,7 +167,6 @@ export function generateMockData(n: number = 10000): NeuronDataset {
     }),
     regressors,
     geneNames: [...GENE_NAMES],
-    geneThresholdsDefault: GENE_NAMES.map(() => 25),
     regionNames: [...REGION_NAMES],
     stimulusNames: [...STIMULUS_NAMES],
     clusterNames: Array.from({ length: MOCK_N_CLUSTERS }, (_, i) => `cluster_${i.toString().padStart(3, '0')}`),

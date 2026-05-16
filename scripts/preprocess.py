@@ -216,20 +216,6 @@ def main():
         f'cluster_lbl out of range: [{cluster_lbl.min()}, {cluster_lbl.max()}]'
     )
 
-    # Per-gene effective spot-count thresholds, recovered from the
-    # binary call: for each gene, the smallest spot count among cells
-    # marked positive in BinaryGenes_All. These are the paper's per-gene
-    # cutoffs (Methods: Identifying positive cells; mostly 25, with
-    # Maximum-Deviation adjustments per gene/fish in Data S1). The
-    # viewer surfaces these in the Transcriptomics gene tooltip so the
-    # user can see what threshold each gene actually used.
-    gene_thresholds = np.zeros(genes_df.shape[1], dtype=np.int32)
-    for g in range(genes_df.shape[1]):
-        mask = genes_bin[:, g].astype(bool)
-        gene_thresholds[g] = int(genes_df[mask, g].min()) if mask.any() else 0
-    print(f'[preprocess] per-gene thresholds: min={int(gene_thresholds.min())}, '
-          f'max={int(gene_thresholds.max())}, mean={float(gene_thresholds.mean()):.1f}')
-
     # Affine-quantize the activity trace to uint16 to halve wire size
     # and (critically) drop it below browser per-resource HTTP-cache caps
     # so it gets cached across reloads. Range is auto-fit to the data
@@ -276,7 +262,6 @@ def main():
         'stimulusWindowsSec': stim_windows,
         'nStimuli': int(stim_corr.shape[1]),
         'geneNames': GENE_ORDER,
-        'geneThresholdsDefault': gene_thresholds.tolist(),
         'regionNames': BRAIN_REG_NAMES,
         'stimulusNames': STIMULUS_NAMES,
         'clusterNames': cluster_names,

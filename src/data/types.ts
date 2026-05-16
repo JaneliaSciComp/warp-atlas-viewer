@@ -34,12 +34,6 @@ export interface NeuronDataset {
 
   /** Metadata. */
   geneNames: string[];
-  /** Paper's per-gene spot-count cutoff used to compute the binary
-   *  positive/negative call (BinaryGenes_All). Length matches
-   *  geneNames. Surfaced in the Transcriptomics gene tooltip and used
-   *  by the Settings "Paper" gene-threshold mode as documentation
-   *  only — the actual binary call lives in geneBinary. */
-  geneThresholdsDefault: number[];
   regionNames: string[];
   stimulusNames: string[];
   clusterNames: string[];

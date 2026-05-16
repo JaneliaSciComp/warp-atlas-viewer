@@ -12,10 +12,6 @@ export interface ManifestV2 {
   stimulusWindowsSec?: Array<[number, number]>;
   nStimuli: number;
   geneNames: string[];
-  /** Per-gene spot-count threshold used to derive the binary positive
-   *  call (parallel to geneNames). Optional: older manifests without
-   *  it fall back to an array of zeros. */
-  geneThresholdsDefault?: number[];
   regionNames: string[];
   stimulusNames: string[];
   clusterNames: string[];
@@ -304,8 +300,6 @@ async function loadFromManifest(
     stimulusWindowsSec: m.stimulusWindowsSec,
     regressors: lookup.has('regressors') ? new Float32Array(lookup.get('regressors')!) : undefined,
     geneNames: m.geneNames,
-    geneThresholdsDefault:
-      m.geneThresholdsDefault ?? new Array(m.geneNames.length).fill(0),
     regionNames: m.regionNames,
     stimulusNames: m.stimulusNames,
     clusterNames: m.clusterNames,
