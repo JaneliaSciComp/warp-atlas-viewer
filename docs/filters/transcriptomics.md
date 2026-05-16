@@ -20,7 +20,7 @@ Use **+ add gene** to insert a gene row, then choose the marker from that row's 
 
 Controlled by **Settings → Gene expression threshold**:
 
-- **Paper** *(default)* — uses the paper's per-gene spot-count cutoffs (Marquez-Legorreta et al., Methods → "Identifying positive cells"; typically 25 spots, adjusted per gene/fish per Data S1). Backed by `BinaryGenes_All` from the manifest.
+- **Paper** *(default)* — uses the paper's per-gene spot-count cutoffs. Backed by `BinaryGenes_All` from the manifest.
 - **Global** — applies a single user-set spot-count threshold uniformly across all genes via `geneCounts >= threshold`. Default 25; set to 1 for "any detected".
 
 The same predicate is used for the **Richness** count in [multi-gene coloring](./colors#multi-gene-mode-2-genes-pinned).

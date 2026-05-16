@@ -61,7 +61,7 @@ This setting has no effect with a single gene pinned.
 
 Defines what counts as "expressing" a gene, for the [gene filter](/filters/transcriptomics#what-counts-as-expressing-a-gene) and for the [Richness multi-gene coloring](#multi-gene-coloring) above:
 
-- **Paper** *(default)* — uses the paper's per-gene spot-count cutoffs (Marquez-Legorreta et al., Methods → "Identifying positive cells", typically 25 spots, adjusted per gene/fish per Data S1). Backed by `BinaryGenes_All` from the manifest.
+- **Paper** *(default)* — uses the paper's per-gene spot-count cutoffs (typically 25 spots, adjusted per gene/fish via the Maximum-Deviation approach). Backed by `BinaryGenes_All` from the manifest.
 - **Global** — applies a single user-set spot-count threshold uniformly across all genes via `geneCounts >= threshold`. The companion "global threshold (spots)" numeric input sets the cutoff; default `25`. Set to 1 for "any detected".
 
 ::: warning Subtypes are precomputed
