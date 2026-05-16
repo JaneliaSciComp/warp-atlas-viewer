@@ -1,6 +1,6 @@
 ---
 title: Settings
-description: Threshold cutoffs, ramp anchors, point size, the ghost slider, and the gene-expression threshold mode.
+description: Threshold cutoffs, ramp anchors, point density, and the gene-expression threshold mode.
 ---
 
 # Settings
@@ -11,24 +11,27 @@ A **↺ reset settings** button at the top of the tab reverts everything to defa
 
 ---
 
-## Cell point size
+## Point density
 
-Base point size in pixels for both the 3D viewer and the t-SNE scatter. Cells in a t-SNE lasso selection receive an additional 1.5× boost; a focused cell is brightened and marked with a white ring.
+A single section controlling both the **base point size** (pixels per cell in the 3D viewer and the t-SNE scatter) and the **ghost visibility** (how present out-of-filter cells are).
 
-- **Default:** `10`.
-- **Range:** 2 – 20.
+The default **Auto** mode derives both from the number of cells passing the active filters, in log space — small filtered subsets get bigger dots and dimmer ghosts; full views get smaller dots and brighter ghosts. Sample values for a ~274 000-cell dataset:
 
-## Ghost cells outside filter
+| in-set cells | point size | ghost visibility |
+|---:|---:|---:|
+| 50 | 20.0 | 0.25 |
+| 1 000 | 16.5 | 0.43 |
+| 10 000 | 13.8 | 0.56 |
+| 50 000 | 12.0 | 0.65 |
+| 100 000 | 11.2 | 0.69 |
+| all (≈ 274 k) | 10.0 | 0.75 |
 
-Slider controlling the *visibility* of cells that don't pass the active filters (`ghostIntensity`, 0..1).
+Turning Auto off exposes the two sliders directly:
 
-- **`0`** → cells render at the standard dim alpha and remain pickable.
-- **`1`** → cells fade close to invisible (alpha ~0.02), their point size drops to 0.55× the base, and the click pickers in the 3D viewer and t-SNE skip them entirely.
-- Intermediate values lerp alpha and point size between those endpoints. Pickability flips off as soon as the slider leaves 0, so any non-zero ghosting also takes the cells out of click contention — useful when you want clicks to fall through the dim haze to whatever's underneath.
+- **point size (px)** — base size used for every cell. Cells in a t-SNE lasso selection receive an additional 1.5× boost; a focused cell is brightened and marked with a white ring. Range 2 – 20.
+- **ghost visibility** (0..1) — `0` makes out-of-filter cells fully transparent and the click pickers skip them; `1` renders them at the standard dim alpha and keeps them fully pickable. Pickability flips off above the midpoint (slider ≥ 0.5).
 
-**Default:** `0.6`.
-
-The setting also drives the *render order*: out-of-filter cells render first and in-filter cells render last, so the foreground (in-set) cells never get occluded by the dim background regardless of true 3D depth.
+The ghost setting also drives **render order**: out-of-filter cells render first and in-filter cells render last, so foreground (in-set) cells never get occluded by the dim background regardless of true 3D depth — even when ghosts are still visible.
 
 ## Camera panning
 
@@ -53,6 +56,17 @@ Controls what the [Gene color scheme](/filters/colors#multi-gene-mode-2-genes-pi
 - **Richness** — count of pinned genes a cell expresses, using the [gene-expression threshold](#gene-expression-threshold) below.
 
 This setting has no effect with a single gene pinned.
+
+## Gene expression threshold
+
+Defines what counts as "expressing" a gene, for the [gene filter](/filters/transcriptomics#what-counts-as-expressing-a-gene) and for the [Richness multi-gene coloring](#multi-gene-coloring) above:
+
+- **Paper** *(default)* — uses the paper's per-gene spot-count cutoffs (Marquez-Legorreta et al., Methods → "Identifying positive cells", typically 25 spots, adjusted per gene/fish per Data S1). Backed by `BinaryGenes_All` from the manifest.
+- **Global** — applies a single user-set spot-count threshold uniformly across all genes via `geneCounts >= threshold`. The companion "global threshold (spots)" numeric input sets the cutoff; default `25`. Set to 1 for "any detected".
+
+::: warning Subtypes are precomputed
+Switching to Global threshold currently only affects the *gene filter* and the *gene-richness coloring*. Molecular subtype membership is precomputed from the paper's thresholds in the manifest, so a Subtype-mode filter doesn't shift when you change the global threshold.
+:::
 
 ## Stim correlation cutoffs
 
@@ -88,17 +102,6 @@ Two anchors for the [Activity color scheme](/filters/colors#activity):
 - **ceiling (ΔF/F)** — cells at or above this value saturate at the bright end.
 
 The default range accommodates quiet cells at the dim end while allowing peaks to saturate.
-
-## Gene expression threshold
-
-Defines what counts as "expressing" a gene, for the [gene filter](/filters/transcriptomics#what-counts-as-expressing-a-gene) and for the [Richness multi-gene coloring](#multi-gene-coloring) above:
-
-- **Paper** *(default)* — uses the paper's per-gene spot-count cutoffs (Marquez-Legorreta et al., Methods → "Identifying positive cells", typically 25 spots, adjusted per gene/fish per Data S1). Backed by `BinaryGenes_All` from the manifest.
-- **Global** — applies a single user-set spot-count threshold uniformly across all genes via `geneCounts >= threshold`. The companion "global threshold (spots)" numeric input sets the cutoff; default `25`. Set to 1 for "any detected".
-
-::: warning Subtypes are precomputed
-Switching to Global threshold currently only affects the *gene filter* and the *gene-richness coloring*. Molecular subtype membership is precomputed from the paper's thresholds in the manifest, so a Subtype-mode filter doesn't shift when you change the global threshold.
-:::
 
 ## What Settings does not control
 

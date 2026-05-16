@@ -23,7 +23,7 @@ The Filters tab's **Reset** button restores the viewer's default filter state in
 
 ### Visible-cell readout {#visible-cell-readout}
 
-A small readout next to the reset button reports the **number of cells currently visible**. A cell counts as visible when its final rendered alpha is ≥ 0.5 — so cells dropped by the active filters, the ghost slider (see [Settings → Ghost cells](/settings#ghost-cells-outside-filter)), and the [fade-weak-correlations](/settings#fade-weak-correlations) alpha modulation all drop out of the count.
+A small readout next to the reset button reports the **number of cells currently visible**. A cell counts as visible when its final rendered alpha is ≥ 0.5 — so cells dropped by the active filters, the ghost slider (see [Settings → Point density](/settings#point-density)), and the [fade-weak-correlations](/settings#fade-weak-correlations) alpha modulation all drop out of the count.
 
 ## OR versus AND within a card
 

@@ -35,8 +35,8 @@ The active **Colors** scheme determines per-cell color. See [Colors](/filters/co
 ## Rendering notes
 
 - The point cloud is drawn in a single GPU pass, so render cost is largely independent of the filter combination.
-- Filtered-out cells are drawn dim and transparent rather than skipped, preserving the silhouette of the full brain as context.
-- Increase **Settings → Cell point size** if cells appear undersized on a high-DPI display.
+- Filtered-out cells are drawn dim and transparent rather than skipped, preserving the silhouette of the full brain as context. The amount of dim is controlled by the ghost slider in [Settings → Point density](/settings#point-density).
+- Point size adjusts automatically based on the visible cell count (smaller dots when more cells are visible, larger when filtered down). To pick a size by hand, turn auto off in [Settings → Point density](/settings#point-density).
 
 ## See also
 

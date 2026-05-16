@@ -25,7 +25,7 @@ If a recipient reports that the lasso is missing, redraw it with fewer vertices 
 
 ## Cells appear too small or too large
 
-Adjust **Settings → Cell point size**. High-DPI displays generally benefit from a larger value. Lasso-selected cells receive an additional 1.5× boost, while a focused cell is marked with a white ring.
+Adjust **Settings → Point density**. With auto mode on *(default)* the point size is derived from the in-set cell count — small filtered subsets get bigger dots, full views get smaller dots. Turn auto off to pick a size by hand. High-DPI displays generally benefit from a larger value when manual. Lasso-selected cells receive an additional 1.5× boost, while a focused cell is marked with a white ring.
 
 ## Camera orientation feels lost after rotating
 
