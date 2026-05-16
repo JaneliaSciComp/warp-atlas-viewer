@@ -1,6 +1,13 @@
+import { useEffect, useState } from 'react';
 import type { SettingsState } from '../../data/types';
 import { DEFAULT_SETTINGS } from '../../data/types';
 import { KindToggle } from './shared';
+
+// Per-user UI preference: hides the verbose explainer paragraphs in
+// every section so the tab is compact once you know what each control
+// does. Lives in localStorage rather than SettingsState because it's
+// a viewer chrome preference, not part of the shareable view state.
+const SHOW_DESC_KEY = 'warp.settings.showDescriptions';
 
 export function SettingsTab({
   settings,
@@ -15,22 +22,53 @@ export function SettingsTab({
   const dirty = (Object.keys(DEFAULT_SETTINGS) as Array<keyof typeof DEFAULT_SETTINGS>).some(
     (k) => settings[k] !== DEFAULT_SETTINGS[k],
   );
+  const [showDescriptions, setShowDescriptions] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    const v = window.localStorage.getItem(SHOW_DESC_KEY);
+    return v === null ? true : v === '1';
+  });
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(SHOW_DESC_KEY, showDescriptions ? '1' : '0');
+    }
+  }, [showDescriptions]);
   return (
-    <div className="flex flex-col gap-6 pb-3 text-xs font-mono text-neutral-300 max-w-2xl">
-      <button
-        onClick={reset}
-        disabled={!dirty}
-        title="reset all settings to defaults"
-        className={
-          'self-start flex items-center gap-1 px-2 py-0.5 text-xs font-mono rounded border ' +
-          (dirty
-            ? 'text-neutral-300 bg-neutral-900/60 border-neutral-700 hover:bg-neutral-700 hover:text-neutral-100'
-            : 'text-neutral-600 border-neutral-800 cursor-default')
-        }
-      >
-        <span aria-hidden className="text-base leading-none">↺</span>
-        reset settings
-      </button>
+    <div
+      className={
+        'flex flex-col gap-6 pb-3 text-xs font-mono text-neutral-300 max-w-2xl' +
+        // Tailwind arbitrary variant: hide every <p> nested under a <section>
+        // (the section description paragraphs) when the toggle is off.
+        (showDescriptions ? '' : ' [&_section_p]:hidden')
+      }
+    >
+      <div className="flex items-center gap-3">
+        <button
+          onClick={reset}
+          disabled={!dirty}
+          title="reset all settings to defaults"
+          className={
+            'self-start flex items-center gap-1 px-2 py-0.5 text-xs font-mono rounded border ' +
+            (dirty
+              ? 'text-neutral-300 bg-neutral-900/60 border-neutral-700 hover:bg-neutral-700 hover:text-neutral-100'
+              : 'text-neutral-600 border-neutral-800 cursor-default')
+          }
+        >
+          <span aria-hidden className="text-base leading-none">↺</span>
+          reset settings
+        </button>
+        <label
+          className="flex items-center gap-1.5 text-[11px] text-neutral-400 cursor-pointer select-none"
+          title="hide the descriptive paragraph in each section"
+        >
+          <input
+            type="checkbox"
+            checked={showDescriptions}
+            onChange={(e) => setShowDescriptions(e.target.checked)}
+            className="accent-neutral-300"
+          />
+          show descriptions
+        </label>
+      </div>
 
       <section className="flex flex-col gap-2">
         <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
