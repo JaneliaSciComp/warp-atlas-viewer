@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { anyFilterActive, cellInSet, cellPasses } from './coloring';
+import { allocColoring, anyFilterActive, applyColoring, cellInSet, cellPasses } from './coloring';
 import {
   DEFAULT_SETTINGS,
   type FilterState,
@@ -196,5 +196,31 @@ describe('anyFilterActive', () => {
     expect(
       anyFilterActive(TEST_DATA, { ...BASE_FILTER, txMode: 'gene', selectedGenes: [] }),
     ).toBe(false);
+  });
+});
+
+describe('applyColoring stats', () => {
+  const emptySelection = { indices: new Uint32Array(0), source: null };
+
+  it('uses null filterSelection only when no filters are active', () => {
+    const out = allocColoring(TEST_DATA.count);
+    const stats = applyColoring(TEST_DATA, BASE_FILTER, DEFAULT_SETTINGS, emptySelection, out);
+
+    expect(stats.filterSelection).toBeNull();
+  });
+
+  it('returns an empty filterSelection when active filters match zero cells', () => {
+    const out = allocColoring(TEST_DATA.count);
+    const impossibleFilter: FilterState = {
+      ...BASE_FILTER,
+      txMode: 'gene',
+      selectedGenes: [0, 1],
+      geneLogic: 'and',
+      isolatedRegion: 0,
+    };
+    const stats = applyColoring(TEST_DATA, impossibleFilter, DEFAULT_SETTINGS, emptySelection, out);
+
+    expect(stats.filterSelection).toBeInstanceOf(Uint32Array);
+    expect(stats.filterSelection).toHaveLength(0);
   });
 });

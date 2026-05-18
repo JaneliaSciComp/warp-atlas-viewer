@@ -40,8 +40,10 @@ export interface ColoringStats {
    *  membership and fade-by-magnitude / ghost slider attenuation. */
   visibleCount: number;
   /** Indices of cells in the filter intersection — populated only when
-   *  at least one filter dimension is active. Used as the filter-derived
-   *  fallback selection when the user hasn't lassoed anything. */
+   *  at least one filter dimension is active. Empty means the active
+   *  filters matched zero cells; null means there are no active filters.
+   *  Used as the filter-derived fallback selection when the user hasn't
+   *  lassoed anything. */
   filterSelection: Uint32Array | null;
   /** Permutation of [0..count-1] partitioned so out-of-filter cells
    *  come first and in-filter cells come last. Renderers iterate
@@ -724,10 +726,7 @@ export function applyColoring(
   // not see the underlying drawOrder mutate on the next filter change).
   // The in-set indices land in reverse arrival order in drawOrder; that
   // doesn't matter for the consumers, which treat selection as a set.
-  const filterSelection =
-    drawOrder && inCursor < count
-      ? drawOrder.slice(inCursor)
-      : null;
+  const filterSelection = drawOrder ? drawOrder.slice(inCursor) : null;
   return {
     visibleCount,
     filterSelection,
