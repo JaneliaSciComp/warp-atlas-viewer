@@ -4,7 +4,7 @@ import { TrackballControls } from '@react-three/drei';
 import * as THREE from 'three';
 import type { NeuronDataset, FilterState, SettingsState } from '../data/types';
 import type { CameraState } from '../utils/urlState';
-import { allocColoring, anyFilterActive, cellInSet } from '../utils/coloring';
+import { allocColoring, anyFilterActive, cellInSet, cellIsRenderable } from '../utils/coloring';
 import type { SharedColoring } from '../hooks/useColoring';
 import vertSrc from '../shaders/neuron.vert.glsl?raw';
 import fragSrc from '../shaders/neuron.frag.glsl?raw';
@@ -276,6 +276,7 @@ function PointCloud({
     let bestZ = Infinity;
     let bestInFilter = false;
     for (let i = 0; i < data.count; i++) {
+      if (!cellIsRenderable(data, filter, i)) continue;
       const ox = positions[i * 3];
       const x = -positions[i * 3 + 1];
       const y = ox;

@@ -169,7 +169,22 @@ export function cellPasses(
   return { inRegion, passesTx, passesStim, passesSwim };
 }
 
-/** True iff cell `i` is inside the intersection of every active filter. */
+function hidesUnassignedRegion(filter: FilterState): boolean {
+  return filter.colorMode === 'region' && !filter.showUnassignedRegion;
+}
+
+/** True iff cell `i` should be drawn and interacted with under the
+ *  current visibility gates. */
+export function cellIsRenderable(
+  ds: NeuronDataset,
+  filter: FilterState,
+  i: number,
+): boolean {
+  return !(hidesUnassignedRegion(filter) && ds.regionIds[i] === 0);
+}
+
+/** True iff cell `i` is inside the intersection of every active filter
+ *  and visibility gate. */
 export function cellInSet(
   ds: NeuronDataset,
   filter: FilterState,
@@ -177,12 +192,14 @@ export function cellInSet(
   i: number,
 ): boolean {
   const p = cellPasses(ds, filter, settings, i);
-  return p.inRegion && p.passesTx && p.passesStim && p.passesSwim;
+  return cellIsRenderable(ds, filter, i) && p.inRegion && p.passesTx && p.passesStim && p.passesSwim;
 }
 
 /** True iff at least one filter dimension is constraining. The activity
  *  filter is active whenever any stimulus is toggled on; an empty
- *  selection means "no constraint". */
+ *  selection means "no constraint". Region's hide-unassigned toggle is
+ *  treated as an active visibility gate so derived selections only cover
+ *  cells that are actually shown. */
 export function anyFilterActive(ds: NeuronDataset, filter: FilterState): boolean {
   const stimsActive = filter.selectedStimuli.length > 0 && filter.stimMode !== 'off';
   return (
@@ -191,7 +208,8 @@ export function anyFilterActive(ds: NeuronDataset, filter: FilterState): boolean
     (filter.txMode === 'gene' && filter.selectedGenes.length > 0) ||
     filter.txMode === 'subtype' ||
     stimsActive ||
-    filter.swimMode !== 'off'
+    filter.swimMode !== 'off' ||
+    hidesUnassignedRegion(filter)
   );
 }
 
@@ -330,13 +348,15 @@ export function applyColoring(
   const swimMode = filter.swimMode;
   const swimFilterActive = swimMode !== 'off';
   const swimLoFilter = swimLoSetting;
+  const hideUnassigned = hidesUnassignedRegion(filter);
   const filterActive =
     isoRegion >= 0 ||
     isoFish >= 0 ||
     geneFilterActive ||
     clusterFilterActive ||
     stimActive ||
-    swimFilterActive;
+    swimFilterActive ||
+    hideUnassigned;
   const fadeWeak = settings.fadeWeakCorrelation;
   // visibleCount is the count of cells the user actually sees on
   // screen, not the count of cells passing the filter. We bump it
@@ -367,6 +387,7 @@ export function applyColoring(
   // We need inSetCount BEFORE pass 2 so autoSizing can derive the
   // effective point size + ghost intensity from it.
   for (let i = 0; i < count; i++) {
+    const renderable = !(hideUnassigned && regionIds[i] === 0);
     const inRegion =
       (isoRegion < 0 || regionIds[i] === isoRegion) &&
       (isoFish < 0 || fishIds[i] === isoFish);
@@ -421,7 +442,7 @@ export function applyColoring(
         case 'both': passesSwim = sr >= swimLoFilter || sr <= -swimLoFilter; break;
       }
     }
-    const inSet = inRegion && passesTx && passesStim && passesSwim;
+    const inSet = renderable && inRegion && passesTx && passesStim && passesSwim;
     if (inSet) {
       inSetCount++;
       inSetArr[i] = 1;
@@ -462,6 +483,15 @@ export function applyColoring(
     const inSet = inSetArr[i] === 1;
     let r = 0, g = 0, b = 0, alpha = 0.85, size = effectivePointSize;
 
+    if (hideUnassigned && regionIds[i] === 0) {
+      colors[i * 3] = 0;
+      colors[i * 3 + 1] = 0;
+      colors[i * 3 + 2] = 0;
+      alphas[i] = 0;
+      sizes[i] = size;
+      continue;
+    }
+
     if (!inSet) {
       // Two-tier dim: anatomical-context lift when the cell is inside
       // the focused region but fails another predicate; otherwise the
@@ -485,14 +515,6 @@ export function applyColoring(
     } else {
       switch (filter.colorMode) {
         case 'region': {
-          // Hide Unassigned cells (region index 0) when the user has
-          // toggled "show unassigned" off — alpha 0 falls below the
-          // fragment shader's discard threshold so the cell never
-          // hits the framebuffer.
-          if (regionIds[i] === 0 && !filter.showUnassignedRegion) {
-            alpha = 0;
-            break;
-          }
           const c = regionColor(regionIds[i]);
           r = c[0]; g = c[1]; b = c[2];
           break;

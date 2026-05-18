@@ -2,7 +2,7 @@ import { useEffect, useRef, useMemo, useCallback, useLayoutEffect, useState } fr
 import type { FilterState, NeuronDataset, SelectionState, SettingsState } from '../data/types';
 import type { UmapViewport } from '../utils/urlState';
 import type { SharedColoring } from '../hooks/useColoring';
-import { anyFilterActive, cellInSet } from '../utils/coloring';
+import { anyFilterActive, cellInSet, cellIsRenderable } from '../utils/coloring';
 import { pointInPolygon } from '../utils/polygon';
 
 interface Props {
@@ -449,6 +449,7 @@ export function UmapPanel({
       let bestD2 = PIX_THRESH_SQ;
       let bestInFilter = false;
       for (let i = 0; i < data.count; i++) {
+        if (!cellIsRenderable(data, filter, i)) continue;
         const [px, py] = project(data.umap[i * 2], data.umap[i * 2 + 1], size.w, size.h, viewport);
         if (px < cx - 16 || px > cx + 16 || py < cy - 16 || py > cy + 16) continue;
         const dx = px - cx;
@@ -483,6 +484,7 @@ export function UmapPanel({
     const filterActive = anyFilterActive(data, filter);
     const out: number[] = [];
     for (let i = 0; i < data.count; i++) {
+      if (!cellIsRenderable(data, filter, i)) continue;
       const [px, py] = project(data.umap[i * 2], data.umap[i * 2 + 1], size.w, size.h, viewport);
       if (px < bxmin || px > bxmax || py < bymin || py > bymax) continue;
       if (!pointInPolygon(px, py, polyPx)) continue;

@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { allocColoring, anyFilterActive, applyColoring, cellInSet, cellPasses } from './coloring';
+import {
+  allocColoring,
+  anyFilterActive,
+  applyColoring,
+  cellInSet,
+  cellIsRenderable,
+  cellPasses,
+} from './coloring';
 import {
   DEFAULT_SETTINGS,
   type FilterState,
@@ -174,6 +181,18 @@ describe('cellPasses', () => {
     expect(p.inRegion).toBe(true);
     expect(p.passesStim).toBe(false);
   });
+
+  it('excludes unassigned cells when Region hides them', () => {
+    const f: FilterState = {
+      ...BASE_FILTER,
+      colorMode: 'region',
+      showUnassignedRegion: false,
+    };
+
+    expect(cellIsRenderable(TEST_DATA, f, 0)).toBe(false);
+    expect(cellIsRenderable(TEST_DATA, f, 2)).toBe(true);
+    expect(passes(f)).toEqual([2, 3]);
+  });
 });
 
 describe('anyFilterActive', () => {
@@ -190,6 +209,13 @@ describe('anyFilterActive', () => {
     expect(anyFilterActive(TEST_DATA, { ...BASE_FILTER, txMode: 'subtype' })).toBe(true);
     expect(anyFilterActive(TEST_DATA, { ...BASE_FILTER, selectedStimuli: [0] })).toBe(true);
     expect(anyFilterActive(TEST_DATA, { ...BASE_FILTER, swimMode: 'positive' })).toBe(true);
+    expect(
+      anyFilterActive(TEST_DATA, {
+        ...BASE_FILTER,
+        colorMode: 'region',
+        showUnassignedRegion: false,
+      }),
+    ).toBe(true);
   });
 
   it('Gene mode with no genes is NOT active', () => {
@@ -222,5 +248,29 @@ describe('applyColoring stats', () => {
 
     expect(stats.filterSelection).toBeInstanceOf(Uint32Array);
     expect(stats.filterSelection).toHaveLength(0);
+  });
+
+  it('hides unassigned Region cells from draw stats and ignores selection boosts', () => {
+    const out = allocColoring(TEST_DATA.count);
+    const filter: FilterState = {
+      ...BASE_FILTER,
+      colorMode: 'region',
+      showUnassignedRegion: false,
+    };
+    const stats = applyColoring(
+      TEST_DATA,
+      filter,
+      DEFAULT_SETTINGS,
+      { indices: new Uint32Array([0]), source: 'umap' },
+      out,
+    );
+
+    expect(out.alphas[0]).toBe(0);
+    expect(out.alphas[1]).toBe(0);
+    expect(out.alphas[2]).toBeGreaterThan(0.5);
+    expect(out.alphas[3]).toBeGreaterThan(0.5);
+    expect(stats.visibleCount).toBe(2);
+    expect(stats.filterSelection).toBeInstanceOf(Uint32Array);
+    expect(Array.from(stats.filterSelection ?? []).sort((a, b) => a - b)).toEqual([2, 3]);
   });
 });
