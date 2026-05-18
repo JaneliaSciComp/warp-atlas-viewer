@@ -195,11 +195,11 @@ export function cellInSet(
   return cellIsRenderable(ds, filter, i) && p.inRegion && p.passesTx && p.passesStim && p.passesSwim;
 }
 
-/** True iff at least one filter dimension is constraining. The activity
- *  filter is active whenever any stimulus is toggled on; an empty
- *  selection means "no constraint". Region's hide-unassigned toggle is
- *  treated as an active visibility gate so derived selections only cover
- *  cells that are actually shown. */
+/** True iff at least one filter dimension is constraining. Selected stimuli
+ *  only constrain when the stimulus mode is not "no filter"; otherwise they
+ *  scope Stim correlation coloring without changing visibility. Region's
+ *  hide-unassigned toggle is treated as an active visibility gate so derived
+ *  selections only cover cells that are actually shown. */
 export function anyFilterActive(ds: NeuronDataset, filter: FilterState): boolean {
   const stimsActive = filter.selectedStimuli.length > 0 && filter.stimMode !== 'off';
   return (
@@ -648,11 +648,8 @@ export function applyColoring(
             const N = indices ? indices.length : S;
             // Directional bias in the coloring only applies when the
             // sign-band filter is actually active (stims selected AND
-            // mode != 'off'). Without an active filter the +/-/both
-            // toggles are hidden, so the coloring should fall back to
-            // max-|r| regardless of the latent stimMode value —
-            // otherwise unselecting all stims would still "remember"
-            // the previous + or − choice and skew the map.
+            // mode != 'off'). In no-filter mode the coloring should fall
+            // back to max-|r| even though the mode dropdown is visible.
             const colorBias = stimActive ? stimMode : 'both';
             if (colorBias === 'positive') {
               let m = -Infinity;

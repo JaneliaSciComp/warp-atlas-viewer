@@ -17,7 +17,7 @@ Four filter cards (**Transcriptomics × Visual Stimuli × Swim × Anatomy**) com
   - *Activity*: plasma ramp over the mean ΔF/F trace at a scrubbable time point; an inline play button steps through the 134 s representative cycle.
   - *Specimen*: categorical palette over the 3 source fish.
 - **Transcriptomics**: keep cells expressing one or more genes (combined with OR / AND), or cells in a single named subtype (e.g. `pou4f2_cckb`).
-- **Visual Stimuli**: keep cells responsive to one or more of 8 stimuli (OR / AND); icons render the stimulus identity. Responsiveness threshold is tunable in Settings.
+- **Visual Stimuli**: scope Stim-correlation coloring or keep cells responsive to one or more of 8 stimuli (OR / AND); icons render the stimulus identity. Responsiveness threshold is tunable in Settings.
 - **Swim**: keep cells correlated (+ swim-driven) or anti-correlated (− anti-swim) with estimated swim power; magnitude threshold tunable in Settings.
 - **Anatomy**: isolate one of 16 regions and/or one of 3 fish specimens.
 

@@ -5,7 +5,7 @@ description: The 8 visual stimuli, signed correlation modes, the responsive-floo
 
 # Visual Stimuli
 
-This card filters by signed Pearson correlation with one or more visual-stimulus regressors. Each stimulus is represented by an icon button. Once you select at least one stimulus, two direction toggles and an OR / AND row appear.
+This card scopes or filters by signed Pearson correlation with one or more visual-stimulus regressors. A mode dropdown is always visible, and each stimulus is represented by an icon button. Once you select at least one stimulus, an OR / AND row appears for multi-stimulus filter logic.
 
 ## The eight stimuli
 
@@ -22,16 +22,16 @@ This card filters by signed Pearson correlation with one or more visual-stimulus
 
 A single representative cycle (~134 s) presents all 8 stimuli sequentially. The stimulus on-windows are shaded on the [Detail panel's mean ΔF/F trace](/ui/detail#mean-f-f-trace).
 
-## Direction toggles
+## Mode dropdown
 
-After selecting at least one stimulus icon, two toggles appear:
+The mode dropdown controls whether selected stimuli only affect coloring or also filter cells:
 
+- **`no filter`** *(default)* — selected stimulus icons scope the [Stim correlation coloring](./colors#stim-correlation), but no cells are filtered out by stimulus response.
 - **`+ correlated`** — keep cells with `r ≥ +stimLo` for the selected stim(s) (positively correlated; the paper's classic "stim-driven").
-- **`− anti-correlated`** — keep cells with `r ≤ −stimLo` (anti-correlated).
+- **`- anti-correlated`** — keep cells with `r ≤ -stimLo` (anti-correlated).
+- **`± either`** — keep cells with `|r| ≥ stimLo` in either direction.
 
-Both pressed = `|r| ≥ stimLo` (the union). Both unpressed = the stim filter is **off** — selected stim icons still drive the [Stim correlation coloring](./colors#stim-correlation), but no cells are filtered out by stim. In that state the OR / AND row grays out, since there's nothing for it to combine.
-
-The default state with an empty stim selection has `+ correlated` armed, so clicking the first stim icon immediately activates a positive-correlation filter.
+In `no filter` mode, the OR / AND row grays out because there is no active stimulus-response predicate for it to combine.
 
 ## Definition of "responsive"
 
@@ -39,7 +39,7 @@ The `stimLo` and `stimHi` anchors live in [Settings → Stim correlation cutoffs
 
 `stimLo` drives:
 
-- the **filter floor** (cells must clear `±stimLo` per the active direction toggle),
+- the **filter floor** (cells must clear `±stimLo` per the active mode),
 - the **deadband** in the [Stim correlation color scheme](./colors#stim-correlation) — within `[-stimLo, +stimLo]` cells map to the neutral midpoint of the divergent coolwarm ramp.
 
 `stimHi` sets where the divergent ramp saturates and doesn't affect the filter.
@@ -50,18 +50,18 @@ The responsive floor is an interactive viewer threshold. It is useful for screen
 
 ## OR versus AND
 
-OR / AND only matters when 2+ stimuli are selected *and* at least one direction toggle is on.
+OR / AND only matters when 2+ stimuli are selected *and* the mode is not `no filter`.
 
 - `OR` *(default)* — retain cells passing the direction check for **any** selected stimulus. The set grows as stimuli are added.
 - `AND` — retain cells passing the direction check for **every** selected stimulus. The set shrinks quickly; useful for identifying cells that generalize across modalities (e.g. responsive to both `dark` and `bright`).
 
 ## Coloring follows the filter direction
 
-With 2+ stims selected, the [Stim correlation](./colors#stim-correlation) ramp picks the representative `r` so it matches the active direction toggle:
+With 2+ stims selected, the [Stim correlation](./colors#stim-correlation) ramp picks the representative `r` so it matches the active filter mode:
 
 - `+ correlated` → max-positive r across the selected stims (cell colored by its strongest positive evidence).
-- `− anti-correlated` → min-negative r.
-- Both / off → max-|r| (signed).
+- `- anti-correlated` → min-negative r.
+- `± either` or `no filter` → max-|r| (signed).
 
 So a cell passing the `+ correlated` filter doesn't get colored blue by a different stim's larger-magnitude negative correlation.
 
@@ -73,7 +73,7 @@ Exploring the abstract's observation that `pou4f2_cckb` is a dark-flash populati
 |---|---|
 | Colors | `Stim correlation` |
 | Transcriptomics | Subtype = `pou4f2_cckb` |
-| Visual Stimuli | `[dark]` + `+ correlated` (default) |
+| Visual Stimuli | `[dark]` + `+ correlated` |
 | Anatomy | all |
 
 The remaining cells are `pou4f2_cckb` cluster members positively correlated with the dark flash, colored by correlation strength. This is preset #1 in the [Findings](/findings) page.

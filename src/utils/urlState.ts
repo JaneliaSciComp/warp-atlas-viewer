@@ -4,7 +4,10 @@
 //
 // Two design choices keep the URL tractable:
 //   1. Anything at its default value is dropped from the JSON, so a
-//      fresh-load app keeps an empty hash.
+//      fresh-load app keeps an empty hash. The one exception is
+//      `stimMode: "off"` when stimuli are selected, which preserves the
+//      distinction between new no-filter links and older positive-filter
+//      links that predate the explicit mode field.
 //   2. Lasso selections are stored as polygon vertices (in t-SNE data
 //      coords), not as the resulting cell indices — typical lasso has
 //      30-150 vertices regardless of how many cells fall inside, so
@@ -162,6 +165,16 @@ function validateFilter(raw: unknown): Partial<FilterState> {
   }
   if (isString(f.stimLogic, STIM_LOGICS)) out.stimLogic = f.stimLogic;
   if (isString(f.stimMode, STIM_MODES)) out.stimMode = f.stimMode;
+  // Legacy hashes from before the explicit "no filter" default may contain
+  // selected stimuli without a stimMode field. Those links meant "+ correlated"
+  // because positive filtering was the app default at the time.
+  if (
+    out.selectedStimuli &&
+    out.selectedStimuli.length > 0 &&
+    !isString(f.stimMode, STIM_MODES)
+  ) {
+    out.stimMode = 'positive';
+  }
   if (isString(f.swimMode, SWIM_MODES)) out.swimMode = f.swimMode;
   if (isInt(f.activitySample) && f.activitySample >= 0) out.activitySample = f.activitySample;
   return out;
@@ -322,6 +335,13 @@ export function diffFilter(f: FilterState, def: FilterState): Partial<FilterStat
       if (a.length === b.length && a.every((v, i) => v === b[i])) continue;
     } else if (a === b) continue;
     (out as Record<string, unknown>)[k] = a;
+  }
+  if (
+    f.selectedStimuli.length > 0 &&
+    f.stimMode === 'off' &&
+    def.stimMode === 'off'
+  ) {
+    out.stimMode = 'off';
   }
   return out;
 }

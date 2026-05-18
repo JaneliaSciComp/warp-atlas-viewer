@@ -145,18 +145,18 @@ export interface FilterState {
 
     // ── Activity filter ───────────────────────────────────────────────
     /** Indices of stimuli the user has toggled ON in the Activity panel.
-     *  Sorted, unique. An empty array means "no activity filter"
-     *  (every cell qualifies); any non-empty selection is a real
-     *  filter combined according to `stimLogic`. The Stim color scheme
-     *  reads the same array — empty/full → max across every stimulus,
-     *  otherwise max across the selected. */
+     *  Sorted, unique. An empty array means no stimulus filter and no
+     *  stimulus-scoped coloring. A non-empty selection becomes a real filter
+     *  only when `stimMode !== 'off'`; in 'off' mode it only scopes the
+     *  Stim color scheme. */
     selectedStimuli: number[];
     /** How multi-stimulus selections combine in the Activity filter:
      *    'or'  → cell passes iff it's stim-correlated to AT LEAST ONE
      *            selected stimulus (above settings.stimLo)
      *    'and' → cell passes iff it's stim-correlated to EVERY selected
      *            stimulus
-     *  Only matters when `selectedStimuli.length >= 2`. */
+     *  Only matters when `selectedStimuli.length >= 2` and
+     *  `stimMode !== 'off'`. */
     stimLogic: StimLogic;
     /** Which signed band of stimulus correlation the Activity card
      *  keeps. Mirrors SwimMode:
@@ -167,9 +167,9 @@ export interface FilterState {
      *    'negative' → r ≤ -settings.stimLo (anti-correlated cells)
      *    'both'     → |r| ≥ settings.stimLo (union; matches the paper's
      *                 "magnitude" filter)
-     *  Default 'positive' so existing share URLs keep their meaning. The
-     *  filter is only evaluated when `selectedStimuli` is non-empty AND
-     *  `stimMode !== 'off'`. */
+     *  Default 'off' so selecting stimuli first scopes coloring without
+     *  hiding cells. The filter is only evaluated when `selectedStimuli` is
+     *  non-empty AND `stimMode !== 'off'`. */
     stimMode: StimMode;
 
     // ── Swim (behavioral) filter ─────────────────────────────────────

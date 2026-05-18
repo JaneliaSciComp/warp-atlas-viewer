@@ -56,7 +56,7 @@ const BASE_FILTER: FilterState = {
   selectedCluster: 0,
   selectedStimuli: [],
   stimLogic: 'or',
-  stimMode: 'positive',
+  stimMode: 'off',
   activitySample: 0,
   swimMode: 'off',
 };
@@ -139,12 +139,17 @@ describe('cellPasses', () => {
   });
 
   it('filters by a single stimulus above the responsive floor', () => {
-    const f = { ...BASE_FILTER, selectedStimuli: [0] };
+    const f = { ...BASE_FILTER, selectedStimuli: [0], stimMode: 'positive' as const };
     expect(passes(f)).toEqual([0, 2]);
   });
 
   it('combines stimuli with AND', () => {
-    const f = { ...BASE_FILTER, selectedStimuli: [0, 1], stimLogic: 'and' as const };
+    const f = {
+      ...BASE_FILTER,
+      selectedStimuli: [0, 1],
+      stimLogic: 'and' as const,
+      stimMode: 'positive' as const,
+    };
     expect(passes(f)).toEqual([2]);
   });
 
@@ -175,7 +180,12 @@ describe('cellPasses', () => {
   });
 
   it('exposes per-axis predicates', () => {
-    const f: FilterState = { ...BASE_FILTER, isolatedRegion: 0, selectedStimuli: [0] };
+    const f: FilterState = {
+      ...BASE_FILTER,
+      isolatedRegion: 0,
+      selectedStimuli: [0],
+      stimMode: 'positive',
+    };
     // cell 1 is in region 0 but fails stim 0 (corr 0.0 < floor)
     const p = cellPasses(TEST_DATA, f, DEFAULT_SETTINGS, 1);
     expect(p.inRegion).toBe(true);
@@ -207,7 +217,14 @@ describe('anyFilterActive', () => {
       anyFilterActive(TEST_DATA, { ...BASE_FILTER, txMode: 'gene', selectedGenes: [0] }),
     ).toBe(true);
     expect(anyFilterActive(TEST_DATA, { ...BASE_FILTER, txMode: 'subtype' })).toBe(true);
-    expect(anyFilterActive(TEST_DATA, { ...BASE_FILTER, selectedStimuli: [0] })).toBe(true);
+    expect(anyFilterActive(TEST_DATA, { ...BASE_FILTER, selectedStimuli: [0] })).toBe(false);
+    expect(
+      anyFilterActive(TEST_DATA, {
+        ...BASE_FILTER,
+        selectedStimuli: [0],
+        stimMode: 'positive',
+      }),
+    ).toBe(true);
     expect(anyFilterActive(TEST_DATA, { ...BASE_FILTER, swimMode: 'positive' })).toBe(true);
     expect(
       anyFilterActive(TEST_DATA, {

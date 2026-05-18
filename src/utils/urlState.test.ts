@@ -23,7 +23,7 @@ const INITIAL_FILTER: FilterState = {
   selectedCluster: 0,
   selectedStimuli: [],
   stimLogic: 'or',
-  stimMode: 'positive',
+  stimMode: 'off',
   activitySample: 0,
   swimMode: 'off',
 };
@@ -82,9 +82,28 @@ describe('encodeHash / decodeHash', () => {
   });
 
   it('dedupes and sorts selectedGenes / selectedStimuli on parse', () => {
-    const hash = encodeHash({ filter: { selectedGenes: [5, 1, 5, 3] } });
+    const hash = encodeHash({
+      filter: { selectedGenes: [5, 1, 5, 3], selectedStimuli: [3, 1, 3] },
+    });
     const decoded = decodeHash(hash);
     expect(decoded?.filter?.selectedGenes).toEqual([1, 3, 5]);
+    expect(decoded?.filter?.selectedStimuli).toEqual([1, 3]);
+  });
+
+  it('treats legacy selected-stimulus hashes without stimMode as positive filters', () => {
+    const hash = '#!' + encodeURIComponent(JSON.stringify({
+      filter: { selectedStimuli: [0] },
+    }));
+    const decoded = decodeHash(hash);
+    expect(decoded?.filter?.stimMode).toBe('positive');
+  });
+
+  it('keeps explicit no-filter mode in selected-stimulus hashes', () => {
+    const hash = encodeHash({
+      filter: { selectedStimuli: [0], stimMode: 'off' },
+    });
+    const decoded = decodeHash(hash);
+    expect(decoded?.filter?.stimMode).toBe('off');
   });
 
   it('clamps stimulus cutoffs as nonnegative magnitudes', () => {
@@ -116,6 +135,14 @@ describe('diffFilter', () => {
   it('detects array fields that differ', () => {
     const a: FilterState = { ...INITIAL_FILTER, selectedGenes: [1, 2, 3] };
     expect(diffFilter(a, INITIAL_FILTER)).toEqual({ selectedGenes: [1, 2, 3] });
+  });
+
+  it('emits explicit no-filter stim mode when stimuli are selected', () => {
+    const changed: FilterState = { ...INITIAL_FILTER, selectedStimuli: [0] };
+    expect(diffFilter(changed, INITIAL_FILTER)).toEqual({
+      selectedStimuli: [0],
+      stimMode: 'off',
+    });
   });
 });
 

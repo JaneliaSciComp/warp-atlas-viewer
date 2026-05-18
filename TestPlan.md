@@ -88,12 +88,12 @@ The `×` between filter cards is logical AND. A card set to "all" doesn't restri
 - Pass if the colored set is visibly smaller than any single-filter intersection, and the Detail panel count matches the visible bright cells.
 
 ### B4. Stim-only filter
-- Setup: Colors=Region, Anatomy=all, Transcriptomics=All, Swim=off, Visual Stimuli → pick a stim.
+- Setup: Colors=Region, Anatomy=all, Transcriptomics=All, Swim=off, Visual Stimuli → mode `+ correlated`, then pick a stim.
 - Expected: only cells with r ≥ Settings.stimLo for the selected stim are colored by region. Non-responsive cells are deep-dim. Tightening `stimLo` in Settings should shrink the colored set.
 - Pass if a sparse, region-colored stim-responsive map appears.
 
 ### B5. Multi-stimulus AND vs OR
-- Setup: Colors=Region, Anatomy=all, Transcriptomics=All, Swim=off, Visual Stimuli → toggle ON 2+ stimuli.
+- Setup: Colors=Region, Anatomy=all, Transcriptomics=All, Swim=off, Visual Stimuli → mode `+ correlated`, then toggle ON 2+ stimuli.
 - Expected: under OR the colored set is the union of responders; under AND it's the (typically much smaller) intersection. Flipping the OR/AND toggle in the Visual Stimuli card should visibly resize the set.
 - Pass if OR ⊇ AND in every multi-stim case.
 
@@ -243,9 +243,10 @@ The `×` between filter cards is logical AND. A card set to "all" doesn't restri
 - In the Visual Stimuli card, each of the 8 stims renders as a 32×32 icon button. Untoggled buttons are semi-dim; toggled-on buttons have a yellow ring + full opacity.
 - Pass if every icon renders and the on/off styling is unambiguous.
 
-### E13. OR / AND toggles dim out when irrelevant
-- Visual Stimuli card with 0 or 1 stims selected: the OR/AND toggle appears but at reduced opacity (50%) with a tooltip explaining it only matters at 2+ selections.
-- Add a second stim: opacity returns to 100%.
+### E13. Stim mode dropdown and OR / AND dimming
+- Visual Stimuli card always shows a mode dropdown; its default is `no filter`.
+- With 1+ stims selected in `no filter`, the OR/AND toggle appears at reduced opacity (50%) with a tooltip explaining that a filter mode is needed.
+- Switch mode to `+ correlated` and add a second stim: opacity returns to 100%.
 - Same behavior for the Transcriptomics gene-list OR/AND toggle.
 - Pass if both toggles correctly dim/undim.
 
@@ -292,6 +293,6 @@ Capture any of these as bugs:
 - Colors=Gene expression with no specific gene in focus silently using a leftover gene's expression instead of richness.
 - Activity playback writing intermediate samples to the URL (history pollution).
 - A shared URL failing to restore the camera, viewport, or lasso when the hash is under the 6 kB cap.
-- OR/AND toggle changing nothing when 2+ stims are selected.
+- OR/AND toggle changing nothing when 2+ stims are selected in a filter mode.
 
 Report which test number failed and what you saw.

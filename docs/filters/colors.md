@@ -49,14 +49,14 @@ A `log ↔ linear` toggle appears in the card when Colors is set to **Gene expre
 
 Divergent coolwarm ramp (blue → neutral → red) over the **signed** per-cell Pearson r against the selected visual-stimulus regressor. Sign reads as colour; magnitude reads as intensity.
 
-The colored value depends on the Visual Stimuli selection and the active direction toggle:
+The colored value depends on the Visual Stimuli selection and the active mode:
 
 - **Nothing selected** — max-|r| across all 8 stimuli (signed): a general measure of stimulus-driven responsiveness, either polarity.
 - **One selected** — that stimulus's signed r per cell; the conventional single-stimulus response map.
-- **Two or more selected** — depends on the direction toggle:
-  - `+ correlated` armed → max-positive r across the selected stims.
-  - `− anti-correlated` armed → min-negative r across the selected stims.
-  - Both or off → max-|r| (signed).
+- **Two or more selected** — depends on the mode:
+  - `+ correlated` → max-positive r across the selected stims.
+  - `- anti-correlated` → min-negative r across the selected stims.
+  - `± either` or `no filter` → max-|r| (signed).
 
 This keeps the coloring consistent with the filter: with `+ correlated` on, cells passing the filter never get painted blue by a different selected stim's larger-magnitude negative correlation.
 

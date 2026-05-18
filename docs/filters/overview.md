@@ -30,7 +30,7 @@ A small readout next to the reset button reports the **number of cells currently
 Two cards support a logical toggle on selections within them:
 
 - **Transcriptomics (gene mode)** — `OR` retains cells expressing **any** of the selected genes; `AND` retains cells expressing **all** of them.
-- **Visual Stimuli** — `OR` retains cells whose correlation passes the active direction toggle for **any** selected stim; `AND` requires the direction check to hold for **every** selected stim. The OR / AND row only takes effect when at least one direction toggle (`+ correlated` / `− anti-correlated`) is on; it grays out otherwise. See [Visual Stimuli → Direction toggles](./stimuli#direction-toggles).
+- **Visual Stimuli** — `OR` retains cells whose correlation passes the active mode for **any** selected stim; `AND` requires the check to hold for **every** selected stim. The OR / AND row only takes effect when the mode is not `no filter`; it grays out otherwise. See [Visual Stimuli → Mode dropdown](./stimuli#mode-dropdown).
 
 Anatomy provides no OR toggle: the region and specimen dropdowns each select a single value or "all".
 
@@ -49,7 +49,7 @@ The visible cells are gene-positive, positively stim-correlated, and anatomicall
 
 ## "Responsive": threshold
 
-A cell passes the stim filter if its Pearson r against the active stim's regressor clears `±stimLo` according to the direction toggle (`+ correlated`, `− anti-correlated`, both = `|r| ≥ stimLo`). `stimLo` lives in [Settings → Stim correlation cutoffs](/settings#stim-correlation-cutoffs). The default `r ≥ 0.13` is the manuscript's full-vector threshold; raising it imposes a stricter criterion, lowering it a more permissive one.
+A cell passes the stim filter if its Pearson r against the active stim's regressor clears `±stimLo` according to the mode (`+ correlated`, `- anti-correlated`, `± either`). `no filter` leaves the stim filter off. `stimLo` lives in [Settings → Stim correlation cutoffs](/settings#stim-correlation-cutoffs). The default floor `0.13` is the manuscript's full-vector threshold; raising it imposes a stricter criterion, lowering it a more permissive one.
 
 The same floor doubles as the **deadband boundary** for the [Stim correlation color scheme](/filters/colors#stim-correlation) (the divergent coolwarm ramp's neutral midpoint).
 

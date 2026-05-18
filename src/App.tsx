@@ -41,7 +41,7 @@ const INITIAL_FILTER: FilterState = {
   selectedCluster: 0,
   selectedStimuli: [],
   stimLogic: 'or',
-  stimMode: 'positive',
+  stimMode: 'off',
   activitySample: 0,
   swimMode: 'off',
 };

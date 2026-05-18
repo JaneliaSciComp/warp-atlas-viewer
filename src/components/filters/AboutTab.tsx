@@ -37,6 +37,7 @@ const FINDINGS: FindingPreset[] = [
     colorMode: 'stim',
     cluster: 'calb2a_nefma',
     stimuli: [0],
+    stimMode: 'positive',
   },
   {
     title: 'calb2a_gfra1a — luminance & looming',
@@ -46,6 +47,7 @@ const FINDINGS: FindingPreset[] = [
     colorMode: 'stim',
     cluster: 'calb2a_gfra1a',
     stimuli: [4, 5, 6, 7],
+    stimMode: 'positive',
   },
   {
     title: 'pou4f2_cckb_chata — dark and bright flashes',
@@ -55,6 +57,7 @@ const FINDINGS: FindingPreset[] = [
     colorMode: 'stim',
     cluster: 'pou4f2_cckb_chata',
     stimuli: [4, 5],
+    stimMode: 'positive',
   },
   {
     title: 'otpa+ swim-related neurons',
@@ -91,6 +94,7 @@ const FINDINGS: FindingPreset[] = [
     colorMode: 'stim',
     cluster: 'pou4f2_cckb',
     stimuli: [4],
+    stimMode: 'positive',
   },
 ];
 
