@@ -40,6 +40,7 @@ const TEST_DATA: NeuronDataset = {
 const BASE_FILTER: FilterState = {
   colorMode: 'highlight',
   geneScale: 'log',
+  showUnassignedRegion: true,
   isolatedRegion: -1,
   isolatedFish: -1,
   txMode: 'all',

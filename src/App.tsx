@@ -32,6 +32,7 @@ import janeliaLogoUrl from '../images/janelia_logo.png';
 const INITIAL_FILTER: FilterState = {
   colorMode: 'region',
   geneScale: 'log',
+  showUnassignedRegion: true,
   isolatedRegion: -1,
   isolatedFish: -1,
   txMode: 'gene',

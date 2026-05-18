@@ -36,6 +36,20 @@ export function ColorsCard({
         onChange={(v) => update({ colorMode: COLOR_SCHEMES[v].value })}
         options={schemeOptions}
       />
+      {filter.colorMode === 'region' && (
+        <label
+          className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
+          title="show cells in the Unassigned bucket (regions outside the 16 paper focal regions)"
+        >
+          <input
+            type="checkbox"
+            checked={filter.showUnassignedRegion}
+            onChange={(e) => update({ showUnassignedRegion: e.target.checked })}
+            className="accent-neutral-300"
+          />
+          show unassigned
+        </label>
+      )}
       {filter.colorMode === 'gene' && (
         <label className="flex items-center gap-1 text-xs">
           <span className="text-neutral-400">scale</span>

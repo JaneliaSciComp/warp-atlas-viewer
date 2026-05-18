@@ -143,6 +143,7 @@ function validateFilter(raw: unknown): Partial<FilterState> {
   const out: Partial<FilterState> = {};
   if (isString(f.colorMode, COLOR_MODES)) out.colorMode = f.colorMode;
   if (isString(f.geneScale, GENE_SCALES)) out.geneScale = f.geneScale;
+  if (typeof f.showUnassignedRegion === 'boolean') out.showUnassignedRegion = f.showUnassignedRegion;
   if (isInt(f.isolatedRegion) && f.isolatedRegion >= -1) out.isolatedRegion = f.isolatedRegion;
   if (isInt(f.isolatedFish) && f.isolatedFish >= -1) out.isolatedFish = f.isolatedFish;
   if (isString(f.txMode, TX_MODES)) out.txMode = f.txMode;

@@ -14,6 +14,7 @@ import { DEFAULT_SETTINGS, type FilterState, type SettingsState } from '../data/
 const INITIAL_FILTER: FilterState = {
   colorMode: 'region',
   geneScale: 'log',
+  showUnassignedRegion: true,
   isolatedRegion: -1,
   isolatedFish: -1,
   txMode: 'gene',

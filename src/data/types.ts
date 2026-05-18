@@ -106,6 +106,12 @@ export interface FilterState {
     colorMode: ColorMode;
     /** How gene-scheme raw FISH spot counts map to the plasma palette. */
     geneScale: GeneScale;
+    /** When colorMode === 'region', whether cells in the Unassigned
+     *  bucket (regionIds[i] === 0) are rendered at all. Default true.
+     *  Turning it off hides the ~28% of cells that fall outside the
+     *  16 focal regions so the colored regions read more cleanly.
+     *  Has no effect outside region color mode. */
+    showUnassignedRegion: boolean;
 
     // ── Anatomy filter ────────────────────────────────────────────────
     isolatedRegion: number; // index into regionNames, -1 = show all

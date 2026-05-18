@@ -483,6 +483,14 @@ export function applyColoring(
     } else {
       switch (filter.colorMode) {
         case 'region': {
+          // Hide Unassigned cells (region index 0) when the user has
+          // toggled "show unassigned" off — alpha 0 falls below the
+          // fragment shader's discard threshold so the cell never
+          // hits the framebuffer.
+          if (regionIds[i] === 0 && !filter.showUnassignedRegion) {
+            alpha = 0;
+            break;
+          }
           const c = regionColor(regionIds[i]);
           r = c[0]; g = c[1]; b = c[2];
           break;
