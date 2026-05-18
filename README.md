@@ -109,11 +109,23 @@ served at `./preprocessed/` relative to `index.html`. Use this if you're
 managing the data files separately.
 
 **`npm run bundle`**: fully self-contained static bundle. Runs `npm
-run build`, then copies `./preprocessed/` into `./dist/preprocessed/`.
-The result (~211 MB) is a single directory you can `tar`/`zip`/`rsync`
-to any static host. `index.html` uses relative paths everywhere, so it
-works at any deploy URL (e.g. `https://example.com/` or
-`https://example.com/warp/`) without reconfiguration.
+run build`, copies `./preprocessed/` into `./dist/preprocessed/`, and
+builds the docs site into `./dist/docs/`. The result (~211 MB) is a
+single directory you can `tar`/`zip`/`rsync` to any static host.
+
+The viewer itself uses relative paths everywhere. The embedded docs
+site, however, has root-absolute asset URLs baked in at build time
+(a VitePress constraint), so for a non-root deployment pass the
+deploy subpath as `BASE`:
+
+```bash
+bash scripts/bundle.sh                       # deploy at /
+BASE=/warp/ bash scripts/bundle.sh           # deploy at /warp/
+```
+
+`BASE` is normalized to ensure a leading and trailing slash. If your
+docs subpath needs to diverge from the viewer's, set `DOCS_BASE`
+explicitly to override the derived default.
 
 > Note: opening `dist/index.html` directly via `file://` will not work,
 > because the browser blocks `fetch()` of local files. Always serve over HTTP.
