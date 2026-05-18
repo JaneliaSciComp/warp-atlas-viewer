@@ -37,11 +37,18 @@ export function DetailPanel({ data, filter, settings, selection, focusedNeuron }
   const displayCount = isAll && !isFocused ? data.count : indicesToShow?.length ?? 0;
 
   if (!stats) {
+    // The only way to land here in practice is with an active filter
+    // whose intersection is empty — App.tsx falls back to the
+    // all-neurons sentinel otherwise, so indices is never empty for
+    // an unfiltered view.
+    const filterMatchedNothing = selection.source === 'filter';
     return (
       <div className="h-full p-4 bg-neutral-900 text-neutral-300 overflow-y-auto">
         <h2 className="text-sm font-semibold mb-2 text-neutral-100 pr-7">Detail</h2>
         <p className="text-xs text-neutral-500">
-          Click a neuron or select a cluster/region to see details.
+          {filterMatchedNothing
+            ? 'No cells match the active filters. Broaden or reset the filters to see details.'
+            : 'Click a neuron or select a cluster/region to see details.'}
         </p>
       </div>
     );
