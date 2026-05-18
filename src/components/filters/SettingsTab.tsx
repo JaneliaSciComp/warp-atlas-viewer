@@ -134,32 +134,6 @@ export function SettingsTab({
 
             <section className="flex flex-col gap-2">
                 <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
-                    Camera panning
-                </div>
-                <p className="text-neutral-400 leading-snug">
-                    When off, the orbit pivot is locked to the volume center so
-                    rotation always pivots around the volume's own axes. Turn on
-                    to allow right-drag to shift the volume within the viewport;
-                    rotation still pivots around the volume center.
-                </p>
-                <label
-                    className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
-                    title="enable right-drag panning of the 3D view"
-                >
-                    <input
-                        type="checkbox"
-                        checked={settings.enablePan}
-                        onChange={(e) =>
-                            update({ enablePan: e.target.checked })
-                        }
-                        className="accent-neutral-300"
-                    />
-                    enable pan
-                </label>
-            </section>
-
-            <section className="flex flex-col gap-2">
-                <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
                     Gene plasma ceiling
                 </div>
                 <p className="text-neutral-400 leading-snug">

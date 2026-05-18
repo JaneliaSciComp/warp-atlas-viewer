@@ -461,7 +461,7 @@ export function BrainViewer({
           zoomSpeed={1.5}
           noPan
         />
-        <ScreenSpacePan enabled={settings.enablePan} panRef={screenPanRef} />
+        <ScreenSpacePan panRef={screenPanRef} />
         <CameraSync
           initialCamera={initialCamera ?? null}
           onCameraChange={onCameraChange}
@@ -488,10 +488,8 @@ function supportsViewOffset(
  *  orbit target at the volume center, while right-drag simply shifts where
  *  that centered view lands inside the canvas. */
 function ScreenSpacePan({
-  enabled,
   panRef,
 }: {
-  enabled: boolean;
   panRef: React.MutableRefObject<ScreenPanState>;
 }) {
   const camera = useThree((s) => s.camera);
@@ -516,7 +514,7 @@ function ScreenSpacePan({
     const el = gl.domElement;
 
     const onPointerDown = (event: PointerEvent) => {
-      if (!enabled || event.button !== 2) return;
+      if (event.button !== 2) return;
       dragRef.current = { pointerId: event.pointerId, lastX: event.clientX, lastY: event.clientY };
       el.setPointerCapture(event.pointerId);
       event.preventDefault();
@@ -546,7 +544,7 @@ function ScreenSpacePan({
     };
 
     const onContextMenu = (event: MouseEvent) => {
-      if (enabled) event.preventDefault();
+      event.preventDefault();
     };
 
     el.addEventListener('pointerdown', onPointerDown);
@@ -561,11 +559,7 @@ function ScreenSpacePan({
       el.removeEventListener('pointercancel', stopDrag);
       el.removeEventListener('contextmenu', onContextMenu);
     };
-  }, [applyViewOffset, enabled, gl, panRef]);
-
-  useEffect(() => {
-    if (!enabled) dragRef.current = null;
-  }, [enabled]);
+  }, [applyViewOffset, gl, panRef]);
 
   return null;
 }

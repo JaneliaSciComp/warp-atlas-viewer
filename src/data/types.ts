@@ -246,11 +246,6 @@ export interface SettingsState {
      *  on high-DPI screens or when cells look too small. Overridden by
      *  `autoSizing` when that is enabled. */
     pointSize: number;
-    /** Whether the user can pan the 3D view in screen space. This shifts
-     *  the rendered viewport only; the orbit target stays locked at the
-     *  volume center so rotation always pivots around the volume's own
-     *  axes. */
-    enablePan: boolean;
     /** Lower anchor for the Activity scheme's plasma palette (ΔF/F).
      *  Cells with traces below this map to the dark end. Default 0 — the
      *  baseline; values <0 would mean the user wants negative deflections
@@ -304,7 +299,6 @@ export const DEFAULT_SETTINGS: SettingsState = {
     geneThresholdGlobal: 25,
     geneMultiColor: "max",
     pointSize: 10,
-    enablePan: false,
     activityLo: 0.0,
     activityHi: 1.5,
     swimLo: 0.1,
