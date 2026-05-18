@@ -50,30 +50,33 @@ function sampleStops(stops: Array<[number, number, number]>, t: number): [number
   return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
 }
 
-// WARP region palette — colors sampled from the paper's brain-region
-// legend (data/brain_regions.png), which goes anterior → posterior in a
-// rainbow (Pal red → InfMO purple). The array is indexed by Brain_reg
-// data-index 0..16, so the rainbow ordering shows up reversed here:
-// data index 1 (InfMO) maps to the paper's last color; data index 16
-// (Pal) maps to the first. Index 0 (Unassigned) is a neutral gray.
+// WARP region palette — matplotlib's `nipy_spectral` sampled at 16
+// evenly-spaced fractions in the open interval (0, 1). Specifically
+// data-index k ∈ 1..16 maps to nipy_spectral(k/17), so k=1 (InfMO)
+// gets the magenta/purple end and k=16 (Pal) gets the red end.
+// Anterior → posterior in the paper's figure walks down the colormap
+// (red Pal → purple InfMO). Index 0 (Unassigned) is a dedicated
+// neutral gray, since nipy_spectral starts at black at t=0 and that
+// would conflict with the "no signal" dim cells the renderer uses
+// elsewhere.
 export const REGION_PALETTE: Array<[number, number, number]> = [
-  [0.40, 0.40, 0.42],          // 0  Unassigned (dedicated gray)
-  [0.435, 0.075, 0.518],       // 1  InfMO
-  [0.310, 0.039, 0.600],       // 2  IntMO
-  [0.004, 0.000, 0.745],       // 3  SupMO
-  [0.133, 0.325, 0.839],       // 4  SupRaphe
-  [0.255, 0.576, 0.843],       // 5  Cb
-  [0.298, 0.655, 0.659],       // 6  Tg
-  [0.290, 0.639, 0.427],       // 7  NI
-  [0.290, 0.639, 0.184],       // 8  OTpv
-  [0.369, 0.804, 0.235],       // 9  OTnp
-  [0.443, 0.953, 0.286],       // 10 Pt
-  [0.753, 0.992, 0.314],       // 11 preTh
-  [0.933, 0.914, 0.302],       // 12 Th
-  [0.957, 0.753, 0.259],       // 13 Hab
-  [0.925, 0.369, 0.165],       // 14 HypTh
-  [0.843, 0.180, 0.125],       // 15 SubP
-  [0.749, 0.157, 0.106],       // 16 Pal
+  [0.40, 0.40, 0.42],          //  0  Unassigned (dedicated gray)
+  [0.478, 0.000, 0.545],       //  1  InfMO
+  [0.345, 0.000, 0.624],       //  2  IntMO
+  [0.000, 0.000, 0.773],       //  3  SupMO
+  [0.000, 0.329, 0.867],       //  4  SupRaphe
+  [0.000, 0.584, 0.867],       //  5  Cb
+  [0.000, 0.667, 0.659],       //  6  Tg
+  [0.000, 0.651, 0.408],       //  7  NI
+  [0.000, 0.655, 0.000],       //  8  OTpv
+  [0.000, 0.812, 0.000],       //  9  OTnp
+  [0.000, 0.969, 0.000],       // 10  Pt
+  [0.690, 1.000, 0.000],       // 11  preTh
+  [0.941, 0.918, 0.000],       // 12  Th
+  [1.000, 0.741, 0.000],       // 13  Hab
+  [1.000, 0.318, 0.000],       // 14  HypTh
+  [0.914, 0.000, 0.000],       // 15  SubP
+  [0.812, 0.000, 0.000],       // 16  Pal
 ];
 
 export function regionColor(idx: number): [number, number, number] {
