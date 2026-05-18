@@ -9,6 +9,8 @@ The **Settings** tab in the bottom panel holds the parameters that are not part 
 
 A **↺ reset settings** button at the top of the tab reverts everything to defaults; it is disabled when no setting has been changed.
 
+A **show descriptions** checkbox sits next to the reset button. When unchecked, every per-section description paragraph is hidden so the tab compresses to titles and controls once the meanings are familiar. The preference is stored in `localStorage` rather than the URL hash, so it is a per-browser viewer-chrome choice and is not carried by shared links.
+
 ---
 
 ## Point density
@@ -32,12 +34,6 @@ Turning Auto off exposes the two sliders directly:
 - **ghost visibility** (0..1) — `0` makes out-of-filter cells fully transparent and the click pickers skip them; `1` renders them at the standard dim alpha and keeps them fully pickable. Pickability flips off above the midpoint (slider ≥ 0.5).
 
 The ghost setting also drives **render order**: out-of-filter cells render first and in-filter cells render last, so foreground (in-set) cells never get occluded by the dim background regardless of true 3D depth — even when ghosts are still visible.
-
-## Camera panning
-
-When **off** *(default)*, the orbit pivot is locked to the volume center and rotation always pivots around the volume's axes. When **on**, right-drag shifts the volume within the viewport while the orbit pivot stays locked to the volume center.
-
-Enable it when you want to inspect an off-center region without changing the rotation pivot.
 
 ## Gene plasma ceiling
 

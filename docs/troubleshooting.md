@@ -29,7 +29,7 @@ Adjust **Settings → Point density**. With auto mode on *(default)* the point s
 
 ## Camera orientation feels lost after panning
 
-**Camera panning** shifts the volume within the viewport, but rotation still pivots around the volume center. If the view is far off-center, refresh the page to reset the camera and screen pan.
+**Right-drag** in the 3D viewer shifts the volume within the viewport (screen-space pan), but rotation still pivots around the volume center. If the view is far off-center, refresh the page to reset the camera and screen pan.
 
 ## Activity playback appears jittery at 100×
 

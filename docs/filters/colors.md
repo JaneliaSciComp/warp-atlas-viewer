@@ -98,9 +98,11 @@ The same **Fade weak correlations** setting that applies to Stim coloring also a
 
 Categorical palette over 16 focal anatomical regions, plus *Unassigned* at index 0.
 
-The palette is sampled directly from the paper's region figure legend (anterior `Pal` = red → posterior `InfMO` = purple), with *Unassigned* rendered as a dedicated neutral gray.
+The palette is sampled directly from the `nipy_spectral` matplotlib colormap used by the paper's region figure legend (anterior `Pal` = red → posterior `InfMO` = magenta), with *Unassigned* rendered as a dedicated neutral gray.
 
 **When to use:** anatomical overview; a sensible default first look.
+
+A **show unassigned** checkbox appears under the Colors card when this scheme is active (default on). Unchecking it hides every cell in the *Unassigned* bucket entirely — they render at alpha 0 and never reach the framebuffer or write depth — so the view reduces to just the 16 paper-canonical focal regions. The setting is part of the filter state and round-trips through the URL hash.
 
 ::: tip Region granularity
 The viewer exposes the 16 focal groupings carried in the dataset (rather than the finer ~112-region reference atlas). See [Preprocessing → Region names](/preprocess#anatomy-mapping).

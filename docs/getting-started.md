@@ -29,7 +29,7 @@ The 3D viewer and the t-SNE panel display the same cells in two coordinate syste
 - **Filters determine which cells are visible.** Four cards (Transcriptomics, Visual Stimuli, Swim, Anatomy) combine under logical AND. ([Filtering rules](/filters/overview))
 - **Selections are independent of filters.** A focused cell or lasso selection is retained across filter changes. ([Selections](/selections))
 - **Colors determine how visible cells are painted.** The Colors card and the Settings tab control the palette. ([Colors](/filters/colors))
-- **The Detail panel reflects the current selection,** falling back to the filter intersection when nothing is explicitly selected. ([Detail panel](/ui/detail))
+- **The Detail panel reflects the current selection,** falling back to the filter intersection when nothing is explicitly selected, and to a whole-dataset summary when no filter narrows the view either. ([Detail panel](/ui/detail))
 - **The URL hash encodes the full view state.** Copying the URL reproduces the view exactly. ([Sharing views](/sharing))
 
 ## Terminology

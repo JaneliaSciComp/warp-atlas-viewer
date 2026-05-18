@@ -5,12 +5,12 @@ description: Interpretation of the gene bar chart, ΔF/F trace, and per-stimulus
 
 # Detail panel
 
-The right-edge sidebar. It displays the active focus, lasso selection, or current filter intersection:
+The right-edge sidebar. It always summarizes some population of cells; what that population is depends on the active focus, lasso selection, or filter state:
 
-- **Click-focus on a cell** → the panel displays that one cell.
-- **Lasso selection** → the panel displays the *mean* across the lasso, unless a focused cell is also active.
-- **No explicit selection, active filters** → the panel displays the mean across the [filter intersection](/filters/overview) (i.e. whatever is currently visible).
-- **Empty filter and no selection** → the panel prompts for a selection.
+- **Click-focus on a cell** → the panel displays that one cell. The header reads `Focused neuron #<id>`.
+- **Lasso selection** → the panel displays the *mean* across the lasso, unless a focused cell is also active. The header reads `Selection (N neurons)`.
+- **No explicit selection, active filters** → the panel displays the mean across the [filter intersection](/filters/overview) (i.e. whatever is currently visible). The header still reads `Selection (N neurons)`.
+- **No filter and no selection** → the panel falls back to summarizing the entire dataset. The header reads `All neurons (N)` to distinguish this case from a filter-derived selection.
 
 The **‹** handle on the panel's left edge collapses it.
 
@@ -81,7 +81,7 @@ When multiple sources could populate the Detail panel, the following order appli
 
 1. **Focused cell** (click) — always takes precedence.
 2. **Lasso polygon** (drag in t-SNE) — used in the absence of a click-focus.
-3. **Filter intersection** — used when nothing is explicitly selected.
-4. **Empty** — prompt shown when neither filter nor selection produces any cells.
+3. **Filter intersection** — used when nothing is explicitly selected and at least one filter is active.
+4. **All neurons** — fallback when no filter narrows the population and nothing is explicitly selected. The aggregation walks the full dataset and is cached, so resetting the filters does not re-pay the compute cost on subsequent toggles.
 
 To clear level 1, click empty space in the 3D viewer or t-SNE panel. To clear level 2, use the clear-selection button at the top of the t-SNE.

@@ -16,10 +16,10 @@ The largest panel on screen. Every visible cell is rendered as a point in mapzeb
 | **Hover a cell** | Tooltip with cell id, anatomical region, and top expressed genes. |
 | **Click a cell** | Focus the cell; the [Detail panel](/ui/detail) switches to display only it. |
 | **Click empty space** | Clear the focus. |
-| **Right-drag** *(when pan is enabled)* | Shift the volume within the viewport. |
+| **Right-drag** | Shift the volume within the viewport (screen-space pan). |
 
 ::: tip Pan / orbit trade-off
-With pan **off** (default), the orbit pivot is locked to the volume's geometric center. With pan **on**, right-drag shifts the view in screen space while rotation still pivots around the volume center. See [Settings → Camera panning](/settings#camera-panning).
+Right-drag shifts the view in screen space; the orbit pivot stays locked to the volume's geometric center, so rotation always pivots around the volume itself rather than the off-center view. Refresh the page to reset both the camera and the screen pan to defaults.
 :::
 
 ## Contents
