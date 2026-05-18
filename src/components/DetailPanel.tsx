@@ -459,8 +459,8 @@ function topItems(counts: Map<number, number>, names: string[], k: number): stri
 
 // `indices === null` is the all-cells sentinel: walk 0..data.count-1
 // directly so the caller doesn't allocate a redundant identity buffer
-// for the common "no filter, no selection" view.
-function computeStats(data: NeuronDataset, indices: Uint32Array | null, swimLo: number) {
+// for the common "no filter, no selection" view. Exported for tests.
+export function computeStats(data: NeuronDataset, indices: Uint32Array | null, swimLo: number) {
   const n = indices === null ? data.count : indices.length;
   if (n === 0) return null;
   const G = data.geneNames.length;

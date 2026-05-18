@@ -10,7 +10,7 @@ The right-edge sidebar. It always summarizes some population of cells; what that
 - **Click-focus on a cell** → the panel displays that one cell. The header reads `Focused neuron #<id>`.
 - **Lasso selection** → the panel displays the *mean* across the lasso, unless a focused cell is also active. The header reads `Selection (N neurons)`.
 - **No explicit selection, active filters** → the panel displays the mean across the [filter intersection](/filters/overview) (i.e. whatever is currently visible). The header still reads `Selection (N neurons)`.
-- **No filter and no selection** → the panel falls back to summarizing the entire dataset. The header reads `All neurons (N)` to distinguish this case from a filter-derived selection.
+- **No filter and no selection** → the panel falls back to summarizing the entire dataset. The header reads `All neurons (N neurons)` to distinguish this case from a filter-derived selection.
 
 The **‹** handle on the panel's left edge collapses it.
 
