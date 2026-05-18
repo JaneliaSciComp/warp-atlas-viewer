@@ -305,14 +305,21 @@ export default function App() {
   // here. effectiveSelection prefers the user's explicit lasso/click
   // when there is one, else falls back to the filter-derived index
   // list, else empty.
+  const allIndices = useMemo<Uint32Array | null>(() => {
+    if (!data) return null;
+    const arr = new Uint32Array(data.count);
+    for (let i = 0; i < data.count; i++) arr[i] = i;
+    return arr;
+  }, [data]);
   const effectiveSelection = useMemo<SelectionState>(() => {
     if (!data) return selection;
     if (selection.indices.length > 0) return selection;
     if (coloring?.filterSelection) {
       return { indices: coloring.filterSelection, source: 'filter' };
     }
+    if (allIndices) return { indices: allIndices, source: 'all' };
     return selection;
-  }, [data, selection, coloring]);
+  }, [data, selection, coloring, allIndices]);
 
   const visibleCount = data ? coloring?.visibleCount ?? data.count : 0;
 

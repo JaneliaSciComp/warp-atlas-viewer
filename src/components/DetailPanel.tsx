@@ -125,7 +125,8 @@ export function DetailPanel({ data, filter, settings, selection, focusedNeuron }
           <>Focused neuron <span className="font-mono">#{focusedNeuron}</span></>
         ) : (
           <>
-            Selection ({selection.indices.length.toLocaleString()} neuron
+            {selection.source === 'all' ? 'All neurons' : 'Selection'} (
+            {selection.indices.length.toLocaleString()} neuron
             {selection.indices.length === 1 ? '' : 's'})
           </>
         )}

@@ -311,8 +311,9 @@ export const DEFAULT_SETTINGS: SettingsState = {
 export interface SelectionState {
     /** Indices of selected neurons. Empty = none. */
     indices: Uint32Array;
-    /** Whether selection came from 3D viewer, UMAP, or the bottom-panel
-     *  filters. Filter-derived selections collapse to 'filter' regardless
-     *  of which combination of predicates produced them. */
-    source: "3d" | "umap" | "filter" | null;
+    /** Whether selection came from 3D viewer, UMAP, the bottom-panel
+     *  filters, or the all-cells fallback used when nothing is
+     *  filtered/selected. Filter-derived selections collapse to 'filter'
+     *  regardless of which combination of predicates produced them. */
+    source: "3d" | "umap" | "filter" | "all" | null;
 }
