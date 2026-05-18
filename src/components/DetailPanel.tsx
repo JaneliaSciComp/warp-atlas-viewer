@@ -19,16 +19,22 @@ interface Props {
 export function DetailPanel({ data, filter, settings, selection, focusedNeuron }: Props) {
   // When a neuron is focused, the detail view shows just that cell;
   // otherwise it falls back to the group selection (t-SNE, cluster,
-  // region). Empty-handed = the prompt below.
-  const indicesToShow = useMemo(() => {
+  // region) or, when source is 'all', the entire dataset (a `null`
+  // indices arg tells computeStats to walk 0..count-1 directly so we
+  // don't allocate a redundant N-long index buffer). Empty-handed =
+  // the prompt below.
+  const isAll = selection.source === 'all';
+  const indicesToShow = useMemo<Uint32Array | null>(() => {
     if (focusedNeuron != null) return new Uint32Array([focusedNeuron]);
+    if (isAll) return null;
     return selection.indices;
-  }, [focusedNeuron, selection.indices]);
+  }, [focusedNeuron, isAll, selection.indices]);
   const stats = useMemo(
     () => computeStats(data, indicesToShow, settings.swimLo),
     [data, indicesToShow, settings.swimLo],
   );
   const isFocused = focusedNeuron != null;
+  const displayCount = isAll && !isFocused ? data.count : indicesToShow?.length ?? 0;
 
   if (!stats) {
     return (
@@ -125,9 +131,9 @@ export function DetailPanel({ data, filter, settings, selection, focusedNeuron }
           <>Focused neuron <span className="font-mono">#{focusedNeuron}</span></>
         ) : (
           <>
-            {selection.source === 'all' ? 'All neurons' : 'Selection'} (
-            {selection.indices.length.toLocaleString()} neuron
-            {selection.indices.length === 1 ? '' : 's'})
+            {isAll ? 'All neurons' : 'Selection'} (
+            {displayCount.toLocaleString()} neuron
+            {displayCount === 1 ? '' : 's'})
           </>
         )}
       </h2>
@@ -344,7 +350,7 @@ export function DetailPanel({ data, filter, settings, selection, focusedNeuron }
                 mean {formatSigned(stats.swimMean)} · range {formatSigned(stats.swimMin)} .. {formatSigned(stats.swimMax)}
               </div>
               <div>
-                pro {stats.swimPos} ({pct(stats.swimPos, indicesToShow.length)}) · anti {stats.swimNeg} ({pct(stats.swimNeg, indicesToShow.length)}) · off {stats.swimOff} ({pct(stats.swimOff, indicesToShow.length)})
+                pro {stats.swimPos} ({pct(stats.swimPos, displayCount)}) · anti {stats.swimNeg} ({pct(stats.swimNeg, displayCount)}) · off {stats.swimOff} ({pct(stats.swimOff, displayCount)})
               </div>
             </>
           )}
@@ -451,8 +457,12 @@ function topItems(counts: Map<number, number>, names: string[], k: number): stri
     .join(', ');
 }
 
-function computeStats(data: NeuronDataset, indices: Uint32Array, swimLo: number) {
-  if (indices.length === 0) return null;
+// `indices === null` is the all-cells sentinel: walk 0..data.count-1
+// directly so the caller doesn't allocate a redundant identity buffer
+// for the common "no filter, no selection" view.
+function computeStats(data: NeuronDataset, indices: Uint32Array | null, swimLo: number) {
+  const n = indices === null ? data.count : indices.length;
+  if (n === 0) return null;
   const G = data.geneNames.length;
   const S = data.stimulusNames.length;
   const T = data.traceLength;
@@ -477,8 +487,8 @@ function computeStats(data: NeuronDataset, indices: Uint32Array, swimLo: number)
   let swimMin = Infinity;
   let swimMax = -Infinity;
 
-  for (let k = 0; k < indices.length; k++) {
-    const i = indices[k];
+  for (let k = 0; k < n; k++) {
+    const i = indices === null ? k : indices[k];
     for (let g = 0; g < G; g++) geneMeans[g] += data.geneCounts[i * G + g];
     for (let s = 0; s < S; s++) stimulusMeans[s] += data.stimulusCorr[i * S + s];
     const traceBase = i * T;
@@ -499,12 +509,12 @@ function computeStats(data: NeuronDataset, indices: Uint32Array, swimLo: number)
     inc(clusterCounts, data.clusterIds[i]);
     inc(fishCounts, data.fishIds[i]);
   }
-  const inv = 1 / indices.length;
+  const inv = 1 / n;
   for (let g = 0; g < G; g++) geneMeans[g] *= inv;
   for (let s = 0; s < S; s++) stimulusMeans[s] *= inv;
   for (let t = 0; t < T; t++) meanTrace[t] *= inv;
   const swimMean = swimSum * inv;
-  const swimOff = indices.length - swimPos - swimNeg;
+  const swimOff = n - swimPos - swimNeg;
 
   return {
     geneMeans, stimulusMeans, meanTrace,

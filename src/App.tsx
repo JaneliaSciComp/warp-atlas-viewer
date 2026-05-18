@@ -57,6 +57,7 @@ const BOTTOM_HEIGHT_MAX = 1200;
 const DETAIL_WIDTH_DEFAULT = 360;
 const DETAIL_WIDTH_MIN = 240;
 const DETAIL_WIDTH_MAX = 800;
+const EMPTY_INDICES = new Uint32Array(0);
 
 // Read the URL hash exactly once at module load. Subsequent updates go
 // through history.replaceState so the in-app state is always the source
@@ -305,21 +306,18 @@ export default function App() {
   // here. effectiveSelection prefers the user's explicit lasso/click
   // when there is one, else falls back to the filter-derived index
   // list, else empty.
-  const allIndices = useMemo<Uint32Array | null>(() => {
-    if (!data) return null;
-    const arr = new Uint32Array(data.count);
-    for (let i = 0; i < data.count; i++) arr[i] = i;
-    return arr;
-  }, [data]);
+  // 'all' source acts as a sentinel: the indices array is empty and
+  // consumers should treat the selection as "every cell in the dataset"
+  // (count = data.count). Lets us skip allocating a 0..N-1 buffer when
+  // no filter/selection narrows the population.
   const effectiveSelection = useMemo<SelectionState>(() => {
     if (!data) return selection;
     if (selection.indices.length > 0) return selection;
     if (coloring?.filterSelection) {
       return { indices: coloring.filterSelection, source: 'filter' };
     }
-    if (allIndices) return { indices: allIndices, source: 'all' };
-    return selection;
-  }, [data, selection, coloring, allIndices]);
+    return { indices: EMPTY_INDICES, source: 'all' };
+  }, [data, selection, coloring]);
 
   const visibleCount = data ? coloring?.visibleCount ?? data.count : 0;
 
