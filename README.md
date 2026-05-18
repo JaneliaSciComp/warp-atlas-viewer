@@ -12,12 +12,12 @@ Four filter cards (**Transcriptomics × Visual Stimuli × Swim × Anatomy**) com
   - *Simple*: single-color highlight (everything visible is colored yellow).
   - *Region*: categorical palette over 16 focal anatomical regions.
   - *Gene expression*: plasma ramp over FISH spot counts. With no gene pinned the ramp shows **gene richness** (how many of the 41 panel genes each cell expresses). Pin a single gene to see its spot-count map; pin multiple to drive *max / sum / richness* (chosen in Settings). Toggle log ↔ linear scale.
-  - *Stim correlation*: plasma ramp over Pearson r against the selected visual stimulus regressor. With no stim picked, max r across all 8 stimuli; with one picked, that stim's r; with several, max across the picks.
+  - *Stim correlation*: divergent coolwarm ramp (blue → neutral → red) over the **signed** Pearson r against the selected visual stimulus regressor, anchored symmetrically at ±stimLo / ±stimHi. With no stim picked, max-|r| across all 8 stimuli (signed); with one picked, that stim's r; with several, the representative r depends on the Visual Stimuli mode (`+ correlated` → max-positive, `- anti-correlated` → min-negative, `± either` / `no filter` → max-|r|).
   - *Swim correlation*: divergent ramp (blue → white → red) over signed Pearson r vs estimated swim power, anchored symmetrically at ±swimLo / ±swimHi.
   - *Activity*: plasma ramp over the mean ΔF/F trace at a scrubbable time point; an inline play button steps through the 134 s representative cycle.
   - *Specimen*: categorical palette over the 3 source fish.
 - **Transcriptomics**: keep cells expressing one or more genes (combined with OR / AND), or cells in a single named subtype (e.g. `pou4f2_cckb`).
-- **Visual Stimuli**: scope Stim-correlation coloring or keep cells responsive to one or more of 8 stimuli (OR / AND); icons render the stimulus identity. Responsiveness threshold is tunable in Settings.
+- **Visual Stimuli**: scope Stim-correlation coloring or keep cells responsive to one or more of 8 stimuli; a mode dropdown picks the direction (`no filter` / `+ correlated` / `- anti-correlated` / `± either`) and multi-stim selections combine with OR / AND. Icons render the stimulus identity. Responsiveness threshold is tunable in Settings.
 - **Swim**: keep cells correlated (+ swim-driven) or anti-correlated (− anti-swim) with estimated swim power; magnitude threshold tunable in Settings.
 - **Anatomy**: isolate one of 16 regions and/or one of 3 fish specimens.
 
