@@ -29,17 +29,17 @@ Hindbrain `calb2a_nefma` cells respond most strongly to forward visual motion, t
 
 - **Colors:** `Stim correlation`
 - **Transcriptomics:** Subtype = `calb2a_nefma`
-- **Visual Stimuli:** `[motion forward]`
+- **Visual Stimuli:** `[motion forward]` and `+ correlated`
 
 What to look for: hindbrain cells with a peak around the first stimulus. If many cells appear dim, lower the responsive floor cautiously or inspect the correlation bars before changing thresholds.
 
 ### `calb2a_gfra1a` — luminance and looming (Figure 3C)
 
-Tectal `calb2a_gfra1a` cells respond preferentially to the four luminance and looming stimuli (bright flash, dark flash, right loom, left loom).
+Tectal `calb2a_gfra1a` cells respond preferentially to the four luminance and looming stimuli (dark flash, bright flash, right loom, left loom).
 
 - **Colors:** `Stim correlation`
 - **Transcriptomics:** Subtype = `calb2a_gfra1a`
-- **Visual Stimuli:** `[dark, bright, loom right, loom left]`
+- **Visual Stimuli:** `[dark, bright, loom right, loom left]` and `+ correlated`
 
 What to look for: tectal cells retained by response to at least one of the four selected stimuli. Switch the Visual Stimuli card from **OR** to **AND** only when asking for cells that meet the threshold for all four stimuli.
 
@@ -49,7 +49,7 @@ Tectal `pou4f2_cckb_chata` cells respond to both bright and dark flashes; the tw
 
 - **Colors:** `Stim correlation`
 - **Transcriptomics:** Subtype = `pou4f2_cckb_chata`
-- **Visual Stimuli:** `[dark, bright]` with OR
+- **Visual Stimuli:** `[dark, bright]` and `+ correlated`, with OR
 
 What to look for: optic-tectum cells with flash-driven correlation bars. Use **AND** if you want the stricter subset responsive to both flashes under the current responsive floor.
 
@@ -78,7 +78,7 @@ Dorsal-raphe `gad1b_tph2_gfra1a` cells, one of the 15 largest multi-gene subtype
 
 - **Colors:** `Stim correlation`
 - **Transcriptomics:** Subtype = `gad1b_tph2_gfra1a`
-- **Visual Stimuli:** `[motion forward]` + `− anti-correlated`
+- **Visual Stimuli:** `[motion forward]` and `− anti-correlated`
 
 What to look for:
 
@@ -93,6 +93,6 @@ The tectal `pou4f2_cckb` subtype is positively correlated with the dark-flash st
 
 - **Colors:** `Stim correlation`
 - **Transcriptomics:** Subtype = `pou4f2_cckb`
-- **Visual Stimuli:** `[dark]`
+- **Visual Stimuli:** `[dark]` and `+ correlated`
 
 What to look for: cells concentrated in the optic tectum, with positive dark-flash correlation in the Detail panel. Looming responses can also be explored by adding the loom stimuli.

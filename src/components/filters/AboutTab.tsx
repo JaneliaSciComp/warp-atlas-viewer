@@ -43,7 +43,7 @@ const FINDINGS: FindingPreset[] = [
     title: 'calb2a_gfra1a — luminance & looming',
     figure: 'Figure 3C',
     description:
-      'Tectal calb2a_gfra1a cells respond preferentially to the last four stimuli (light flash, dark flash, right loom, left loom).',
+      'Tectal calb2a_gfra1a cells respond preferentially to the last four stimuli (dark flash, light flash, right loom, left loom).',
     colorMode: 'stim',
     cluster: 'calb2a_gfra1a',
     stimuli: [4, 5, 6, 7],
