@@ -96,6 +96,7 @@ function PointCloud({
       depthWrite: true,
       uniforms: {
         pixelRatio: { value: gl.getPixelRatio() },
+        sizeScale: { value: 1 },
         alphaMin: { value: ALPHA_PASS_SPLIT },
         alphaMax: { value: 1e6 },
       },
@@ -109,11 +110,27 @@ function PointCloud({
       depthWrite: false,
       uniforms: {
         pixelRatio: { value: gl.getPixelRatio() },
+        sizeScale: { value: 1 },
         alphaMin: { value: 0 },
         alphaMax: { value: ALPHA_PASS_SPLIT },
       },
     });
   }, [gl]);
+
+  // Auto mode: lift point size when the 3D canvas grows so dots-per-
+  // area density stays roughly constant. sqrt(area / reference) keeps
+  // density (≈ size² / area) flat across canvas sizes, clamped so
+  // tiny windows don't shrink dots past usability and huge displays
+  // don't bloat them. Only kicks in when autoSizing is on — manual
+  // mode honors the user's exact pixel value.
+  const REFERENCE_CANVAS_AREA = 1100 * 700;
+  const sizeScale = settings.autoSizing
+    ? Math.max(0.6, Math.min(2.0, Math.sqrt(Math.max(1, size.width * size.height) / REFERENCE_CANVAS_AREA)))
+    : 1;
+  useEffect(() => {
+    opaqueMaterial.uniforms.sizeScale.value = sizeScale;
+    transparentMaterial.uniforms.sizeScale.value = sizeScale;
+  }, [opaqueMaterial, transparentMaterial, sizeScale]);
 
   useEffect(() => {
     if (!coloring) return;
@@ -209,8 +226,10 @@ function PointCloud({
 
   // Marker tracks the *effective* point size used by the cell shader so
   // the focus ring stays sized relative to the dots it surrounds even
-  // when autoSizing is on.
-  const effectiveMarkerSize = coloring?.effectivePointSize ?? settings.pointSize;
+  // when autoSizing is on. Includes the canvas-size factor so the
+  // marker also grows with the 3D canvas.
+  const effectiveMarkerSize =
+    (coloring?.effectivePointSize ?? settings.pointSize) * sizeScale;
   useEffect(() => {
     markerMaterial.uniforms.baseSize.value = effectiveMarkerSize;
   }, [markerMaterial, effectiveMarkerSize]);
@@ -280,6 +299,9 @@ function PointCloud({
     const pointSizes = coloring?.result.sizes;
     const defaultPointSize = coloring?.effectivePointSize ?? settings.pointSize;
     const pixelRatio = gl.getPixelRatio();
+    // Picker geometry must match the rendered cell size, which includes
+    // the canvas-size factor applied via the shader uniform.
+    const pickSizeScale = sizeScale;
     let bestDiskI = -1;
     let bestDiskD2 = Infinity;
     let bestDiskZ = Infinity;
@@ -306,7 +328,7 @@ function PointCloud({
       const dy = py - my;
       const d2 = dx * dx + dy * dy;
       const depth = -cz;
-      const pointSize = pointSizes ? pointSizes[i] : defaultPointSize;
+      const pointSize = (pointSizes ? pointSizes[i] : defaultPointSize) * pickSizeScale;
       const diameter = Math.max(1.5 / pixelRatio, pointSize * (160 / Math.max(depth, 40)));
       const diskRadius = Math.max(MIN_DISK_PICK_RADIUS, diameter * 0.5 + PICK_PAD_PX);
       const diskHit = d2 <= diskRadius * diskRadius;

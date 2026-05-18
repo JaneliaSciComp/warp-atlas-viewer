@@ -85,8 +85,10 @@ export function SettingsTab({
                     <span className="text-neutral-200"> Auto</span> derives both
                     from the filter-passing cell count — small selections get
                     bigger dots and dimmer ghosts, full views get smaller dots
-                    and brighter ghosts. Turn auto off to set the values by
-                    hand.
+                    and brighter ghosts. In the 3D view, point size also
+                    scales with the canvas so a larger window keeps the same
+                    dots-per-area density (the fixed-size t-SNE panel is
+                    unaffected). Turn auto off to set the values by hand.
                 </p>
                 <label
                     className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"

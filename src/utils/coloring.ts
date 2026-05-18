@@ -55,7 +55,8 @@ export interface ColoringStats {
    *  settings.pointSize when autoSizing is off; otherwise derived
    *  from the in-set count (50 cells → 20 px, all cells → 10 px,
    *  lerped between). Picker / marker geometry should use this
-   *  rather than settings.pointSize. */
+   *  rather than settings.pointSize. BrainViewer scales this further
+   *  by a canvas-size factor; the t-SNE panel uses it as-is. */
   effectivePointSize: number;
   /** Ghost intensity actually used during this paint pass. Same
    *  derivation pattern as effectivePointSize (50 cells → 0.25,
@@ -464,6 +465,10 @@ export function applyColoring(
   //    n=50 k →  12,    0.65
   //    n=100k →  11.2,  0.69
   //    n=count→  10,    0.75
+  // This is the *base* size in CSS-px-ish units. BrainViewer applies a
+  // canvas-size factor on top so a larger 3D canvas keeps the same
+  // dots-per-area density; the t-SNE panel has a fixed-size canvas so
+  // it consumes this base value directly.
   const AUTO_MIN_INSET = 50;
   const logHi = Math.log(Math.max(AUTO_MIN_INSET + 1, count));
   const logLo = Math.log(AUTO_MIN_INSET);

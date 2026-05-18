@@ -7,6 +7,10 @@ attribute float instAlpha;
 attribute float instSize;
 
 uniform float pixelRatio;
+// Canvas-size factor from BrainViewer. Lifts cell sizes when the 3D
+// canvas grows so dots-per-area density stays roughly constant. 1.0
+// means no scaling.
+uniform float sizeScale;
 
 varying vec3 vColor;
 varying float vAlpha;
@@ -19,6 +23,6 @@ void main() {
   // Slight depth attenuation: closer points larger. Min 1.5 to keep the
   // far side of the brain readable.
   float dist = -mvPosition.z;
-  float size = instSize * pixelRatio * (160.0 / max(dist, 40.0));
+  float size = instSize * sizeScale * pixelRatio * (160.0 / max(dist, 40.0));
   gl_PointSize = max(1.5, size);
 }
