@@ -29,6 +29,9 @@ import type {
 export interface CameraState {
   pos: [number, number, number];
   target: [number, number, number];
+  /** Screen-space viewer pan in CSS pixels. Positive x/y move the volume
+   *  right/down in the viewport without changing the orbit target. */
+  pan?: [number, number];
 }
 
 export interface UmapViewport {
@@ -204,10 +207,14 @@ function validateCamera(raw: unknown): CameraState | undefined {
     !Array.isArray(c.pos) || c.pos.length !== 3 || !c.pos.every(isFiniteNum) ||
     !Array.isArray(c.target) || c.target.length !== 3 || !c.target.every(isFiniteNum)
   ) return undefined;
-  return {
+  const out: CameraState = {
     pos: [c.pos[0] as number, c.pos[1] as number, c.pos[2] as number],
     target: [c.target[0] as number, c.target[1] as number, c.target[2] as number],
   };
+  if (Array.isArray(c.pan) && c.pan.length === 2 && c.pan.every(isFiniteNum)) {
+    out.pan = [c.pan[0] as number, c.pan[1] as number];
+  }
+  return out;
 }
 
 function validateViewport(raw: unknown): UmapViewport | undefined {
@@ -336,10 +343,14 @@ function r(x: number, n = 3): number {
 }
 
 export function roundCamera(cam: CameraState): CameraState {
-  return {
+  const out: CameraState = {
     pos: [r(cam.pos[0]), r(cam.pos[1]), r(cam.pos[2])],
     target: [r(cam.target[0]), r(cam.target[1]), r(cam.target[2])],
   };
+  if (cam.pan && (cam.pan[0] !== 0 || cam.pan[1] !== 0)) {
+    out.pan = [r(cam.pan[0]), r(cam.pan[1])];
+  }
+  return out;
 }
 
 export function roundViewport(vp: UmapViewport): UmapViewport {

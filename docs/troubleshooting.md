@@ -27,12 +27,9 @@ If a recipient reports that the lasso is missing, redraw it with fewer vertices 
 
 Adjust **Settings → Point density**. With auto mode on *(default)* the point size is derived from the in-set cell count — small filtered subsets get bigger dots, full views get smaller dots. Turn auto off to pick a size by hand. High-DPI displays generally benefit from a larger value when manual. Lasso-selected cells receive an additional 1.5× boost, while a focused cell is marked with a white ring.
 
-## Camera orientation feels lost after rotating
+## Camera orientation feels lost after panning
 
-With **Camera panning** enabled in Settings, the orbit pivot tracks the panned point, which makes it easy to lose orientation after successive right-drags.
-
-- Disable Camera panning so that rotation always pivots around the volume center, or
-- refresh the page to reset the camera.
+**Camera panning** shifts the volume within the viewport, but rotation still pivots around the volume center. If the view is far off-center, refresh the page to reset the camera and screen pan.
 
 ## Activity playback appears jittery at 100×
 

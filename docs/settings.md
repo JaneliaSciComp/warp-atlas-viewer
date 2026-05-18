@@ -35,9 +35,9 @@ The ghost setting also drives **render order**: out-of-filter cells render first
 
 ## Camera panning
 
-When **off** *(default)*, the orbit pivot is locked to the volume center and rotation always pivots around the volume's axes. When **on**, right-drag pans the camera and rotation then pivots around the panned point — useful for focusing inspection on a specific region, but easier to disorient.
+When **off** *(default)*, the orbit pivot is locked to the volume center and rotation always pivots around the volume's axes. When **on**, right-drag shifts the volume within the viewport while the orbit pivot stays locked to the volume center.
 
-Touch and trackpad users sometimes prefer pan enabled; mouse users typically leave it off.
+Enable it when you want to inspect an off-center region without changing the rotation pivot.
 
 ## Gene plasma ceiling
 

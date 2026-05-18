@@ -34,6 +34,15 @@ interface PickState {
   hovered: number;
 }
 
+interface ScreenPanState {
+  /** CSS-pixel offset applied in projection space. Positive values move
+   *  the volume right/down in the viewport. */
+  x: number;
+  y: number;
+}
+
+const VOLUME_CENTER: [number, number, number] = [0, 0, 0];
+
 
 /** Inner R3F component: owns the Points object and shader updates.
  *  Filter / settings / selection are already baked into `coloring`;
@@ -343,6 +352,10 @@ export function BrainViewer({
   // a ref so a later prop update (e.g. a parent re-emitting the URL
   // state) can't yank the camera mid-interaction.
   const mountCameraRef = useRef(initialCamera);
+  const screenPanRef = useRef<ScreenPanState>({
+    x: mountCameraRef.current?.pan?.[0] ?? 0,
+    y: mountCameraRef.current?.pan?.[1] ?? 0,
+  });
   const camPosition = useMemo(() => {
     if (mountCameraRef.current) return mountCameraRef.current.pos;
     return defaultCamPosition;
@@ -446,11 +459,13 @@ export function BrainViewer({
           dynamicDampingFactor={0.1}
           rotateSpeed={4.0}
           zoomSpeed={1.5}
-          noPan={!settings.enablePan}
+          noPan
         />
+        <ScreenSpacePan enabled={settings.enablePan} panRef={screenPanRef} />
         <CameraSync
           initialCamera={initialCamera ?? null}
           onCameraChange={onCameraChange}
+          panRef={screenPanRef}
         />
       </Canvas>
       {tooltip && hover && (
@@ -462,6 +477,99 @@ export function BrainViewer({
   );
 }
 
+function supportsViewOffset(
+  camera: THREE.Camera,
+): camera is THREE.PerspectiveCamera | THREE.OrthographicCamera {
+  return camera instanceof THREE.PerspectiveCamera || camera instanceof THREE.OrthographicCamera;
+}
+
+/** Screen-space panning is implemented as a projection offset, not as a
+ *  camera/target translation. TrackballControls therefore keeps a stable
+ *  orbit target at the volume center, while right-drag simply shifts where
+ *  that centered view lands inside the canvas. */
+function ScreenSpacePan({
+  enabled,
+  panRef,
+}: {
+  enabled: boolean;
+  panRef: React.MutableRefObject<ScreenPanState>;
+}) {
+  const camera = useThree((s) => s.camera);
+  const gl = useThree((s) => s.gl);
+  const size = useThree((s) => s.size);
+  const invalidate = useThree((s) => s.invalidate);
+  const dragRef = useRef<{ pointerId: number; lastX: number; lastY: number } | null>(null);
+
+  const applyViewOffset = useCallback(() => {
+    if (!supportsViewOffset(camera)) return;
+    if (size.width <= 0 || size.height <= 0) return;
+    const pan = panRef.current;
+    camera.setViewOffset(size.width, size.height, -pan.x, -pan.y, size.width, size.height);
+    invalidate();
+  }, [camera, invalidate, panRef, size.height, size.width]);
+
+  useEffect(() => {
+    applyViewOffset();
+  }, [applyViewOffset]);
+
+  useEffect(() => {
+    const el = gl.domElement;
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (!enabled || event.button !== 2) return;
+      dragRef.current = { pointerId: event.pointerId, lastX: event.clientX, lastY: event.clientY };
+      el.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      const drag = dragRef.current;
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      const dx = event.clientX - drag.lastX;
+      const dy = event.clientY - drag.lastY;
+      if (dx === 0 && dy === 0) return;
+      drag.lastX = event.clientX;
+      drag.lastY = event.clientY;
+      panRef.current.x += dx;
+      panRef.current.y += dy;
+      applyViewOffset();
+      event.preventDefault();
+    };
+
+    const stopDrag = (event: PointerEvent) => {
+      const drag = dragRef.current;
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      dragRef.current = null;
+      if (el.hasPointerCapture(event.pointerId)) {
+        el.releasePointerCapture(event.pointerId);
+      }
+    };
+
+    const onContextMenu = (event: MouseEvent) => {
+      if (enabled) event.preventDefault();
+    };
+
+    el.addEventListener('pointerdown', onPointerDown);
+    el.addEventListener('pointermove', onPointerMove);
+    el.addEventListener('pointerup', stopDrag);
+    el.addEventListener('pointercancel', stopDrag);
+    el.addEventListener('contextmenu', onContextMenu);
+    return () => {
+      el.removeEventListener('pointerdown', onPointerDown);
+      el.removeEventListener('pointermove', onPointerMove);
+      el.removeEventListener('pointerup', stopDrag);
+      el.removeEventListener('pointercancel', stopDrag);
+      el.removeEventListener('contextmenu', onContextMenu);
+    };
+  }, [applyViewOffset, enabled, gl, panRef]);
+
+  useEffect(() => {
+    if (!enabled) dragRef.current = null;
+  }, [enabled]);
+
+  return null;
+}
+
 /** Reads/writes the camera-controls + camera state so App can mirror
  *  it to the URL hash. Restores `initialCamera` once on mount;
  *  thereafter polls the camera each frame and fires `onCameraChange`
@@ -471,9 +579,11 @@ export function BrainViewer({
 function CameraSync({
   initialCamera,
   onCameraChange,
+  panRef,
 }: {
   initialCamera: CameraState | null;
   onCameraChange?: (cam: CameraState) => void;
+  panRef: React.MutableRefObject<ScreenPanState>;
 }) {
   const camera = useThree((s) => s.camera);
   // The drei controls wire themselves in via makeDefault; useThree
@@ -493,23 +603,41 @@ function CameraSync({
     if (!controls || restoredRef.current) return;
     if (initialCamera) {
       camera.position.set(...initialCamera.pos);
-      controls.target.set(...initialCamera.target);
+      // Camera target used to double as pan state in older URLs. The point
+      // cloud is centered at the origin, so always restore the true orbit
+      // center and keep screen pan in CameraState.pan instead.
+      controls.target.set(...VOLUME_CENTER);
       controls.update();
     }
     restoredRef.current = true;
   }, [controls, camera, initialCamera]);
 
   useFrame(() => {
-    if (!controls || !onCameraChange) return;
+    if (!controls) return;
+    if (
+      controls.target.x !== VOLUME_CENTER[0] ||
+      controls.target.y !== VOLUME_CENTER[1] ||
+      controls.target.z !== VOLUME_CENTER[2]
+    ) {
+      controls.target.set(...VOLUME_CENTER);
+      controls.update();
+    }
+    if (!onCameraChange) return;
     const pos: [number, number, number] = [camera.position.x, camera.position.y, camera.position.z];
-    const target: [number, number, number] = [controls.target.x, controls.target.y, controls.target.z];
+    const target: [number, number, number] = [...VOLUME_CENTER];
+    const rawPan = panRef.current;
+    const pan: [number, number] | undefined =
+      rawPan.x !== 0 || rawPan.y !== 0 ? [rawPan.x, rawPan.y] : undefined;
+    const cam: CameraState = pan ? { pos, target, pan } : { pos, target };
     const last = lastRef.current;
     const moved =
       !last ||
       pos[0] !== last.pos[0] || pos[1] !== last.pos[1] || pos[2] !== last.pos[2] ||
-      target[0] !== last.target[0] || target[1] !== last.target[1] || target[2] !== last.target[2];
+      target[0] !== last.target[0] || target[1] !== last.target[1] || target[2] !== last.target[2] ||
+      (pan?.[0] ?? 0) !== (last.pan?.[0] ?? 0) ||
+      (pan?.[1] ?? 0) !== (last.pan?.[1] ?? 0);
     if (moved) {
-      lastRef.current = { pos, target };
+      lastRef.current = cam;
       idleFramesRef.current = 0;
       dirtyRef.current = true;
       return;
@@ -517,7 +645,7 @@ function CameraSync({
     if (!dirtyRef.current) return;
     idleFramesRef.current++;
     if (idleFramesRef.current >= IDLE_FRAMES) {
-      onCameraChange({ pos, target });
+      onCameraChange(cam);
       dirtyRef.current = false;
     }
   });

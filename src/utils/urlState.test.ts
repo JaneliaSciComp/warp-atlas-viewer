@@ -39,7 +39,11 @@ describe('encodeHash / decodeHash', () => {
       settings: { stimLo: 0.2 } as Partial<SettingsState>,
       focusedNeuron: 42,
       detail: true,
-      camera: { pos: [1, 2, 3] as [number, number, number], target: [0, 0, 0] as [number, number, number] },
+      camera: {
+        pos: [1, 2, 3] as [number, number, number],
+        target: [0, 0, 0] as [number, number, number],
+        pan: [12, -8] as [number, number],
+      },
     };
     const hash = encodeHash(state);
     expect(hash.startsWith('#!')).toBe(true);
@@ -132,10 +136,15 @@ describe('rounding helpers', () => {
     expect(out).toEqual([1.235, 7.891]);
   });
 
-  it('roundCamera rounds pos and target', () => {
-    const cam = roundCamera({ pos: [1.111111, 2.222222, 3.333333], target: [0.000001, 0, 0] });
+  it('roundCamera rounds pos, target, and screen pan', () => {
+    const cam = roundCamera({
+      pos: [1.111111, 2.222222, 3.333333],
+      target: [0.000001, 0, 0],
+      pan: [4.444444, -5.555555],
+    });
     expect(cam.pos.every((n) => Math.abs(n * 1000 - Math.round(n * 1000)) < 1e-9)).toBe(true);
     expect(cam.target.every((n) => Math.abs(n * 1000 - Math.round(n * 1000)) < 1e-9)).toBe(true);
+    expect(cam.pan?.every((n) => Math.abs(n * 1000 - Math.round(n * 1000)) < 1e-9)).toBe(true);
   });
 
   it('roundViewport rounds zoom and pan', () => {
