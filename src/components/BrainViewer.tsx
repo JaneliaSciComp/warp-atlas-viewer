@@ -245,17 +245,22 @@ function PointCloud({
     const projMat = camera.projectionMatrix;
     const viewMat = camera.matrixWorldInverse;
     const tmp = ndcRef.current;
-    const PIX_THRESH_SQ = 16 * 16;
+    const CENTER_FALLBACK_RADIUS = 16;
+    const CENTER_FALLBACK_RADIUS_SQ = CENTER_FALLBACK_RADIUS * CENTER_FALLBACK_RADIUS;
+    const PICK_PAD_PX = 2;
+    const MIN_DISK_PICK_RADIUS = 3;
 
     // Match the world-rotation applied by <group> below: rotate +90°
     // around Z (so AP/world-y → screen-x, ML/world-x → screen-y).
 
-    // Pick the cell closest to the cursor in screen space, breaking
-    // ties by depth (front-most wins). Depth-only would correctly
-    // pick the visible cell in a tight overlap but goes wrong when
-    // zoomed out — the 16 px window then contains many cells, so the
-    // foreground winner can be visibly several pixels off-cursor while
-    // a deeper cell sits right under the click.
+    // Pick in two tiers:
+    //   1. If the cursor is inside one or more rendered point disks,
+    //      choose the front-most disk. This matches what the depth
+    //      buffer shows, so a rear cell center cannot steal a click
+    //      from a visible front cell.
+    //   2. If the cursor is near but not on any disk, fall back to the
+    //      nearest center in a 16 px radius to keep small/far points
+    //      easy to acquire.
     //
     // When a filter is active, in-filter cells outrank out-of-filter
     // ones regardless of distance/depth: the dimmed background cells
@@ -271,12 +276,21 @@ function PointCloud({
     // tracks autoSizing too.
     const effGhost = coloring?.effectiveGhostIntensity ?? settings.ghostIntensity;
     const ghost = filterActive && effGhost < 0.5;
-    let bestI = -1;
-    let bestD2 = Infinity;
-    let bestZ = Infinity;
-    let bestInFilter = false;
+    const alphas = coloring?.result.alphas;
+    const pointSizes = coloring?.result.sizes;
+    const defaultPointSize = coloring?.effectivePointSize ?? settings.pointSize;
+    const pixelRatio = gl.getPixelRatio();
+    let bestDiskI = -1;
+    let bestDiskD2 = Infinity;
+    let bestDiskZ = Infinity;
+    let bestDiskInFilter = false;
+    let bestNearI = -1;
+    let bestNearD2 = Infinity;
+    let bestNearZ = Infinity;
+    let bestNearInFilter = false;
     for (let i = 0; i < data.count; i++) {
       if (!cellIsRenderable(data, filter, i)) continue;
+      if (alphas && alphas[i] < 0.02) continue;
       const ox = positions[i * 3];
       const x = -positions[i * 3 + 1];
       const y = ox;
@@ -291,25 +305,53 @@ function PointCloud({
       const dx = px - mx;
       const dy = py - my;
       const d2 = dx * dx + dy * dy;
-      if (d2 >= PIX_THRESH_SQ) continue;
       const depth = -cz;
+      const pointSize = pointSizes ? pointSizes[i] : defaultPointSize;
+      const diameter = Math.max(1.5 / pixelRatio, pointSize * (160 / Math.max(depth, 40)));
+      const diskRadius = Math.max(MIN_DISK_PICK_RADIUS, diameter * 0.5 + PICK_PAD_PX);
+      const diskHit = d2 <= diskRadius * diskRadius;
+      const nearHit = d2 <= CENTER_FALLBACK_RADIUS_SQ;
+      if (!diskHit && !nearHit) continue;
       const inFilter = !filterActive || cellInSet(data, filter, settings, i);
-      if (inFilter) {
-        if (!bestInFilter || d2 < bestD2 || (d2 === bestD2 && depth < bestZ)) {
-          bestInFilter = true;
-          bestD2 = d2;
-          bestZ = depth;
-          bestI = i;
+      if (diskHit) {
+        if (inFilter) {
+          if (
+            !bestDiskInFilter ||
+            depth < bestDiskZ ||
+            (depth === bestDiskZ && d2 < bestDiskD2)
+          ) {
+            bestDiskInFilter = true;
+            bestDiskD2 = d2;
+            bestDiskZ = depth;
+            bestDiskI = i;
+          }
+        } else if (!bestDiskInFilter && !ghost) {
+          if (depth < bestDiskZ || (depth === bestDiskZ && d2 < bestDiskD2)) {
+            bestDiskD2 = d2;
+            bestDiskZ = depth;
+            bestDiskI = i;
+          }
         }
-      } else if (!bestInFilter && !ghost) {
-        if (d2 < bestD2 || (d2 === bestD2 && depth < bestZ)) {
-          bestD2 = d2;
-          bestZ = depth;
-          bestI = i;
+      }
+      if (nearHit) {
+        if (inFilter) {
+          if (!bestNearInFilter || d2 < bestNearD2 || (d2 === bestNearD2 && depth < bestNearZ)) {
+            bestNearInFilter = true;
+            bestNearD2 = d2;
+            bestNearZ = depth;
+            bestNearI = i;
+          }
+        } else if (!bestNearInFilter && !ghost) {
+          if (d2 < bestNearD2 || (d2 === bestNearD2 && depth < bestNearZ)) {
+            bestNearD2 = d2;
+            bestNearZ = depth;
+            bestNearI = i;
+          }
         }
       }
     }
 
+    const bestI = bestDiskI >= 0 ? bestDiskI : bestNearI;
     if (bestI !== pickRef.current.hovered) {
       pickRef.current.hovered = bestI;
       onHoverChange(bestI);
