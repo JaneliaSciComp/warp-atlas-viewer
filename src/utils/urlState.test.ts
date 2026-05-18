@@ -17,7 +17,7 @@ const INITIAL_FILTER: FilterState = {
   showUnassignedRegion: true,
   isolatedRegion: -1,
   isolatedFish: -1,
-  txMode: 'gene',
+  txMode: 'all',
   selectedGenes: [],
   geneLogic: 'or',
   selectedCluster: 0,
