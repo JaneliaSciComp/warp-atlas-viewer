@@ -11,7 +11,7 @@ Every meaningful piece of view state is encoded in the URL hash (the `#…` port
 
 | Group | Examples |
 |---|---|
-| **Filter cards** | Color scheme, pinned gene indices, gene OR/AND, subtype index, selected stimuli, stim mode, swim mode, region, specimen, show-unassigned-region toggle. |
+| **Filter cards** | Color scheme, region palette, pinned gene indices, gene OR/AND, subtype index, selected stimuli, stim mode, swim mode, region, specimen, show-unassigned-region toggle. |
 | **Settings** | Point size, stim cutoffs, swim cutoffs, activity anchors, gene-spot ceiling, multi-gene mode, gene predicate. |
 | **3D camera** | Position and orbit target. |
 | **t-SNE viewport** | Pan and zoom. |

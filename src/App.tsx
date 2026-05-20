@@ -33,6 +33,7 @@ const INITIAL_FILTER: FilterState = {
   colorMode: 'region',
   geneScale: 'log',
   showUnassignedRegion: true,
+  regionPalette: 'nipy_spectral',
   isolatedRegion: -1,
   isolatedFish: -1,
   txMode: 'all',

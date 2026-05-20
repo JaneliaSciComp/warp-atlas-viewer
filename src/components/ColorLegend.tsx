@@ -227,7 +227,7 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
           <div key={i} className="flex items-center gap-1.5">
             <span
               className="inline-block w-3 h-3 shrink-0 rounded-sm border border-neutral-600"
-              style={{ background: rgbToHex(regionColor(i)) }}
+              style={{ background: rgbToHex(regionColor(i, filter.regionPalette)) }}
             />
             <span>{data.regionNames[i]}</span>
           </div>
