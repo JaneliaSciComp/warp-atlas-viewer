@@ -25,4 +25,11 @@ export default defineConfig({
     },
   },
   assetsInclude: ['**/*.glsl', '**/*.vert', '**/*.frag'],
+  build: {
+    // BrainViewer pulls in three + @react-three/*, which lands around
+    // 850 kB minified (≈225 kB gzipped). It's already lazy-loaded, and
+    // shrinking it further isn't worth the churn — raise the warning
+    // threshold so builds stay quiet.
+    chunkSizeWarningLimit: 900,
+  },
 });
