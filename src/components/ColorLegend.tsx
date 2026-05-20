@@ -222,9 +222,7 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
         style={positionStyle}
         className="absolute bg-neutral-900/85 border border-neutral-700 rounded p-2 text-[10px] font-mono text-neutral-200 whitespace-nowrap"
       >
-        <div className="text-neutral-400 mb-1">
-          Brain region · {filter.regionPalette === 'turbo' ? 'Turbo' : 'nipy_spectral'}
-        </div>
+        <div className="text-neutral-400 mb-1">Brain region</div>
         {order.map((i) => (
           <div key={i} className="flex items-center gap-1.5">
             <span
