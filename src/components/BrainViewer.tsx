@@ -434,10 +434,24 @@ export function BrainViewer({
 
   // Default camera position derived from the data bounds — straight-on
   // dorsal view with the brain comfortably filling the landscape panel.
-  const defaultCamPosition = useMemo(() => {
+  // span doubles as the basis for the zoom limits below.
+  const { defaultCamPosition, minDistance, maxDistance } = useMemo(() => {
     const { min, max } = data.bounds;
     const span = Math.max(max[0] - min[0], max[1] - min[1], max[2] - min[2]);
-    return [0, 0, span * 0.95] as [number, number, number];
+    return {
+      defaultCamPosition: [0, 0, span * 0.95] as [number, number, number],
+      // Hard zoom-in floor. Without it, TrackballControls' default
+      // minDistance=0 lets the wheel keep shrinking the camera-to-
+      // target offset asymptotically: the view stops changing once
+      // the eye is sub-pixel close, but further wheel ticks keep
+      // updating it, and zooming back out is a slow exponential climb
+      // back through all that compounded zoom. With minDistance set,
+      // TrackballControls._checkDistances clamps the eye and resets
+      // the zoom accumulator (_zoomStart.copy(_zoomEnd)) the instant
+      // we hit the floor, turning it into a hard wall.
+      minDistance: span * 0.15,
+      maxDistance: span * 5,
+    };
   }, [data]);
   // initialCamera is the URL-restored seed. Capture it once at mount in
   // a ref so a later prop update (e.g. a parent re-emitting the URL
@@ -557,6 +571,8 @@ export function BrainViewer({
           dynamicDampingFactor={0.1}
           rotateSpeed={4.0}
           zoomSpeed={1.5}
+          minDistance={minDistance}
+          maxDistance={maxDistance}
           noPan
         />
         <ScreenSpacePan panRef={screenPanRef} />
