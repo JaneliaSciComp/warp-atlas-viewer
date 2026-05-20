@@ -22,6 +22,7 @@ import type {
   GeneScale,
   GeneThresholdMode,
   NeuronDataset,
+  RegionPalette,
   SettingsState,
   StimLogic,
   StimMode,
@@ -119,6 +120,7 @@ export function decodeHash(hash: string): PersistedState | null {
 
 const COLOR_MODES = new Set<ColorMode>(['highlight', 'region', 'gene', 'stim', 'swim', 'activity', 'fish']);
 const GENE_SCALES = new Set<GeneScale>(['log', 'linear']);
+const REGION_PALETTES = new Set<RegionPalette>(['nipy_spectral', 'turbo']);
 const TX_MODES = new Set<TxMode>(['all', 'gene', 'subtype']);
 const GENE_LOGICS = new Set<GeneLogic>(['or', 'and']);
 const STIM_LOGICS = new Set<StimLogic>(['or', 'and']);
@@ -150,6 +152,7 @@ function validateFilter(raw: unknown): Partial<FilterState> {
   if (isString(f.colorMode, COLOR_MODES)) out.colorMode = f.colorMode;
   if (isString(f.geneScale, GENE_SCALES)) out.geneScale = f.geneScale;
   if (typeof f.showUnassignedRegion === 'boolean') out.showUnassignedRegion = f.showUnassignedRegion;
+  if (isString(f.regionPalette, REGION_PALETTES)) out.regionPalette = f.regionPalette;
   if (isInt(f.isolatedRegion) && f.isolatedRegion >= -1) out.isolatedRegion = f.isolatedRegion;
   if (isInt(f.isolatedFish) && f.isolatedFish >= -1) out.isolatedFish = f.isolatedFish;
   if (isString(f.txMode, TX_MODES)) out.txMode = f.txMode;

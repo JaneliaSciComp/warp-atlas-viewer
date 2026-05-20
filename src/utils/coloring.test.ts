@@ -48,6 +48,7 @@ const BASE_FILTER: FilterState = {
   colorMode: 'highlight',
   geneScale: 'log',
   showUnassignedRegion: true,
+  regionPalette: 'nipy_spectral',
   isolatedRegion: -1,
   isolatedFish: -1,
   txMode: 'all',

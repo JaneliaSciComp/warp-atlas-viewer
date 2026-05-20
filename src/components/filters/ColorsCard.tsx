@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { NeuronDataset, FilterState, ColorMode } from '../../data/types';
-import { Card, Select } from './shared';
+import type { NeuronDataset, FilterState, ColorMode, RegionPalette } from '../../data/types';
+import { Card, KindToggle, Select } from './shared';
 
 // Order mirrors the filter cards along the bottom strip
 // (Transcriptomics → Visual Stimuli → Swim → Anatomy), with Simple
@@ -13,6 +13,11 @@ const COLOR_SCHEMES: Array<{ value: ColorMode; label: string }> = [
   { value: 'swim', label: 'Swim correlation' },
   { value: 'region', label: 'Region' },
   { value: 'fish', label: 'Specimen' },
+];
+
+const REGION_PALETTES: Array<{ value: RegionPalette; label: string }> = [
+  { value: 'nipy_spectral', label: 'nipy' },
+  { value: 'turbo', label: 'turbo' },
 ];
 
 export function ColorsCard({
@@ -37,18 +42,31 @@ export function ColorsCard({
         options={schemeOptions}
       />
       {filter.colorMode === 'region' && (
-        <label
-          className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
-          title="show cells in the Unassigned bucket (regions outside the 16 paper focal regions)"
-        >
-          <input
-            type="checkbox"
-            checked={filter.showUnassignedRegion}
-            onChange={(e) => update({ showUnassignedRegion: e.target.checked })}
-            className="accent-neutral-300"
-          />
-          show unassigned
-        </label>
+        <>
+          <label
+            className="flex items-center gap-1 text-xs"
+            title="nipy_spectral preserves the paper legend; Turbo is a smoother rainbow alternative"
+          >
+            <span className="text-neutral-400">palette</span>
+            <KindToggle
+              value={filter.regionPalette}
+              onChange={(v) => update({ regionPalette: v })}
+              options={REGION_PALETTES}
+            />
+          </label>
+          <label
+            className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
+            title="show cells in the Unassigned bucket (regions outside the 16 paper focal regions)"
+          >
+            <input
+              type="checkbox"
+              checked={filter.showUnassignedRegion}
+              onChange={(e) => update({ showUnassignedRegion: e.target.checked })}
+              className="accent-neutral-300"
+            />
+            show unassigned
+          </label>
+        </>
       )}
       {filter.colorMode === 'gene' && (
         <label className="flex items-center gap-1 text-xs">
