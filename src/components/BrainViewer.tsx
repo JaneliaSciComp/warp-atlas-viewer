@@ -449,6 +449,13 @@ export function BrainViewer({
     return defaultCamPosition;
   }, [defaultCamPosition]);
 
+  // Imperative handle into CameraSync so the overlay button can snap
+  // the camera back to its default position/pan without lifting the
+  // r3f controls instance out of the Canvas.
+  const resetRef = useRef<(() => void) | null>(null);
+  const initiallyAtDefault = !mountCameraRef.current;
+  const [atDefault, setAtDefault] = useState(initiallyAtDefault);
+
   // Track the pointer-down position so we can distinguish a click (no
   // movement) from a drag-rotate. Without this, a drag-rotate ending
   // over a neuron fires the same DOM click event a true click would,
@@ -563,6 +570,9 @@ export function BrainViewer({
           initialCamera={initialCamera ?? null}
           onCameraChange={onCameraChange}
           panRef={screenPanRef}
+          defaultCamPosition={defaultCamPosition}
+          resetRef={resetRef}
+          onAtDefaultChange={setAtDefault}
         />
         {settings.ambientOcclusion && (
           <AmbientOcclusion
@@ -576,6 +586,17 @@ export function BrainViewer({
         <div className="neuron-tooltip" style={{ left: hover.x + 14, top: hover.y + 14 }}>
           {tooltip}
         </div>
+      )}
+      {!atDefault && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            resetRef.current?.();
+          }}
+          className="absolute top-2 left-2 font-mono text-[10px] bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-1.5 py-0.5 rounded hover:bg-neutral-800"
+        >
+          reset view
+        </button>
       )}
     </div>
   );
@@ -678,12 +699,20 @@ function CameraSync({
   initialCamera,
   onCameraChange,
   panRef,
+  defaultCamPosition,
+  resetRef,
+  onAtDefaultChange,
 }: {
   initialCamera: CameraState | null;
   onCameraChange?: (cam: CameraState) => void;
   panRef: React.MutableRefObject<ScreenPanState>;
+  defaultCamPosition: [number, number, number];
+  resetRef: React.MutableRefObject<(() => void) | null>;
+  onAtDefaultChange: (atDefault: boolean) => void;
 }) {
   const camera = useThree((s) => s.camera);
+  const size = useThree((s) => s.size);
+  const invalidate = useThree((s) => s.invalidate);
   // The drei controls wire themselves in via makeDefault; useThree
   // exposes the instance on .controls. Use any to avoid a public-API
   // dependency on TrackballControlsImpl.
@@ -692,6 +721,33 @@ function CameraSync({
   const lastRef = useRef<CameraState | null>(null);
   const idleFramesRef = useRef(0);
   const dirtyRef = useRef(false);
+  // Position tolerance for the at-default check. Trackball damping
+  // can leave sub-unit residue after a snap, so compare against a
+  // fraction of the default eye distance rather than using exact
+  // equality.
+  const POS_EPS = Math.max(1e-3, Math.hypot(...defaultCamPosition) * 1e-4);
+  const atDefaultRef = useRef<boolean | null>(null);
+
+  useEffect(() => {
+    resetRef.current = () => {
+      camera.position.set(...defaultCamPosition);
+      // TrackballControls rotates camera.up during orbit, so position
+      // + target alone leaves the view rolled. Restore the canonical
+      // up vector so the volume returns to its original orientation.
+      camera.up.set(0, 1, 0);
+      controls?.target.set(...VOLUME_CENTER);
+      controls?.update();
+      panRef.current.x = 0;
+      panRef.current.y = 0;
+      if (supportsViewOffset(camera) && size.width > 0 && size.height > 0) {
+        camera.setViewOffset(size.width, size.height, 0, 0, size.width, size.height);
+      }
+      invalidate();
+    };
+    return () => {
+      resetRef.current = null;
+    };
+  }, [camera, controls, defaultCamPosition, invalidate, panRef, resetRef, size.height, size.width]);
   // ~3 frames at 60fps ≈ 50 ms — long enough to outlast any frame
   // hitches from the trackball's damping but short enough to feel
   // immediate.
@@ -719,6 +775,19 @@ function CameraSync({
     ) {
       controls.target.set(...VOLUME_CENTER);
       controls.update();
+    }
+    const isAtDefault =
+      Math.abs(camera.position.x - defaultCamPosition[0]) < POS_EPS &&
+      Math.abs(camera.position.y - defaultCamPosition[1]) < POS_EPS &&
+      Math.abs(camera.position.z - defaultCamPosition[2]) < POS_EPS &&
+      Math.abs(camera.up.x) < 1e-3 &&
+      Math.abs(camera.up.y - 1) < 1e-3 &&
+      Math.abs(camera.up.z) < 1e-3 &&
+      panRef.current.x === 0 &&
+      panRef.current.y === 0;
+    if (atDefaultRef.current !== isAtDefault) {
+      atDefaultRef.current = isAtDefault;
+      onAtDefaultChange(isAtDefault);
     }
     if (!onCameraChange) return;
     const pos: [number, number, number] = [camera.position.x, camera.position.y, camera.position.z];
