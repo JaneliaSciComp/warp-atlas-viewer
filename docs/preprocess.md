@@ -71,7 +71,7 @@ The dataset assigns each cell to one of 16 focal anatomical groupings (plus *Una
 | 15 | SubP | Subpallium |
 | 16 | Pal | Dorsal pallium |
 
-The integer-to-name mapping isn't shipped with the source data — it was recovered by intersecting `Brain_reg.npy` with `BrainRegions_All.npy` (the cell × 112-atlas-region matrix) and resolving ties against the paper's 16-region list. The default region colors are sampled directly from the paper's region figure legend (`data/brain_regions.png`), with an optional Turbo palette sampled in the same order; *Unassigned* is rendered as a dedicated neutral gray rather than a hue in both palettes.
+The integer-to-name mapping isn't shipped with the source data — it was recovered by intersecting `Brain_reg.npy` with `BrainRegions_All.npy` (the cell × 112-atlas-region matrix) and resolving ties against the paper's 16-region list. The default region colors are sampled directly from the paper's region figure legend (`data/brain_regions.png`), with optional Turbo and high-contrast categorical palettes available in the same 16-region slot order; *Unassigned* is rendered as a dedicated neutral gray rather than a hue in every palette.
 
 ### Stimulus on-windows
 

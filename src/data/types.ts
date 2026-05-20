@@ -53,7 +53,7 @@ export type ColorMode =
     | "swim"
     | "activity"
     | "fish";
-export type RegionPalette = "nipy_spectral" | "turbo";
+export type RegionPalette = "nipy_spectral" | "turbo" | "distinct";
 
 /** Swim-correlation filter state. Two independent toggles combined with OR:
  *    'off'      → no swim filter (every cell qualifies)
@@ -115,7 +115,8 @@ export interface FilterState {
     showUnassignedRegion: boolean;
     /** Categorical palette used by colorMode === 'region'. `nipy_spectral`
      *  preserves the paper-matching legend; `turbo` is a smoother rainbow
-     *  alternative sampled in the same anatomical order. */
+     *  alternative sampled in the same anatomical order; `distinct` favors
+     *  label separability over ordered-ramp continuity. */
     regionPalette: RegionPalette;
 
     // ── Anatomy filter ────────────────────────────────────────────────

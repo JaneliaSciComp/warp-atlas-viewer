@@ -120,7 +120,7 @@ export function decodeHash(hash: string): PersistedState | null {
 
 const COLOR_MODES = new Set<ColorMode>(['highlight', 'region', 'gene', 'stim', 'swim', 'activity', 'fish']);
 const GENE_SCALES = new Set<GeneScale>(['log', 'linear']);
-const REGION_PALETTES = new Set<RegionPalette>(['nipy_spectral', 'turbo']);
+const REGION_PALETTES = new Set<RegionPalette>(['nipy_spectral', 'turbo', 'distinct']);
 const TX_MODES = new Set<TxMode>(['all', 'gene', 'subtype']);
 const GENE_LOGICS = new Set<GeneLogic>(['or', 'and']);
 const STIM_LOGICS = new Set<StimLogic>(['or', 'and']);

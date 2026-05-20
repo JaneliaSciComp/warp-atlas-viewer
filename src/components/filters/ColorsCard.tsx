@@ -18,6 +18,7 @@ const COLOR_SCHEMES: Array<{ value: ColorMode; label: string }> = [
 const REGION_PALETTES: Array<{ value: RegionPalette; label: string }> = [
   { value: 'nipy_spectral', label: 'nipy' },
   { value: 'turbo', label: 'turbo' },
+  { value: 'distinct', label: 'distinct' },
 ];
 
 export function ColorsCard({
@@ -45,7 +46,7 @@ export function ColorsCard({
         <>
           <label
             className="flex items-center gap-1 text-xs"
-            title="nipy_spectral preserves the paper legend; Turbo is a smoother rainbow alternative"
+            title="nipy_spectral preserves the paper legend; Turbo is a smoother rainbow alternative; distinct maximizes categorical separation"
           >
             <span className="text-neutral-400">palette</span>
             <KindToggle

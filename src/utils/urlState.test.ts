@@ -74,12 +74,18 @@ describe('encodeHash / decodeHash', () => {
     expect(decoded?.filter?.colorMode).toBeUndefined();
   });
 
-  it('round-trips the Turbo region palette', () => {
+  it('round-trips non-default region palettes', () => {
     const hash = encodeHash({
       filter: { colorMode: 'region', regionPalette: 'turbo' },
     });
     const decoded = decodeHash(hash);
     expect(decoded?.filter?.regionPalette).toBe('turbo');
+
+    const distinctHash = encodeHash({
+      filter: { colorMode: 'region', regionPalette: 'distinct' },
+    });
+    const distinctDecoded = decodeHash(distinctHash);
+    expect(distinctDecoded?.filter?.regionPalette).toBe('distinct');
   });
 
   it('drops out-of-range numeric fields silently', () => {

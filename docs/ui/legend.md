@@ -38,5 +38,5 @@ Anchors `±stimLo` / `±stimHi` and `±swimLo` / `±swimHi` are configurable in 
 
 ## Categorical palettes
 
-- **Region** uses a 17-color palette ordered anterior → posterior. The default samples the paper-matching `nipy_spectral` legend; the optional `turbo` palette samples Google's smoother Turbo ramp in the same order. *Unassigned* (index 0) renders as a dedicated neutral gray rather than a hue.
+- **Region** uses a 17-color palette ordered anterior → posterior. The default samples the paper-matching `nipy_spectral` legend; the optional `turbo` palette samples Google's smoother Turbo ramp in the same order; the optional `distinct` palette uses high-contrast categorical colors for label separation. *Unassigned* (index 0) renders as a dedicated neutral gray rather than a hue.
 - **Specimen** uses a 3-color palette so that the per-specimen split is unambiguous.

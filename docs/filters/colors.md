@@ -104,6 +104,7 @@ A **palette** toggle appears under the Colors card when this scheme is active:
 
 - `nipy`: paper-matching `nipy_spectral`; best when preserving figure colors matters.
 - `turbo`: Google's smoother rainbow-style Turbo ramp, sampled in the same 16-region anatomical order; useful when the adjacent `nipy_spectral` bands are hard to distinguish.
+- `distinct`: high-contrast categorical colors; useful when separating region labels matters more than preserving the anterior/posterior rainbow order.
 
 **When to use:** anatomical overview; a sensible default first look.
 

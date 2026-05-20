@@ -56,6 +56,10 @@ function clamp01(x: number): number {
   return Math.max(0, Math.min(1, x));
 }
 
+function rgb255(r: number, g: number, b: number): [number, number, number] {
+  return [r / 255, g / 255, b / 255];
+}
+
 // Google Turbo — polynomial approximation published with the Turbo
 // colormap. It is a smoother rainbow-style ramp than Jet/nipy_spectral
 // while keeping high hue contrast for quick visual lookup.
@@ -86,11 +90,11 @@ export function turbo(t: number): [number, number, number] {
   return [clamp01(r), clamp01(g), clamp01(b)];
 }
 
-// WARP region palettes are 16 categorical samples over a continuous
-// rainbow ramp, plus a dedicated neutral gray for Unassigned. Data-index
-// k ∈ 1..16 maps to ramp(k/17), so k=1 (InfMO) gets the purple/blue end
-// and k=16 (Pal) gets the red end. Anterior → posterior in the paper's
-// figure walks down the palette (red Pal → purple InfMO).
+// The ordered WARP region palettes are 16 categorical samples over a
+// continuous rainbow ramp, plus a dedicated neutral gray for Unassigned.
+// Data-index k ∈ 1..16 maps to ramp(k/17), so k=1 (InfMO) gets the
+// purple/blue end and k=16 (Pal) gets the red end. Anterior → posterior
+// in the paper's figure walks down the palette (red Pal → purple InfMO).
 export const NIPY_SPECTRAL_REGION_PALETTE: Array<[number, number, number]> = [
   [0.40, 0.40, 0.42],          //  0  Unassigned (dedicated gray)
   [0.478, 0.000, 0.545],       //  1  InfMO
@@ -119,18 +123,46 @@ function buildTurboRegionPalette(): Array<[number, number, number]> {
 
 export const TURBO_REGION_PALETTE: Array<[number, number, number]> = buildTurboRegionPalette();
 
+// High-contrast categorical alternative for cases where region labels
+// should be as separable as possible. Unlike nipy_spectral/Turbo, this
+// palette does not imply anatomical continuity; it intentionally jumps
+// around hue/lightness space and avoids black/white/neutral gray so the
+// dedicated Unassigned gray remains special on the dark viewport.
+export const DISTINCT_REGION_PALETTE: Array<[number, number, number]> = [
+  [0.40, 0.40, 0.42],       //  0  Unassigned (dedicated gray)
+  rgb255(246, 34, 46),      //  1  InfMO
+  rgb255(254, 0, 250),      //  2  IntMO
+  rgb255(22, 255, 50),      //  3  SupMO
+  rgb255(50, 131, 254),     //  4  SupRaphe
+  rgb255(254, 175, 22),     //  5  Cb
+  rgb255(176, 0, 104),      //  6  Tg
+  rgb255(28, 255, 206),     //  7  NI
+  rgb255(144, 173, 28),     //  8  OTpv
+  rgb255(46, 217, 255),     //  9  OTnp
+  rgb255(222, 160, 253),    // 10  Pt
+  rgb255(170, 13, 254),     // 11  preTh
+  rgb255(248, 161, 159),    // 12  Th
+  rgb255(50, 90, 155),      // 13  Hab
+  rgb255(196, 69, 28),      // 14  HypTh
+  rgb255(28, 131, 86),      // 15  SubP
+  rgb255(133, 102, 13),     // 16  Pal
+];
+
 // Back-compatible name for the default, paper-matching palette.
 export const REGION_PALETTE = NIPY_SPECTRAL_REGION_PALETTE;
 
 export function regionColor(idx: number, palette: RegionPalette = 'nipy_spectral'): [number, number, number] {
-  const colors = palette === 'turbo' ? TURBO_REGION_PALETTE : NIPY_SPECTRAL_REGION_PALETTE;
+  const colors = palette === 'turbo'
+    ? TURBO_REGION_PALETTE
+    : palette === 'distinct'
+      ? DISTINCT_REGION_PALETTE
+      : NIPY_SPECTRAL_REGION_PALETTE;
   return colors[((idx % colors.length) + colors.length) % colors.length];
 }
 
 // Categorical palette for the per-fish color scheme. Kept distinct from
-// the region palette (which is a 16-stop Tableau extension) so fish and
-// regions don't read as visually related. Cycles if a dataset somehow
-// has more than 8 specimens.
+// the region palettes so fish and regions don't read as visually related.
+// Cycles if a dataset somehow has more than 8 specimens.
 export const FISH_PALETTE: Array<[number, number, number]> = [
   [0.894, 0.102, 0.110], // red
   [0.216, 0.494, 0.722], // blue
