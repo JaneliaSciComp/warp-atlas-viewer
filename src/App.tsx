@@ -188,12 +188,23 @@ export default function App() {
     selectionRestoredRef.current = true;
   }, [data, setIndices]);
 
-  // Activity-playback in-progress flag. When true, the URL writer
-  // skips writing so the looping activitySample doesn't pollute the
-  // share URL or browser history. The final sample at the moment
-  // playback stops is persisted via an explicit scheduleUrlWrite
-  // triggered by setActivityPlaying(false).
+  // Activity playback state — lifted from ActivityTimeRow so a tab
+  // switch (or any other unmount of that row) doesn't reset it. The
+  // interval engine below runs in App for the same reason.
+  const [activityPlaying, setActivityPlaying] = useState(false);
+  const [activitySpeed, setActivitySpeed] = useState(10);
+  // Mirror of activityPlaying as a ref so the URL writer's setTimeout
+  // can sample the latest value without re-creating the debounce dep
+  // chain on every play/pause toggle.
   const isPlayingRef = useRef(false);
+  // Stop playback when the Color scheme leaves Activity — there's
+  // nothing on screen driven by activitySample outside that mode, so
+  // running an interval would just churn React state for no payoff.
+  useEffect(() => {
+    if (filter.colorMode !== 'activity' && activityPlaying) {
+      setActivityPlaying(false);
+    }
+  }, [filter.colorMode, activityPlaying]);
 
   // Debounced URL writer. Re-runs after every render so any state
   // change (including ref-driven camera/umap updates routed via
@@ -283,13 +294,41 @@ export default function App() {
     },
     [scheduleUrlWrite],
   );
-  const setActivityPlaying = useCallback(
-    (playing: boolean) => {
-      isPlayingRef.current = playing;
-      if (!playing) scheduleUrlWrite();
-    },
-    [scheduleUrlWrite],
-  );
+  // Reflect the lifted playing state into the URL-writer's ref and
+  // flush a write on stop so the final activitySample lands in the
+  // share URL (we suppress writes during playback to keep the URL
+  // stable). Only fires on the play→pause transition.
+  const prevPlayingRef = useRef(activityPlaying);
+  useEffect(() => {
+    isPlayingRef.current = activityPlaying;
+    if (prevPlayingRef.current && !activityPlaying) scheduleUrlWrite();
+    prevPlayingRef.current = activityPlaying;
+  }, [activityPlaying, scheduleUrlWrite]);
+
+  // Sample-advance interval. Sits in App (not in ActivityTimeRow) so
+  // visible playback survives the row unmounting on tab switches or
+  // anywhere else its parents drop it.
+  useEffect(() => {
+    if (!activityPlaying || !data) return;
+    const maxSample = Math.max(0, data.traceLength - 1);
+    // Real-time playback would step one sample every 1/sampleRateHz s.
+    // At high multipliers that drops below what setInterval can cleanly
+    // deliver, so cap the tick at ~60 fps and advance several samples
+    // per tick instead.
+    const idealMs = 1000 / Math.max(0.1, data.traceSampleRateHz * activitySpeed);
+    const MIN_TICK_MS = 16;
+    const tickMs = idealMs >= MIN_TICK_MS ? idealMs : MIN_TICK_MS;
+    const samplesPerTick =
+      idealMs >= MIN_TICK_MS ? 1 : Math.max(1, Math.round(MIN_TICK_MS / idealMs));
+    const wrap = maxSample + 1;
+    const id = setInterval(() => {
+      setFilter((prev) => ({
+        ...prev,
+        activitySample: (prev.activitySample + samplesPerTick) % wrap,
+      }));
+    }, tickMs);
+    return () => clearInterval(id);
+  }, [activityPlaying, activitySpeed, data]);
 
   // The selection state is USER-EXPLICIT only (3D click → focused
   // neuron handled separately; t-SNE drag → setIndices(_, 'umap')).
@@ -570,7 +609,10 @@ export default function App() {
                   onReset={handleResetFilters}
                   visibleCount={visibleCount}
                   applyView={handleApplyView}
-                  onActivityPlayingChange={setActivityPlaying}
+                  activityPlaying={activityPlaying}
+                  setActivityPlaying={setActivityPlaying}
+                  activitySpeed={activitySpeed}
+                  setActivitySpeed={setActivitySpeed}
                 />
               </div>
               <UmapPanel
