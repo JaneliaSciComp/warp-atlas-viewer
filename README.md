@@ -1,5 +1,7 @@
 # WARP Atlas Viewer
 
+[![CI](https://github.com/JaneliaSciComp/warp-atlas-viewer/actions/workflows/ci.yml/badge.svg)](https://github.com/JaneliaSciComp/warp-atlas-viewer/actions/workflows/ci.yml)
+
 Interactive web-based atlas for the [WARP](https://www.biorxiv.org/content/10.64898/2026.02.07.704095v1) dataset, a whole-brain co-mapping of gene expression and neuronal activity in larval zebrafish (Marquez-Legorreta, Fleishman, Hesselink et al., bioRxiv 2026). The viewer renders ~274,000 neurons pooled from 3 fish as a 3D point cloud and lets you cross-reference each cell's spatial position, gene expression (41 markers), functional cluster (333 molecularly-defined subtypes), and per-stimulus calcium response.
 
 The tool runs entirely in the browser, with no backend. It loads typed-array binaries served as static assets and renders the point cloud with a custom Three.js shader, with a linked t-SNE panel and per-selection detail charts.
@@ -200,6 +202,7 @@ The shared loader lives at `scripts/devEnv.mjs`; both
 ```bash
 npm test           # one-shot run (vitest), CI-friendly
 npm run test:watch # watch mode for development
+npm run test:smoke # Playwright browser smoke test against ?mock=1
 npm run lint       # ESLint
 npm run check      # tsc --noEmit && eslint . && vitest run && vite build
 ```
@@ -211,6 +214,11 @@ rejection, `pointInPolygon` / `cellsInPolygon`, and the
 `validateManifest` / `expectedBytes` / `validateBuffer`
 data-load invariants. Test files live next to their source as
 `*.test.ts`.
+
+`npm run test:smoke` starts a Vite dev server on port 4173 and loads
+the mock atlas in Chromium. Install the browser once with
+`npx playwright install chromium` if Playwright reports that Chromium is
+missing.
 
 `npm run lint` is `eslint-plugin-react-hooks` (classic
 `rules-of-hooks` + `exhaustive-deps`) — hook-correctness only, not

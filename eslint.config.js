@@ -22,6 +22,10 @@ export default tseslint.config(
     languageOptions: { globals: { process: 'readonly', console: 'readonly' } },
   },
   {
+    files: ['playwright.config.ts'],
+    languageOptions: { globals: { process: 'readonly' } },
+  },
+  {
     files: ['**/*.{ts,tsx}'],
     plugins: { 'react-hooks': reactHooks },
     rules: {
