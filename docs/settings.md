@@ -1,6 +1,6 @@
 ---
 title: Settings
-description: Threshold cutoffs, ramp anchors, point density, and the gene-expression threshold mode.
+description: Threshold cutoffs, ramp anchors, point density, 3D rendering, and the gene-expression threshold mode.
 ---
 
 # Settings
@@ -28,12 +28,35 @@ The default **Auto** mode derives both from the number of cells passing the acti
 | 100 000 | 11.2 | 0.69 |
 | all (≈ 274 k) | 10.0 | 0.75 |
 
+In the **3D viewer**, Auto mode also scales point size with the live canvas area so a larger window keeps roughly the same dots-per-area density. The t-SNE panel uses the table's base point size directly because its canvas is fixed-size.
+
 Turning Auto off exposes the two sliders directly:
 
 - **point size (px)** — base size used for every cell. Cells in a t-SNE lasso selection receive an additional 1.5× boost; a focused cell is brightened and marked with a white ring. Range 2 – 20.
-- **ghost visibility** (0..1) — `0` makes out-of-filter cells fully transparent and the click pickers skip them; `1` renders them at the standard dim alpha and keeps them fully pickable. Pickability flips off above the midpoint (slider ≥ 0.5).
+- **ghost visibility** (0..1) — `0` makes out-of-filter cells fully transparent and the click pickers skip them; `1` renders them at the standard dim alpha and keeps them fully pickable. Pickability flips off below the midpoint (slider < 0.5).
 
 The ghost setting also drives **render order**: out-of-filter cells render first and in-filter cells render last, so foreground (in-set) cells never get occluded by the dim background regardless of true 3D depth — even when ghosts are still visible.
+
+## 3D Rendering
+
+Controls that affect only the 3D brain view. They do not change the t-SNE scatter, the Detail panel plots, or which cells pass filters.
+
+### Ambient occlusion
+
+**Ambient occlusion** enables a screen-space post-processing pass that adds local contact shadows around dense boundaries and overlapping cells. It is off by default.
+
+When enabled, two numeric controls become active:
+
+- **occlusion strength** — how dark the local shadows can become. Range `0` – `0.4`; the default is `0.1`.
+- **shadow radius (px)** — the screen-space neighborhood used by the occlusion pass. Smaller values keep shadows tight around local overlaps; larger values create broader depth shading. Range `1` – `72` px; the default is `8`.
+
+These settings are intended as visual depth cues for the 3D view. They are persisted in the URL hash so shared links reproduce the same rendering style.
+
+### Opaque active cells
+
+**Opaque active cells** makes active / in-filter foreground cells render at full opacity in the 3D viewer while leaving ghost/background cells dimmed. This can make depth ordering and ambient-occlusion shadows easier to read when the active population would otherwise be partially transparent.
+
+The setting is 3D-only: the t-SNE panel keeps the standard alpha encoding so lasso context and faded correlation magnitudes remain readable there.
 
 ## Gene plasma ceiling
 
@@ -101,7 +124,7 @@ The default range accommodates quiet cells at the dim end while allowing peaks t
 
 ## What Settings does not control
 
-The Settings tab governs thresholds and palette anchors. The following are intentionally excluded:
+The Settings tab governs thresholds, palette anchors, point density, and 3D rendering style. The following are intentionally excluded:
 
 - the active color scheme (use the [Colors card](/filters/colors)),
 - selections (use [click or lasso](/selections)),
