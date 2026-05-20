@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { SAOPass } from 'three/addons/postprocessing/SAOPass.js';
+import { canvasPointSizeScale } from '../utils/pointSizing';
 
 const AO_ALPHA_MIN = 0.5;
 const AO_SKIP_FLAG = 'skipAmbientOcclusion';
@@ -23,6 +24,7 @@ const pointCloudNormalVertexShader = /* glsl */ `
   attribute float instSize;
 
   uniform float pixelRatio;
+  uniform float sizeScale;
 
   varying float vAlpha;
 
@@ -33,7 +35,7 @@ const pointCloudNormalVertexShader = /* glsl */ `
     gl_Position = projectionMatrix * mvPosition;
 
     float dist = -mvPosition.z;
-    float size = instSize * pixelRatio * (160.0 / max(dist, 40.0));
+    float size = instSize * sizeScale * pixelRatio * (160.0 / max(dist, 40.0));
     gl_PointSize = max(1.5, size);
   }
 `;
@@ -74,6 +76,7 @@ function makePointCloudNormalMaterial(pixelRatio: number) {
     uniforms: {
       alphaMin: { value: AO_ALPHA_MIN },
       pixelRatio: { value: pixelRatio },
+      sizeScale: { value: 1 },
     },
   });
 }
@@ -144,13 +147,16 @@ class PointCloudSAOPass extends SAOPass {
 }
 
 export function AmbientOcclusion({
+  autoSizing,
   intensity,
   radius,
 }: {
+  autoSizing: boolean;
   intensity: number;
   radius: number;
 }) {
   const { gl, scene, camera, size } = useThree();
+  const sizeScale = canvasPointSizeScale(autoSizing, size.width, size.height);
 
   const { composer, saoPass, pointNormalMaterial } = useMemo(() => {
     const composer = new EffectComposer(gl);
@@ -193,7 +199,8 @@ export function AmbientOcclusion({
     composer.setPixelRatio(pixelRatio);
     composer.setSize(size.width, size.height);
     pointNormalMaterial.uniforms.pixelRatio.value = pixelRatio;
-  }, [composer, gl, pointNormalMaterial, size.height, size.width]);
+    pointNormalMaterial.uniforms.sizeScale.value = sizeScale;
+  }, [composer, gl, pointNormalMaterial, size.height, size.width, sizeScale]);
 
   useEffect(() => {
     return () => {

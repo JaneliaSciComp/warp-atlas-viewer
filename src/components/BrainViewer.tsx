@@ -6,6 +6,7 @@ import type { NeuronDataset, FilterState, SettingsState } from '../data/types';
 import type { CameraState } from '../utils/urlState';
 import { allocColoring, anyFilterActive, cellInSet, cellIsRenderable } from '../utils/coloring';
 import type { SharedColoring } from '../hooks/useColoring';
+import { canvasPointSizeScale } from '../utils/pointSizing';
 import vertSrc from '../shaders/neuron.vert.glsl?raw';
 import fragSrc from '../shaders/neuron.frag.glsl?raw';
 import { AmbientOcclusion, skipAmbientOcclusionUserData } from './AmbientOcclusion';
@@ -124,10 +125,7 @@ function PointCloud({
   // tiny windows don't shrink dots past usability and huge displays
   // don't bloat them. Only kicks in when autoSizing is on — manual
   // mode honors the user's exact pixel value.
-  const REFERENCE_CANVAS_AREA = 1100 * 700;
-  const sizeScale = settings.autoSizing
-    ? Math.max(0.6, Math.min(2.0, Math.sqrt(Math.max(1, size.width * size.height) / REFERENCE_CANVAS_AREA)))
-    : 1;
+  const sizeScale = canvasPointSizeScale(settings.autoSizing, size.width, size.height);
   useEffect(() => {
     opaqueMaterial.uniforms.sizeScale.value = sizeScale;
     transparentMaterial.uniforms.sizeScale.value = sizeScale;
@@ -583,6 +581,7 @@ export function BrainViewer({
         />
         {settings.ambientOcclusion && (
           <AmbientOcclusion
+            autoSizing={settings.autoSizing}
             intensity={settings.ambientOcclusionIntensity}
             radius={settings.ambientOcclusionRadius}
           />
