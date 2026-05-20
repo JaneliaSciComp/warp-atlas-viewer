@@ -134,12 +134,16 @@ describe('encodeHash / decodeHash', () => {
     const hash = encodeHash({
       settings: {
         ambientOcclusion: false,
-        ambientOcclusionIntensity: 0.24,
+        ambientOcclusionIntensity: 0.12,
+        ambientOcclusionRadius: 18,
+        opaqueActiveCells: true,
       } as Partial<SettingsState>,
     });
     const decoded = decodeHash(hash);
     expect(decoded?.settings?.ambientOcclusion).toBe(false);
-    expect(decoded?.settings?.ambientOcclusionIntensity).toBe(0.24);
+    expect(decoded?.settings?.ambientOcclusionIntensity).toBe(0.12);
+    expect(decoded?.settings?.ambientOcclusionRadius).toBe(18);
+    expect(decoded?.settings?.opaqueActiveCells).toBe(true);
   });
 });
 
@@ -184,8 +188,8 @@ describe('diffSettings', () => {
   });
 
   it('emits ambient occlusion changes', () => {
-    const changed: SettingsState = { ...DEFAULT_SETTINGS, ambientOcclusion: false };
-    expect(diffSettings(changed, DEFAULT_SETTINGS)).toEqual({ ambientOcclusion: false });
+    const changed: SettingsState = { ...DEFAULT_SETTINGS, ambientOcclusion: true };
+    expect(diffSettings(changed, DEFAULT_SETTINGS)).toEqual({ ambientOcclusion: true });
   });
 });
 
