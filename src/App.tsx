@@ -1,15 +1,12 @@
-import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
+import { lazy, Suspense, useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import type { FilterState, SelectionState, SettingsState } from './data/types';
 import { DEFAULT_SETTINGS } from './data/types';
 import { useColoring } from './hooks/useColoring';
 import { useNeuronData } from './hooks/useNeuronData';
 import { useSelection } from './hooks/useSelection';
 import { useUniqueFishIds } from './hooks/useUniqueFishIds';
-import { BrainViewer } from './components/BrainViewer';
-import { DetailPanel } from './components/DetailPanel';
 import { FilterControls } from './components/FilterControls';
 import { LinksMenu } from './components/LinksMenu';
-import { UmapPanel } from './components/UmapPanel';
 import { ColorLegend } from './components/ColorLegend';
 import { anyFilterActive, cellInSet } from './utils/coloring';
 import {
@@ -28,6 +25,27 @@ import {
 } from './utils/urlState';
 import { cellsInPolygon } from './utils/polygon';
 import janeliaLogoUrl from '../images/janelia_logo.png';
+
+// Load visualization-heavy panels only after the dataset is available so
+// the loading shell can paint without pulling Three/Recharts into the
+// entry chunk.
+const BrainViewer = lazy(() =>
+  import('./components/BrainViewer').then((module) => ({ default: module.BrainViewer })),
+);
+const DetailPanel = lazy(() =>
+  import('./components/DetailPanel').then((module) => ({ default: module.DetailPanel })),
+);
+const UmapPanel = lazy(() =>
+  import('./components/UmapPanel').then((module) => ({ default: module.UmapPanel })),
+);
+
+function LoadingPane({ label }: { label: string }) {
+  return (
+    <div className="h-full w-full flex items-center justify-center bg-neutral-950 text-neutral-500 font-mono text-xs">
+      {label}
+    </div>
+  );
+}
 
 const INITIAL_FILTER: FilterState = {
   colorMode: 'region',
@@ -542,16 +560,18 @@ export default function App() {
               whether the bottom row is collapsed). */}
           <div className="relative min-h-0 min-w-0 row-start-1 col-start-1">
             <div className="absolute inset-0">
-              <BrainViewer
-                data={data}
-                filter={filter}
-                settings={settings}
-                coloring={coloring}
-                focusedNeuron={focusedNeuron}
-                onFocus={setFocusedNeuron}
-                initialCamera={INITIAL_URL_STATE?.camera ?? null}
-                onCameraChange={handleCameraChange}
-              />
+              <Suspense fallback={<LoadingPane label="Loading 3D viewer…" />}>
+                <BrainViewer
+                  data={data}
+                  filter={filter}
+                  settings={settings}
+                  coloring={coloring}
+                  focusedNeuron={focusedNeuron}
+                  onFocus={setFocusedNeuron}
+                  initialCamera={INITIAL_URL_STATE?.camera ?? null}
+                  onCameraChange={handleCameraChange}
+                />
+              </Suspense>
               <ColorLegend
                 data={data}
                 filter={filter}
@@ -615,18 +635,20 @@ export default function App() {
                   setActivitySpeed={setActivitySpeed}
                 />
               </div>
-              <UmapPanel
-                data={data}
-                filter={filter}
-                settings={settings}
-                selection={selection}
-                coloring={coloring}
-                focusedNeuron={focusedNeuron}
-                onFocus={setFocusedNeuron}
-                onSelect={handleUmapSelect}
-                initialViewport={INITIAL_URL_STATE?.umap ?? null}
-                onViewportChange={handleUmapViewportChange}
-              />
+              <Suspense fallback={<LoadingPane label="Loading t-SNE panel…" />}>
+                <UmapPanel
+                  data={data}
+                  filter={filter}
+                  settings={settings}
+                  selection={selection}
+                  coloring={coloring}
+                  focusedNeuron={focusedNeuron}
+                  onFocus={setFocusedNeuron}
+                  onSelect={handleUmapSelect}
+                  initialViewport={INITIAL_URL_STATE?.umap ?? null}
+                  onViewportChange={handleUmapViewportChange}
+                />
+              </Suspense>
             </div>
           )}
         </div>
@@ -647,7 +669,15 @@ export default function App() {
               title="Drag to resize"
               className="absolute top-0 bottom-0 left-0 w-1.5 z-20 cursor-col-resize bg-transparent hover:bg-yellow-300/30 transition-colors"
             />
-            <DetailPanel data={data} filter={filter} settings={settings} selection={effectiveSelection} focusedNeuron={focusedNeuron} />
+            <Suspense fallback={<LoadingPane label="Loading details…" />}>
+              <DetailPanel
+                data={data}
+                filter={filter}
+                settings={settings}
+                selection={effectiveSelection}
+                focusedNeuron={focusedNeuron}
+              />
+            </Suspense>
           </aside>
         )}
       </div>
