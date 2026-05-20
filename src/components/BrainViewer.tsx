@@ -139,21 +139,6 @@ function PointCloud({
     buffers.colors.set(coloring.result.colors);
     buffers.alphas.set(coloring.result.alphas);
     buffers.sizes.set(coloring.result.sizes);
-    // Optional 3D-only opacity override: keep ghost/out-of-filter cells
-    // transparent, but make active/in-filter foreground cells fully
-    // opaque so screen-space depth cues are easier to follow. This is
-    // applied only to BrainViewer's private buffers, leaving UmapPanel's
-    // alpha encoding untouched.
-    if (settings.opaqueActiveCells) {
-      const filterActive = anyFilterActive(data, filter);
-      for (let i = 0; i < data.count; i++) {
-        if (buffers.alphas[i] <= 0) continue;
-        if (!cellIsRenderable(data, filter, i)) continue;
-        if (!filterActive || cellInSet(data, filter, settings, i)) {
-          buffers.alphas[i] = 1.0;
-        }
-      }
-    }
     // Stamp the focused neuron on top of whatever group coloring chose
     // for it: full alpha, brightened, so it stays visible inside a
     // dimmed group. The ring marker (below) handles the actual focus

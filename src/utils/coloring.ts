@@ -720,6 +720,15 @@ export function applyColoring(
       }
     }
 
+    // Optional shared opacity override: make foreground/in-filter cells
+    // fully opaque while leaving ghosts/out-of-filter cells dimmed. This
+    // lives in shared coloring (rather than BrainViewer) so the 3D and
+    // t-SNE scatters show the same alpha policy and visibleCount stays
+    // aligned with both.
+    if (settings.opaqueActiveCells && inSet && alpha > 0) {
+      alpha = 1.0;
+    }
+
     // Active selection: highlight selected, dim the rest if the group is
     // large enough that dimming aids comprehension. Only user-explicit
     // selections drive this — filter-derived selections already get their

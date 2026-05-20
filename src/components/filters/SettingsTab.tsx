@@ -136,14 +136,15 @@ export function SettingsTab({
 
             <section className="flex flex-col gap-2">
                 <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
-                    3D Rendering
+                    Rendering
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Rendering controls for the 3D brain view. Ambient
-                    occlusion adds local contact shadows so folds and dense
-                    boundaries are easier to read. Opaque active cells disables
-                    foreground transparency while leaving ghost/background
-                    cells dimmed.
+                    Rendering controls for the scatter views. Ambient
+                    occlusion affects only the 3D brain view and adds local
+                    contact shadows so folds and dense boundaries are easier
+                    to read. Opaque active cells disables foreground
+                    transparency in both scatter views while leaving
+                    ghost/background cells dimmed.
                 </p>
                 <label
                     className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
@@ -199,7 +200,7 @@ export function SettingsTab({
                 </div>
                 <label
                     className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
-                    title="render active/in-filter 3D cells at full opacity; ghost cells remain transparent"
+                    title="render active/in-filter cells at full opacity in both scatter views; ghost cells remain transparent"
                 >
                     <input
                         type="checkbox"

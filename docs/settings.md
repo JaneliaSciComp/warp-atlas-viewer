@@ -1,6 +1,6 @@
 ---
 title: Settings
-description: Threshold cutoffs, ramp anchors, point density, 3D rendering, and the gene-expression threshold mode.
+description: Threshold cutoffs, ramp anchors, point density, rendering, and the gene-expression threshold mode.
 ---
 
 # Settings
@@ -37,13 +37,13 @@ Turning Auto off exposes the two sliders directly:
 
 The ghost setting also drives **render order**: out-of-filter cells render first and in-filter cells render last, so foreground (in-set) cells never get occluded by the dim background regardless of true 3D depth — even when ghosts are still visible.
 
-## 3D Rendering
+## Rendering
 
-Controls that affect only the 3D brain view. They do not change the t-SNE scatter, the Detail panel plots, or which cells pass filters.
+Controls that affect how scatter plots are drawn. They do not change the Detail panel plots or which cells pass filters.
 
 ### Ambient occlusion
 
-**Ambient occlusion** enables a screen-space post-processing pass that adds local contact shadows around dense boundaries and overlapping cells. It is off by default.
+**Ambient occlusion** enables a screen-space post-processing pass in the **3D brain view** that adds local contact shadows around dense boundaries and overlapping cells. It is off by default and does not affect the t-SNE panel.
 
 When enabled, two numeric controls become active:
 
@@ -54,9 +54,9 @@ These settings are intended as visual depth cues for the 3D view. They are persi
 
 ### Opaque active cells
 
-**Opaque active cells** makes active / in-filter foreground cells render at full opacity in the 3D viewer while leaving ghost/background cells dimmed. This can make depth ordering and ambient-occlusion shadows easier to read when the active population would otherwise be partially transparent.
+**Opaque active cells** makes active / in-filter foreground cells render at full opacity in both the 3D viewer and the t-SNE panel while leaving ghost/background cells dimmed. This can make the active population easier to read when it would otherwise be partially transparent.
 
-The setting is 3D-only: the t-SNE panel keeps the standard alpha encoding so lasso context and faded correlation magnitudes remain readable there.
+Large user selections can still dim non-selected cells on top of this setting, so selection emphasis remains visible.
 
 ## Gene plasma ceiling
 
@@ -124,7 +124,7 @@ The default range accommodates quiet cells at the dim end while allowing peaks t
 
 ## What Settings does not control
 
-The Settings tab governs thresholds, palette anchors, point density, and 3D rendering style. The following are intentionally excluded:
+The Settings tab governs thresholds, palette anchors, point density, and rendering style. The following are intentionally excluded:
 
 - the active color scheme (use the [Colors card](/filters/colors)),
 - selections (use [click or lasso](/selections)),

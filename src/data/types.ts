@@ -264,10 +264,10 @@ export interface SettingsState {
      *  Lower values keep shadows tight around local overlaps; higher
      *  values create broader depth shading across dense neighborhoods. */
     ambientOcclusionRadius: number;
-    /** 3D-view-only opacity override. When true, foreground / in-filter
-     *  cells are rendered fully opaque in the brain viewer so depth cues
-     *  are easier to read; ghost/out-of-filter cells remain dimmed by
-     *  ghostIntensity. */
+    /** Scatter opacity override. When true, foreground / in-filter cells
+     *  are rendered fully opaque in both the 3D and t-SNE views so active
+     *  populations read clearly; ghost/out-of-filter cells remain dimmed
+     *  by ghostIntensity. */
     opaqueActiveCells: boolean;
     /** Lower anchor for the Activity scheme's plasma palette (ΔF/F).
      *  Cells with traces below this map to the dark end. Default 0 — the

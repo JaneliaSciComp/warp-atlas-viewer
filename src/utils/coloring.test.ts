@@ -291,4 +291,18 @@ describe('applyColoring stats', () => {
     expect(stats.filterSelection).toBeInstanceOf(Uint32Array);
     expect(Array.from(stats.filterSelection ?? []).sort((a, b) => a - b)).toEqual([2, 3]);
   });
+
+  it('applies opaqueActiveCells in shared coloring and visibleCount', () => {
+    const out = allocColoring(TEST_DATA.count);
+    const stats = applyColoring(
+      TEST_DATA,
+      { ...BASE_FILTER, colorMode: 'activity' },
+      { ...DEFAULT_SETTINGS, opaqueActiveCells: true },
+      emptySelection,
+      out,
+    );
+
+    expect(Array.from(out.alphas)).toEqual([1, 1, 1, 1]);
+    expect(stats.visibleCount).toBe(4);
+  });
 });
