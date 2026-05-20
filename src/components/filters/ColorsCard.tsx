@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { NeuronDataset, FilterState, ColorMode, RegionPalette } from '../../data/types';
-import { Card, KindToggle, Select } from './shared';
+import { Card, Select } from './shared';
 
 // Order mirrors the filter cards along the bottom strip
 // (Transcriptomics → Visual Stimuli → Swim → Anatomy), with Simple
@@ -34,6 +34,11 @@ export function ColorsCard({
 }) {
   const schemeOptions = COLOR_SCHEMES.map((s, i) => ({ value: i, label: s.label }));
   const currentIdx = COLOR_SCHEMES.findIndex((s) => s.value === filter.colorMode);
+  const paletteOptions = REGION_PALETTES.map((p, i) => ({ value: i, label: p.label }));
+  const currentPaletteIdx = Math.max(
+    0,
+    REGION_PALETTES.findIndex((p) => p.value === filter.regionPalette),
+  );
   return (
     <Card title="Colors">
       <Select
@@ -44,17 +49,14 @@ export function ColorsCard({
       />
       {filter.colorMode === 'region' && (
         <>
-          <label
-            className="flex items-center gap-1 text-xs"
-            title="nipy_spectral preserves the paper legend; Turbo is a smoother rainbow alternative; distinct maximizes categorical separation"
-          >
-            <span className="text-neutral-400">palette</span>
-            <KindToggle
-              value={filter.regionPalette}
-              onChange={(v) => update({ regionPalette: v })}
-              options={REGION_PALETTES}
+          <span title="nipy_spectral preserves the paper legend; Turbo is a smoother rainbow alternative; distinct maximizes categorical separation">
+            <Select
+              label="palette"
+              value={currentPaletteIdx}
+              onChange={(v) => update({ regionPalette: REGION_PALETTES[v].value })}
+              options={paletteOptions}
             />
-          </label>
+          </span>
           <label
             className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
             title="show cells in the Unassigned bucket (regions outside the 16 paper focal regions)"
