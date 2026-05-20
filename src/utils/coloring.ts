@@ -520,7 +520,7 @@ export function applyColoring(
     } else {
       switch (filter.colorMode) {
         case 'region': {
-          const c = regionColor(regionIds[i]);
+          const c = regionColor(regionIds[i], filter.regionPalette);
           r = c[0]; g = c[1]; b = c[2];
           break;
         }

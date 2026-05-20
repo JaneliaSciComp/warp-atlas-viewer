@@ -27,10 +27,13 @@ interface Props {
    *  Caller is expected to base this on INITIAL_FILTER and clear any
    *  user-explicit selections so the preset starts from a clean state. */
   applyView: (preset: Partial<FilterState>) => void;
-  /** Notifies parent when activity playback starts/stops so the URL
-   *  writer can suppress mid-playback writes — only the sample at
-   *  pause time should land in the share URL. */
-  onActivityPlayingChange: (playing: boolean) => void;
+  /** Activity-playback state lives in App so a tab switch (which
+   *  unmounts the row owning these controls) doesn't reset playback or
+   *  the speed selection. */
+  activityPlaying: boolean;
+  setActivityPlaying: (playing: boolean) => void;
+  activitySpeed: number;
+  setActivitySpeed: (speed: number) => void;
 }
 
 type Tab = 'filters' | 'settings' | 'about';
@@ -40,7 +43,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'about', label: 'About' },
 ];
 
-export function FilterControls({ data, filter, setFilter, settings, setSettings, uniqueFishIds, onReset, visibleCount, applyView, onActivityPlayingChange }: Props) {
+export function FilterControls({ data, filter, setFilter, settings, setSettings, uniqueFishIds, onReset, visibleCount, applyView, activityPlaying, setActivityPlaying, activitySpeed, setActivitySpeed }: Props) {
   const update = (patch: Partial<FilterState>) => setFilter({ ...filter, ...patch });
   const [tab, setTab] = useState<Tab>('filters');
 
@@ -79,7 +82,10 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
                 data={data}
                 filter={filter}
                 update={update}
-                onActivityPlayingChange={onActivityPlayingChange}
+                activityPlaying={activityPlaying}
+                setActivityPlaying={setActivityPlaying}
+                activitySpeed={activitySpeed}
+                setActivitySpeed={setActivitySpeed}
               />
               <CrossSep />
               <TranscriptomicsCard data={data} filter={filter} update={update} />

@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { NeuronDataset, FilterState, ColorMode } from '../../data/types';
+import type { NeuronDataset, FilterState, ColorMode, RegionPalette } from '../../data/types';
 import { Card, Select } from './shared';
 
 // Order mirrors the filter cards along the bottom strip
@@ -15,19 +14,36 @@ const COLOR_SCHEMES: Array<{ value: ColorMode; label: string }> = [
   { value: 'fish', label: 'Specimen' },
 ];
 
+const REGION_PALETTES: Array<{ value: RegionPalette; label: string }> = [
+  { value: 'nipy_spectral', label: 'nipy' },
+  { value: 'turbo', label: 'turbo' },
+  { value: 'distinct', label: 'distinct' },
+];
+
 export function ColorsCard({
   data,
   filter,
   update,
-  onActivityPlayingChange,
+  activityPlaying,
+  setActivityPlaying,
+  activitySpeed,
+  setActivitySpeed,
 }: {
   data: NeuronDataset;
   filter: FilterState;
   update: (p: Partial<FilterState>) => void;
-  onActivityPlayingChange: (playing: boolean) => void;
+  activityPlaying: boolean;
+  setActivityPlaying: (playing: boolean) => void;
+  activitySpeed: number;
+  setActivitySpeed: (speed: number) => void;
 }) {
   const schemeOptions = COLOR_SCHEMES.map((s, i) => ({ value: i, label: s.label }));
   const currentIdx = COLOR_SCHEMES.findIndex((s) => s.value === filter.colorMode);
+  const paletteOptions = REGION_PALETTES.map((p, i) => ({ value: i, label: p.label }));
+  const currentPaletteIdx = Math.max(
+    0,
+    REGION_PALETTES.findIndex((p) => p.value === filter.regionPalette),
+  );
   return (
     <Card title="Colors">
       <Select
@@ -37,18 +53,28 @@ export function ColorsCard({
         options={schemeOptions}
       />
       {filter.colorMode === 'region' && (
-        <label
-          className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
-          title="show cells in the Unassigned bucket (regions outside the 16 paper focal regions)"
-        >
-          <input
-            type="checkbox"
-            checked={filter.showUnassignedRegion}
-            onChange={(e) => update({ showUnassignedRegion: e.target.checked })}
-            className="accent-neutral-300"
-          />
-          show unassigned
-        </label>
+        <>
+          <span title="nipy_spectral preserves the paper legend; Turbo is a smoother rainbow alternative; distinct maximizes categorical separation">
+            <Select
+              label="palette"
+              value={currentPaletteIdx}
+              onChange={(v) => update({ regionPalette: REGION_PALETTES[v].value })}
+              options={paletteOptions}
+            />
+          </span>
+          <label
+            className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
+            title="show cells in the Unassigned bucket (regions outside the 16 paper focal regions)"
+          >
+            <input
+              type="checkbox"
+              checked={filter.showUnassignedRegion}
+              onChange={(e) => update({ showUnassignedRegion: e.target.checked })}
+              className="accent-neutral-300"
+            />
+            show unassigned
+          </label>
+        </>
       )}
       {filter.colorMode === 'gene' && (
         <label className="flex items-center gap-1 text-xs">
@@ -76,7 +102,10 @@ export function ColorsCard({
           data={data}
           filter={filter}
           update={update}
-          onPlayingChange={onActivityPlayingChange}
+          playing={activityPlaying}
+          setPlaying={setActivityPlaying}
+          speed={activitySpeed}
+          setSpeed={setActivitySpeed}
         />
       )}
     </Card>
@@ -87,12 +116,18 @@ function ActivityTimeRow({
   data,
   filter,
   update,
-  onPlayingChange,
+  playing,
+  setPlaying,
+  speed,
+  setSpeed,
 }: {
   data: NeuronDataset;
   filter: FilterState;
   update: (p: Partial<FilterState>) => void;
-  onPlayingChange: (playing: boolean) => void;
+  playing: boolean;
+  setPlaying: (playing: boolean) => void;
+  speed: number;
+  setSpeed: (speed: number) => void;
 }) {
   // Clamp the displayed value defensively. Stale URL state from a
   // dataset with a different traceLength could otherwise put the
@@ -106,87 +141,6 @@ function ActivityTimeRow({
     const next = Math.max(0, Math.min(maxSample, sample + delta));
     if (next !== sample) update({ activitySample: next });
   };
-
-  const [playing, setPlaying] = useState(false);
-  const [speed, setSpeed] = useState(10);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // The interval tick reads `sample` via this ref so it always advances
-  // from the latest value (including any user scrub mid-playback)
-  // without resetting the interval each render.
-  const sampleRef = useRef(sample);
-  sampleRef.current = sample;
-  // `update` / `onPlayingChange` get fresh identities on every parent
-  // render (parent's `update` closes over `filter`; `onPlayingChange`
-  // closes over `scheduleUrlWrite` which closes over `filter`). Reading
-  // them through refs keeps the interval-tick and the unmount cleanup
-  // independent of those re-renders — otherwise the cleanup effect's
-  // dep would change after the first tick and tear the interval down.
-  const updateRef = useRef(update);
-  updateRef.current = update;
-  const onPlayingChangeRef = useRef(onPlayingChange);
-  onPlayingChangeRef.current = onPlayingChange;
-
-  const setupInterval = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    // Real-time playback would step one sample every 1/sampleRateHz
-    // seconds. At high speed multipliers that interval drops below
-    // what setInterval can cleanly deliver, so we cap the tick rate
-    // at ~60 fps and advance multiple samples per tick instead.
-    const idealMs = 1000 / Math.max(0.1, data.traceSampleRateHz * speed);
-    const MIN_TICK_MS = 16;
-    let tickMs: number;
-    let samplesPerTick: number;
-    if (idealMs >= MIN_TICK_MS) {
-      tickMs = idealMs;
-      samplesPerTick = 1;
-    } else {
-      tickMs = MIN_TICK_MS;
-      samplesPerTick = Math.max(1, Math.round(MIN_TICK_MS / idealMs));
-    }
-    const wrap = maxSample + 1;
-    intervalRef.current = setInterval(() => {
-      const next = (sampleRef.current + samplesPerTick) % wrap;
-      updateRef.current({ activitySample: next });
-    }, tickMs);
-  }, [data.traceSampleRateHz, maxSample, speed]);
-
-  const stopPlayback = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    setPlaying(false);
-    onPlayingChangeRef.current(false);
-  }, []);
-
-  const startPlayback = useCallback(() => {
-    if (intervalRef.current) return;
-    setPlaying(true);
-    onPlayingChangeRef.current(true);
-    setupInterval();
-  }, [setupInterval]);
-
-  // If the speed (or stream geometry) changes while playing, restart
-  // the interval with the new cadence. When not playing, do nothing —
-  // setupInterval is a no-op until the user hits play.
-  useEffect(() => {
-    if (intervalRef.current) setupInterval();
-  }, [setupInterval]);
-
-  // Stop the interval and re-enable URL writes if the row unmounts
-  // mid-playback (e.g. user switches color scheme or resets filters).
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      onPlayingChangeRef.current(false);
-    };
-  }, []);
 
   return (
     <div className="flex flex-col gap-1 text-xs">
@@ -226,7 +180,7 @@ function ActivityTimeRow({
       <div className="flex justify-center items-center gap-1.5">
         <button
           type="button"
-          onClick={playing ? stopPlayback : startPlayback}
+          onClick={() => setPlaying(!playing)}
           aria-label={playing ? 'pause activity playback' : 'play activity'}
           title={playing ? 'pause' : 'play'}
           className="bg-neutral-900 border border-neutral-700 rounded px-3 py-0.5 text-neutral-200 hover:bg-neutral-700 leading-none font-mono"

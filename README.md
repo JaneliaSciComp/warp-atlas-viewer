@@ -246,7 +246,7 @@ src/
     mockData.ts                     synthetic fallback dataset
   utils/
     coloring.ts                     single-pass per-neuron colour/alpha/size fill
-    colorMaps.ts                    plasma, region palette, fish palette
+    colorMaps.ts                    plasma, region palettes, fish palette
     stimAssets.ts                   stimulus icons and labels
     urlState.ts                     hash codec for shareable URLs
     polygon.ts                      point-in-polygon for t-SNE lasso

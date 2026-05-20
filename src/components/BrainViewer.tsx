@@ -437,20 +437,24 @@ export function BrainViewer({
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     pickRef.current.pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    if (pickRef.current.hovered >= 0) {
+    // Promote pointerdown → drag once movement exceeds the threshold.
+    // The tooltip is hidden the moment a drag starts and stays hidden
+    // until the next mousedown so it doesn't trail the cursor across
+    // a rotate/pan.
+    if (downRef.current && !draggedRef.current) {
+      const dx = e.clientX - downRef.current.x;
+      const dy = e.clientY - downRef.current.y;
+      if (dx * dx + dy * dy > DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX) {
+        draggedRef.current = true;
+        setHover(null);
+      }
+    }
+    if (!draggedRef.current && pickRef.current.hovered >= 0) {
       setHover({
         i: pickRef.current.hovered,
         x: e.clientX - rect.left,
         y: e.clientY - rect.top,
       });
-    }
-    // Promote pointerdown → drag once movement exceeds the threshold.
-    if (downRef.current) {
-      const dx = e.clientX - downRef.current.x;
-      const dy = e.clientY - downRef.current.y;
-      if (dx * dx + dy * dy > DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX) {
-        draggedRef.current = true;
-      }
     }
   };
   const onPointerLeave = () => {
@@ -482,12 +486,15 @@ export function BrainViewer({
   };
 
   // useFrame in PointCloud calls this when the hovered index changes; we
-  // mirror it into React state so the tooltip re-renders.
+  // mirror it into React state so the tooltip re-renders. Suppressed
+  // while a drag is in progress so the tooltip doesn't reappear behind
+  // a rotate/pan as the picker keeps walking over cells.
   const handleHoverChange = useCallback((i: number) => {
     if (i < 0) {
       setHover(null);
       return;
     }
+    if (draggedRef.current) return;
     const pos = pickRef.current.pos;
     if (!pos) return;
     setHover({ i, x: pos.x, y: pos.y });

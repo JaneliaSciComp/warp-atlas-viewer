@@ -15,6 +15,7 @@ const INITIAL_FILTER: FilterState = {
   colorMode: 'region',
   geneScale: 'log',
   showUnassignedRegion: true,
+  regionPalette: 'nipy_spectral',
   isolatedRegion: -1,
   isolatedFish: -1,
   txMode: 'all',
@@ -71,6 +72,20 @@ describe('encodeHash / decodeHash', () => {
     const decoded = decodeHash(bogus);
     // Unknown enum is dropped; the spread-merge in App falls back to default.
     expect(decoded?.filter?.colorMode).toBeUndefined();
+  });
+
+  it('round-trips non-default region palettes', () => {
+    const hash = encodeHash({
+      filter: { colorMode: 'region', regionPalette: 'turbo' },
+    });
+    const decoded = decodeHash(hash);
+    expect(decoded?.filter?.regionPalette).toBe('turbo');
+
+    const distinctHash = encodeHash({
+      filter: { colorMode: 'region', regionPalette: 'distinct' },
+    });
+    const distinctDecoded = decodeHash(distinctHash);
+    expect(distinctDecoded?.filter?.regionPalette).toBe('distinct');
   });
 
   it('drops out-of-range numeric fields silently', () => {
