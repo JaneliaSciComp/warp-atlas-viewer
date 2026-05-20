@@ -136,6 +136,85 @@ export function SettingsTab({
 
             <section className="flex flex-col gap-2">
                 <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+                    3D Rendering
+                </div>
+                <p className="text-neutral-400 leading-snug">
+                    Rendering controls for the 3D brain view. Ambient
+                    occlusion adds local contact shadows so folds and dense
+                    boundaries are easier to read. Opaque active cells disables
+                    foreground transparency while leaving ghost/background
+                    cells dimmed.
+                </p>
+                <label
+                    className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
+                    title="enable screen-space ambient occlusion in the 3D viewer"
+                >
+                    <input
+                        type="checkbox"
+                        checked={settings.ambientOcclusion}
+                        onChange={(e) =>
+                            update({ ambientOcclusion: e.target.checked })
+                        }
+                        className="accent-neutral-300"
+                    />
+                    ambient occlusion
+                </label>
+                <div
+                    className={
+                        settings.ambientOcclusion
+                            ? "opacity-100"
+                            : "opacity-40 pointer-events-none"
+                    }
+                >
+                    <NumberRow
+                        label="occlusion strength"
+                        value={settings.ambientOcclusionIntensity}
+                        min={0}
+                        max={0.4}
+                        step={0.005}
+                        onChange={(v) =>
+                            update({
+                                ambientOcclusionIntensity: Math.max(
+                                    0,
+                                    Math.min(0.4, v),
+                                ),
+                            })
+                        }
+                    />
+                    <NumberRow
+                        label="shadow radius (px)"
+                        value={settings.ambientOcclusionRadius}
+                        min={1}
+                        max={72}
+                        step={1}
+                        onChange={(v) =>
+                            update({
+                                ambientOcclusionRadius: Math.max(
+                                    1,
+                                    Math.min(72, Math.round(v)),
+                                ),
+                            })
+                        }
+                    />
+                </div>
+                <label
+                    className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
+                    title="render active/in-filter 3D cells at full opacity; ghost cells remain transparent"
+                >
+                    <input
+                        type="checkbox"
+                        checked={settings.opaqueActiveCells}
+                        onChange={(e) =>
+                            update({ opaqueActiveCells: e.target.checked })
+                        }
+                        className="accent-neutral-300"
+                    />
+                    opaque active cells
+                </label>
+            </section>
+
+            <section className="flex flex-col gap-2">
+                <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
                     Gene plasma ceiling
                 </div>
                 <p className="text-neutral-400 leading-snug">

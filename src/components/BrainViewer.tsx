@@ -8,6 +8,7 @@ import { allocColoring, anyFilterActive, cellInSet, cellIsRenderable } from '../
 import type { SharedColoring } from '../hooks/useColoring';
 import vertSrc from '../shaders/neuron.vert.glsl?raw';
 import fragSrc from '../shaders/neuron.frag.glsl?raw';
+import { AmbientOcclusion, skipAmbientOcclusionUserData } from './AmbientOcclusion';
 
 interface Props {
   data: NeuronDataset;
@@ -140,6 +141,21 @@ function PointCloud({
     buffers.colors.set(coloring.result.colors);
     buffers.alphas.set(coloring.result.alphas);
     buffers.sizes.set(coloring.result.sizes);
+    // Optional 3D-only opacity override: keep ghost/out-of-filter cells
+    // transparent, but make active/in-filter foreground cells fully
+    // opaque so screen-space depth cues are easier to follow. This is
+    // applied only to BrainViewer's private buffers, leaving UmapPanel's
+    // alpha encoding untouched.
+    if (settings.opaqueActiveCells) {
+      const filterActive = anyFilterActive(data, filter);
+      for (let i = 0; i < data.count; i++) {
+        if (buffers.alphas[i] <= 0) continue;
+        if (!cellIsRenderable(data, filter, i)) continue;
+        if (!filterActive || cellInSet(data, filter, settings, i)) {
+          buffers.alphas[i] = 1.0;
+        }
+      }
+    }
     // Stamp the focused neuron on top of whatever group coloring chose
     // for it: full alpha, brightened, so it stays visible inside a
     // dimmed group. The ring marker (below) handles the actual focus
@@ -167,7 +183,7 @@ function PointCloud({
     } else if (geometry.index) {
       geometry.setIndex(null);
     }
-  }, [data, coloring, focusedNeuron, buffers, geometry]);
+  }, [data, filter, settings, coloring, focusedNeuron, buffers, geometry]);
 
   // Focused-neuron ring marker. Mirrors the t-SNE white outline: a
   // hollow circle that grows with the cell up close and floors at a
@@ -387,8 +403,18 @@ function PointCloud({
         * geometry — the materials' alphaMin / alphaMax uniforms
         * partition cells by alpha at the fragment level. */}
       <points geometry={geometry} material={opaqueMaterial} renderOrder={0} />
-      <points geometry={geometry} material={transparentMaterial} renderOrder={1} />
-      <points geometry={markerGeometry} material={markerMaterial} renderOrder={2} />
+      <points
+        geometry={geometry}
+        material={transparentMaterial}
+        renderOrder={1}
+        userData={skipAmbientOcclusionUserData}
+      />
+      <points
+        geometry={markerGeometry}
+        material={markerMaterial}
+        renderOrder={2}
+        userData={skipAmbientOcclusionUserData}
+      />
     </group>
   );
 }
@@ -539,6 +565,12 @@ export function BrainViewer({
           onCameraChange={onCameraChange}
           panRef={screenPanRef}
         />
+        {settings.ambientOcclusion && (
+          <AmbientOcclusion
+            intensity={settings.ambientOcclusionIntensity}
+            radius={settings.ambientOcclusionRadius}
+          />
+        )}
       </Canvas>
       {tooltip && hover && (
         <div className="neuron-tooltip" style={{ left: hover.x + 14, top: hover.y + 14 }}>

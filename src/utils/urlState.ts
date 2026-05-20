@@ -203,6 +203,14 @@ function validateSettings(raw: unknown): Partial<SettingsState> {
   }
   if (isString(s.geneMultiColor, GENE_MULTI_COLORS)) out.geneMultiColor = s.geneMultiColor;
   if (isFiniteNum(s.pointSize) && s.pointSize > 0) out.pointSize = clamp(s.pointSize, 1, 50);
+  if (typeof s.ambientOcclusion === 'boolean') out.ambientOcclusion = s.ambientOcclusion;
+  if (isFiniteNum(s.ambientOcclusionIntensity)) {
+    out.ambientOcclusionIntensity = clamp(s.ambientOcclusionIntensity, 0, 0.4);
+  }
+  if (isFiniteNum(s.ambientOcclusionRadius)) {
+    out.ambientOcclusionRadius = clamp(Math.round(s.ambientOcclusionRadius), 1, 72);
+  }
+  if (typeof s.opaqueActiveCells === 'boolean') out.opaqueActiveCells = s.opaqueActiveCells;
   // ΔF/F anchors. Negative lo is plausible (cells deflecting below
   // baseline); 10 is a generous upper bound for activityHi.
   if (isFiniteNum(s.activityLo)) out.activityLo = clamp(s.activityLo, -5, 10);
