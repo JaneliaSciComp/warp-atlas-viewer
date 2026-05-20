@@ -43,7 +43,8 @@ No backend, no database, no auth. Everything is static files plus client-side re
 
 ## Prerequisites
 
-- Node.js ≥ 18 (developed against 22) - install with [NVM](https://github.com/nvm-sh/nvm)
+- Node.js ^20.19.0 or >=22.12.0 (developed against 22.20.0) — install with
+  [NVM](https://github.com/nvm-sh/nvm), then run `nvm install && nvm use`
 - Python ≥ 3.10 with NumPy (only needed for the one-time preprocessing step)
 - ~30 GB free disk for the source dataset; ~210 MB for the preprocessed binaries
 
