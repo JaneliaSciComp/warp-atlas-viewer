@@ -134,6 +134,55 @@ export function SettingsTab({
 
             <section className="flex flex-col gap-2">
                 <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+                    3D depth cues
+                </div>
+                <p className="text-neutral-400 leading-snug">
+                    Adds a scalable ambient-occlusion post-process to the 3D
+                    brain view so nearby overlapping cells cast subtle contact
+                    shadows. This makes the cloud's folds and dense boundaries
+                    easier to read, but costs extra GPU time.
+                </p>
+                <label
+                    className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
+                    title="enable screen-space ambient occlusion in the 3D viewer"
+                >
+                    <input
+                        type="checkbox"
+                        checked={settings.ambientOcclusion}
+                        onChange={(e) =>
+                            update({ ambientOcclusion: e.target.checked })
+                        }
+                        className="accent-neutral-300"
+                    />
+                    ambient occlusion
+                </label>
+                <div
+                    className={
+                        settings.ambientOcclusion
+                            ? "opacity-100"
+                            : "opacity-40 pointer-events-none"
+                    }
+                >
+                    <NumberRow
+                        label="occlusion strength"
+                        value={settings.ambientOcclusionIntensity}
+                        min={0}
+                        max={0.6}
+                        step={0.02}
+                        onChange={(v) =>
+                            update({
+                                ambientOcclusionIntensity: Math.max(
+                                    0,
+                                    Math.min(1, v),
+                                ),
+                            })
+                        }
+                    />
+                </div>
+            </section>
+
+            <section className="flex flex-col gap-2">
+                <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
                     Gene plasma ceiling
                 </div>
                 <p className="text-neutral-400 leading-snug">

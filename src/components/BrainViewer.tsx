@@ -8,6 +8,7 @@ import { allocColoring, anyFilterActive, cellInSet, cellIsRenderable } from '../
 import type { SharedColoring } from '../hooks/useColoring';
 import vertSrc from '../shaders/neuron.vert.glsl?raw';
 import fragSrc from '../shaders/neuron.frag.glsl?raw';
+import { AmbientOcclusion, skipAmbientOcclusionUserData } from './AmbientOcclusion';
 
 interface Props {
   data: NeuronDataset;
@@ -365,8 +366,18 @@ function PointCloud({
         * geometry — the materials' alphaMin / alphaMax uniforms
         * partition cells by alpha at the fragment level. */}
       <points geometry={geometry} material={opaqueMaterial} renderOrder={0} />
-      <points geometry={geometry} material={transparentMaterial} renderOrder={1} />
-      <points geometry={markerGeometry} material={markerMaterial} renderOrder={2} />
+      <points
+        geometry={geometry}
+        material={transparentMaterial}
+        renderOrder={1}
+        userData={skipAmbientOcclusionUserData}
+      />
+      <points
+        geometry={markerGeometry}
+        material={markerMaterial}
+        renderOrder={2}
+        userData={skipAmbientOcclusionUserData}
+      />
     </group>
   );
 }
@@ -510,6 +521,9 @@ export function BrainViewer({
           onCameraChange={onCameraChange}
           panRef={screenPanRef}
         />
+        {settings.ambientOcclusion && (
+          <AmbientOcclusion intensity={settings.ambientOcclusionIntensity} />
+        )}
       </Canvas>
       {tooltip && hover && (
         <div className="neuron-tooltip" style={{ left: hover.x + 14, top: hover.y + 14 }}>

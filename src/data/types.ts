@@ -252,6 +252,14 @@ export interface SettingsState {
      *  on high-DPI screens or when cells look too small. Overridden by
      *  `autoSizing` when that is enabled. */
     pointSize: number;
+    /** Enables a screen-space ambient occlusion post-process on the 3D
+     *  point-cloud viewer. The pass darkens nearby overlapping cells and
+     *  creases so the brain volume reads with more depth cues. */
+    ambientOcclusion: boolean;
+    /** Strength of the ambient occlusion multiplier, 0..1. Higher values
+     *  add stronger contact/density shadows but can over-darken dense
+     *  filtered views. */
+    ambientOcclusionIntensity: number;
     /** Lower anchor for the Activity scheme's plasma palette (ΔF/F).
      *  Cells with traces below this map to the dark end. Default 0 — the
      *  baseline; values <0 would mean the user wants negative deflections
@@ -305,6 +313,8 @@ export const DEFAULT_SETTINGS: SettingsState = {
     geneThresholdGlobal: 25,
     geneMultiColor: "max",
     pointSize: 10,
+    ambientOcclusion: true,
+    ambientOcclusionIntensity: 0.16,
     activityLo: 0.0,
     activityHi: 1.5,
     swimLo: 0.1,

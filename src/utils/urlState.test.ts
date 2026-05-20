@@ -129,6 +129,18 @@ describe('encodeHash / decodeHash', () => {
     expect(decoded?.settings?.stimLo).toBe(0);
     expect(decoded?.settings?.stimHi).toBe(0);
   });
+
+  it('round-trips ambient occlusion settings', () => {
+    const hash = encodeHash({
+      settings: {
+        ambientOcclusion: false,
+        ambientOcclusionIntensity: 0.24,
+      } as Partial<SettingsState>,
+    });
+    const decoded = decodeHash(hash);
+    expect(decoded?.settings?.ambientOcclusion).toBe(false);
+    expect(decoded?.settings?.ambientOcclusionIntensity).toBe(0.24);
+  });
 });
 
 describe('diffFilter', () => {
@@ -169,6 +181,11 @@ describe('diffSettings', () => {
   it('emits only the changed fields', () => {
     const changed: SettingsState = { ...DEFAULT_SETTINGS, stimLo: 0.5 };
     expect(diffSettings(changed, DEFAULT_SETTINGS)).toEqual({ stimLo: 0.5 });
+  });
+
+  it('emits ambient occlusion changes', () => {
+    const changed: SettingsState = { ...DEFAULT_SETTINGS, ambientOcclusion: false };
+    expect(diffSettings(changed, DEFAULT_SETTINGS)).toEqual({ ambientOcclusion: false });
   });
 });
 
