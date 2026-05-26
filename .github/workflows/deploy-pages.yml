@@ -55,9 +55,10 @@ jobs:
           ls -lh
 
       - name: Build bundle
-        env:
-          BASE: /${{ github.event.repository.name }}/
         run: bash scripts/bundle.sh
+
+      - name: Write CNAME for custom domain
+        run: echo "warp.janelia.org" > dist/CNAME
 
       - uses: actions/configure-pages@v5
 
