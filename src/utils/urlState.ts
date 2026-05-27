@@ -203,6 +203,8 @@ function validateSettings(raw: unknown): Partial<SettingsState> {
   }
   if (isString(s.geneMultiColor, GENE_MULTI_COLORS)) out.geneMultiColor = s.geneMultiColor;
   if (isFiniteNum(s.pointSize) && s.pointSize > 0) out.pointSize = clamp(s.pointSize, 1, 50);
+  if (isFiniteNum(s.umapPointSize) && s.umapPointSize > 0) out.umapPointSize = clamp(s.umapPointSize, 1, 50);
+  if (isFiniteNum(s.umapGhostIntensity)) out.umapGhostIntensity = clamp(s.umapGhostIntensity, 0, 1);
   if (typeof s.ambientOcclusion === 'boolean') out.ambientOcclusion = s.ambientOcclusion;
   if (isFiniteNum(s.ambientOcclusionIntensity)) {
     out.ambientOcclusionIntensity = clamp(s.ambientOcclusionIntensity, 0, 0.4);

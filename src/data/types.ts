@@ -247,11 +247,21 @@ export interface SettingsState {
      *  Single-gene coloring and richness over the full panel are
      *  unaffected by this setting. */
     geneMultiColor: GeneMultiColor;
-    /** Base 3D point size (pixels) for every cell, used by both the 3D
-     *  viewer and the t-SNE scatter. Display-density preference; raise
-     *  on high-DPI screens or when cells look too small. Overridden by
-     *  `autoSizing` when that is enabled. */
+    /** Base 3D point size (pixels) for every cell in the 3D viewer.
+     *  Display-density preference; raise on high-DPI screens or when
+     *  cells look too small. Overridden by `autoSizing` when enabled.
+     *  The t-SNE panel has its own size (`umapPointSize`). */
     pointSize: number;
+    /** Base point size (pixels) for the t-SNE scatter. Independent of
+     *  the 3D viewer's `pointSize` because t-SNE points sit at fixed
+     *  pixel size (no perspective falloff) and the dot field is much
+     *  denser per cell. */
+    umapPointSize: number;
+    /** Ghost-cell visibility for the t-SNE scatter, 0..1. Independent
+     *  of the 3D viewer's `ghostIntensity` so the two views can be tuned
+     *  separately — t-SNE points are denser and a lower value typically
+     *  reads better. */
+    umapGhostIntensity: number;
     /** Enables a screen-space ambient occlusion post-process on the 3D
      *  point-cloud viewer. The pass darkens nearby overlapping cells and
      *  creases so the brain volume reads with more depth cues. */
@@ -322,6 +332,8 @@ export const DEFAULT_SETTINGS: SettingsState = {
     geneThresholdGlobal: 25,
     geneMultiColor: "max",
     pointSize: 10,
+    umapPointSize: 11,
+    umapGhostIntensity: 0.25,
     ambientOcclusion: false,
     ambientOcclusionIntensity: 0.1,
     ambientOcclusionRadius: 8,

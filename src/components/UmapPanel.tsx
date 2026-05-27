@@ -201,10 +201,7 @@ export function UmapPanel({
     // [dx, dy, weight, dx, dy, weight, ...] array of physical-pixel
     // offsets with smoothstep edge weights for AA. Built once per
     // render instead of per cell.
-    // Track the effective point size from coloring so autoSizing
-    // applies to the t-SNE scatter too. Falls back to the user setting
-    // on the very first paint before stats are populated.
-    const effPointSize = coloring.effectivePointSize ?? settings.pointSize;
+    const effPointSize = settings.umapPointSize;
     const dotSize = Math.max(1, effPointSize * 0.18 * Math.sqrt(viewport.zoom));
     const radius = dotSize / 2;
     const radiusPhys = radius * dpr;
@@ -239,10 +236,25 @@ export function UmapPanel({
     // composite over the dim ghost haze. Falls back to natural index
     // order when no filter is active.
     const order = coloring.drawOrder;
+    // Re-derive ghost alpha for t-SNE from settings.umapGhostIntensity,
+    // independent of whatever 3D ghost intensity was baked in. The
+    // partition boundary is at `inCursor`: indices in drawOrder[0..inCursor)
+    // are ghosts, [inCursor..count) are in-set. We compute a per-cell
+    // scale that maps the baked ghost alpha back to its base (DIM/LIFT)
+    // and re-applies the t-SNE setting in one multiply.
+    const inCursor = order ? count - (coloring.filterSelection?.length ?? 0) : 0;
+    const bakedGhost = coloring.effectiveGhostIntensity || 1;
+    const ghostScale = settings.umapGhostIntensity / bakedGhost;
 
     for (let k = 0; k < count; k++) {
       const i = order ? order[k] : k;
-      const a = alphas[i];
+      let a = alphas[i];
+      // When drawOrder is in use, cells before inCursor are ghosts and
+      // their alpha should reflect the t-SNE ghost setting, not the 3D
+      // one baked into the shared buffer. Faded-correlation in-set cells
+      // (alpha < ALPHA_PASS_SPLIT but sitting in the in-set partition)
+      // are left untouched.
+      if (order && k < inCursor) a *= ghostScale;
       // Skip stamps only when alpha is so low the cell contributes no
       // visible pixels at this DPR — a stamp with weight ~0.001 still
       // changes a pixel by ≤ 1/255 even with full overlap. Above that
@@ -297,7 +309,7 @@ export function UmapPanel({
         ctx.stroke();
       }
     }
-  }, [data, settings.pointSize, coloring, focusedNeuron, size, viewport, project, umapBounds]);
+  }, [data, settings.umapPointSize, settings.umapGhostIntensity, coloring, focusedNeuron, size, viewport, project, umapBounds]);
 
   // Effect B — composite the cached scatter onto the visible canvas
   // and overlay the in-progress lasso. Cheap (drawImage + a polyline),
@@ -443,8 +455,10 @@ export function UmapPanel({
       const cx = pts[0][0], cy = pts[0][1];
       const PIX_THRESH_SQ = 16 * 16;
       const filterActive = anyFilterActive(data, filter);
-      const effGhost = coloring?.effectiveGhostIntensity ?? settings.ghostIntensity;
-      const ghost = filterActive && effGhost < 0.5;
+      // t-SNE picker tracks the t-SNE ghost setting (not the 3D one).
+      // Below half-visibility, ghosts are too faint to aim at and the
+      // picker excludes them so clicks land on cells the user can see.
+      const ghost = filterActive && settings.umapGhostIntensity < 0.5;
       let bestI = -1;
       let bestD2 = PIX_THRESH_SQ;
       let bestInFilter = false;

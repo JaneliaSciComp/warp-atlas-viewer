@@ -77,18 +77,17 @@ export function SettingsTab({
 
             <section className="flex flex-col gap-2">
                 <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
-                    Point density
+                    3D point density
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Base point size for the 3D and t-SNE scatters and the
+                    Base point size for the 3D brain scatter and the
                     visibility of cells outside the active filters (ghosts).
                     <span className="text-neutral-200"> Auto</span> derives both
                     from the filter-passing cell count — small selections get
                     bigger dots and dimmer ghosts, full views get smaller dots
-                    and brighter ghosts. In the 3D view, point size also
-                    scales with the canvas so a larger window keeps the same
-                    dots-per-area density (the fixed-size t-SNE panel is
-                    unaffected). Turn auto off to set the values by hand.
+                    and brighter ghosts. Point size also scales with the
+                    canvas so a larger window keeps the same dots-per-area
+                    density. Turn auto off to set the values by hand.
                 </p>
                 <label
                     className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
@@ -132,6 +131,36 @@ export function SettingsTab({
                         }
                     />
                 </div>
+            </section>
+
+            <section className="flex flex-col gap-2">
+                <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+                    t-SNE point density
+                </div>
+                <p className="text-neutral-400 leading-snug">
+                    Base point size for the t-SNE scatter and visibility of
+                    out-of-filter cells (ghosts).
+                </p>
+                <NumberRow
+                    label="point size (px)"
+                    value={settings.umapPointSize}
+                    min={2}
+                    max={40}
+                    step={0.5}
+                    onChange={(v) => update({ umapPointSize: v })}
+                />
+                <NumberRow
+                    label="ghost visibility"
+                    value={settings.umapGhostIntensity}
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    onChange={(v) =>
+                        update({
+                            umapGhostIntensity: Math.max(0, Math.min(1, v)),
+                        })
+                    }
+                />
             </section>
 
             <section className="flex flex-col gap-2">
