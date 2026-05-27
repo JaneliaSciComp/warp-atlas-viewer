@@ -327,6 +327,11 @@ export interface SettingsState {
      *  When false, every in-set cell renders at full alpha regardless
      *  of correlation magnitude. */
     fadeWeakCorrelation: boolean;
+    /** Developer toggle. When true, the 3D viewer renders a small
+     *  diagnostic overlay (canvas size, in-set count, computed point
+     *  size + ghost visibility, etc.) so the auto / scale-by-filter
+     *  math is inspectable while tuning. */
+    debugMode: boolean;
 }
 
 export const DEFAULT_SETTINGS: SettingsState = {
@@ -351,6 +356,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
     autoSizing: true,
     scaleByFilterCount: false,
     fadeWeakCorrelation: true,
+    debugMode: false,
 };
 
 export interface SelectionState {

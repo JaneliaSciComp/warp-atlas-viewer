@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect, useState, useCallback } from 'react';
+import { useMemo, useRef, useEffect, useLayoutEffect, useState, useCallback } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { TrackballControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -448,6 +448,23 @@ export function BrainViewer({
 }: Props) {
   const [hover, setHover] = useState<{ i: number; x: number; y: number } | null>(null);
   const pickRef = useRef<PickState>({ pos: null, hovered: -1 });
+  // Wrapping-div size — the Canvas fills its parent, so this doubles as
+  // the rendered canvas size for the debug overlay's readouts.
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [canvasSize, setCanvasSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el || !settings.debugMode) return;
+    const apply = () => {
+      const rect = el.getBoundingClientRect();
+      const next = { w: Math.floor(rect.width), h: Math.floor(rect.height) };
+      setCanvasSize((prev) => (prev.w === next.w && prev.h === next.h ? prev : next));
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [settings.debugMode]);
 
   // Default camera position derived from the data bounds — straight-on
   // dorsal view with the brain comfortably filling the landscape panel.
@@ -568,6 +585,7 @@ export function BrainViewer({
 
   return (
     <div
+      ref={containerRef}
       className="relative w-full h-full bg-neutral-900"
       onPointerMove={onPointerMove}
       onPointerLeave={onPointerLeave}
@@ -622,17 +640,78 @@ export function BrainViewer({
           {tooltip}
         </div>
       )}
-      {!atDefault && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            resetRef.current?.();
-          }}
-          className="absolute top-2 left-2 font-mono text-[10px] bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-1.5 py-0.5 rounded hover:bg-neutral-800"
-        >
-          reset view
-        </button>
-      )}
+      <div className="absolute top-2 left-2 flex flex-col items-start gap-1.5 pointer-events-none">
+        {!atDefault && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              resetRef.current?.();
+            }}
+            className="pointer-events-auto font-mono text-[10px] bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-1.5 py-0.5 rounded hover:bg-neutral-800"
+          >
+            reset view
+          </button>
+        )}
+        {settings.debugMode && (
+          <DebugOverlay
+            canvasSize={canvasSize}
+            settings={settings}
+            coloring={coloring}
+            totalCells={data.count}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DebugOverlay({
+  canvasSize,
+  settings,
+  coloring,
+  totalCells,
+}: {
+  canvasSize: { w: number; h: number };
+  settings: SettingsState;
+  coloring: SharedColoring | null;
+  totalCells: number;
+}) {
+  const inSetCount = coloring?.filterSelection?.length ?? totalCells;
+  const sizeScale = canvasPointSizeScale(settings.autoSizing, canvasSize.w, canvasSize.h);
+  // Mirror the autoT lerp in coloring.ts:applyColoring so the overlay
+  // reports the same intermediate the renderer computed.
+  const AUTO_MIN_INSET = 50;
+  const logHi = Math.log(Math.max(AUTO_MIN_INSET + 1, totalCells));
+  const logLo = Math.log(AUTO_MIN_INSET);
+  const useFilterLerp = settings.autoSizing && settings.scaleByFilterCount;
+  const autoT = useFilterLerp
+    ? Math.max(0, Math.min(1, (Math.log(Math.max(AUTO_MIN_INSET, inSetCount)) - logLo) / (logHi - logLo)))
+    : 0;
+  const effPointSize = coloring?.effectivePointSize ?? settings.pointSize;
+  const effGhost = coloring?.effectiveGhostIntensity ?? settings.ghostIntensity;
+  const renderedSize = effPointSize * sizeScale;
+  const row = (label: string, value: string | number) => (
+    <div className="flex justify-between gap-3">
+      <span className="text-neutral-400">{label}</span>
+      <span className="text-neutral-100 tabular-nums">{value}</span>
+    </div>
+  );
+  const fx = (n: number, d = 2) => (Number.isFinite(n) ? n.toFixed(d) : String(n));
+  return (
+    <div className="pointer-events-auto font-mono text-[10px] bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-2 py-1.5 rounded min-w-[200px] leading-tight">
+      <div className="text-neutral-500 uppercase tracking-wider text-[9px] mb-1">debug</div>
+      {row('canvas', `${canvasSize.w}×${canvasSize.h}`)}
+      {row('cells (total)', totalCells.toLocaleString())}
+      {row('cells (in set)', inSetCount.toLocaleString())}
+      {row('auto', settings.autoSizing ? 'on' : 'off')}
+      {row('scale by filter', settings.scaleByFilterCount ? 'on' : 'off')}
+      {row('settings.pointSize', fx(settings.pointSize, 1))}
+      {row('settings.ghost', fx(settings.ghostIntensity, 2))}
+      {row('autoT (lerp)', fx(autoT, 3))}
+      {row('eff. pointSize', fx(effPointSize, 2))}
+      {row('eff. ghost', fx(effGhost, 3))}
+      {row('canvas scale', fx(sizeScale, 3))}
+      {row('rendered size', `${fx(renderedSize, 2)} px`)}
     </div>
   );
 }

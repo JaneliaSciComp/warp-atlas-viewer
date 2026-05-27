@@ -472,6 +472,33 @@ export function SettingsTab({
                     onChange={(v) => update({ activityHi: v })}
                 />
             </section>
+
+            <section className="flex flex-col gap-2">
+                <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+                    Debug
+                </div>
+                <p className="text-neutral-400 leading-snug">
+                    Developer overlay. When on, the 3D viewer shows a small
+                    readout in the top-left corner with the canvas size,
+                    in-set cell count, and the inputs / outputs of the auto
+                    + scale-by-filter math so the rendered point size and
+                    ghost visibility are inspectable while tuning.
+                </p>
+                <label
+                    className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
+                    title="show the diagnostic overlay on the 3D viewer"
+                >
+                    <input
+                        type="checkbox"
+                        checked={settings.debugMode}
+                        onChange={(e) =>
+                            update({ debugMode: e.target.checked })
+                        }
+                        className="accent-neutral-300"
+                    />
+                    debug overlay
+                </label>
+            </section>
         </div>
     );
 }
