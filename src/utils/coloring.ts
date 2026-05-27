@@ -14,7 +14,6 @@ const GHOST_SIZE_FLOOR = 0.20;
 // near-zero-correlation cells faintly visible without letting them
 // bloom into the foreground at full opacity.
 const FADE_FLOOR = 0.12;
-const HIGHLIGHT_BOOST_SIZE = 1.5;
 
 // Stim correlation thresholds, the gene plasma ceiling, and the base
 // point size all live in SettingsState (see types.ts:DEFAULT_SETTINGS)
@@ -739,7 +738,6 @@ export function applyColoring(
         g = Math.min(1, g * 1.15 + 0.15);
         b = Math.min(1, b * 1.15 + 0.15);
         alpha = 1.0;
-        size *= HIGHLIGHT_BOOST_SIZE;
       } else if (dimNonSelected) {
         alpha = Math.min(alpha, 0.18);
       }
