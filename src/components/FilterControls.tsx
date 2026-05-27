@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import type { NeuronDataset, FilterState, SettingsState } from '../data/types';
+import type { NeuronDataset, FilterState, SelectionState, SettingsState } from '../data/types';
 import { ActivityCard } from './filters/ActivityCard';
 import { AnatomyCard } from './filters/AnatomyCard';
 import { ColorsCard } from './filters/ColorsCard';
 import { AboutTab } from './filters/AboutTab';
+import { SelectionCard } from './filters/SelectionCard';
 import { SettingsTab } from './filters/SettingsTab';
 import { SwimCard } from './filters/SwimCard';
 import { TranscriptomicsCard } from './filters/TranscriptomicsCard';
@@ -34,6 +35,11 @@ interface Props {
   setActivityPlaying: (playing: boolean) => void;
   activitySpeed: number;
   setActivitySpeed: (speed: number) => void;
+  /** Active user selection (t-SNE lasso). When non-empty and sourced
+   *  from the t-SNE panel, a Selection card is rendered alongside the
+   *  filter cards with a button to clear it. */
+  selection: SelectionState;
+  onClearSelection: () => void;
 }
 
 type Tab = 'filters' | 'settings' | 'about';
@@ -43,7 +49,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'about', label: 'About' },
 ];
 
-export function FilterControls({ data, filter, setFilter, settings, setSettings, uniqueFishIds, onReset, visibleCount, applyView, activityPlaying, setActivityPlaying, activitySpeed, setActivitySpeed }: Props) {
+export function FilterControls({ data, filter, setFilter, settings, setSettings, uniqueFishIds, onReset, visibleCount, applyView, activityPlaying, setActivityPlaying, activitySpeed, setActivitySpeed, selection, onClearSelection }: Props) {
   const update = (patch: Partial<FilterState>) => setFilter({ ...filter, ...patch });
   const [tab, setTab] = useState<Tab>('filters');
 
@@ -100,6 +106,12 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
                 update={update}
                 uniqueFishIds={uniqueFishIds}
               />
+              {selection.source === 'umap' && selection.indices.length > 0 && (
+                <>
+                  <CrossSep />
+                  <SelectionCard selection={selection} onClear={onClearSelection} />
+                </>
+              )}
             </div>
           </div>
         )}

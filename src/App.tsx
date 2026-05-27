@@ -391,6 +391,10 @@ export default function App() {
     },
     [setIndices, clear],
   );
+  const handleClearSelection = useCallback(() => {
+    clear();
+    setLassoPoly(null);
+  }, [clear]);
   // Resets filters only. The user's 3D-click focus (cleared by
   // clicking empty space in the 3D viewer) and t-SNE drag selection
   // (cleared via the "clear" button in the t-SNE panel header) are
@@ -633,6 +637,8 @@ export default function App() {
                   setActivityPlaying={setActivityPlaying}
                   activitySpeed={activitySpeed}
                   setActivitySpeed={setActivitySpeed}
+                  selection={selection}
+                  onClearSelection={handleClearSelection}
                 />
               </div>
               <Suspense fallback={<LoadingPane label="Loading t-SNE panel…" />}>
