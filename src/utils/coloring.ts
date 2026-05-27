@@ -476,13 +476,18 @@ export function applyColoring(
   const AUTO_MIN_INSET = 50;
   const logHi = Math.log(Math.max(AUTO_MIN_INSET + 1, count));
   const logLo = Math.log(AUTO_MIN_INSET);
-  const autoT = settings.scaleByFilterCount
+  // scaleByFilterCount only kicks in when autoSizing is also on — the
+  // settings panel hides the checkbox otherwise, but old URL state
+  // could still carry a stale scaleByFilterCount=true into manual
+  // mode, and we don't want that to take effect.
+  const useFilterLerp = settings.autoSizing && settings.scaleByFilterCount;
+  const autoT = useFilterLerp
     ? Math.max(0, Math.min(1, (Math.log(Math.max(AUTO_MIN_INSET, inSetCount)) - logLo) / (logHi - logLo)))
     : 0;
-  const effectivePointSize = settings.scaleByFilterCount
+  const effectivePointSize = useFilterLerp
     ? 20 - 10 * autoT
     : Math.max(0.001, settings.pointSize);
-  const effectiveGhostIntensity = settings.scaleByFilterCount
+  const effectiveGhostIntensity = useFilterLerp
     ? 0.25 + 0.5 * autoT
     : Math.max(0, Math.min(1, settings.ghostIntensity));
 

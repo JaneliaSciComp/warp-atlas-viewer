@@ -94,7 +94,7 @@ export function SettingsTab({
                 </p>
                 <label
                     className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
-                    title="grow point size with the 3D canvas so density stays constant across window sizes"
+                    title="let the viewer choose point size and ghost visibility automatically"
                 >
                     <input
                         type="checkbox"
@@ -106,48 +106,47 @@ export function SettingsTab({
                     />
                     auto
                 </label>
-                <label
-                    className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
-                    title="derive point size and ghost visibility from the filter-passing cell count"
-                >
-                    <input
-                        type="checkbox"
-                        checked={settings.scaleByFilterCount}
-                        onChange={(e) =>
-                            update({ scaleByFilterCount: e.target.checked })
-                        }
-                        className="accent-neutral-300"
-                    />
-                    scale by filter
-                </label>
-                <div
-                    className={
-                        settings.scaleByFilterCount
-                            ? "opacity-40 pointer-events-none"
-                            : "opacity-100"
-                    }
-                >
-                    <NumberRow
-                        label="point size (px)"
-                        value={settings.pointSize}
-                        min={2}
-                        max={40}
-                        step={0.5}
-                        onChange={(v) => update({ pointSize: v })}
-                    />
-                    <NumberRow
-                        label="ghost visibility"
-                        value={settings.ghostIntensity}
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        onChange={(v) =>
-                            update({
-                                ghostIntensity: Math.max(0, Math.min(1, v)),
-                            })
-                        }
-                    />
-                </div>
+                {settings.autoSizing ? (
+                    <label
+                        className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-6"
+                        title="on top of auto, vary point size and ghost visibility by the filter-passing cell count"
+                    >
+                        <input
+                            type="checkbox"
+                            checked={settings.scaleByFilterCount}
+                            onChange={(e) =>
+                                update({
+                                    scaleByFilterCount: e.target.checked,
+                                })
+                            }
+                            className="accent-neutral-300"
+                        />
+                        scale by filter
+                    </label>
+                ) : (
+                    <>
+                        <NumberRow
+                            label="point size (px)"
+                            value={settings.pointSize}
+                            min={2}
+                            max={40}
+                            step={0.5}
+                            onChange={(v) => update({ pointSize: v })}
+                        />
+                        <NumberRow
+                            label="ghost visibility"
+                            value={settings.ghostIntensity}
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            onChange={(v) =>
+                                update({
+                                    ghostIntensity: Math.max(0, Math.min(1, v)),
+                                })
+                            }
+                        />
+                    </>
+                )}
             </section>
 
             <section className="flex flex-col gap-2">
