@@ -311,12 +311,16 @@ export function applyColoring(
   // Build a fast lookup of selected indices.
   const selSet = selection.indices.length > 0 ? new Set<number>(Array.from(selection.indices)) : null;
   // For small selections (e.g. clicking a single neuron), keep the rest of
-  // the brain visible for anatomical context — only enlarge/brighten the
-  // selected one. For larger group selections, dim non-members so the
-  // selected group reads as a coherent shape.
+  // the brain visible for anatomical context — only brighten the selected
+  // cells. For larger group selections, dim non-members so the selected
+  // group reads as a coherent shape in the t-SNE panel. The 3D viewer
+  // applies an additional pass (applySelectionAsFilterGhost) that demotes
+  // non-selected in-set cells to the full ghost recipe, so this shared
+  // dimming is what the t-SNE panel shows while 3D treats the lasso as a
+  // full filter.
   const dimNonSelected = selSet !== null && selSet.size > 50;
   // Only USER-explicit selections (3D click, t-SNE drag) deserve a
-  // brightness/size boost. Filter-derived selections already get their
+  // brightness boost. Filter-derived selections already get their
   // signature from the in-set/dim split, so boosting them on top would
   // just clobber the anatomical-context lift.
   const isUserSelection = selection.source === '3d' || selection.source === 'umap';
@@ -728,10 +732,13 @@ export function applyColoring(
       alpha = 1.0;
     }
 
-    // Active selection: highlight selected, dim the rest if the group is
-    // large enough that dimming aids comprehension. Only user-explicit
-    // selections drive this — filter-derived selections already get their
-    // visual signature from the in-set/dim split above.
+    // Active selection: highlight selected cells with a brightness +
+    // full-opacity bump; for larger group selections also dim non-
+    // members so the selected group reads as a coherent shape in the
+    // t-SNE panel. The 3D viewer applies its own selection-as-filter
+    // ghost pass on top — see applySelectionAsFilterGhost — so 3D
+    // gets the full ghost recipe while t-SNE keeps this softer dim
+    // (which still lets the user see and re-lasso non-selected cells).
     if (selSet && isUserSelection) {
       if (selSet.has(i)) {
         r = Math.min(1, r * 1.15 + 0.15);
@@ -765,4 +772,59 @@ export function applyColoring(
     effectivePointSize,
     effectiveGhostIntensity,
   };
+}
+
+/**
+ * Demote in-set cells that aren't in the t-SNE lasso selection to the
+ * standard ghost recipe (DIM_RGB color, dim alpha, smaller size). The
+ * 3D viewer calls this AFTER copying the shared coloring into its own
+ * buffers so the t-SNE panel keeps its non-filtered look — the t-SNE
+ * panel needs the rest of the brain visible so the user can lasso new
+ * subsets, while the 3D viewer treats the lasso as just another filter.
+ *
+ * Only 'umap' selections drive the ghost demotion; '3d' selections (a
+ * single-cell focus) have no associated lasso and should leave the
+ * rest of the population alone.
+ */
+export function applySelectionAsFilterGhost(
+  out: ColoringResult,
+  count: number,
+  drawOrder: Uint32Array | null,
+  filterSelection: Uint32Array | null,
+  effectivePointSize: number,
+  effectiveGhostIntensity: number,
+  selection: SelectionState,
+): void {
+  if (selection.source !== 'umap' || selection.indices.length === 0) return;
+  const { colors, alphas, sizes } = out;
+  const selSet = new Set<number>(Array.from(selection.indices));
+  const t = effectiveGhostIntensity;
+  const ghostAlpha = DIM_ALPHA * t;
+  const ghostSize = effectivePointSize * (GHOST_SIZE_FLOOR + (1 - GHOST_SIZE_FLOOR) * t);
+  const r0 = DIM_RGB[0], g0 = DIM_RGB[1], b0 = DIM_RGB[2];
+  // When a filter is active, drawOrder partitions cells [out-of-set,
+  // in-set]. Out-of-set cells are already ghosts; we only need to
+  // demote in-set cells that aren't in the lasso. When no filter is
+  // active drawOrder is null and every cell is in-set.
+  if (drawOrder && filterSelection) {
+    const inCursor = count - filterSelection.length;
+    for (let k = inCursor; k < count; k++) {
+      const i = drawOrder[k];
+      if (selSet.has(i)) continue;
+      colors[i * 3] = r0;
+      colors[i * 3 + 1] = g0;
+      colors[i * 3 + 2] = b0;
+      alphas[i] = ghostAlpha;
+      sizes[i] = ghostSize;
+    }
+  } else {
+    for (let i = 0; i < count; i++) {
+      if (selSet.has(i)) continue;
+      colors[i * 3] = r0;
+      colors[i * 3 + 1] = g0;
+      colors[i * 3 + 2] = b0;
+      alphas[i] = ghostAlpha;
+      sizes[i] = ghostSize;
+    }
+  }
 }

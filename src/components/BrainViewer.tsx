@@ -2,9 +2,15 @@ import { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { TrackballControls } from '@react-three/drei';
 import * as THREE from 'three';
-import type { NeuronDataset, FilterState, SettingsState } from '../data/types';
+import type { NeuronDataset, FilterState, SelectionState, SettingsState } from '../data/types';
 import type { CameraState } from '../utils/urlState';
-import { allocColoring, anyFilterActive, cellInSet, cellIsRenderable } from '../utils/coloring';
+import {
+  allocColoring,
+  anyFilterActive,
+  applySelectionAsFilterGhost,
+  cellInSet,
+  cellIsRenderable,
+} from '../utils/coloring';
 import type { SharedColoring } from '../hooks/useColoring';
 import { canvasPointSizeScale } from '../utils/pointSizing';
 import vertSrc from '../shaders/neuron.vert.glsl?raw';
@@ -19,6 +25,12 @@ interface Props {
    *  own buffers so we can stamp the focused-neuron brighter on top
    *  without corrupting what UmapPanel reads. */
   coloring: SharedColoring | null;
+  /** Active group selection. The 3D viewer treats a non-empty t-SNE
+   *  lasso ('umap' source) as an additional filter — cells outside the
+   *  lasso get the standard ghost treatment so the selected subset
+   *  reads as the foreground population. The t-SNE panel itself does
+   *  NOT apply this demotion (so the user can re-lasso). */
+  selection: SelectionState;
   /** Single-neuron focus, separate from the group selection. */
   focusedNeuron: number | null;
   /** Click on a neuron sets focus; click on empty space sets to null. */
@@ -55,6 +67,7 @@ function PointCloud({
   filter,
   settings,
   coloring,
+  selection,
   focusedNeuron,
   pickRef,
   onHoverChange,
@@ -63,6 +76,7 @@ function PointCloud({
   filter: FilterState;
   settings: SettingsState;
   coloring: SharedColoring | null;
+  selection: SelectionState;
   focusedNeuron: number | null;
   pickRef: React.MutableRefObject<PickState>;
   onHoverChange: (i: number) => void;
@@ -134,11 +148,25 @@ function PointCloud({
   useEffect(() => {
     if (!coloring) return;
     // Copy the shared base coloring into our own buffers so the
-    // focused-neuron stamp below doesn't corrupt what other consumers
-    // (UmapPanel) read from the same shared result.
+    // focused-neuron stamp and selection-as-filter ghost pass below
+    // don't corrupt what other consumers (UmapPanel) read from the
+    // same shared result.
     buffers.colors.set(coloring.result.colors);
     buffers.alphas.set(coloring.result.alphas);
     buffers.sizes.set(coloring.result.sizes);
+    // Treat a t-SNE lasso selection as an additional filter for the 3D
+    // viewer only: demote in-set cells outside the lasso to standard
+    // ghost values. UmapPanel reads the shared (non-demoted) buffer so
+    // the user can lasso new subsets from the dimmed cells.
+    applySelectionAsFilterGhost(
+      buffers,
+      data.count,
+      coloring.drawOrder,
+      coloring.filterSelection,
+      coloring.effectivePointSize,
+      coloring.effectiveGhostIntensity,
+      selection,
+    );
     // Stamp the focused neuron on top of whatever group coloring chose
     // for it: full alpha, brightened, so it stays visible inside a
     // dimmed group. The ring marker (below) handles the actual focus
@@ -166,7 +194,7 @@ function PointCloud({
     } else if (geometry.index) {
       geometry.setIndex(null);
     }
-  }, [data, filter, settings, coloring, focusedNeuron, buffers, geometry]);
+  }, [data, filter, settings, coloring, selection, focusedNeuron, buffers, geometry]);
 
   // Focused-neuron ring marker. Mirrors the t-SNE white outline: a
   // hollow circle that grows with the cell up close and floors at a
@@ -294,8 +322,13 @@ function PointCloud({
     // tracks autoSizing too.
     const effGhost = coloring?.effectiveGhostIntensity ?? settings.ghostIntensity;
     const ghost = filterActive && effGhost < 0.5;
-    const alphas = coloring?.result.alphas;
-    const pointSizes = coloring?.result.sizes;
+    // Read from our LOCAL buffers (not coloring.result) so the picker
+    // honors the selection-as-filter ghost override: a cell that was
+    // demoted to ghost in the 3D pass should also be unpickable below
+    // the visibility threshold, even though the shared buffer still
+    // marks it as in-set.
+    const alphas = buffers.alphas;
+    const pointSizes = buffers.sizes;
     const defaultPointSize = coloring?.effectivePointSize ?? settings.pointSize;
     const pixelRatio = gl.getPixelRatio();
     // Picker geometry must match the rendered cell size, which includes
@@ -407,6 +440,7 @@ export function BrainViewer({
   filter,
   settings,
   coloring,
+  selection,
   focusedNeuron,
   onFocus,
   initialCamera,
@@ -552,6 +586,7 @@ export function BrainViewer({
           filter={filter}
           settings={settings}
           coloring={coloring}
+          selection={selection}
           focusedNeuron={focusedNeuron}
           pickRef={pickRef}
           onHoverChange={handleHoverChange}

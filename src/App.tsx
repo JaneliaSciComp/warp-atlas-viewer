@@ -570,6 +570,7 @@ export default function App() {
                   filter={filter}
                   settings={settings}
                   coloring={coloring}
+                  selection={selection}
                   focusedNeuron={focusedNeuron}
                   onFocus={setFocusedNeuron}
                   initialCamera={INITIAL_URL_STATE?.camera ?? null}
