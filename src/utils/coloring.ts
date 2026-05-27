@@ -8,7 +8,7 @@ const LIFT_ALPHA = 0.50;
 // scales alpha linearly from 0 → DIM_ALPHA / LIFT_ALPHA and size from
 // this floor → 1.0 ×. Keeps cells from blooming when they're already
 // near-invisible — a smaller dot leaves more pixels clean.
-const GHOST_SIZE_FLOOR = 0.55;
+const GHOST_SIZE_FLOOR = 0.20;
 // Minimum alpha for cells at the neutral midpoint of the divergent
 // stim / swim color ramps when fadeWeakCorrelation is enabled. Keeps
 // near-zero-correlation cells faintly visible without letting them
