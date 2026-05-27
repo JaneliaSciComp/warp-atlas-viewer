@@ -82,16 +82,19 @@ export function SettingsTab({
                 <p className="text-neutral-400 leading-snug">
                     Base point size for the 3D brain scatter and the
                     visibility of cells outside the active filters (ghosts).
-                    <span className="text-neutral-200"> Auto</span> derives both
-                    from the filter-passing cell count — small selections get
-                    bigger dots and dimmer ghosts, full views get smaller dots
-                    and brighter ghosts. Point size also scales with the
-                    canvas so a larger window keeps the same dots-per-area
-                    density. Turn auto off to set the values by hand.
+                    <span className="text-neutral-200"> Auto</span> scales the
+                    rendered size with the canvas so a larger window keeps
+                    the same dots-per-area density.
+                    <span className="text-neutral-200"> Scale by filter</span>{" "}
+                    derives both point size and ghost visibility from the
+                    filter-passing cell count — small selections get bigger
+                    dots and dimmer ghosts, full views get smaller dots and
+                    brighter ghosts; when on, the sliders below are
+                    overridden.
                 </p>
                 <label
                     className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
-                    title="adjust point size and ghost visibility from the visible cell count"
+                    title="grow point size with the 3D canvas so density stays constant across window sizes"
                 >
                     <input
                         type="checkbox"
@@ -103,9 +106,23 @@ export function SettingsTab({
                     />
                     auto
                 </label>
+                <label
+                    className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
+                    title="derive point size and ghost visibility from the filter-passing cell count"
+                >
+                    <input
+                        type="checkbox"
+                        checked={settings.scaleByFilterCount}
+                        onChange={(e) =>
+                            update({ scaleByFilterCount: e.target.checked })
+                        }
+                        className="accent-neutral-300"
+                    />
+                    scale by filter
+                </label>
                 <div
                     className={
-                        settings.autoSizing
+                        settings.scaleByFilterCount
                             ? "opacity-40 pointer-events-none"
                             : "opacity-100"
                     }

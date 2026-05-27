@@ -51,11 +51,12 @@ export interface ColoringStats {
    *  no filter is active (every cell is in-set, no reorder needed). */
   drawOrder: Uint32Array | null;
   /** Point size actually used during this paint pass. Equal to
-   *  settings.pointSize when autoSizing is off; otherwise derived
-   *  from the in-set count (50 cells → 20 px, all cells → 10 px,
-   *  lerped between). Picker / marker geometry should use this
+   *  settings.pointSize when scaleByFilterCount is off; otherwise
+   *  derived from the in-set count (50 cells → 20 px, all cells →
+   *  10 px, lerped between). Picker / marker geometry should use this
    *  rather than settings.pointSize. BrainViewer scales this further
-   *  by a canvas-size factor; the t-SNE panel uses it as-is. */
+   *  by a canvas-size factor when autoSizing is on; the t-SNE panel
+   *  uses its own umapPointSize. */
   effectivePointSize: number;
   /** Ghost intensity actually used during this paint pass. Same
    *  derivation pattern as effectivePointSize (50 cells → 0.25,
@@ -268,8 +269,8 @@ export function applyColoring(
   const geneMaxSpots = Math.max(1, settings.geneMaxSpots);
   const geneLogDen = Math.log(1 + geneMaxSpots);
   // baseSize and ghostIntensity become effective values after the
-  // predicate pass below — when autoSizing is on they lerp from the
-  // (50 cells → 20px, 0.25) end to the (all cells → 10px, 0.75) end
+  // predicate pass below — when scaleByFilterCount is on they lerp from
+  // the (50 cells → 20px, 0.25) end to the (all cells → 10px, 0.75) end
   // based on inSetCount.
   // The Gene color scheme paints by the selected genes when at least
   // one is in focus via Transcriptomics; otherwise it paints by
@@ -388,8 +389,8 @@ export function applyColoring(
   let inSetCount = 0;
 
   // ── Pass 1: predicate + drawOrder partition + inSet count ─────────
-  // We need inSetCount BEFORE pass 2 so autoSizing can derive the
-  // effective point size + ghost intensity from it.
+  // We need inSetCount BEFORE pass 2 so scaleByFilterCount can derive
+  // the effective point size + ghost intensity from it.
   for (let i = 0; i < count; i++) {
     const renderable = !(hideUnassigned && regionIds[i] === 0);
     const inRegion =
@@ -475,13 +476,13 @@ export function applyColoring(
   const AUTO_MIN_INSET = 50;
   const logHi = Math.log(Math.max(AUTO_MIN_INSET + 1, count));
   const logLo = Math.log(AUTO_MIN_INSET);
-  const autoT = settings.autoSizing
+  const autoT = settings.scaleByFilterCount
     ? Math.max(0, Math.min(1, (Math.log(Math.max(AUTO_MIN_INSET, inSetCount)) - logLo) / (logHi - logLo)))
     : 0;
-  const effectivePointSize = settings.autoSizing
+  const effectivePointSize = settings.scaleByFilterCount
     ? 20 - 10 * autoT
     : Math.max(0.001, settings.pointSize);
-  const effectiveGhostIntensity = settings.autoSizing
+  const effectiveGhostIntensity = settings.scaleByFilterCount
     ? 0.25 + 0.5 * autoT
     : Math.max(0, Math.min(1, settings.ghostIntensity));
 

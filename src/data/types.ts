@@ -249,8 +249,8 @@ export interface SettingsState {
     geneMultiColor: GeneMultiColor;
     /** Base 3D point size (pixels) for every cell in the 3D viewer.
      *  Display-density preference; raise on high-DPI screens or when
-     *  cells look too small. Overridden by `autoSizing` when enabled.
-     *  The t-SNE panel has its own size (`umapPointSize`). */
+     *  cells look too small. Overridden by `scaleByFilterCount` when
+     *  enabled. The t-SNE panel has its own size (`umapPointSize`). */
     pointSize: number;
     /** Base point size (pixels) for the t-SNE scatter. Independent of
      *  the 3D viewer's `pointSize` because t-SNE points sit at fixed
@@ -307,14 +307,19 @@ export interface SettingsState {
      *  Intermediate values linearly scale alpha and point size; the
      *  pickers re-enable above the midpoint so users only catch
      *  clicks on cells that are genuinely visible enough to aim at.
-     *  Overridden by `autoSizing` when that is enabled. */
+     *  Overridden by `scaleByFilterCount` when that is enabled. */
     ghostIntensity: number;
-    /** When true, `pointSize` and `ghostIntensity` are derived from the
-     *  filter-passing cell count rather than read from settings — small
-     *  filtered sets get bigger dots and dimmer ghosts, full views get
-     *  smaller dots and brighter ghosts. Disables the manual sliders.
-     *  See applyColoring for the lerp endpoints. */
+    /** When true, the 3D viewer scales the rendered point size with
+     *  the canvas so a larger window keeps the same dots-per-area
+     *  density. Independent of `scaleByFilterCount`; the t-SNE panel
+     *  has no equivalent (its canvas size is fixed). */
     autoSizing: boolean;
+    /** When true, `pointSize` and `ghostIntensity` are derived from
+     *  the filter-passing cell count rather than read from settings —
+     *  small filtered sets get bigger dots and dimmer ghosts, full
+     *  views get smaller dots and brighter ghosts. Disables the
+     *  manual sliders. See applyColoring for the lerp endpoints. */
+    scaleByFilterCount: boolean;
     /** When true, the swim + stim divergent color modes scale alpha by
      *  |r| so cells near the neutral midpoint fade into the background
      *  instead of competing with the colored extremes (coolwarm's
@@ -344,6 +349,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
     swimHi: 0.35,
     ghostIntensity: 0.6,
     autoSizing: true,
+    scaleByFilterCount: false,
     fadeWeakCorrelation: true,
 };
 

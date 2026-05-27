@@ -28,9 +28,9 @@ export interface SharedColoring {
    *  active (every cell is in-set; renderers fall back to natural
    *  index order). */
   drawOrder: Uint32Array | null;
-  /** Point size used by the last paint pass (auto-sized when
-   *  settings.autoSizing is on, else settings.pointSize). Pickers and
-   *  marker geometry consume this so they stay in step. */
+  /** Point size used by the last paint pass (filter-count-derived when
+   *  settings.scaleByFilterCount is on, else settings.pointSize).
+   *  Pickers and marker geometry consume this so they stay in step. */
   effectivePointSize: number;
   /** Ghost intensity used by the last paint pass. */
   effectiveGhostIntensity: number;
