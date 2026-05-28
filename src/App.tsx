@@ -356,10 +356,23 @@ export default function App() {
       writeUrlNow();
     }, wait);
   }, [writeUrlNow]);
-  // Schedule a URL write whenever React state changes.
+  // Schedule a URL write whenever React state changes. scheduleUrlWrite
+  // itself is stable (it reads through refs), so we depend on the
+  // individual state values instead — without this, lasso / filter /
+  // panel changes wouldn't trigger a write at all.
   useEffect(() => {
     scheduleUrlWrite();
-  }, [scheduleUrlWrite]);
+  }, [
+    filter,
+    settings,
+    focusedNeuron,
+    detailOpen,
+    bottomOpen,
+    bottomHeight,
+    detailWidth,
+    lassoPoly,
+    scheduleUrlWrite,
+  ]);
   // Belt-and-suspenders: flush the URL when the tab is about to be
   // hidden/closed. pagehide covers refresh, navigation, close, and the
   // bfcache path; visibilitychange catches tab-switches the user
