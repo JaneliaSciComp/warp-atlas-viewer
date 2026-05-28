@@ -29,7 +29,12 @@ test('loads the mock atlas and core panels without client errors', async ({ page
   await expect(page.locator('canvas')).toHaveCount(2);
 
   await page.getByRole('button', { name: 'Settings' }).click();
-  await expect(page.getByText('Point density')).toBeVisible();
+  // The Settings tab now has both "3D point density" and "t-SNE point
+  // density" sections; the bare "Point density" substring matches both
+  // and triggers strict-mode ambiguity, so assert on the 3D header
+  // exactly.
+  await expect(page.getByText('3D point density', { exact: true })).toBeVisible();
+  await expect(page.getByText('t-SNE point density', { exact: true })).toBeVisible();
   await expect(page.getByText('Rendering', { exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: 'Filters' }).click();
