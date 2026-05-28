@@ -314,7 +314,17 @@ function PointCloud({
     // on the coloured cell. Out-of-filter cells are only considered if
     // no in-filter cell is within the pick window — and not at all
     // when ghost mode is on, since they're effectively invisible.
-    const filterActive = anyFilterActive(data, filter);
+    //
+    // The t-SNE lasso is treated as an additional filter in the 3D
+    // viewer (see applySelectionAsFilterGhost) — match the renderer
+    // here so a click on a visually-demoted gray cell doesn't outrank
+    // the colored cells inside the lasso. Without this, when no
+    // filter card is active and a lasso narrows the visible
+    // population, every cell appears equally "in filter" to the
+    // picker and the visual hierarchy and the click target disagree.
+    const hasLasso = selection.source === 'umap' && selection.indices.length > 0;
+    const lassoSet = hasLasso ? new Set<number>(Array.from(selection.indices)) : null;
+    const filterActive = anyFilterActive(data, filter) || hasLasso;
     // Below half visibility, ghosts are too faint to aim at — skip
     // them in the picker so clicks always land on cells the user can
     // actually see. Use coloring's effective ghost intensity so this
@@ -362,7 +372,11 @@ function PointCloud({
       const diskHit = d2 <= diskRadius * diskRadius;
       const nearHit = d2 <= CENTER_FALLBACK_RADIUS_SQ;
       if (!diskHit && !nearHit) continue;
-      const inFilter = !filterActive || cellInSet(data, filter, settings, i);
+      // "In filter" for picker priority: passes the active filter cards
+       // AND is inside the active lasso (if any).
+      const inFilter =
+        !filterActive ||
+        (cellInSet(data, filter, settings, i) && (!lassoSet || lassoSet.has(i)));
       if (diskHit) {
         if (inFilter) {
           if (
