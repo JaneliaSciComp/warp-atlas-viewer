@@ -161,7 +161,11 @@ function PointCloud({
       data.count,
       coloring.drawOrder,
       coloring.filterSelection,
-      coloring.effectivePointSize,
+      // The helper sizes ghosts as basePointSize × ghostFactor —
+      // passing effectivePointSize instead would leak the
+      // scale-by-filter in-set boost into demoted cells, contrary to
+      // "ghosts are unaffected".
+      coloring.basePointSize,
       coloring.effectiveGhostIntensity,
       selection,
     );
