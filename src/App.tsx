@@ -310,6 +310,20 @@ export default function App() {
   useEffect(() => {
     scheduleUrlWrite();
   }, [scheduleUrlWrite]);
+  // External hash changes (user pasting a URL, clicking a bookmark,
+  // hitting back/forward) come in as hashchange events. Our own writes
+  // go through history.replaceState, which does NOT fire hashchange,
+  // so this handler only sees user-driven changes. Reloading is the
+  // simplest way to re-apply the full state: filter, settings, camera,
+  // umap viewport, and lasso all flow through the module-level
+  // INITIAL_URL_STATE read on mount.
+  useEffect(() => {
+    const onHashChange = () => {
+      window.location.reload();
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
   // Camera + t-SNE viewport changes go through refs; they call
   // scheduleUrlWrite directly so the URL still picks them up.
   const handleCameraChange = useCallback(
