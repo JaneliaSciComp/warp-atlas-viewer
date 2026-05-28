@@ -12,7 +12,7 @@ Every meaningful piece of view state is encoded in the URL hash (the `#…` port
 | Group | Examples |
 |---|---|
 | **Filter cards** | Color scheme, region palette, pinned gene indices, gene OR/AND, subtype index, selected stimuli, stim mode, swim mode, region, specimen, show-unassigned-region toggle. |
-| **Settings** | 3D point density (auto, scale by filter, manual point size + ghost visibility), t-SNE point density (size + ghost visibility), rendering options (3D ambient occlusion, AO strength/radius, opaque active cells), fade-weak-correlation toggle, stim cutoffs, swim cutoffs, activity anchors, gene-spot ceiling, multi-gene mode, gene predicate, debug-overlay toggle. |
+| **Settings** | 3D point density (auto, scale by filter, manual point size + ghost visibility), t-SNE point density (size + ghost visibility), rendering options (3D ambient occlusion, AO strength/radius, opaque active cells, active brightness), fade-weak-correlation toggle, stim cutoffs, swim cutoffs, activity anchors, gene-spot ceiling, multi-gene mode, gene predicate, debug-overlay toggle, activity playback speed. |
 | **3D camera** | Position and orbit target. |
 | **t-SNE viewport** | Pan and zoom. |
 | **Selection** | Focused-cell id; lasso polygon (when present). |

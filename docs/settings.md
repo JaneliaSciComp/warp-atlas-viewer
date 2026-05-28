@@ -82,7 +82,13 @@ These settings are intended as visual depth cues for the 3D view. They are persi
 
 **Opaque active cells** makes active / in-filter foreground cells render at full opacity in both the 3D viewer and the t-SNE panel while leaving ghost/background cells dimmed. This can make the active population easier to read when it would otherwise be partially transparent.
 
-Large user selections can still dim non-selected cells on top of this setting, so selection emphasis remains visible.
+Any user selection still dims non-selected cells on top of this setting, so selection emphasis remains visible.
+
+### Active brightness
+
+**Active brightness** additively lifts the color of every in-set cell by `b` in both the 3D and t-SNE views: `c' = min(1, c + b)`, applied per RGB channel. Useful when the active palette reads too dark against the dark background. Range `0` – `0.4`, step `0.01`; the default is `0` (no lift). Ghost cells (out-of-filter or out-of-selection) are not lifted — their `DIM_RGB` stays as designed.
+
+The color legend is rebuilt with the same lift so the swatches (Region, Specimen) and gradients (Gene, Activity, Stim, Swim) stay visually in sync with what the scatter renders.
 
 ## Gene plasma ceiling
 

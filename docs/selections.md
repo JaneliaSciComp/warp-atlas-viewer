@@ -31,7 +31,7 @@ Click any cell:
 - in the **3D viewer** to focus it,
 - in the **t-SNE** to focus the same cell.
 
-The Detail panel switches to single-cell mode. The focused cell is brightened and marked with a white ring in both views.
+The Detail panel switches to single-cell mode. The focused cell is marked with a white ring in both views; its color is not altered (the active color scheme is meaningful, so selection doesn't shift it).
 
 To clear the focus:
 
