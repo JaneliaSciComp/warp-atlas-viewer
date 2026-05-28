@@ -30,9 +30,30 @@ import type {
   TxMode,
 } from '../data/types';
 
+// Persisted 3D camera pose.
+//
+// v2 (current): { pos, quat, pan? } — explicit quaternion captures any
+//   roll the trackball produces, so refresh / duplicate / share all
+//   round-trip without rocking. The orbit target is always the volume
+//   center and is no longer serialized.
+//
+// v1 (legacy): { pos, target, pan? } — older share links omitted
+//   orientation, so the decoder synthesizes a quaternion at restore
+//   time by pointing pos → target with the canonical up vector
+//   (0, 1, 0). Roll is unrecoverable for legacy links; that's the
+//   bug that motivated the v2 schema.
+//
+// Either shape decodes into the unified CameraState below;
+// `quat` is the source of truth for orientation when present,
+// `target` is treated as a legacy hint only.
 export interface CameraState {
   pos: [number, number, number];
-  target: [number, number, number];
+  /** Camera quaternion as [x, y, z, w]. Preferred orientation field. */
+  quat?: [number, number, number, number];
+  /** Legacy orbit target (v1 schema). Only used as a fallback when
+   *  `quat` is missing — restore synthesizes orientation by aiming at
+   *  this point with `up = (0, 1, 0)`. */
+  target?: [number, number, number];
   /** Screen-space viewer pan in CSS pixels. Positive x/y move the volume
    *  right/down in the viewport without changing the orbit target. */
   pan?: [number, number];
@@ -230,14 +251,25 @@ function validateSettings(raw: unknown): Partial<SettingsState> {
 function validateCamera(raw: unknown): CameraState | undefined {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
   const c = raw as Record<string, unknown>;
-  if (
-    !Array.isArray(c.pos) || c.pos.length !== 3 || !c.pos.every(isFiniteNum) ||
-    !Array.isArray(c.target) || c.target.length !== 3 || !c.target.every(isFiniteNum)
-  ) return undefined;
+  if (!Array.isArray(c.pos) || c.pos.length !== 3 || !c.pos.every(isFiniteNum)) return undefined;
+  // v2 (quat) and v1 (target) are both accepted. At least one must be
+  // present so the renderer has something to orient with.
+  const hasQuat =
+    Array.isArray(c.quat) && c.quat.length === 4 && c.quat.every(isFiniteNum);
+  const hasTarget =
+    Array.isArray(c.target) && c.target.length === 3 && c.target.every(isFiniteNum);
+  if (!hasQuat && !hasTarget) return undefined;
   const out: CameraState = {
     pos: [c.pos[0] as number, c.pos[1] as number, c.pos[2] as number],
-    target: [c.target[0] as number, c.target[1] as number, c.target[2] as number],
   };
+  if (hasQuat) {
+    const q = c.quat as number[];
+    out.quat = [q[0], q[1], q[2], q[3]];
+  }
+  if (hasTarget) {
+    const t = c.target as number[];
+    out.target = [t[0], t[1], t[2]];
+  }
   if (Array.isArray(c.pan) && c.pan.length === 2 && c.pan.every(isFiniteNum)) {
     out.pan = [c.pan[0] as number, c.pan[1] as number];
   }
@@ -376,13 +408,36 @@ function r(x: number, n = 3): number {
   return Math.round(x * f) / f;
 }
 
+// Camera fields use higher precision than the t-SNE viewport: scene
+// coordinates span hundreds of units and the camera renders at zoom
+// levels where 3-decimal rounding (~5e-4 unit) was visibly off when
+// duplicating a tab. Quaternion components are unit-magnitude so 5
+// decimals keeps roundtrip error below ~1e-5 in any axis.
+const POS_PRECISION = 5;
+const QUAT_PRECISION = 5;
+
 export function roundCamera(cam: CameraState): CameraState {
   const out: CameraState = {
-    pos: [r(cam.pos[0]), r(cam.pos[1]), r(cam.pos[2])],
-    target: [r(cam.target[0]), r(cam.target[1]), r(cam.target[2])],
+    pos: [
+      r(cam.pos[0], POS_PRECISION),
+      r(cam.pos[1], POS_PRECISION),
+      r(cam.pos[2], POS_PRECISION),
+    ],
   };
+  if (cam.quat) {
+    out.quat = [
+      r(cam.quat[0], QUAT_PRECISION),
+      r(cam.quat[1], QUAT_PRECISION),
+      r(cam.quat[2], QUAT_PRECISION),
+      r(cam.quat[3], QUAT_PRECISION),
+    ];
+  }
+  // Legacy `target` is intentionally NOT rewritten — encoder always
+  // produces v2 (pos + quat). If a caller hands us a CameraState with
+  // both fields (e.g. mid-migration), only quat makes it back into the
+  // URL.
   if (cam.pan && (cam.pan[0] !== 0 || cam.pan[1] !== 0)) {
-    out.pan = [r(cam.pan[0]), r(cam.pan[1])];
+    out.pan = [r(cam.pan[0], POS_PRECISION), r(cam.pan[1], POS_PRECISION)];
   }
   return out;
 }

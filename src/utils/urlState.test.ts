@@ -199,15 +199,27 @@ describe('rounding helpers', () => {
     expect(out).toEqual([1.235, 7.891]);
   });
 
-  it('roundCamera rounds pos, target, and screen pan', () => {
+  it('roundCamera rounds pos, quat, and screen pan to 5 decimals (v2)', () => {
     const cam = roundCamera({
-      pos: [1.111111, 2.222222, 3.333333],
-      target: [0.000001, 0, 0],
-      pan: [4.444444, -5.555555],
+      pos: [1.1234567, 2.2222229, 3.33333334],
+      quat: [0.123456789, -0.234567891, 0.345678912, 0.876543210],
+      pan: [4.4444449, -5.5555551],
     });
-    expect(cam.pos.every((n) => Math.abs(n * 1000 - Math.round(n * 1000)) < 1e-9)).toBe(true);
-    expect(cam.target.every((n) => Math.abs(n * 1000 - Math.round(n * 1000)) < 1e-9)).toBe(true);
-    expect(cam.pan?.every((n) => Math.abs(n * 1000 - Math.round(n * 1000)) < 1e-9)).toBe(true);
+    const isAt5 = (n: number) => Math.abs(n * 1e5 - Math.round(n * 1e5)) < 1e-7;
+    expect(cam.pos.every(isAt5)).toBe(true);
+    expect(cam.quat?.every(isAt5)).toBe(true);
+    expect(cam.pan?.every(isAt5)).toBe(true);
+    // Legacy `target` is intentionally not re-emitted by the encoder.
+    expect(cam.target).toBeUndefined();
+  });
+
+  it('roundCamera drops legacy target (v1 input → v2 output)', () => {
+    const cam = roundCamera({
+      pos: [1, 2, 3],
+      target: [0, 0, 0],
+    });
+    expect(cam.target).toBeUndefined();
+    expect(cam.quat).toBeUndefined();
   });
 
   it('roundViewport rounds zoom and pan', () => {

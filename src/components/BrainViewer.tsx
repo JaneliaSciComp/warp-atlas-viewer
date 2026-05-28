@@ -852,8 +852,6 @@ function CameraSync({
   const controls = useThree((s) => s.controls) as any;
   const restoredRef = useRef(false);
   const lastRef = useRef<CameraState | null>(null);
-  const idleFramesRef = useRef(0);
-  const dirtyRef = useRef(false);
   // Position tolerance for the at-default check. Trackball damping
   // can leave sub-unit residue after a snap, so compare against a
   // fraction of the default eye distance rather than using exact
@@ -881,18 +879,36 @@ function CameraSync({
       resetRef.current = null;
     };
   }, [camera, controls, defaultCamPosition, invalidate, panRef, resetRef, size.height, size.width]);
-  // ~3 frames at 60fps ≈ 50 ms — long enough to outlast any frame
-  // hitches from the trackball's damping but short enough to feel
-  // immediate.
-  const IDLE_FRAMES = 3;
 
   useEffect(() => {
     if (!controls || restoredRef.current) return;
     if (initialCamera) {
       camera.position.set(...initialCamera.pos);
-      // Camera target used to double as pan state in older URLs. The point
-      // cloud is centered at the origin, so always restore the true orbit
-      // center and keep screen pan in CameraState.pan instead.
+      // Orient the camera. v2 URLs carry an explicit quaternion that
+      // captures any roll the trackball produced — apply it directly
+      // so the restored view matches the pre-share roll. v1 URLs only
+      // had pos + target, so fall back to look-at with the canonical
+      // up vector (roll for those links is unrecoverable; this matches
+      // the old behavior). The point cloud is always centered at the
+      // origin, so the orbit target stays VOLUME_CENTER regardless.
+      if (initialCamera.quat) {
+        camera.quaternion.set(
+          initialCamera.quat[0],
+          initialCamera.quat[1],
+          initialCamera.quat[2],
+          initialCamera.quat[3],
+        );
+        // Derive `up` from the quaternion so subsequent trackball
+        // rotations have the correct local frame to spin around.
+        camera.up.set(0, 1, 0).applyQuaternion(camera.quaternion);
+      } else if (initialCamera.target) {
+        camera.up.set(0, 1, 0);
+        camera.lookAt(
+          initialCamera.target[0],
+          initialCamera.target[1],
+          initialCamera.target[2],
+        );
+      }
       controls.target.set(...VOLUME_CENTER);
       controls.update();
     }
@@ -924,30 +940,49 @@ function CameraSync({
     }
     if (!onCameraChange) return;
     const pos: [number, number, number] = [camera.position.x, camera.position.y, camera.position.z];
-    const target: [number, number, number] = [...VOLUME_CENTER];
+    const quat: [number, number, number, number] = [
+      camera.quaternion.x,
+      camera.quaternion.y,
+      camera.quaternion.z,
+      camera.quaternion.w,
+    ];
     const rawPan = panRef.current;
     const pan: [number, number] | undefined =
       rawPan.x !== 0 || rawPan.y !== 0 ? [rawPan.x, rawPan.y] : undefined;
-    const cam: CameraState = pan ? { pos, target, pan } : { pos, target };
+    const cam: CameraState = pan ? { pos, quat, pan } : { pos, quat };
     const last = lastRef.current;
+    // Sub-pixel epsilon: anything below this per-frame delta is
+    // numerically still as far as the rendered image cares about, so
+    // we stop emitting and let the App-side debounce write the URL.
+    // Exact float equality would keep counting the tail of trackball
+    // damping (~0.9× velocity decay each frame) as "movement" for
+    // ~130 frames after release — which kept resetting the debounce
+    // and stalled the URL hash for ~2 s. The remaining residue past
+    // this threshold is bounded by epsilon / dampingFactor (~1e-3
+    // unit), well inside the rounded URL precision.
+    const POS_DELTA_EPS = 1e-4;
+    const QUAT_DELTA_EPS = 1e-5;
+    const PAN_DELTA_EPS = 1e-4;
     const moved =
       !last ||
-      pos[0] !== last.pos[0] || pos[1] !== last.pos[1] || pos[2] !== last.pos[2] ||
-      target[0] !== last.target[0] || target[1] !== last.target[1] || target[2] !== last.target[2] ||
-      (pan?.[0] ?? 0) !== (last.pan?.[0] ?? 0) ||
-      (pan?.[1] ?? 0) !== (last.pan?.[1] ?? 0);
-    if (moved) {
-      lastRef.current = cam;
-      idleFramesRef.current = 0;
-      dirtyRef.current = true;
-      return;
-    }
-    if (!dirtyRef.current) return;
-    idleFramesRef.current++;
-    if (idleFramesRef.current >= IDLE_FRAMES) {
-      onCameraChange(cam);
-      dirtyRef.current = false;
-    }
+      Math.abs(pos[0] - last.pos[0]) > POS_DELTA_EPS ||
+      Math.abs(pos[1] - last.pos[1]) > POS_DELTA_EPS ||
+      Math.abs(pos[2] - last.pos[2]) > POS_DELTA_EPS ||
+      Math.abs(quat[0] - (last.quat?.[0] ?? 0)) > QUAT_DELTA_EPS ||
+      Math.abs(quat[1] - (last.quat?.[1] ?? 0)) > QUAT_DELTA_EPS ||
+      Math.abs(quat[2] - (last.quat?.[2] ?? 0)) > QUAT_DELTA_EPS ||
+      Math.abs(quat[3] - (last.quat?.[3] ?? 1)) > QUAT_DELTA_EPS ||
+      Math.abs((pan?.[0] ?? 0) - (last.pan?.[0] ?? 0)) > PAN_DELTA_EPS ||
+      Math.abs((pan?.[1] ?? 0) - (last.pan?.[1] ?? 0)) > PAN_DELTA_EPS;
+    if (!moved) return;
+    // Emit on every (above-epsilon) change so the upstream camera ref
+    // stays current — the URL hash write is debounced 50 ms in App,
+    // which is what coalesces the per-frame stream into a single
+    // replaceState call once the damping settles below the epsilon.
+    // Holding emits until N idle frames meant a tab duplicated
+    // mid-rotation (or mid-damping) saw a stale hash.
+    lastRef.current = cam;
+    onCameraChange(cam);
   });
 
   return null;

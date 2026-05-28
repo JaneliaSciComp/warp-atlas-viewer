@@ -244,72 +244,135 @@ export default function App() {
   // single click feels instant, long enough to coalesce camera-drag
   // bursts (the camera-controls 'change' fires 30-60×/sec while moving).
   const URL_DEBOUNCE_MS = 50;
+  // Hard cap on how long a continuous emit burst can defer the write.
+  // Trackball damping produces ~2 s of sub-epsilon emits after release;
+  // without this, the URL hash would never update during the damping
+  // tail and a tab duplicated mid-coast would copy a stale URL.
+  const URL_MAX_WAIT_MS = 250;
   // Browser + proxy hash limits vary (Firefox throws SecurityError past
   // a few KB; Chrome silently truncates in extremes; corporate proxies
   // are sometimes stricter). Cap below the practical floor so a
   // multi-hundred-vertex lasso doesn't break sharing or history-state.
   const MAX_HASH_BYTES = 6000;
   const urlTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const urlBurstStartRef = useRef<number | null>(null);
   const warnedLassoDroppedRef = useRef(false);
   const warnedHashDroppedRef = useRef(false);
+  // Snapshot state into refs so flushUrlWrite (which is called from
+  // event listeners and so must NOT depend on render-cycle closures)
+  // always reads the latest values.
+  const filterRef = useRef(filter);
+  filterRef.current = filter;
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  const focusedNeuronRef = useRef(focusedNeuron);
+  focusedNeuronRef.current = focusedNeuron;
+  const detailOpenRef = useRef(detailOpen);
+  detailOpenRef.current = detailOpen;
+  const bottomOpenRef = useRef(bottomOpen);
+  bottomOpenRef.current = bottomOpen;
+  const bottomHeightRef = useRef(bottomHeight);
+  bottomHeightRef.current = bottomHeight;
+  const detailWidthRef = useRef(detailWidth);
+  detailWidthRef.current = detailWidth;
+  const lassoPolyRef = useRef(lassoPoly);
+  lassoPolyRef.current = lassoPoly;
+  const writeUrlNow = useCallback(() => {
+    if (urlTimerRef.current) {
+      clearTimeout(urlTimerRef.current);
+      urlTimerRef.current = null;
+    }
+    urlBurstStartRef.current = null;
+    if (isPlayingRef.current) return;
+    const filterDiff = diffFilter(filterRef.current, INITIAL_FILTER);
+    const settingsDiff = diffSettings(settingsRef.current, DEFAULT_SETTINGS);
+    const cam = cameraRef.current ? roundCamera(cameraRef.current) : undefined;
+    const umap = umapRef.current && !viewportIsDefault(umapRef.current)
+      ? roundViewport(umapRef.current)
+      : undefined;
+    const lasso = lassoPolyRef.current ? roundLasso(lassoPolyRef.current) : undefined;
+    const baseFields = {
+      filter: Object.keys(filterDiff).length > 0 ? filterDiff : undefined,
+      settings: Object.keys(settingsDiff).length > 0 ? settingsDiff : undefined,
+      focusedNeuron: focusedNeuronRef.current ?? undefined,
+      detail: detailOpenRef.current ? undefined : false,
+      bottom: bottomOpenRef.current ? undefined : false,
+      bottomHeight:
+        bottomHeightRef.current !== BOTTOM_HEIGHT_DEFAULT
+          ? Math.round(bottomHeightRef.current)
+          : undefined,
+      detailWidth:
+        detailWidthRef.current !== DETAIL_WIDTH_DEFAULT
+          ? Math.round(detailWidthRef.current)
+          : undefined,
+      camera: cam,
+      umap,
+    };
+    let hash = encodeHash({ ...baseFields, lasso });
+    if (hash.length > MAX_HASH_BYTES && lasso) {
+      // Drop just the lasso first — it's by far the largest field and
+      // the selection itself stays live in app state.
+      hash = encodeHash(baseFields);
+      if (!warnedLassoDroppedRef.current) {
+        console.warn(
+          `[urlState] lasso polygon (${lasso.length / 2} vertices) makes share URL ` +
+            `exceed ${MAX_HASH_BYTES}-byte cap; dropping lasso from URL hash. ` +
+            `Selection stays active in the UI.`,
+        );
+        warnedLassoDroppedRef.current = true;
+      }
+    }
+    if (hash.length > MAX_HASH_BYTES) {
+      // Lasso wasn't the culprit (or wasn't there). Drop the whole hash.
+      if (!warnedHashDroppedRef.current) {
+        console.warn(
+          `[urlState] encoded state exceeds ${MAX_HASH_BYTES}-byte URL hash cap; ` +
+            `skipping URL persistence this update.`,
+        );
+        warnedHashDroppedRef.current = true;
+      }
+      hash = '';
+    }
+    const target = `${window.location.pathname}${window.location.search}${hash}`;
+    window.history.replaceState(null, '', target);
+  }, []);
   const scheduleUrlWrite = useCallback(() => {
+    const now = Date.now();
+    if (urlBurstStartRef.current === null) {
+      urlBurstStartRef.current = now;
+    }
+    const burstElapsed = now - urlBurstStartRef.current;
     if (urlTimerRef.current) clearTimeout(urlTimerRef.current);
+    if (burstElapsed >= URL_MAX_WAIT_MS) {
+      // Force-write so a continuous emit burst (e.g. trackball damping)
+      // can't defer the URL hash forever.
+      writeUrlNow();
+      return;
+    }
+    const remainingMax = URL_MAX_WAIT_MS - burstElapsed;
+    const wait = Math.min(URL_DEBOUNCE_MS, remainingMax);
     urlTimerRef.current = setTimeout(() => {
       urlTimerRef.current = null;
-      if (isPlayingRef.current) return;
-      const filterDiff = diffFilter(filter, INITIAL_FILTER);
-      const settingsDiff = diffSettings(settings, DEFAULT_SETTINGS);
-      const cam = cameraRef.current ? roundCamera(cameraRef.current) : undefined;
-      const umap = umapRef.current && !viewportIsDefault(umapRef.current)
-        ? roundViewport(umapRef.current)
-        : undefined;
-      const lasso = lassoPoly ? roundLasso(lassoPoly) : undefined;
-      const baseFields = {
-        filter: Object.keys(filterDiff).length > 0 ? filterDiff : undefined,
-        settings: Object.keys(settingsDiff).length > 0 ? settingsDiff : undefined,
-        focusedNeuron: focusedNeuron ?? undefined,
-        detail: detailOpen ? undefined : false,
-        bottom: bottomOpen ? undefined : false,
-        bottomHeight:
-          bottomHeight !== BOTTOM_HEIGHT_DEFAULT ? Math.round(bottomHeight) : undefined,
-        detailWidth:
-          detailWidth !== DETAIL_WIDTH_DEFAULT ? Math.round(detailWidth) : undefined,
-        camera: cam,
-        umap,
-      };
-      let hash = encodeHash({ ...baseFields, lasso });
-      if (hash.length > MAX_HASH_BYTES && lasso) {
-        // Drop just the lasso first — it's by far the largest field and
-        // the selection itself stays live in app state.
-        hash = encodeHash(baseFields);
-        if (!warnedLassoDroppedRef.current) {
-          console.warn(
-            `[urlState] lasso polygon (${lasso.length / 2} vertices) makes share URL ` +
-              `exceed ${MAX_HASH_BYTES}-byte cap; dropping lasso from URL hash. ` +
-              `Selection stays active in the UI.`,
-          );
-          warnedLassoDroppedRef.current = true;
-        }
-      }
-      if (hash.length > MAX_HASH_BYTES) {
-        // Lasso wasn't the culprit (or wasn't there). Drop the whole hash.
-        if (!warnedHashDroppedRef.current) {
-          console.warn(
-            `[urlState] encoded state exceeds ${MAX_HASH_BYTES}-byte URL hash cap; ` +
-              `skipping URL persistence this update.`,
-          );
-          warnedHashDroppedRef.current = true;
-        }
-        hash = '';
-      }
-      const target = `${window.location.pathname}${window.location.search}${hash}`;
-      window.history.replaceState(null, '', target);
-    }, URL_DEBOUNCE_MS);
-  }, [filter, settings, focusedNeuron, detailOpen, bottomOpen, bottomHeight, detailWidth, lassoPoly]);
+      writeUrlNow();
+    }, wait);
+  }, [writeUrlNow]);
   // Schedule a URL write whenever React state changes.
   useEffect(() => {
     scheduleUrlWrite();
   }, [scheduleUrlWrite]);
+  // Belt-and-suspenders: flush the URL when the tab is about to be
+  // hidden/closed. pagehide covers refresh, navigation, close, and the
+  // bfcache path; visibilitychange catches tab-switches the user
+  // didn't initiate via the address bar.
+  useEffect(() => {
+    const flush = () => writeUrlNow();
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', flush);
+    };
+  }, [writeUrlNow]);
   // External hash changes (user pasting a URL, clicking a bookmark,
   // hitting back/forward) come in as hashchange events. Our own writes
   // go through history.replaceState, which does NOT fire hashchange,
