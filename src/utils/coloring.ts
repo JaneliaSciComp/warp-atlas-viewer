@@ -65,10 +65,11 @@ export interface ColoringStats {
    *  they stay in step with the rendered active cell size. */
   effectivePointSize: number;
   /** Ghost visibility (0..1) — auto-derived from canvas height via a
-   *  negative-exponential approach to 1.0 when autoSizing is on
-   *  (≈0.10 on a short canvas, ≈1.00 once height passes ~2000 px),
-   *  else settings.ghostIntensity. Drives both the per-cell ghost
-   *  alpha and the ghost size shrink in applyColoring. */
+   *  skewed-logistic peak when autoSizing is on (floored at 0.5,
+   *  rising past h≈200, peaking around h≈800–1000 near 0.83, dipping
+   *  back toward 0.5 past h≈1400), else settings.ghostIntensity.
+   *  Drives both the per-cell ghost alpha and the ghost size shrink
+   *  in applyColoring. */
   effectiveGhostIntensity: number;
 }
 
@@ -237,23 +238,31 @@ export function anyFilterActive(ds: NeuronDataset, filter: FilterState): boolean
  */
 // Auto-mode anchors (3D viewer point density). Both signals key off
 // canvas *height* — the brain fills the viewport vertically, so width
-// changes don't affect on-screen brain size. Both follow a negative-
-// exponential approach to an asymptote, fit to user-supplied (height,
-// value) anchors:
-//   pointSize(h) = AUTO_POINT_M  - AUTO_POINT_C · exp(-AUTO_POINT_K · h)
-//   ghost(h)     = 1             - AUTO_GHOST_C · exp(-AUTO_GHOST_K · (h - AUTO_GHOST_H0))
-// pointSize hits (100,2), (300,6), (600,9), (1000,13), (1500,17) within
-// ~1 px and approaches its ~32 px asymptote far above the realistic
-// viewport range. ghost hits the anchors at h=100/250/350/550 within
-// ~0.05 each, then is clamped to [0.10, 1.00] and approaches full
-// visibility past h ≈ 2000 px.
+// changes don't affect on-screen brain size.
+//
+//   pointSize(h) = AUTO_POINT_M - AUTO_POINT_C · exp(-AUTO_POINT_K · h)
+// Negative-exponential approach to an asymptote, fit to anchors
+// (100,2), (300,6), (600,9), (1000,13), (1500,17) within ~1 px;
+// approaches ~32 px far above the realistic viewport range.
+//
+//   ghost(h) = 0.5 + AUTO_GHOST_A · σ((h - AUTO_GHOST_HUP) / AUTO_GHOST_SUP)
+//                  · σ((AUTO_GHOST_HDN - h) / AUTO_GHOST_SDN)
+// Product of a rising and a falling logistic — a smooth peak shape
+// with separately tunable rise/fall widths. Fits anchors (150,0.50),
+// (200,0.60), (300,0.70), (500,0.75), (800,0.80), (1000,0.85),
+// (1200,0.75), (1381,0.65) with RMSE ~0.03. Peak sits in the
+// 800–1000 band; the curve dips back below the plateau past h≈1200
+// and is clamped to [0.50, 1.00] so very tall or very short canvases
+// don't fall below the floor.
 const AUTO_POINT_M = 32.22;
 const AUTO_POINT_C = 31.10;
 const AUTO_POINT_K = 0.000481;
-const AUTO_GHOST_K = 0.00198; // per px of height
-const AUTO_GHOST_C = 0.8447;
-const AUTO_GHOST_H0 = 113.64;
-const AUTO_GHOST_MIN = 0.10;
+const AUTO_GHOST_A = 0.319;
+const AUTO_GHOST_HUP = 285;
+const AUTO_GHOST_SUP = 101.8;
+const AUTO_GHOST_HDN = 1364;
+const AUTO_GHOST_SDN = 97.3;
+const AUTO_GHOST_MIN = 0.5;
 const AUTO_GHOST_MAX = 1.0;
 // In-set boost (scale-by-filter): in-set point size is multiplied by
 // (2 - tFilter), so 50 cells → 2×, all cells → 1×. Ghost cells get no
@@ -507,8 +516,10 @@ export function applyColoring(
   let baseGhostIntensity: number;
   if (auto) {
     baseSize = AUTO_POINT_M - AUTO_POINT_C * Math.exp(-AUTO_POINT_K * h);
-    const negExp = 1 - AUTO_GHOST_C * Math.exp(-AUTO_GHOST_K * (h - AUTO_GHOST_H0));
-    baseGhostIntensity = Math.max(AUTO_GHOST_MIN, Math.min(AUTO_GHOST_MAX, negExp));
+    const up = 1 / (1 + Math.exp(-(h - AUTO_GHOST_HUP) / AUTO_GHOST_SUP));
+    const dn = 1 / (1 + Math.exp((h - AUTO_GHOST_HDN) / AUTO_GHOST_SDN));
+    const peak = 0.5 + AUTO_GHOST_A * up * dn;
+    baseGhostIntensity = Math.max(AUTO_GHOST_MIN, Math.min(AUTO_GHOST_MAX, peak));
   } else {
     baseSize = Math.max(0.001, settings.pointSize);
     baseGhostIntensity = Math.max(0, Math.min(1, settings.ghostIntensity));
