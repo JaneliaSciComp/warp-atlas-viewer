@@ -106,8 +106,8 @@ export default function App() {
   const { selection, setIndices, clear } = useSelection();
   // 3D canvas size — reported up from BrainViewer so the auto-mode
   // formulas in applyColoring (point size and ghost intensity) can
-  // adapt to the actual canvas area. Defaults to the upper anchor so
-  // first-paint sizing is sensible before the ResizeObserver fires.
+  // adapt to the actual canvas height. Width is tracked too for the
+  // debug overlay but doesn't feed the formulas.
   const [brainCanvasSize, setBrainCanvasSize] = useState<{ w: number; h: number }>(
     { w: 1512, h: 478 },
   );
@@ -120,7 +120,6 @@ export default function App() {
     filter,
     settings,
     selection,
-    brainCanvasSize.w,
     brainCanvasSize.h,
   );
   // The detail panel floats over the right edge of the viewer and can be

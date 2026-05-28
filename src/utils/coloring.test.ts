@@ -246,15 +246,17 @@ describe('anyFilterActive', () => {
 describe('applyColoring stats', () => {
   const emptySelection = { indices: new Uint32Array(0), source: null };
 
-  // Use the upper auto-mode anchor so tests don't drift if the lerp
-  // endpoints change — at this canvas size auto/manual produce the
-  // same in-set sizes (9 px) and ghost visibility (1.0).
-  const CW = 1512;
-  const CH = 478;
+  // Canvas height for the test fixture. The assertions below don't
+  // depend on the specific auto-mode sizes/ghost at this height, only
+  // on relative alpha/visibility behavior, so the exact value isn't
+  // load-bearing — but pin it so refits of the auto curves can't
+  // accidentally drag a test into a regime (e.g. h≈100) where ghost
+  // clamps and the dim-tier math changes shape.
+  const CH = 500;
 
   it('uses null filterSelection only when no filters are active', () => {
     const out = allocColoring(TEST_DATA.count);
-    const stats = applyColoring(TEST_DATA, BASE_FILTER, DEFAULT_SETTINGS, emptySelection, CW, CH, out);
+    const stats = applyColoring(TEST_DATA, BASE_FILTER, DEFAULT_SETTINGS, emptySelection, CH, out);
 
     expect(stats.filterSelection).toBeNull();
   });
@@ -268,7 +270,7 @@ describe('applyColoring stats', () => {
       geneLogic: 'and',
       isolatedRegion: 0,
     };
-    const stats = applyColoring(TEST_DATA, impossibleFilter, DEFAULT_SETTINGS, emptySelection, CW, CH, out);
+    const stats = applyColoring(TEST_DATA, impossibleFilter, DEFAULT_SETTINGS, emptySelection, CH, out);
 
     expect(stats.filterSelection).toBeInstanceOf(Uint32Array);
     expect(stats.filterSelection).toHaveLength(0);
@@ -290,7 +292,6 @@ describe('applyColoring stats', () => {
       filter,
       DEFAULT_SETTINGS,
       { indices: new Uint32Array([2]), source: 'umap' },
-      CW,
       CH,
       out,
     );
@@ -316,7 +317,6 @@ describe('applyColoring stats', () => {
       { ...BASE_FILTER, colorMode: 'activity' },
       { ...DEFAULT_SETTINGS, opaqueActiveCells: true },
       emptySelection,
-      CW,
       CH,
       out,
     );

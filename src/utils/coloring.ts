@@ -50,8 +50,9 @@ export interface ColoringStats {
    *  dim haze regardless of source order or true 3D depth. Null when
    *  no filter is active (every cell is in-set, no reorder needed). */
   drawOrder: Uint32Array | null;
-  /** Base 3D point size — auto-derived from canvas area (3 → 9 px
-   *  between 100k and ~723k px²) when autoSizing is on, else
+  /** Base 3D point size — auto-derived from canvas height via a
+   *  negative-exponential curve (≈2 px at h=100, ≈9 px at h=600,
+   *  ≈17 px at h=1500, asymptote ~32 px) when autoSizing is on, else
    *  settings.pointSize. This is the un-boosted value: ghost cells
    *  shrink relative to it, but it does NOT include the scale-by-
    *  filter in-set boost. Use this for any code that needs to mirror
@@ -63,11 +64,11 @@ export interface ColoringStats {
    *  the filter narrows). Picker / marker geometry should use this so
    *  they stay in step with the rendered active cell size. */
   effectivePointSize: number;
-  /** Ghost visibility (0..1) — auto-derived from canvas area via a
-   *  logistic sigmoid when autoSizing is on (≈0.10 on a tiny canvas,
-   *  ≈1.00 once the canvas reaches ~723k px²), else
-   *  settings.ghostIntensity. Drives both the per-cell ghost alpha
-   *  and the ghost size shrink in applyColoring. */
+  /** Ghost visibility (0..1) — auto-derived from canvas height via a
+   *  negative-exponential approach to 1.0 when autoSizing is on
+   *  (≈0.10 on a short canvas, ≈1.00 once height passes ~2000 px),
+   *  else settings.ghostIntensity. Drives both the per-cell ghost
+   *  alpha and the ghost size shrink in applyColoring. */
   effectiveGhostIntensity: number;
 }
 
@@ -234,24 +235,26 @@ export function anyFilterActive(ds: NeuronDataset, filter: FilterState): boolean
  * AND the cell is inside it, in which case it lifts to anatomical-context
  * gray so the region's outline reads through the foreground signal.
  */
-// Auto-mode anchors (3D viewer point density). pointSize lerps in
-// log(canvasArea) between (100k px², 3 px) and (~723k px², 9 px) —
-// both clamped at the ends. ghostVisibility follows a negative-
-// exponential approach to 1.0, fit to the user-supplied (height,
-// ghost) anchors at width=1500, re-expressed in area:
-//   ghost(area) = 1 - AUTO_GHOST_C · exp(-AUTO_GHOST_K · (area - AUTO_GHOST_AREA0))
-// then clamped to [0.10, 1.00]. Hits the user's anchors at h=100/250/
-// 350/550 within ~0.05 each and approaches full visibility as the
-// canvas grows past h ≈ 2000.
-const AUTO_AREA_LO = 100_000;
-const AUTO_AREA_HI = 1512 * 478; // 722_736
-const AUTO_GHOST_K = 0.00198 / 1500; // ~1.32e-6 per px²
+// Auto-mode anchors (3D viewer point density). Both signals key off
+// canvas *height* — the brain fills the viewport vertically, so width
+// changes don't affect on-screen brain size. Both follow a negative-
+// exponential approach to an asymptote, fit to user-supplied (height,
+// value) anchors:
+//   pointSize(h) = AUTO_POINT_M  - AUTO_POINT_C · exp(-AUTO_POINT_K · h)
+//   ghost(h)     = 1             - AUTO_GHOST_C · exp(-AUTO_GHOST_K · (h - AUTO_GHOST_H0))
+// pointSize hits (100,2), (300,6), (600,9), (1000,13), (1500,17) within
+// ~1 px and approaches its ~32 px asymptote far above the realistic
+// viewport range. ghost hits the anchors at h=100/250/350/550 within
+// ~0.05 each, then is clamped to [0.10, 1.00] and approaches full
+// visibility past h ≈ 2000 px.
+const AUTO_POINT_M = 32.22;
+const AUTO_POINT_C = 31.10;
+const AUTO_POINT_K = 0.000481;
+const AUTO_GHOST_K = 0.00198; // per px of height
 const AUTO_GHOST_C = 0.8447;
-const AUTO_GHOST_AREA0 = 113.64 * 1500; // ~170_460 px²
+const AUTO_GHOST_H0 = 113.64;
 const AUTO_GHOST_MIN = 0.10;
 const AUTO_GHOST_MAX = 1.0;
-const AUTO_POINT_MIN = 3;
-const AUTO_POINT_MAX = 9;
 // In-set boost (scale-by-filter): in-set point size is multiplied by
 // (2 - tFilter), so 50 cells → 2×, all cells → 1×. Ghost cells get no
 // boost — scale-by-filter is purely an active-cell emphasis knob.
@@ -263,7 +266,6 @@ export function applyColoring(
   filter: FilterState,
   settings: SettingsState,
   selection: SelectionState,
-  canvasWidth: number,
   canvasHeight: number,
   out: ColoringResult,
 ): ColoringStats {
@@ -487,9 +489,10 @@ export function applyColoring(
   }
 
   // ── Effective point size + ghost intensity ────────────────────────
-  // Auto mode derives both values from the canvas area:
-  //   pointSize: log-lerp 3 → 9 between 100k and ~723k px²
-  //   ghost:     logistic sigmoid centred at ~403k px², clamped [0.10, 1.00]
+  // Auto mode derives both values from canvas *height* (the brain fills
+  // the viewport vertically; width is irrelevant to on-screen size).
+  // Both are negative-exponential approaches to an asymptote, fit to
+  // user-supplied (height, value) anchors. See the AUTO_* constants.
   // Manual mode reads the slider values directly.
   //
   // scaleByFilterCount, when on (and only effective while autoSizing
@@ -498,17 +501,13 @@ export function applyColoring(
   // multiplies the *in-set* point size by an inSetBoost in [1×, 2×].
   // 50 cells → 2×, all cells → 1×. Ghost cells are not boosted — the
   // toggle is a knob for emphasising the active subset, not the rest.
-  const canvasArea = Math.max(1, canvasWidth * canvasHeight);
+  const h = Math.max(1, canvasHeight);
   const auto = settings.autoSizing;
   let baseSize: number;
   let baseGhostIntensity: number;
   if (auto) {
-    const logArea = Math.log(canvasArea);
-    const logLo = Math.log(AUTO_AREA_LO);
-    const logHi = Math.log(AUTO_AREA_HI);
-    const tArea = Math.max(0, Math.min(1, (logArea - logLo) / (logHi - logLo)));
-    baseSize = AUTO_POINT_MIN + (AUTO_POINT_MAX - AUTO_POINT_MIN) * tArea;
-    const negExp = 1 - AUTO_GHOST_C * Math.exp(-AUTO_GHOST_K * (canvasArea - AUTO_GHOST_AREA0));
+    baseSize = AUTO_POINT_M - AUTO_POINT_C * Math.exp(-AUTO_POINT_K * h);
+    const negExp = 1 - AUTO_GHOST_C * Math.exp(-AUTO_GHOST_K * (h - AUTO_GHOST_H0));
     baseGhostIntensity = Math.max(AUTO_GHOST_MIN, Math.min(AUTO_GHOST_MAX, negExp));
   } else {
     baseSize = Math.max(0.001, settings.pointSize);

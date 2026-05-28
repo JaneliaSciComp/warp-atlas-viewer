@@ -129,7 +129,7 @@ export function SettingsTab({
                         <NumberRow
                             label="point size (px)"
                             value={settings.pointSize}
-                            min={2}
+                            min={1}
                             max={40}
                             step={0.5}
                             onChange={(v) => update({ pointSize: v })}

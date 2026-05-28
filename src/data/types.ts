@@ -249,7 +249,7 @@ export interface SettingsState {
     geneMultiColor: GeneMultiColor;
     /** Base 3D point size (pixels) used when `autoSizing` is off.
      *  When auto is on the renderer derives its base size from the
-     *  canvas area instead, and the in-set boost from
+     *  canvas height instead, and the in-set boost from
      *  `scaleByFilterCount` (also gated on auto) multiplies on top
      *  for active cells. The t-SNE panel has its own size
      *  (`umapPointSize`). */
@@ -312,8 +312,8 @@ export interface SettingsState {
     swimHi: number;
     /** Visibility of out-of-filter cells (ghosts), 0..1, used when
      *  `autoSizing` is off. When auto is on the renderer derives a
-     *  ghost-visibility value from the canvas area via a sigmoid
-     *  instead, so this slider is hidden.
+     *  ghost-visibility value from the canvas height via a negative-
+     *  exponential curve instead, so this slider is hidden.
      *  0 → cells are invisible (alpha 0) and the click pickers skip
      *      them entirely.
      *  1 → cells render at the standard dim alpha (matches the
@@ -323,7 +323,7 @@ export interface SettingsState {
      *  clicks on cells that are genuinely visible enough to aim at. */
     ghostIntensity: number;
     /** When true, the 3D viewer auto-derives base point size and
-     *  ghost visibility from the canvas area instead of reading them
+     *  ghost visibility from the canvas height instead of reading them
      *  from `pointSize` and `ghostIntensity`. The t-SNE panel has no
      *  equivalent (its canvas size is fixed; it uses its own
      *  `umapPointSize` / `umapGhostIntensity`). */
@@ -334,7 +334,7 @@ export interface SettingsState {
      *  bigger active dots, the full population stays at 1×. Ghost
      *  cells and ghost visibility are not affected. Gated on
      *  `autoSizing` because the boost layers on top of the canvas-
-     *  area base; with auto off the setting is hidden. See
+     *  height base; with auto off the setting is hidden. See
      *  applyColoring for the lerp endpoints. */
     scaleByFilterCount: boolean;
     /** When true, the swim + stim divergent color modes scale alpha by

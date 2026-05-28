@@ -29,7 +29,7 @@ export interface SharedColoring {
    *  index order). */
   drawOrder: Uint32Array | null;
   /** Un-boosted base 3D point size for this paint pass — auto-derived
-   *  from canvas area in auto mode, settings.pointSize in manual mode.
+   *  from canvas height in auto mode, settings.pointSize in manual mode.
    *  Use this for ghost-size math (it never includes the in-set boost). */
   basePointSize: number;
   /** Point size for active (in-set) cells in this paint pass —
@@ -41,10 +41,11 @@ export interface SharedColoring {
 }
 
 /** Shared per-cell coloring keyed on (data, filter, settings,
- *  selection, canvas size). Both BrainViewer and UmapPanel consume
+ *  selection, canvas height). Both BrainViewer and UmapPanel consume
  *  the same base buffers, so the 274k-cell `applyColoring` pass runs
  *  at most once per interaction regardless of how many renderers
- *  display the data. Canvas size feeds the auto-mode formulas; the
+ *  display the data. Canvas height feeds the auto-mode formulas (the
+ *  brain fills the viewport vertically, so width is irrelevant); the
  *  t-SNE panel ignores its effect on point size (it has its own
  *  umapPointSize) but reads the derived ghost intensity to scale
  *  its own ghost alpha override. */
@@ -53,7 +54,6 @@ export function useColoring(
   filter: FilterState,
   settings: SettingsState,
   selection: SelectionState,
-  canvasWidth: number,
   canvasHeight: number,
 ): SharedColoring | null {
   // One buffer reused across all updates; reallocated only when the
@@ -86,12 +86,11 @@ export function useColoring(
       filter,
       settings,
       selection,
-      canvasWidth,
       canvasHeight,
       result,
     );
     setRevision((r) => r + 1);
-  }, [data, filter, settings, selection, canvasWidth, canvasHeight, result]);
+  }, [data, filter, settings, selection, canvasHeight, result]);
   // Memoize the wrapper so its identity tracks (result, revision) — not
   // App's render cadence. Without this, consumers that put `coloring`
   // in an effect dep list see a new object every parent render and

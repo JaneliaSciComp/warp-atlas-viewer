@@ -36,7 +36,7 @@ interface Props {
   onFocus: (i: number | null) => void;
   /** Fires whenever the wrapping div is resized. App threads this back
    *  into useColoring so the auto-mode formulas (point size + ghost
-   *  visibility derived from canvas area) reflect the current 3D
+   *  visibility derived from canvas height) reflect the current 3D
    *  canvas size. */
   onCanvasSizeChange?: (size: { w: number; h: number }) => void;
   /** Camera position + orbit target restored from URL on first mount. */
@@ -138,7 +138,7 @@ function PointCloud({
   }, [gl]);
 
   // Canvas-size adaptation now lives inside applyColoring's auto-mode
-  // formulas (basePointSize is derived from canvas area), so the
+  // formulas (basePointSize is derived from canvas height), so the
   // shader uniform stays at its default 1.0. We keep the uniform
   // around for shader-source compatibility but no longer drive it
   // from JS.
@@ -696,15 +696,9 @@ function DebugOverlay({
   totalCells: number;
 }) {
   const inSetCount = coloring?.filterSelection?.length ?? totalCells;
-  const area = Math.max(1, canvasSize.w * canvasSize.h);
-  // Mirror the auto-mode math in coloring.ts so the overlay reports
-  // exactly what the renderer computed.
-  const AUTO_AREA_LO = 100_000;
-  const AUTO_AREA_HI = 1512 * 478;
-  const tArea = Math.max(
-    0,
-    Math.min(1, (Math.log(area) - Math.log(AUTO_AREA_LO)) / (Math.log(AUTO_AREA_HI) - Math.log(AUTO_AREA_LO))),
-  );
+  // basePointSize / effGhost come straight from the shared coloring
+  // (computed in applyColoring), so the overlay doesn't re-derive the
+  // auto-mode formulas — it just reports what the renderer used.
   const AUTO_MIN_INSET = 50;
   const useFilterLerp = settings.autoSizing && settings.scaleByFilterCount;
   const tFilter = useFilterLerp
@@ -732,14 +726,12 @@ function DebugOverlay({
     <div className="pointer-events-auto font-mono text-[10px] bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-2 py-1.5 rounded min-w-[220px] leading-tight">
       <div className="text-neutral-500 uppercase tracking-wider text-[9px] mb-1">debug</div>
       {row('canvas', `${canvasSize.w}×${canvasSize.h}`)}
-      {row('canvas area', area.toLocaleString())}
       {row('cells (total)', totalCells.toLocaleString())}
       {row('cells (in set)', inSetCount.toLocaleString())}
       {row('auto', settings.autoSizing ? 'on' : 'off')}
       {row('scale by filter', settings.scaleByFilterCount ? 'on' : 'off')}
       {row('settings.pointSize', fx(settings.pointSize, 1))}
       {row('settings.ghost', fx(settings.ghostIntensity, 2))}
-      {row('tArea (auto)', fx(tArea, 3))}
       {row('tFilter (boost)', fx(tFilter, 3))}
       {row('inSetBoost', fx(inSetBoost, 3) + '×')}
       {row('base pointSize', fx(basePointSize, 2))}
