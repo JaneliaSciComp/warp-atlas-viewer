@@ -447,11 +447,17 @@ export function roundCamera(cam: CameraState): CameraState {
       r(cam.quat[2], QUAT_PRECISION),
       r(cam.quat[3], QUAT_PRECISION),
     ];
+  } else if (cam.target) {
+    // No quaternion available yet (legacy v1 input, or mount window
+    // before the renderer emits a v2 camera). Keep `target` in the
+    // round-tripped state so `validateCamera` still accepts it on the
+    // next read — emitting `{pos}` alone produces an invalid schema.
+    out.target = [
+      r(cam.target[0], POS_PRECISION),
+      r(cam.target[1], POS_PRECISION),
+      r(cam.target[2], POS_PRECISION),
+    ];
   }
-  // Legacy `target` is intentionally NOT rewritten — encoder always
-  // produces v2 (pos + quat). If a caller hands us a CameraState with
-  // both fields (e.g. mid-migration), only quat makes it back into the
-  // URL.
   if (cam.pan && (cam.pan[0] !== 0 || cam.pan[1] !== 0)) {
     out.pan = [r(cam.pan[0], POS_PRECISION), r(cam.pan[1], POS_PRECISION)];
   }

@@ -213,13 +213,28 @@ describe('rounding helpers', () => {
     expect(cam.target).toBeUndefined();
   });
 
-  it('roundCamera drops legacy target (v1 input → v2 output)', () => {
+  it('roundCamera preserves legacy target when no quat is present', () => {
+    // A bare {pos} would fail validateCamera on the next read, so the
+    // rounder keeps the v1 target until a quaternion is available to
+    // replace it.
+    const cam = roundCamera({
+      pos: [1.111111, 2.222222, 3.333333],
+      target: [0.123456, 0, 0],
+    });
+    expect(cam.quat).toBeUndefined();
+    expect(cam.target).toBeDefined();
+    const isAt5 = (n: number) => Math.abs(n * 1e5 - Math.round(n * 1e5)) < 1e-7;
+    expect(cam.target!.every(isAt5)).toBe(true);
+  });
+
+  it('roundCamera drops legacy target once quat is present', () => {
     const cam = roundCamera({
       pos: [1, 2, 3],
+      quat: [0, 0, 0, 1],
       target: [0, 0, 0],
     });
+    expect(cam.quat).toBeDefined();
     expect(cam.target).toBeUndefined();
-    expect(cam.quat).toBeUndefined();
   });
 
   it('roundViewport rounds zoom and pan', () => {
