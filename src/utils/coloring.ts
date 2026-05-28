@@ -776,6 +776,17 @@ export function applyColoring(
       alpha = 1.0;
     }
 
+    // Additive brightness lift on in-set cells. Same lift applies in
+    // both 3D and t-SNE (the t-SNE consumes this shared buffer), and
+    // the color legend mirrors the formula so swatches/gradients stay
+    // visually in sync. Ghosts stay at DIM_RGB.
+    if (inSet && settings.activeBrightness > 0) {
+      const lift = settings.activeBrightness;
+      r = Math.min(1, r + lift);
+      g = Math.min(1, g + lift);
+      b = Math.min(1, b + lift);
+    }
+
     // Active selection: leave selected cells' colors untouched (the
     // active color scheme is meaningful — don't shift hue or lift
     // brightness) and soft-dim every non-selected cell so the

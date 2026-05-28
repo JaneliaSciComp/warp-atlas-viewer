@@ -190,6 +190,10 @@ export function SettingsTab({
                     to read. Opaque active cells disables foreground
                     transparency in both scatter views while leaving
                     ghost/background cells dimmed.
+                    <span className="text-neutral-200"> Active brightness</span>{" "}
+                    additively lifts the color of every in-set cell in both
+                    views (and the color legend) — useful when the active
+                    palette reads too dark against the dark background.
                 </p>
                 <label
                     className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
@@ -257,6 +261,18 @@ export function SettingsTab({
                     />
                     opaque active cells
                 </label>
+                <NumberRow
+                    label="active brightness"
+                    value={settings.activeBrightness}
+                    min={0}
+                    max={0.4}
+                    step={0.01}
+                    onChange={(v) =>
+                        update({
+                            activeBrightness: Math.max(0, Math.min(0.4, v)),
+                        })
+                    }
+                />
             </section>
 
             <section className="flex flex-col gap-2">

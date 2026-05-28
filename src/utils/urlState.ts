@@ -241,6 +241,7 @@ function validateSettings(raw: unknown): Partial<SettingsState> {
     out.ambientOcclusionRadius = clamp(Math.round(s.ambientOcclusionRadius), 1, 72);
   }
   if (typeof s.opaqueActiveCells === 'boolean') out.opaqueActiveCells = s.opaqueActiveCells;
+  if (isFiniteNum(s.activeBrightness)) out.activeBrightness = clamp(s.activeBrightness, 0, 1);
   // ΔF/F anchors. Negative lo is plausible (cells deflecting below
   // baseline); 10 is a generous upper bound for activityHi.
   if (isFiniteNum(s.activityLo)) out.activityLo = clamp(s.activityLo, -5, 10);

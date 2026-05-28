@@ -279,6 +279,15 @@ export interface SettingsState {
      *  populations read clearly; ghost/out-of-filter cells remain dimmed
      *  by ghostIntensity. */
     opaqueActiveCells: boolean;
+    /** Additive brightness lift applied to active (in-set) cells in
+     *  both the 3D and t-SNE views, range 0..1. Default 0 (no lift).
+     *  Lifts each channel by `b` and clamps at 1, so 0.2 makes colors
+     *  visibly brighter without changing hue much, 1.0 washes
+     *  everything to white. The color legend swatches/gradients
+     *  receive the same lift so they stay in sync with the rendered
+     *  cells. Ghost cells (out-of-filter / out-of-selection) are not
+     *  lifted — their DIM_RGB stays as designed. */
+    activeBrightness: number;
     /** Lower anchor for the Activity scheme's plasma palette (ΔF/F).
      *  Cells with traces below this map to the dark end. Default 0 — the
      *  baseline; values <0 would mean the user wants negative deflections
@@ -348,6 +357,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
     ambientOcclusionIntensity: 0.1,
     ambientOcclusionRadius: 8,
     opaqueActiveCells: false,
+    activeBrightness: 0,
     activityLo: 0.0,
     activityHi: 1.5,
     swimLo: 0.1,

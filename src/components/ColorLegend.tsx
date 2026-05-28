@@ -1,4 +1,5 @@
 import type { ReactNode, CSSProperties } from 'react';
+import { useMemo } from 'react';
 import type { NeuronDataset, FilterState, SettingsState } from '../data/types';
 import { regionColor, fishColor, plasma, coolwarm, rgbToHex } from '../utils/colorMaps';
 import { REGION_PAPER_ORDER } from '../utils/constants';
@@ -13,40 +14,48 @@ interface Props {
   uniqueFishIds: Uint8Array;
 }
 
-// The plasma gradient strip is identical across the gene and activity
-// legends; build the CSS string once at module load.
-const PLASMA_STOP_COUNT = 16;
-const PLASMA_GRADIENT = `linear-gradient(to right, ${Array.from(
-  { length: PLASMA_STOP_COUNT },
-  (_, i) => rgbToHex(plasma(i / (PLASMA_STOP_COUNT - 1))),
-).join(', ')})`;
+// Additive RGB lift, mirroring the per-cell `activeBrightness` math in
+// coloring.ts so the legend swatches stay visually in sync with the
+// rendered scatter.
+function liftRgb(rgb: readonly [number, number, number], b: number): [number, number, number] {
+  return [Math.min(1, rgb[0] + b), Math.min(1, rgb[1] + b), Math.min(1, rgb[2] + b)];
+}
 
-// Coolwarm divergent ramp used by the swim + stim color schemes.
-// Two flavours: COOLWARM_GRADIENT_FADED scales alpha by |t| to mirror
-// the in-app rendering when fadeWeakCorrelation is on (neutral cells
-// fade so the bright midpoint doesn't bloom); COOLWARM_GRADIENT_OPAQUE
-// is the unmodulated gradient for when the setting is off.
+const PLASMA_STOP_COUNT = 16;
 const COOLWARM_STOP_COUNT = 21;
 const FADE_FLOOR = 0.12;
-const COOLWARM_GRADIENT_FADED = `linear-gradient(to right, ${Array.from(
-  { length: COOLWARM_STOP_COUNT },
-  (_, i) => {
-    const t = -1 + (2 * i) / (COOLWARM_STOP_COUNT - 1);
-    const [r, g, b] = coolwarm(t);
-    const a = FADE_FLOOR + (1 - FADE_FLOOR) * Math.abs(t);
-    return `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${a.toFixed(3)})`;
-  },
-).join(', ')})`;
-const COOLWARM_GRADIENT_OPAQUE = `linear-gradient(to right, ${Array.from(
-  { length: COOLWARM_STOP_COUNT },
-  (_, i) => rgbToHex(coolwarm(-1 + (2 * i) / (COOLWARM_STOP_COUNT - 1))),
-).join(', ')})`;
+
+function plasmaGradient(brightness: number): string {
+  return `linear-gradient(to right, ${Array.from(
+    { length: PLASMA_STOP_COUNT },
+    (_, i) => rgbToHex(liftRgb(plasma(i / (PLASMA_STOP_COUNT - 1)), brightness)),
+  ).join(', ')})`;
+}
+
+function coolwarmGradientFaded(brightness: number): string {
+  return `linear-gradient(to right, ${Array.from(
+    { length: COOLWARM_STOP_COUNT },
+    (_, i) => {
+      const t = -1 + (2 * i) / (COOLWARM_STOP_COUNT - 1);
+      const [r, g, b] = liftRgb(coolwarm(t), brightness);
+      const a = FADE_FLOOR + (1 - FADE_FLOOR) * Math.abs(t);
+      return `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${a.toFixed(3)})`;
+    },
+  ).join(', ')})`;
+}
+
+function coolwarmGradientOpaque(brightness: number): string {
+  return `linear-gradient(to right, ${Array.from(
+    { length: COOLWARM_STOP_COUNT },
+    (_, i) => rgbToHex(liftRgb(coolwarm(-1 + (2 * i) / (COOLWARM_STOP_COUNT - 1)), brightness)),
+  ).join(', ')})`;
+}
 
 interface GradientLegendProps {
   title: ReactNode;
   axisLabel: string;
   ticks: GradientTickSpec[];
-  gradient?: string;
+  gradient: string;
   /** Position of a tick along the bar in 0..100 percent. */
   tickPos: (t: number) => number;
   /** Formatter for tick labels (default: `String`). Gene legend uses
@@ -169,7 +178,7 @@ function GradientLegend({
   title,
   axisLabel,
   ticks,
-  gradient = PLASMA_GRADIENT,
+  gradient,
   tickPos,
   formatTick = String,
   positionStyle,
@@ -206,6 +215,12 @@ function GradientLegend({
 
 export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
   const positionStyle = { top: 8, right: 8 } as const;
+  // Active-brightness lift mirrors the per-cell math in coloring.ts so
+  // the legend stays visually in sync with the rendered scatter.
+  const brightness = Math.max(0, Math.min(1, settings.activeBrightness));
+  const plasmaGrad = useMemo(() => plasmaGradient(brightness), [brightness]);
+  const coolwarmFaded = useMemo(() => coolwarmGradientFaded(brightness), [brightness]);
+  const coolwarmOpaque = useMemo(() => coolwarmGradientOpaque(brightness), [brightness]);
 
   if (filter.colorMode === 'region') {
     // Paper-canonical order (Pal → … → InfMO → Unassigned) so the legend
@@ -227,7 +242,7 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
           <div key={i} className="flex items-center gap-1.5">
             <span
               className="inline-block w-3 h-3 shrink-0 rounded-sm border border-neutral-600"
-              style={{ background: rgbToHex(regionColor(i, filter.regionPalette)) }}
+              style={{ background: rgbToHex(liftRgb(regionColor(i, filter.regionPalette), brightness)) }}
             />
             <span>{data.regionNames[i]}</span>
           </div>
@@ -246,7 +261,7 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
           <div key={id} className="flex items-center gap-1.5">
             <span
               className="inline-block w-3 h-3 rounded-sm"
-              style={{ background: rgbToHex(fishColor(id)) }}
+              style={{ background: rgbToHex(liftRgb(fishColor(id), brightness)) }}
             />
             <span>fish {id + 1}</span>
           </div>
@@ -359,6 +374,7 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
         title={title}
         axisLabel={axisLabel}
         ticks={ticks}
+        gradient={plasmaGrad}
         tickPos={tickPos}
         positionStyle={positionStyle}
       />
@@ -385,6 +401,7 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
         title={`Activity · t = ${Math.round(seconds)} s`}
         axisLabel="mean ΔF/F"
         ticks={ticks}
+        gradient={plasmaGrad}
         tickPos={tickPos}
         formatTick={(t) => t.toFixed(1)}
         positionStyle={positionStyle}
@@ -406,7 +423,7 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
         title="Swim correlation"
         axisLabel="Pearson r vs swim power"
         ticks={ticks}
-        gradient={settings.fadeWeakCorrelation ? COOLWARM_GRADIENT_FADED : COOLWARM_GRADIENT_OPAQUE}
+        gradient={settings.fadeWeakCorrelation ? coolwarmFaded : coolwarmOpaque}
         tickPos={tickPos}
         formatTick={formatCorrelationTick}
         positionStyle={positionStyle}
@@ -454,7 +471,7 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
       title={stimTitle}
       axisLabel="Pearson r vs stimulus regressor"
       ticks={ticks}
-      gradient={settings.fadeWeakCorrelation ? COOLWARM_GRADIENT_FADED : COOLWARM_GRADIENT_OPAQUE}
+      gradient={settings.fadeWeakCorrelation ? coolwarmFaded : coolwarmOpaque}
       tickPos={tickPos}
       formatTick={formatCorrelationTick}
       positionStyle={positionStyle}
