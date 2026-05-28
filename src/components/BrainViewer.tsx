@@ -156,15 +156,14 @@ function PointCloud({
     // viewer only: demote in-set cells outside the lasso to standard
     // ghost values. UmapPanel reads the shared (non-demoted) buffer so
     // the user can lasso new subsets from the dimmed cells.
+    // basePointSize (the un-boosted size) keeps the in-set boost from
+    // scale-by-filter confined to active cells — the helper sizes
+    // ghosts as basePointSize × ghostFactor.
     applySelectionAsFilterGhost(
       buffers,
       data.count,
       coloring.drawOrder,
       coloring.filterSelection,
-      // The helper sizes ghosts as basePointSize × ghostFactor —
-      // passing effectivePointSize instead would leak the
-      // scale-by-filter in-set boost into demoted cells, contrary to
-      // "ghosts are unaffected".
       coloring.basePointSize,
       coloring.effectiveGhostIntensity,
       selection,
@@ -320,12 +319,9 @@ function PointCloud({
     // when ghost mode is on, since they're effectively invisible.
     //
     // The t-SNE lasso is treated as an additional filter in the 3D
-    // viewer (see applySelectionAsFilterGhost) — match the renderer
-    // here so a click on a visually-demoted gray cell doesn't outrank
-    // the colored cells inside the lasso. Without this, when no
-    // filter card is active and a lasso narrows the visible
-    // population, every cell appears equally "in filter" to the
-    // picker and the visual hierarchy and the click target disagree.
+    // viewer (see applySelectionAsFilterGhost), so it contributes to
+    // both `filterActive` and per-cell `inFilter`. That keeps the
+    // picker's priority aligned with the rendered ghost demotion.
     const hasLasso = selection.source === 'umap' && selection.indices.length > 0;
     const lassoSet = hasLasso ? new Set<number>(Array.from(selection.indices)) : null;
     const filterActive = anyFilterActive(data, filter) || hasLasso;
