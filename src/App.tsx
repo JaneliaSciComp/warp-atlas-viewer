@@ -380,12 +380,22 @@ export default function App() {
     activitySpeed,
     scheduleUrlWrite,
   ]);
+  // When set, pagehide / visibilitychange flush handlers do NOT run.
+  // The hashchange handler below sets this just before calling reload()
+  // so the flush can't `history.replaceState` the pasted hash back to
+  // the stale app state before the browser commits the reload — that
+  // was the bug that made "pasted URLs apply" not actually apply
+  // reliably.
+  const suppressFlushRef = useRef(false);
   // Belt-and-suspenders: flush the URL when the tab is about to be
   // hidden/closed. pagehide covers refresh, navigation, close, and the
   // bfcache path; visibilitychange catches tab-switches the user
   // didn't initiate via the address bar.
   useEffect(() => {
-    const flush = () => writeUrlNow();
+    const flush = () => {
+      if (suppressFlushRef.current) return;
+      writeUrlNow();
+    };
     window.addEventListener('pagehide', flush);
     document.addEventListener('visibilitychange', flush);
     return () => {
@@ -399,9 +409,15 @@ export default function App() {
   // so this handler only sees user-driven changes. Reloading is the
   // simplest way to re-apply the full state: filter, settings, camera,
   // umap viewport, and lasso all flow through the module-level
-  // INITIAL_URL_STATE read on mount.
+  // INITIAL_URL_STATE read on mount. Suppress the flush handlers
+  // before reload() so they can't overwrite the pasted hash.
   useEffect(() => {
     const onHashChange = () => {
+      suppressFlushRef.current = true;
+      if (urlTimerRef.current) {
+        clearTimeout(urlTimerRef.current);
+        urlTimerRef.current = null;
+      }
       window.location.reload();
     };
     window.addEventListener('hashchange', onHashChange);
