@@ -224,7 +224,9 @@ export default function App() {
   // switch (or any other unmount of that row) doesn't reset it. The
   // interval engine below runs in App for the same reason.
   const [activityPlaying, setActivityPlaying] = useState(false);
-  const [activitySpeed, setActivitySpeed] = useState(10);
+  const [activitySpeed, setActivitySpeed] = useState(
+    INITIAL_URL_STATE?.activitySpeed ?? 10,
+  );
   // Mirror of activityPlaying as a ref so the URL writer's setTimeout
   // can sample the latest value without re-creating the debounce dep
   // chain on every play/pause toggle.
@@ -277,6 +279,8 @@ export default function App() {
   detailWidthRef.current = detailWidth;
   const lassoPolyRef = useRef(lassoPoly);
   lassoPolyRef.current = lassoPoly;
+  const activitySpeedRef = useRef(activitySpeed);
+  activitySpeedRef.current = activitySpeed;
   const writeUrlNow = useCallback(() => {
     if (urlTimerRef.current) {
       clearTimeout(urlTimerRef.current);
@@ -307,6 +311,8 @@ export default function App() {
           : undefined,
       camera: cam,
       umap,
+      activitySpeed:
+        activitySpeedRef.current !== 10 ? activitySpeedRef.current : undefined,
     };
     let hash = encodeHash({ ...baseFields, lasso });
     if (hash.length > MAX_HASH_BYTES && lasso) {
@@ -371,6 +377,7 @@ export default function App() {
     bottomHeight,
     detailWidth,
     lassoPoly,
+    activitySpeed,
     scheduleUrlWrite,
   ]);
   // Belt-and-suspenders: flush the URL when the tab is about to be

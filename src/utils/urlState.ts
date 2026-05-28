@@ -80,6 +80,13 @@ export interface PersistedState {
   detailWidth?: number;
   camera?: CameraState;
   umap?: UmapViewport;
+  /** Activity playback speed multiplier (1, 2, 10, 50, 100). The
+   *  current value is persisted (omitted when at the 10× default) so a
+   *  recorded view plays at the same speed on the receiving end.
+   *  `activityPlaying` itself is intentionally NOT persisted — a share
+   *  link should land paused so the recipient sees the same frame, not
+   *  a moving picture. */
+  activitySpeed?: number;
   /** Lasso polygon vertices in t-SNE data coords, flat array
    *  [x0,y0,x1,y1,...]. Decoder re-derives the cell indices via
    *  point-in-polygon, so the URL stays small (~30-150 vertices)
@@ -319,6 +326,14 @@ function validatePersisted(raw: Record<string, unknown>): PersistedState {
   if (cam) out.camera = cam;
   const vp = validateViewport(raw.umap);
   if (vp) out.umap = vp;
+  // Playback speed: positive number, clamped to the practical range
+  // the picker exposes (1×–100×). The picker discretizes to a fixed
+  // set [1, 2, 10, 50, 100], but we accept any number in range so a
+  // hand-edited URL with e.g. 25× still works and just doesn't match
+  // a dropdown option.
+  if (isFiniteNum(raw.activitySpeed) && raw.activitySpeed > 0) {
+    out.activitySpeed = clamp(raw.activitySpeed, 0.1, 1000);
+  }
   const lasso = validateLasso(raw.lasso);
   if (lasso) out.lasso = lasso;
   return out;
