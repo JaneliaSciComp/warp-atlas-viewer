@@ -86,7 +86,7 @@ Any user selection still dims non-selected cells on top of this setting, so sele
 
 ### Active brightness
 
-**Active brightness** additively lifts the color of every in-set cell by `b` in both the 3D and t-SNE views: `c' = min(1, c + b)`, applied per RGB channel. Useful when the active palette reads too dark against the dark background. Range `0` – `0.4`, step `0.01`; the default is `0` (no lift). Ghost cells (out-of-filter or out-of-selection) are not lifted — their `DIM_RGB` stays as designed.
+**Active brightness** additively lifts the color of every in-set cell by `b` in both the 3D and t-SNE views: `c' = min(1, c + b)`, applied per RGB channel. Useful when the active palette reads too dark against the dark background. Range `0` – `0.4`, step `0.01`; the default is `0.1` (a small lift baked in so colors pop a bit against the dark background out of the box). Ghost cells (out-of-filter or out-of-selection) are not lifted — their `DIM_RGB` stays as designed.
 
 The color legend is rebuilt with the same lift so the swatches (Region, Specimen) and gradients (Gene, Activity, Stim, Swim) stay visually in sync with what the scatter renders.
 

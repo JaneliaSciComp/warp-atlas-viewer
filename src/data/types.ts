@@ -357,7 +357,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
     ambientOcclusionIntensity: 0.1,
     ambientOcclusionRadius: 8,
     opaqueActiveCells: false,
-    activeBrightness: 0,
+    activeBrightness: 0.1,
     activityLo: 0.0,
     activityHi: 1.5,
     swimLo: 0.1,
