@@ -21,18 +21,15 @@ The 2D scatter plot at the bottom-right of the screen. Every point corresponds t
 | **Click a cell** | Focus that cell, as in the 3D viewer. |
 | **Right-drag** or **Shift+drag** | Pan the t-SNE viewport. |
 | **Mouse wheel** | Zoom in or out. |
-| **Clear-selection button** | Top of the panel when a lasso is active; clears the lasso selection. |
+| **Clear-selection button** | Top of the panel when a lasso is active; clears the lasso selection. (The filter row also shows a **t-SNE selection** card with its own clear button while a lasso is active.) |
 
 ## Linked behavior
 
-- A lasso in the t-SNE highlights the same cells in the 3D viewer with increased brightness and size.
-- A click-focused cell in either panel is highlighted in both.
+- A lasso in the t-SNE is treated as an **additional filter in the 3D viewer**: cells outside the lasso fade to the standard ghost recipe so the selected subset reads as the foreground population. The lasso is also brightened (no size boost) in both views.
+- The t-SNE panel itself does **not** apply this 3D-side demotion to its own scatter: non-selected cells stay softly dimmed so the rest of the population is still visible and you can re-lasso a different subset without first clearing.
+- A click-focused cell in either panel is highlighted in both with a white ring.
 - Focus and lasso are independent: clicking a cell does not discard an existing lasso, and drawing a lasso does not clear focus. The Detail panel gives focus precedence until focus is cleared.
 - The lasso polygon and focused-cell id are encoded in the [URL hash](/sharing), so a shared link reproduces the selection when the lasso polygon fits within the hash cap.
-
-::: tip Selection versus filter
-A lasso does not filter; it **highlights** on top of the current filter result. To narrow the visible set, use the filter cards. To highlight within a filter (e.g. the `pou4f2_cckb` cells in a particular t-SNE region), filter first and then lasso.
-:::
 
 ## Coloring
 

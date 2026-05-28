@@ -42,6 +42,8 @@ To clear the focus:
 
 Dragging in the t-SNE defines a polygon; all enclosed cells become the selection. The lasso is shown as a dashed outline in the t-SNE and the corresponding cells are highlighted in the 3D viewer.
 
+In the 3D viewer the lasso behaves like an additional filter: cells outside the lasso fade to the standard ghost recipe so the selected subset reads as the foreground population. The t-SNE panel itself does not apply this demotion — non-selected cells stay visible (softly dimmed) so you can see the rest of the population and refine the lasso.
+
 Lasso behavior:
 
 - A lasso drawn while a cell is focused does not clear the focus; the focus still drives the Detail panel until it is cleared.
@@ -65,7 +67,7 @@ To "step back" one level, clear the current focus or lasso: clicking empty space
 
 ## Clearing the selection
 
-The clear-selection button at the top of the t-SNE panel removes the active lasso selection. It does not clear a focused cell; click empty space in either view to clear focus. Filter cards are unaffected.
+When a t-SNE lasso is active, a **t-SNE selection** card appears at the end of the filter row (alongside the Anatomy / Transcriptomics / etc. cards) with a count of the selected cells and a clear button. The t-SNE panel header also keeps a redundant **clear selection** button. Either clears the lasso. Neither clears a focused cell — click empty space in either view to clear focus. Filter cards are unaffected.
 
 ## See also
 
