@@ -50,18 +50,24 @@ export interface ColoringStats {
    *  dim haze regardless of source order or true 3D depth. Null when
    *  no filter is active (every cell is in-set, no reorder needed). */
   drawOrder: Uint32Array | null;
-  /** Point size actually used during this paint pass. Equal to
-   *  settings.pointSize when scaleByFilterCount is off; otherwise
-   *  derived from the in-set count (50 cells → 20 px, all cells →
-   *  10 px, lerped between). Picker / marker geometry should use this
-   *  rather than settings.pointSize. BrainViewer scales this further
-   *  by a canvas-size factor when autoSizing is on; the t-SNE panel
-   *  uses its own umapPointSize. */
+  /** Base 3D point size — auto-derived from canvas area (3 → 9 px
+   *  between 100k and ~723k px²) when autoSizing is on, else
+   *  settings.pointSize. This is the un-boosted value: ghost cells
+   *  shrink relative to it, but it does NOT include the scale-by-
+   *  filter in-set boost. Use this for any code that needs to mirror
+   *  the renderer's ghost-size math (e.g. applySelectionAsFilterGhost). */
+  basePointSize: number;
+  /** Point size actually used for active (in-set) cells during this
+   *  paint pass. Equals basePointSize when scale-by-filter is off,
+   *  otherwise basePointSize × inSetBoost (boost ∈ [1×, 2×], rises as
+   *  the filter narrows). Picker / marker geometry should use this so
+   *  they stay in step with the rendered active cell size. */
   effectivePointSize: number;
-  /** Ghost intensity actually used during this paint pass. Same
-   *  derivation pattern as effectivePointSize (50 cells → 0.25,
-   *  all cells → 0.75). The pickers test against this to decide
-   *  whether out-of-filter cells are clickable. */
+  /** Ghost visibility (0..1) — auto-derived from canvas area via a
+   *  logistic sigmoid when autoSizing is on (≈0.10 on a tiny canvas,
+   *  ≈1.00 once the canvas reaches ~723k px²), else
+   *  settings.ghostIntensity. Drives both the per-cell ghost alpha
+   *  and the ghost size shrink in applyColoring. */
   effectiveGhostIntensity: number;
 }
 
@@ -228,11 +234,37 @@ export function anyFilterActive(ds: NeuronDataset, filter: FilterState): boolean
  * AND the cell is inside it, in which case it lifts to anatomical-context
  * gray so the region's outline reads through the foreground signal.
  */
+// Auto-mode anchors (3D viewer point density). pointSize lerps in
+// log(canvasArea) between (100k px², 3 px) and (~723k px², 9 px) —
+// both clamped at the ends. ghostVisibility follows a negative-
+// exponential approach to 1.0, fit to the user-supplied (height,
+// ghost) anchors at width=1500, re-expressed in area:
+//   ghost(area) = 1 - AUTO_GHOST_C · exp(-AUTO_GHOST_K · (area - AUTO_GHOST_AREA0))
+// then clamped to [0.10, 1.00]. Hits the user's anchors at h=100/250/
+// 350/550 within ~0.05 each and approaches full visibility as the
+// canvas grows past h ≈ 2000.
+const AUTO_AREA_LO = 100_000;
+const AUTO_AREA_HI = 1512 * 478; // 722_736
+const AUTO_GHOST_K = 0.00198 / 1500; // ~1.32e-6 per px²
+const AUTO_GHOST_C = 0.8447;
+const AUTO_GHOST_AREA0 = 113.64 * 1500; // ~170_460 px²
+const AUTO_GHOST_MIN = 0.10;
+const AUTO_GHOST_MAX = 1.0;
+const AUTO_POINT_MIN = 3;
+const AUTO_POINT_MAX = 9;
+// In-set boost (scale-by-filter): in-set point size is multiplied by
+// (2 - tFilter), so 50 cells → 2×, all cells → 1×. Ghost cells get no
+// boost — scale-by-filter is purely an active-cell emphasis knob.
+const IN_SET_BOOST_MIN = 1.0;
+const IN_SET_BOOST_MAX = 2.0;
+
 export function applyColoring(
   ds: NeuronDataset,
   filter: FilterState,
   settings: SettingsState,
   selection: SelectionState,
+  canvasWidth: number,
+  canvasHeight: number,
   out: ColoringResult,
 ): ColoringStats {
   const { count, regionIds, fishIds, clusterIds, geneCounts, geneBinary, stimulusCorr, swimCorr, activityTrace, traceLength } = ds;
@@ -458,38 +490,45 @@ export function applyColoring(
   }
 
   // ── Effective point size + ghost intensity ────────────────────────
-  // Auto mode lerps in *log space* between (50 cells → 20 px / ghost
-  // 0.25) and (count → 10 px / ghost 0.75). Log space matches how cell
-  // density actually scales — every 10× more cells should drop the
-  // point size by roughly the same amount — so the curve drops fast
-  // early and flattens near the floor. Sample values for count≈274 k:
-  //    n=50   →  20 px, 0.25
-  //    n=1 k  →  16.5,  0.43
-  //    n=10 k →  13.8,  0.56
-  //    n=50 k →  12,    0.65
-  //    n=100k →  11.2,  0.69
-  //    n=count→  10,    0.75
-  // This is the *base* size in CSS-px-ish units. BrainViewer applies a
-  // canvas-size factor on top so a larger 3D canvas keeps the same
-  // dots-per-area density; the t-SNE panel has a fixed-size canvas so
-  // it consumes this base value directly.
+  // Auto mode derives both values from the canvas area:
+  //   pointSize: log-lerp 3 → 9 between 100k and ~723k px²
+  //   ghost:     logistic sigmoid centred at ~403k px², clamped [0.10, 1.00]
+  // Manual mode reads the slider values directly.
+  //
+  // scaleByFilterCount, when on (and only effective while autoSizing
+  // is also on — the settings panel hides the checkbox otherwise, but
+  // stale URL state could still carry it through), additionally
+  // multiplies the *in-set* point size by an inSetBoost in [1×, 2×].
+  // 50 cells → 2×, all cells → 1×. Ghost cells are not boosted — the
+  // toggle is a knob for emphasising the active subset, not the rest.
+  const canvasArea = Math.max(1, canvasWidth * canvasHeight);
+  const auto = settings.autoSizing;
+  let baseSize: number;
+  let baseGhostIntensity: number;
+  if (auto) {
+    const logArea = Math.log(canvasArea);
+    const logLo = Math.log(AUTO_AREA_LO);
+    const logHi = Math.log(AUTO_AREA_HI);
+    const tArea = Math.max(0, Math.min(1, (logArea - logLo) / (logHi - logLo)));
+    baseSize = AUTO_POINT_MIN + (AUTO_POINT_MAX - AUTO_POINT_MIN) * tArea;
+    const negExp = 1 - AUTO_GHOST_C * Math.exp(-AUTO_GHOST_K * (canvasArea - AUTO_GHOST_AREA0));
+    baseGhostIntensity = Math.max(AUTO_GHOST_MIN, Math.min(AUTO_GHOST_MAX, negExp));
+  } else {
+    baseSize = Math.max(0.001, settings.pointSize);
+    baseGhostIntensity = Math.max(0, Math.min(1, settings.ghostIntensity));
+  }
+  const useFilterLerp = auto && settings.scaleByFilterCount;
   const AUTO_MIN_INSET = 50;
-  const logHi = Math.log(Math.max(AUTO_MIN_INSET + 1, count));
-  const logLo = Math.log(AUTO_MIN_INSET);
-  // scaleByFilterCount only kicks in when autoSizing is also on — the
-  // settings panel hides the checkbox otherwise, but old URL state
-  // could still carry a stale scaleByFilterCount=true into manual
-  // mode, and we don't want that to take effect.
-  const useFilterLerp = settings.autoSizing && settings.scaleByFilterCount;
-  const autoT = useFilterLerp
-    ? Math.max(0, Math.min(1, (Math.log(Math.max(AUTO_MIN_INSET, inSetCount)) - logLo) / (logHi - logLo)))
+  const logFilterHi = Math.log(Math.max(AUTO_MIN_INSET + 1, count));
+  const logFilterLo = Math.log(AUTO_MIN_INSET);
+  const tFilter = useFilterLerp
+    ? Math.max(0, Math.min(1, (Math.log(Math.max(AUTO_MIN_INSET, inSetCount)) - logFilterLo) / (logFilterHi - logFilterLo)))
     : 0;
-  const effectivePointSize = useFilterLerp
-    ? 20 - 10 * autoT
-    : Math.max(0.001, settings.pointSize);
-  const effectiveGhostIntensity = useFilterLerp
-    ? 0.25 + 0.5 * autoT
-    : Math.max(0, Math.min(1, settings.ghostIntensity));
+  const inSetBoost = useFilterLerp
+    ? IN_SET_BOOST_MAX - (IN_SET_BOOST_MAX - IN_SET_BOOST_MIN) * tFilter
+    : 1.0;
+  const effectivePointSize = baseSize * inSetBoost;
+  const effectiveGhostIntensity = baseGhostIntensity;
 
   // ── Pass 2: paint ─────────────────────────────────────────────────
   let visibleCount = 0;
@@ -512,8 +551,10 @@ export function applyColoring(
       // full background dim. effectiveGhostIntensity (0..1) is the
       // *visibility* of the ghost cells (0 = invisible, 1 = standard
       // dim). Re-derive inRegion here since the pass-1 local fell out
-      // of scope.
+      // of scope. Ghost size starts from baseSize (not effectivePointSize)
+      // so the scale-by-filter in-set boost doesn't bleed into ghosts.
       r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2];
+      size = baseSize;
       const inRegion =
         (isoRegion < 0 || regionIds[i] === isoRegion) &&
         (isoFish < 0 || fishIds[i] === isoFish);
@@ -775,6 +816,7 @@ export function applyColoring(
     visibleCount,
     filterSelection,
     drawOrder,
+    basePointSize: baseSize,
     effectivePointSize,
     effectiveGhostIntensity,
   };
@@ -797,7 +839,7 @@ export function applySelectionAsFilterGhost(
   count: number,
   drawOrder: Uint32Array | null,
   filterSelection: Uint32Array | null,
-  effectivePointSize: number,
+  basePointSize: number,
   effectiveGhostIntensity: number,
   selection: SelectionState,
 ): void {
@@ -806,7 +848,10 @@ export function applySelectionAsFilterGhost(
   const selSet = new Set<number>(Array.from(selection.indices));
   const t = effectiveGhostIntensity;
   const ghostAlpha = DIM_ALPHA * t;
-  const ghostSize = effectivePointSize * (GHOST_SIZE_FLOOR + (1 - GHOST_SIZE_FLOOR) * t);
+  // Mirror the per-cell ghost recipe in applyColoring: size starts
+  // from basePointSize (not effectivePointSize) so the scale-by-filter
+  // in-set boost doesn't leak into demoted cells.
+  const ghostSize = basePointSize * (GHOST_SIZE_FLOOR + (1 - GHOST_SIZE_FLOOR) * t);
   const r0 = DIM_RGB[0], g0 = DIM_RGB[1], b0 = DIM_RGB[2];
   // When a filter is active, drawOrder partitions cells [out-of-set,
   // in-set]. Out-of-set cells are already ghosts; we only need to

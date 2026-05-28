@@ -12,7 +12,6 @@ import {
   cellIsRenderable,
 } from '../utils/coloring';
 import type { SharedColoring } from '../hooks/useColoring';
-import { canvasPointSizeScale } from '../utils/pointSizing';
 import vertSrc from '../shaders/neuron.vert.glsl?raw';
 import fragSrc from '../shaders/neuron.frag.glsl?raw';
 import { AmbientOcclusion, skipAmbientOcclusionUserData } from './AmbientOcclusion';
@@ -35,6 +34,11 @@ interface Props {
   focusedNeuron: number | null;
   /** Click on a neuron sets focus; click on empty space sets to null. */
   onFocus: (i: number | null) => void;
+  /** Fires whenever the wrapping div is resized. App threads this back
+   *  into useColoring so the auto-mode formulas (point size + ghost
+   *  visibility derived from canvas area) reflect the current 3D
+   *  canvas size. */
+  onCanvasSizeChange?: (size: { w: number; h: number }) => void;
   /** Camera position + orbit target restored from URL on first mount. */
   initialCamera?: CameraState | null;
   /** Fired whenever the user moves/orbits/zooms the camera. */
@@ -133,17 +137,11 @@ function PointCloud({
     });
   }, [gl]);
 
-  // Auto mode: lift point size when the 3D canvas grows so dots-per-
-  // area density stays roughly constant. sqrt(area / reference) keeps
-  // density (≈ size² / area) flat across canvas sizes, clamped so
-  // tiny windows don't shrink dots past usability and huge displays
-  // don't bloat them. Only kicks in when autoSizing is on — manual
-  // mode honors the user's exact pixel value.
-  const sizeScale = canvasPointSizeScale(settings.autoSizing, size.width, size.height);
-  useEffect(() => {
-    opaqueMaterial.uniforms.sizeScale.value = sizeScale;
-    transparentMaterial.uniforms.sizeScale.value = sizeScale;
-  }, [opaqueMaterial, transparentMaterial, sizeScale]);
+  // Canvas-size adaptation now lives inside applyColoring's auto-mode
+  // formulas (basePointSize is derived from canvas area), so the
+  // shader uniform stays at its default 1.0. We keep the uniform
+  // around for shader-source compatibility but no longer drive it
+  // from JS.
 
   useEffect(() => {
     if (!coloring) return;
@@ -252,11 +250,12 @@ function PointCloud({
   }, [gl, initialPointSize]);
 
   // Marker tracks the *effective* point size used by the cell shader so
-  // the focus ring stays sized relative to the dots it surrounds even
-  // when autoSizing is on. Includes the canvas-size factor so the
-  // marker also grows with the 3D canvas.
+  // the focus ring stays sized relative to the dots it surrounds.
+  // basePointSize already reflects the canvas-area adaptation (auto mode);
+  // we use the in-set-boosted effectivePointSize to match what active
+  // cells get on screen.
   const effectiveMarkerSize =
-    (coloring?.effectivePointSize ?? settings.pointSize) * sizeScale;
+    coloring?.effectivePointSize ?? settings.pointSize;
   useEffect(() => {
     markerMaterial.uniforms.baseSize.value = effectiveMarkerSize;
   }, [markerMaterial, effectiveMarkerSize]);
@@ -331,9 +330,6 @@ function PointCloud({
     const pointSizes = buffers.sizes;
     const defaultPointSize = coloring?.effectivePointSize ?? settings.pointSize;
     const pixelRatio = gl.getPixelRatio();
-    // Picker geometry must match the rendered cell size, which includes
-    // the canvas-size factor applied via the shader uniform.
-    const pickSizeScale = sizeScale;
     let bestDiskI = -1;
     let bestDiskD2 = Infinity;
     let bestDiskZ = Infinity;
@@ -360,7 +356,7 @@ function PointCloud({
       const dy = py - my;
       const d2 = dx * dx + dy * dy;
       const depth = -cz;
-      const pointSize = (pointSizes ? pointSizes[i] : defaultPointSize) * pickSizeScale;
+      const pointSize = pointSizes ? pointSizes[i] : defaultPointSize;
       const diameter = Math.max(1.5 / pixelRatio, pointSize * (160 / Math.max(depth, 40)));
       const diskRadius = Math.max(MIN_DISK_PICK_RADIUS, diameter * 0.5 + PICK_PAD_PX);
       const diskHit = d2 <= diskRadius * diskRadius;
@@ -443,18 +439,20 @@ export function BrainViewer({
   selection,
   focusedNeuron,
   onFocus,
+  onCanvasSizeChange,
   initialCamera,
   onCameraChange,
 }: Props) {
   const [hover, setHover] = useState<{ i: number; x: number; y: number } | null>(null);
   const pickRef = useRef<PickState>({ pos: null, hovered: -1 });
-  // Wrapping-div size — the Canvas fills its parent, so this doubles as
-  // the rendered canvas size for the debug overlay's readouts.
+  // Wrapping-div size — the R3F Canvas fills its parent so this is
+  // also the rendered canvas size. Tracked unconditionally because the
+  // auto-mode point-size / ghost-visibility formulas depend on it.
   const containerRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   useLayoutEffect(() => {
     const el = containerRef.current;
-    if (!el || !settings.debugMode) return;
+    if (!el) return;
     const apply = () => {
       const rect = el.getBoundingClientRect();
       const next = { w: Math.floor(rect.width), h: Math.floor(rect.height) };
@@ -464,7 +462,15 @@ export function BrainViewer({
     const ro = new ResizeObserver(apply);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [settings.debugMode]);
+  }, []);
+  // Mirror the measured size up to App so useColoring's deps update.
+  // Skip the (0, 0) mount value — App seeds with the upper anchor so
+  // first paint already renders sensibly.
+  useEffect(() => {
+    if (!onCanvasSizeChange) return;
+    if (canvasSize.w === 0 || canvasSize.h === 0) return;
+    onCanvasSizeChange(canvasSize);
+  }, [canvasSize, onCanvasSizeChange]);
 
   // Default camera position derived from the data bounds — straight-on
   // dorsal view with the brain comfortably filling the landscape panel.
@@ -629,7 +635,6 @@ export function BrainViewer({
         />
         {settings.ambientOcclusion && (
           <AmbientOcclusion
-            autoSizing={settings.autoSizing}
             intensity={settings.ambientOcclusionIntensity}
             radius={settings.ambientOcclusionRadius}
           />
@@ -677,19 +682,31 @@ function DebugOverlay({
   totalCells: number;
 }) {
   const inSetCount = coloring?.filterSelection?.length ?? totalCells;
-  const sizeScale = canvasPointSizeScale(settings.autoSizing, canvasSize.w, canvasSize.h);
-  // Mirror the autoT lerp in coloring.ts:applyColoring so the overlay
-  // reports the same intermediate the renderer computed.
+  const area = Math.max(1, canvasSize.w * canvasSize.h);
+  // Mirror the auto-mode math in coloring.ts so the overlay reports
+  // exactly what the renderer computed.
+  const AUTO_AREA_LO = 100_000;
+  const AUTO_AREA_HI = 1512 * 478;
+  const tArea = Math.max(
+    0,
+    Math.min(1, (Math.log(area) - Math.log(AUTO_AREA_LO)) / (Math.log(AUTO_AREA_HI) - Math.log(AUTO_AREA_LO))),
+  );
   const AUTO_MIN_INSET = 50;
-  const logHi = Math.log(Math.max(AUTO_MIN_INSET + 1, totalCells));
-  const logLo = Math.log(AUTO_MIN_INSET);
   const useFilterLerp = settings.autoSizing && settings.scaleByFilterCount;
-  const autoT = useFilterLerp
-    ? Math.max(0, Math.min(1, (Math.log(Math.max(AUTO_MIN_INSET, inSetCount)) - logLo) / (logHi - logLo)))
+  const tFilter = useFilterLerp
+    ? Math.max(
+        0,
+        Math.min(
+          1,
+          (Math.log(Math.max(AUTO_MIN_INSET, inSetCount)) - Math.log(AUTO_MIN_INSET)) /
+            (Math.log(Math.max(AUTO_MIN_INSET + 1, totalCells)) - Math.log(AUTO_MIN_INSET)),
+        ),
+      )
     : 0;
+  const inSetBoost = useFilterLerp ? 2 - tFilter : 1;
+  const basePointSize = coloring?.basePointSize ?? settings.pointSize;
   const effPointSize = coloring?.effectivePointSize ?? settings.pointSize;
   const effGhost = coloring?.effectiveGhostIntensity ?? settings.ghostIntensity;
-  const renderedSize = effPointSize * sizeScale;
   const row = (label: string, value: string | number) => (
     <div className="flex justify-between gap-3">
       <span className="text-neutral-400">{label}</span>
@@ -698,20 +715,22 @@ function DebugOverlay({
   );
   const fx = (n: number, d = 2) => (Number.isFinite(n) ? n.toFixed(d) : String(n));
   return (
-    <div className="pointer-events-auto font-mono text-[10px] bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-2 py-1.5 rounded min-w-[200px] leading-tight">
+    <div className="pointer-events-auto font-mono text-[10px] bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-2 py-1.5 rounded min-w-[220px] leading-tight">
       <div className="text-neutral-500 uppercase tracking-wider text-[9px] mb-1">debug</div>
       {row('canvas', `${canvasSize.w}×${canvasSize.h}`)}
+      {row('canvas area', area.toLocaleString())}
       {row('cells (total)', totalCells.toLocaleString())}
       {row('cells (in set)', inSetCount.toLocaleString())}
       {row('auto', settings.autoSizing ? 'on' : 'off')}
       {row('scale by filter', settings.scaleByFilterCount ? 'on' : 'off')}
       {row('settings.pointSize', fx(settings.pointSize, 1))}
       {row('settings.ghost', fx(settings.ghostIntensity, 2))}
-      {row('autoT (lerp)', fx(autoT, 3))}
+      {row('tArea (auto)', fx(tArea, 3))}
+      {row('tFilter (boost)', fx(tFilter, 3))}
+      {row('inSetBoost', fx(inSetBoost, 3) + '×')}
+      {row('base pointSize', fx(basePointSize, 2))}
       {row('eff. pointSize', fx(effPointSize, 2))}
       {row('eff. ghost', fx(effGhost, 3))}
-      {row('canvas scale', fx(sizeScale, 3))}
-      {row('rendered size', `${fx(renderedSize, 2)} px`)}
     </div>
   );
 }

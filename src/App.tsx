@@ -104,11 +104,25 @@ export default function App() {
   const [filter, setFilter] = useState<FilterState>(INITIAL_FILTER_STATE);
   const [settings, setSettings] = useState<SettingsState>(INITIAL_SETTINGS_STATE);
   const { selection, setIndices, clear } = useSelection();
+  // 3D canvas size — reported up from BrainViewer so the auto-mode
+  // formulas in applyColoring (point size and ghost intensity) can
+  // adapt to the actual canvas area. Defaults to the upper anchor so
+  // first-paint sizing is sensible before the ResizeObserver fires.
+  const [brainCanvasSize, setBrainCanvasSize] = useState<{ w: number; h: number }>(
+    { w: 1512, h: 478 },
+  );
   // Shared per-cell coloring (colors / alphas / sizes) — computed once
-  // per filter/settings/selection change and passed to both BrainViewer
-  // and UmapPanel so neither has to repeat the 274k-cell applyColoring
-  // pass on every interaction.
-  const coloring = useColoring(data, filter, settings, selection);
+  // per filter/settings/selection/canvas-size change and passed to both
+  // BrainViewer and UmapPanel so neither has to repeat the 274k-cell
+  // applyColoring pass on every interaction.
+  const coloring = useColoring(
+    data,
+    filter,
+    settings,
+    selection,
+    brainCanvasSize.w,
+    brainCanvasSize.h,
+  );
   // The detail panel floats over the right edge of the viewer and can be
   // hidden when not in use to give the brain viewer / t-SNE the full width.
   const [detailOpen, setDetailOpen] = useState(INITIAL_URL_STATE?.detail ?? true);
@@ -573,6 +587,7 @@ export default function App() {
                   selection={selection}
                   focusedNeuron={focusedNeuron}
                   onFocus={setFocusedNeuron}
+                  onCanvasSizeChange={setBrainCanvasSize}
                   initialCamera={INITIAL_URL_STATE?.camera ?? null}
                   onCameraChange={handleCameraChange}
                 />
