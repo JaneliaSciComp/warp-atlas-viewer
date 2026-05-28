@@ -343,19 +343,16 @@ export function applyColoring(
 
   // Build a fast lookup of selected indices.
   const selSet = selection.indices.length > 0 ? new Set<number>(Array.from(selection.indices)) : null;
-  // For small selections (e.g. clicking a single neuron), keep the rest of
-  // the brain visible for anatomical context — only brighten the selected
-  // cells. For larger group selections, dim non-members so the selected
-  // group reads as a coherent shape in the t-SNE panel. The 3D viewer
-  // applies an additional pass (applySelectionAsFilterGhost) that demotes
-  // non-selected in-set cells to the full ghost recipe, so this shared
-  // dimming is what the t-SNE panel shows while 3D treats the lasso as a
-  // full filter.
-  const dimNonSelected = selSet !== null && selSet.size > 50;
-  // Only USER-explicit selections (3D click, t-SNE drag) deserve a
-  // brightness boost. Filter-derived selections already get their
-  // signature from the in-set/dim split, so boosting them on top would
-  // just clobber the anatomical-context lift.
+  // Selection-driven dimming: non-selected cells get knocked to a low
+  // alpha in the shared coloring so the t-SNE panel still shows them
+  // (softly) for re-lassoing. The 3D viewer applies a stronger pass
+  // (applySelectionAsFilterGhost) that swaps them to the full ghost
+  // recipe. No selection size threshold — be consistent and apply the
+  // dim regardless of how many cells are selected.
+  //
+  // Only USER-explicit selections (3D click, t-SNE drag) drive any
+  // selection rendering. Filter-derived selections already get their
+  // visual signature from the in-set/dim split.
   const isUserSelection = selection.source === '3d' || selection.source === 'umap';
 
   // Filter predicate hoisted from cellPasses so the hot loop allocates
@@ -779,22 +776,16 @@ export function applyColoring(
       alpha = 1.0;
     }
 
-    // Active selection: highlight selected cells with a brightness +
-    // full-opacity bump; for larger group selections also dim non-
-    // members so the selected group reads as a coherent shape in the
-    // t-SNE panel. The 3D viewer applies its own selection-as-filter
-    // ghost pass on top — see applySelectionAsFilterGhost — so 3D
-    // gets the full ghost recipe while t-SNE keeps this softer dim
-    // (which still lets the user see and re-lasso non-selected cells).
-    if (selSet && isUserSelection) {
-      if (selSet.has(i)) {
-        r = Math.min(1, r * 1.15 + 0.15);
-        g = Math.min(1, g * 1.15 + 0.15);
-        b = Math.min(1, b * 1.15 + 0.15);
-        alpha = 1.0;
-      } else if (dimNonSelected) {
-        alpha = Math.min(alpha, 0.18);
-      }
+    // Active selection: leave selected cells' colors untouched (the
+    // active color scheme is meaningful — don't shift hue or lift
+    // brightness) and soft-dim every non-selected cell so the
+    // selected group reads as a coherent shape in the t-SNE panel.
+    // The 3D viewer applies its own selection-as-filter ghost pass
+    // on top — see applySelectionAsFilterGhost — so 3D gets the full
+    // ghost recipe while t-SNE keeps this softer dim (which still
+    // lets the user see and re-lasso non-selected cells).
+    if (selSet && isUserSelection && !selSet.has(i)) {
+      alpha = Math.min(alpha, 0.18);
     }
 
     if (alpha >= VISIBLE_ALPHA_THRESHOLD) visibleCount++;

@@ -274,18 +274,22 @@ describe('applyColoring stats', () => {
     expect(stats.filterSelection).toHaveLength(0);
   });
 
-  it('hides unassigned Region cells from draw stats and ignores selection boosts', () => {
+  it('hides unassigned Region cells and dims non-selected in-set cells', () => {
     const out = allocColoring(TEST_DATA.count);
     const filter: FilterState = {
       ...BASE_FILTER,
       colorMode: 'region',
       showUnassignedRegion: false,
     };
+    // User-explicit selection on cell 2; cells 0/1 are unassigned and
+    // hidden by the filter; cell 3 is in-set but not selected, so it
+    // should drop to the selection-driven dim alpha (≤ 0.18) regardless
+    // of the selection size.
     const stats = applyColoring(
       TEST_DATA,
       filter,
       DEFAULT_SETTINGS,
-      { indices: new Uint32Array([0]), source: 'umap' },
+      { indices: new Uint32Array([2]), source: 'umap' },
       CW,
       CH,
       out,
@@ -294,8 +298,13 @@ describe('applyColoring stats', () => {
     expect(out.alphas[0]).toBe(0);
     expect(out.alphas[1]).toBe(0);
     expect(out.alphas[2]).toBeGreaterThan(0.5);
-    expect(out.alphas[3]).toBeGreaterThan(0.5);
-    expect(stats.visibleCount).toBe(2);
+    // Float32 storage rounds 0.18 to ~0.180000007, so allow a tiny tolerance.
+    expect(out.alphas[3]).toBeLessThanOrEqual(0.1801);
+    // Only cell 2 clears the visible-alpha threshold; 0/1 are hidden,
+    // 3 is dimmed by the selection.
+    expect(stats.visibleCount).toBe(1);
+    // filterSelection still reflects the filter intersection (both
+    // renderable cells), independent of the user selection.
     expect(stats.filterSelection).toBeInstanceOf(Uint32Array);
     expect(Array.from(stats.filterSelection ?? []).sort((a, b) => a - b)).toEqual([2, 3]);
   });
