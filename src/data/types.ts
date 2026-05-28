@@ -247,10 +247,12 @@ export interface SettingsState {
      *  Single-gene coloring and richness over the full panel are
      *  unaffected by this setting. */
     geneMultiColor: GeneMultiColor;
-    /** Base 3D point size (pixels) for every cell in the 3D viewer.
-     *  Display-density preference; raise on high-DPI screens or when
-     *  cells look too small. Overridden by `scaleByFilterCount` when
-     *  enabled. The t-SNE panel has its own size (`umapPointSize`). */
+    /** Base 3D point size (pixels) used when `autoSizing` is off.
+     *  When auto is on the renderer derives its base size from the
+     *  canvas area instead, and the in-set boost from
+     *  `scaleByFilterCount` (also gated on auto) multiplies on top
+     *  for active cells. The t-SNE panel has its own size
+     *  (`umapPointSize`). */
     pointSize: number;
     /** Base point size (pixels) for the t-SNE scatter. Independent of
      *  the 3D viewer's `pointSize` because t-SNE points sit at fixed
@@ -280,13 +282,13 @@ export interface SettingsState {
      *  by ghostIntensity. */
     opaqueActiveCells: boolean;
     /** Additive brightness lift applied to active (in-set) cells in
-     *  both the 3D and t-SNE views, range 0..1. Default 0 (no lift).
-     *  Lifts each channel by `b` and clamps at 1, so 0.2 makes colors
-     *  visibly brighter without changing hue much, 1.0 washes
-     *  everything to white. The color legend swatches/gradients
-     *  receive the same lift so they stay in sync with the rendered
-     *  cells. Ghost cells (out-of-filter / out-of-selection) are not
-     *  lifted — their DIM_RGB stays as designed. */
+     *  both the 3D and t-SNE views, range 0..0.4. Default 0.1. Lifts
+     *  each channel by `b` and clamps at 1, so a small value makes
+     *  colors visibly brighter without changing hue much. The color
+     *  legend swatches/gradients receive the same lift so they stay in
+     *  sync with the rendered cells. Ghost cells (out-of-filter /
+     *  out-of-selection) are not lifted — their DIM_RGB stays as
+     *  designed. */
     activeBrightness: number;
     /** Lower anchor for the Activity scheme's plasma palette (ΔF/F).
      *  Cells with traces below this map to the dark end. Default 0 — the
@@ -308,26 +310,32 @@ export interface SettingsState {
      *  the ramp end. Default 0.35 — roughly the 95th percentile of
      *  positive swim correlations in WARP. */
     swimHi: number;
-    /** Visibility of out-of-filter cells (ghosts), 0..1.
+    /** Visibility of out-of-filter cells (ghosts), 0..1, used when
+     *  `autoSizing` is off. When auto is on the renderer derives a
+     *  ghost-visibility value from the canvas area via a sigmoid
+     *  instead, so this slider is hidden.
      *  0 → cells are invisible (alpha 0) and the click pickers skip
      *      them entirely.
      *  1 → cells render at the standard dim alpha (matches the
      *      pre-ghost behaviour) and are fully pickable.
      *  Intermediate values linearly scale alpha and point size; the
      *  pickers re-enable above the midpoint so users only catch
-     *  clicks on cells that are genuinely visible enough to aim at.
-     *  Overridden by `scaleByFilterCount` when that is enabled. */
+     *  clicks on cells that are genuinely visible enough to aim at. */
     ghostIntensity: number;
-    /** When true, the 3D viewer scales the rendered point size with
-     *  the canvas so a larger window keeps the same dots-per-area
-     *  density. Independent of `scaleByFilterCount`; the t-SNE panel
-     *  has no equivalent (its canvas size is fixed). */
+    /** When true, the 3D viewer auto-derives base point size and
+     *  ghost visibility from the canvas area instead of reading them
+     *  from `pointSize` and `ghostIntensity`. The t-SNE panel has no
+     *  equivalent (its canvas size is fixed; it uses its own
+     *  `umapPointSize` / `umapGhostIntensity`). */
     autoSizing: boolean;
-    /** When true, `pointSize` and `ghostIntensity` are derived from
-     *  the filter-passing cell count rather than read from settings —
-     *  small filtered sets get bigger dots and dimmer ghosts, full
-     *  views get smaller dots and brighter ghosts. Disables the
-     *  manual sliders. See applyColoring for the lerp endpoints. */
+    /** When true (and `autoSizing` is also true), active in-set cells
+     *  receive an additional 1×–2× point-size boost that ramps with
+     *  how tightly the filter narrows — small filtered sets get
+     *  bigger active dots, the full population stays at 1×. Ghost
+     *  cells and ghost visibility are not affected. Gated on
+     *  `autoSizing` because the boost layers on top of the canvas-
+     *  area base; with auto off the setting is hidden. See
+     *  applyColoring for the lerp endpoints. */
     scaleByFilterCount: boolean;
     /** When true, the swim + stim divergent color modes scale alpha by
      *  |r| so cells near the neutral midpoint fade into the background

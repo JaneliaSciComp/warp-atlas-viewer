@@ -86,7 +86,8 @@ export function SettingsTab({
                     both from the canvas size: on a tiny window dots shrink
                     to ~3 px and ghosts fade to ~0.1 (almost invisible —
                     needed because ghosts stack heavily in a small canvas);
-                    by ~1500×478 they reach 9 px and full visibility.
+                    by ~1500×478 dots reach their 9 px cap and ghosts hit
+                    ~0.6, approaching full visibility on larger displays.
                     <span className="text-neutral-200"> Scale by filter</span>{" "}
                     additionally enlarges active (in-set) cells as the
                     filter narrows — 50 cells → 2× their base size, all

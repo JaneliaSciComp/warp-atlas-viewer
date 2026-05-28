@@ -31,7 +31,7 @@ For the t-SNE panel, use **Settings → t-SNE point density** — it has its own
 
 ## Camera orientation feels lost after panning
 
-**Right-drag** in the 3D viewer shifts the volume within the viewport (screen-space pan), but rotation still pivots around the volume center. If the view is far off-center, refresh the page to reset the camera and screen pan.
+**Right-drag** in the 3D viewer shifts the volume within the viewport (screen-space pan), but rotation still pivots around the volume center. If the view is far off-center, click the **reset view** button at the top-left of the 3D viewer to snap the camera and screen pan back to defaults. (Refreshing no longer resets the camera — position, orientation, and pan are persisted in the URL hash.)
 
 ## Activity playback appears jittery at 100×
 
