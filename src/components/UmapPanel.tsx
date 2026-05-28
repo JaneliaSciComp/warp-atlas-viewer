@@ -176,8 +176,14 @@ export function UmapPanel({
     const off = offscreenRef.current;
     if (!off) return;
     const dpr = window.devicePixelRatio || 1;
-    const W = size.w * dpr;
-    const H = size.h * dpr;
+    // Floor to integers so the canvas backing store, the ImageData
+    // buffer, and the row-stride math (`ty * W + tx`) all agree.
+    // At fractional DPRs (browser zoom 110/120/130 etc.) the raw
+    // `size.w * dpr` is non-integer; the canvas truncates silently
+    // but our index math doesn't, which manifests as diagonal-line
+    // tearing in the scatter.
+    const W = Math.floor(size.w * dpr);
+    const H = Math.floor(size.h * dpr);
     off.width = W;
     off.height = H;
     const ctx = off.getContext('2d')!;
@@ -319,8 +325,9 @@ export function UmapPanel({
     const off = offscreenRef.current;
     if (!canvas || !off) return;
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = size.w * dpr;
-    canvas.height = size.h * dpr;
+    // Floor to match the offscreen buffer's integer pitch (see Effect A).
+    canvas.width = Math.floor(size.w * dpr);
+    canvas.height = Math.floor(size.h * dpr);
     canvas.style.width = `${size.w}px`;
     canvas.style.height = `${size.h}px`;
     const ctx = canvas.getContext('2d')!;
