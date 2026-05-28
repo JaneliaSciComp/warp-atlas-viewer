@@ -516,6 +516,11 @@ export function UmapPanel({
     const scale = baseScale * viewport.zoom;
     const offsetX = (size.w - dataW * scale) / 2 + viewport.panX;
     const offsetY = (size.h - dataH * scale) / 2 + viewport.panY;
+    // A lasso that enclosed zero cells is a no-op — we don't want to
+    // clear an existing selection just because the user drew an empty
+    // loop. The explicit clear-selection buttons (header + filter-row
+    // card) are the only entry points that drop a live lasso.
+    if (out.length === 0) return;
     const dataPoly = new Float32Array(pts.length * 2);
     for (let p = 0; p < pts.length; p++) {
       dataPoly[p * 2] = (pts[p][0] - offsetX) / scale + umapBounds.xmin;
