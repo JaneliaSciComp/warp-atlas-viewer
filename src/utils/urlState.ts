@@ -32,39 +32,38 @@ import type {
 
 // Persisted 3D camera pose.
 //
-// v3 (current): { dist, az, el, pan? } — semantic twist-free orbit
-//   state. The camera always orbits VOLUME_CENTER, so no target is
-//   serialized. `az` and `el` are radians; the renderer reconstructs
-//   camera position and up vector from spherical coords each frame.
-//   Roll is structurally impossible (the controller is twist-free), so
-//   the entire camera pose is captured by three scalars plus optional
-//   screen pan.
+// v4 (current): { v: 4, dist, quat, pan? } — arcball orbit state.
+//   `quat` maps the default camera frame (position on +Z, up +Y) to
+//   the current frame; `dist` is the camera-to-origin radius. This
+//   stores the roll/twist a screen-space arcball can legitimately
+//   produce, so copied URLs reproduce the exact view.
+//
+// v3 (legacy): { dist, az, el, pan? } — semantic twist-free orbit
+//   state from the first custom controller. The decoder converts it to
+//   v4 by building the equivalent quaternion.
 //
 // v2 (legacy): { pos, quat, pan? } — explicit quaternion from the
-//   previous TrackballControls renderer. The decoder converts to v3 by
-//   extracting az/el/dist from `pos` (with target at the origin) and
-//   discarding `quat`. Any roll baked into old links is lost — that's
-//   acceptable in exchange for the v3 schema's stability.
+//   previous TrackballControls renderer. The decoder preserves the
+//   quaternion and derives `dist` from `pos`.
 //
 // v1 (legacy): { pos, target, pan? } — oldest format. Decoder converts
-//   to v3 the same way as v2; `target` is required to validate but
-//   ignored thereafter (the point cloud is always centered at the
-//   origin, so a non-zero target field was misleading).
+//   to v4 by deriving a twist-free quaternion from pos → target.
 //
-// `validateCamera` accepts any of the three shapes. New emissions are
-// always v3.
+// `validateCamera` accepts any of the four shapes. New emissions are
+// always v4.
 export interface CameraState {
-  /** Camera-to-target distance (v3). */
+  /** Camera schema version. New emissions use v4. */
+  v?: 4;
+  /** Camera-to-target distance (v3/v4). */
   dist?: number;
-  /** Azimuth in radians, rotation around world Y. 0 ⇒ camera on +Z (v3). */
+  /** Current/legacy camera quaternion as [x, y, z, w]. */
+  quat?: [number, number, number, number];
+  /** Legacy azimuth in radians, rotation around world Y (v3). */
   az?: number;
-  /** Elevation in radians from the equator. 0 ⇒ horizontal, +π/2 ⇒
-   *  camera straight above the volume looking down (v3). */
+  /** Legacy elevation in radians from the equator (v3). */
   el?: number;
   /** Legacy camera position in world coords (v1/v2). */
   pos?: [number, number, number];
-  /** Legacy camera quaternion (v2 only). Discarded during conversion. */
-  quat?: [number, number, number, number];
   /** Legacy orbit target (v1 only). Discarded during conversion — the
    *  point cloud is always centered at the origin. */
   target?: [number, number, number];
@@ -184,6 +183,59 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
 
+function finiteVec3(v: unknown): [number, number, number] | null {
+  if (!Array.isArray(v) || v.length !== 3 || !v.every(isFiniteNum)) return null;
+  return [v[0], v[1], v[2]];
+}
+
+function finiteQuat(v: unknown): [number, number, number, number] | null {
+  if (!Array.isArray(v) || v.length !== 4 || !v.every(isFiniteNum)) return null;
+  return normalizeQuat([v[0], v[1], v[2], v[3]]);
+}
+
+function normalizeQuat(q: [number, number, number, number]): [number, number, number, number] {
+  const len = Math.hypot(q[0], q[1], q[2], q[3]);
+  if (!Number.isFinite(len) || len < 1e-8) return [0, 0, 0, 1];
+  return [q[0] / len, q[1] / len, q[2] / len, q[3] / len];
+}
+
+function multiplyQuat(
+  a: [number, number, number, number],
+  b: [number, number, number, number],
+): [number, number, number, number] {
+  const [ax, ay, az, aw] = a;
+  const [bx, by, bz, bw] = b;
+  return [
+    aw * bx + ax * bw + ay * bz - az * by,
+    aw * by - ax * bz + ay * bw + az * bx,
+    aw * bz + ax * by - ay * bx + az * bw,
+    aw * bw - ax * bx - ay * by - az * bz,
+  ];
+}
+
+function orbitQuatFromAzEl(az: number, el: number): [number, number, number, number] {
+  // Matches BrainViewer's former twist-free pose: R_y(az) · R_x(-el).
+  const sy = Math.sin(az / 2);
+  const cy = Math.cos(az / 2);
+  const sx = Math.sin(-el / 2);
+  const cx = Math.cos(-el / 2);
+  return normalizeQuat(multiplyQuat([0, sy, 0, cy], [sx, 0, 0, cx]));
+}
+
+function cameraFromPosition(
+  pos: [number, number, number],
+  target: [number, number, number] = [0, 0, 0],
+): Pick<CameraState, 'dist' | 'quat'> | null {
+  const dx = pos[0] - target[0];
+  const dy = pos[1] - target[1];
+  const dz = pos[2] - target[2];
+  const dist = Math.hypot(dx, dy, dz);
+  if (!Number.isFinite(dist) || dist <= 0) return null;
+  const az = Math.atan2(dx, dz);
+  const el = Math.asin(clamp(dy / dist, -1, 1));
+  return { dist, quat: orbitQuatFromAzEl(az, el) };
+}
+
 /** Validate + clean an unknown blob into a Partial<FilterState>. Keys
  *  with malformed values are dropped (not defaulted) so the caller's
  *  spread merge falls back to the app default. */
@@ -273,40 +325,34 @@ function validateSettings(raw: unknown): Partial<SettingsState> {
 function validateCamera(raw: unknown): CameraState | undefined {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
   const c = raw as Record<string, unknown>;
-  // v3: { dist > 0, az, el }. dist is a magnitude so we reject ≤ 0;
-  // az/el are unbounded (elevation past ±π/2 is the "unlimited
-  // rotation" case past a pole).
-  const hasV3 =
-    isFiniteNum(c.dist) && c.dist > 0 && isFiniteNum(c.az) && isFiniteNum(c.el);
-  // v1/v2: { pos } with either { quat } (v2) or { target } (v1).
-  const hasPos =
-    Array.isArray(c.pos) && c.pos.length === 3 && c.pos.every(isFiniteNum);
-  const hasQuat =
-    Array.isArray(c.quat) && c.quat.length === 4 && c.quat.every(isFiniteNum);
-  const hasTarget =
-    Array.isArray(c.target) && c.target.length === 3 && c.target.every(isFiniteNum);
-  const hasV2 = hasPos && hasQuat;
-  const hasV1 = hasPos && hasTarget;
-  if (!hasV3 && !hasV2 && !hasV1) return undefined;
-  const out: CameraState = {};
-  if (hasV3) {
-    out.dist = c.dist as number;
-    out.az = c.az as number;
-    out.el = c.el as number;
-  } else if (hasPos) {
-    const p = c.pos as number[];
-    out.pos = [p[0], p[1], p[2]];
-    if (hasQuat) {
-      const q = c.quat as number[];
-      out.quat = [q[0], q[1], q[2], q[3]];
-    } else if (hasTarget) {
-      const t = c.target as number[];
-      out.target = [t[0], t[1], t[2]];
+  const pan =
+    Array.isArray(c.pan) && c.pan.length === 2 && c.pan.every(isFiniteNum)
+      ? [c.pan[0] as number, c.pan[1] as number] as [number, number]
+      : undefined;
+  const rawQuat = finiteQuat(c.quat);
+
+  let out: CameraState | undefined;
+  // v4/current: { dist > 0, quat }. dist is a magnitude so reject ≤ 0.
+  if (isFiniteNum(c.dist) && c.dist > 0 && rawQuat) {
+    out = { v: 4, dist: c.dist, quat: rawQuat };
+  } else if (isFiniteNum(c.dist) && c.dist > 0 && isFiniteNum(c.az) && isFiniteNum(c.el)) {
+    // v3/twist-free orbit: convert azimuth/elevation to the equivalent
+    // camera-frame quaternion.
+    out = { v: 4, dist: c.dist, quat: orbitQuatFromAzEl(c.az, c.el) };
+  } else {
+    // v1/v2: { pos } with either { quat } (v2) or { target } (v1).
+    const pos = finiteVec3(c.pos);
+    const target = finiteVec3(c.target) ?? ([0, 0, 0] as [number, number, number]);
+    if (pos && rawQuat) {
+      const dist = Math.hypot(pos[0] - target[0], pos[1] - target[1], pos[2] - target[2]);
+      if (Number.isFinite(dist) && dist > 0) out = { v: 4, dist, quat: rawQuat };
+    } else if (pos && c.target !== undefined) {
+      const converted = cameraFromPosition(pos, target);
+      if (converted) out = { v: 4, ...converted };
     }
   }
-  if (Array.isArray(c.pan) && c.pan.length === 2 && c.pan.every(isFiniteNum)) {
-    out.pan = [c.pan[0] as number, c.pan[1] as number];
-  }
+  if (!out) return undefined;
+  if (pan) out.pan = pan;
   return out;
 }
 
@@ -453,45 +499,43 @@ function r(x: number, n = 3): number {
 // Camera fields use higher precision than the t-SNE viewport: scene
 // coordinates span hundreds of units and the camera renders at zoom
 // levels where 3-decimal rounding (~5e-4 unit) was visibly off when
-// duplicating a tab. Angles are radians so 5 decimals keeps roundtrip
-// orientation error below ~1e-5 rad (≈ a few thousandths of a degree).
+// duplicating a tab. Quaternion components are unit-magnitude so 5
+// decimals keeps roundtrip orientation error below ~1e-5 in any axis.
 const POS_PRECISION = 5;
-const ANGLE_PRECISION = 5;
 const QUAT_PRECISION = 5;
 
 export function roundCamera(cam: CameraState): CameraState {
-  const out: CameraState = {};
-  if (cam.dist != null && cam.az != null && cam.el != null) {
-    // v3 is the canonical emission shape — the renderer always feeds
-    // (dist, az, el) once it mounts.
-    out.dist = r(cam.dist, POS_PRECISION);
-    out.az = r(cam.az, ANGLE_PRECISION);
-    out.el = r(cam.el, ANGLE_PRECISION);
-  } else if (cam.pos) {
-    // Defensive legacy passthrough: if a caller hands the rounder a
-    // pre-v3 shape (test fixtures, or a v1/v2 URL being re-emitted
-    // before the renderer mounts), preserve it so the next decode
-    // doesn't reject the field as malformed.
-    out.pos = [
-      r(cam.pos[0], POS_PRECISION),
-      r(cam.pos[1], POS_PRECISION),
-      r(cam.pos[2], POS_PRECISION),
-    ];
-    if (cam.quat) {
-      out.quat = [
-        r(cam.quat[0], QUAT_PRECISION),
-        r(cam.quat[1], QUAT_PRECISION),
-        r(cam.quat[2], QUAT_PRECISION),
-        r(cam.quat[3], QUAT_PRECISION),
-      ];
-    } else if (cam.target) {
-      out.target = [
-        r(cam.target[0], POS_PRECISION),
-        r(cam.target[1], POS_PRECISION),
-        r(cam.target[2], POS_PRECISION),
-      ];
+  let canonical: CameraState | undefined;
+  if (cam.dist != null && cam.quat) {
+    canonical = { v: 4, dist: cam.dist, quat: normalizeQuat(cam.quat) };
+  } else if (cam.dist != null && cam.az != null && cam.el != null) {
+    canonical = { v: 4, dist: cam.dist, quat: orbitQuatFromAzEl(cam.az, cam.el) };
+  } else if (cam.pos && cam.quat) {
+    const target = cam.target ?? [0, 0, 0];
+    const dist = Math.hypot(
+      cam.pos[0] - target[0],
+      cam.pos[1] - target[1],
+      cam.pos[2] - target[2],
+    );
+    if (Number.isFinite(dist) && dist > 0) {
+      canonical = { v: 4, dist, quat: normalizeQuat(cam.quat) };
     }
+  } else if (cam.pos && cam.target) {
+    const converted = cameraFromPosition(cam.pos, cam.target);
+    if (converted) canonical = { v: 4, ...converted };
   }
+
+  if (canonical?.dist == null || !canonical.quat) return {};
+  const out: CameraState = {
+    v: 4,
+    dist: r(canonical.dist, POS_PRECISION),
+    quat: [
+      r(canonical.quat[0], QUAT_PRECISION),
+      r(canonical.quat[1], QUAT_PRECISION),
+      r(canonical.quat[2], QUAT_PRECISION),
+      r(canonical.quat[3], QUAT_PRECISION),
+    ],
+  };
   if (cam.pan && (cam.pan[0] !== 0 || cam.pan[1] !== 0)) {
     out.pan = [r(cam.pan[0], POS_PRECISION), r(cam.pan[1], POS_PRECISION)];
   }

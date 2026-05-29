@@ -38,7 +38,7 @@ interface Props {
    *  visibility derived from canvas height) reflect the current 3D
    *  canvas size. */
   onCanvasSizeChange?: (size: { w: number; h: number }) => void;
-  /** Camera position + orbit target restored from URL on first mount. */
+  /** Arcball camera pose restored from URL on first mount. */
   initialCamera?: CameraState | null;
   /** Fired whenever the user moves/orbits/zooms the camera. */
   onCameraChange?: (cam: CameraState) => void;
@@ -58,60 +58,67 @@ interface ScreenPanState {
   y: number;
 }
 
-/** Twist-free orbit pose: camera lives on a sphere around the origin,
- *  parameterized by azimuth + elevation in radians and a positive
- *  distance. The renderer derives camera.position and camera.up from
- *  these three scalars every time the state changes — no quaternion,
- *  no accumulated trackball roll. */
-interface OrbitState {
-  /** Rotation around world Y. 0 ⇒ camera sits on the +Z axis. */
-  az: number;
-  /** Latitude from the equator. 0 ⇒ horizontal, +π/2 ⇒ overhead.
-   *  Unbounded so the user can flip past the poles indefinitely. */
-  el: number;
-  /** Camera-to-origin distance. Clamped to [minDistance, maxDistance]
-   *  on every change. */
+/** Arcball orbit pose: `quat` maps the default camera frame
+ *  (position on +Z, up +Y) to the current frame. Unlike the
+ *  twist-free latitude/longitude controller, this preserves the
+ *  screen-space roll produced by dragging around a visible diagonal,
+ *  so the object feels grabbed directly. */
+interface ArcballState {
+  /** Camera frame orientation. */
+  quat: THREE.Quaternion;
+  /** Camera-to-origin distance. Clamped to [minDistance, maxDistance]. */
   dist: number;
 }
 
 const VOLUME_CENTER: [number, number, number] = [0, 0, 0];
 
-/** Project (az, el, dist) onto the live camera. The up vector is the
- *  world Y axis rotated by the same R_y(az)·R_x(-el) chain that places
- *  the camera, which keeps it perpendicular to the view direction and
- *  free of accumulated twist at every elevation — even past the poles,
- *  where up simply flips sign rather than going singular. */
-function applyOrbitToCamera(camera: THREE.Camera, orbit: OrbitState) {
-  const { az, el, dist } = orbit;
-  const cosEl = Math.cos(el);
-  const sinEl = Math.sin(el);
-  const cosAz = Math.cos(az);
-  const sinAz = Math.sin(az);
-  camera.position.set(dist * sinAz * cosEl, dist * sinEl, dist * cosAz * cosEl);
-  camera.up.set(-sinEl * sinAz, cosEl, -sinEl * cosAz);
+function quatFromTuple(q: [number, number, number, number]): THREE.Quaternion {
+  return new THREE.Quaternion(q[0], q[1], q[2], q[3]).normalize();
+}
+
+function tupleFromQuat(q: THREE.Quaternion): [number, number, number, number] {
+  return [q.x, q.y, q.z, q.w];
+}
+
+function quatFromAzEl(az: number, el: number): THREE.Quaternion {
+  const qY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), az);
+  const qX = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -el);
+  return qY.multiply(qX).normalize();
+}
+
+function arcballFromLegacyPos(pos: [number, number, number], defaultDist: number): ArcballState {
+  const dist = Math.hypot(pos[0], pos[1], pos[2]);
+  if (dist < 1e-6) return { quat: new THREE.Quaternion(), dist: defaultDist };
+  const ny = Math.max(-1, Math.min(1, pos[1] / dist));
+  return {
+    quat: quatFromAzEl(Math.atan2(pos[0], pos[2]), Math.asin(ny)),
+    dist,
+  };
+}
+
+function arcballFromCameraState(cam: CameraState | null, defaultDist: number): ArcballState {
+  if (!cam) return { quat: new THREE.Quaternion(), dist: defaultDist };
+  if (cam.dist != null && cam.quat) {
+    return { quat: quatFromTuple(cam.quat), dist: cam.dist };
+  }
+  if (cam.dist != null && cam.az != null && cam.el != null) {
+    return { quat: quatFromAzEl(cam.az, cam.el), dist: cam.dist };
+  }
+  if (cam.pos && cam.quat) {
+    return { quat: quatFromTuple(cam.quat), dist: Math.hypot(cam.pos[0], cam.pos[1], cam.pos[2]) };
+  }
+  if (cam.pos) return arcballFromLegacyPos(cam.pos, defaultDist);
+  return { quat: new THREE.Quaternion(), dist: defaultDist };
+}
+
+/** Project the arcball state onto the live camera. `quat` maps the
+ *  default position vector (0,0,+dist) and up vector (0,+1,0) into
+ *  world space; then the camera looks back at the centered volume. */
+function applyArcballToCamera(camera: THREE.Camera, arcball: ArcballState) {
+  camera.position.set(0, 0, arcball.dist).applyQuaternion(arcball.quat);
+  camera.up.set(0, 1, 0).applyQuaternion(arcball.quat);
   camera.lookAt(VOLUME_CENTER[0], VOLUME_CENTER[1], VOLUME_CENTER[2]);
 }
-
-/** Wrap an angle to (-π, π]. Used only for emission/comparison — the
- *  live orbit state keeps unwrapped angles so successive drags
- *  accumulate intuitively past a pole. */
-function wrapAngle(a: number): number {
-  const x = a - 2 * Math.PI * Math.floor((a + Math.PI) / (2 * Math.PI));
-  // Float rounding can push the result just past π; pin it inside.
-  return x > Math.PI ? x - 2 * Math.PI : x;
-}
-
-/** Derive twist-free orbit state from a legacy camera position.
- *  Roll baked into a v2 quaternion is dropped — v3 is structurally
- *  twist-free, so a legacy share link with roll restores to the same
- *  eye position but with the canonical up vector. */
-function orbitFromLegacyPos(pos: [number, number, number], defaultDist: number): OrbitState {
-  const dist = Math.hypot(pos[0], pos[1], pos[2]);
-  if (dist < 1e-6) return { az: 0, el: 0, dist: defaultDist };
-  const ny = Math.max(-1, Math.min(1, pos[1] / dist));
-  return { az: Math.atan2(pos[0], pos[2]), el: Math.asin(ny), dist };
-}
-
 
 /** Inner R3F component: owns the Points object and shader updates.
  *  Filter / settings / selection are already baked into `coloring`;
@@ -547,7 +554,7 @@ export function BrainViewer({
       defaultDist: span * 0.95,
       // Hard zoom-in / zoom-out walls. Without minDistance the wheel
       // can dolly the camera inside the brain; without maxDistance it
-      // can sail off into empty space. The orbit controller clamps
+      // can sail off into empty space. The arcball controller clamps
       // `dist` against these on every wheel tick, so hitting either
       // wall is a no-op rather than a slow exponential climb back.
       minDistance: span * 0.15,
@@ -558,38 +565,32 @@ export function BrainViewer({
   // so a later prop update (e.g. a parent re-emitting the URL state)
   // can't yank the camera mid-interaction.
   const mountCameraRef = useRef(initialCamera);
-  // Convert whatever shape the URL gave us into v3 orbit state. v3 is
-  // a direct copy; v1/v2 derive (az, el, dist) from `pos` and discard
-  // any roll the legacy quaternion captured.
-  const initialOrbit = useMemo<OrbitState>(() => {
-    const c = mountCameraRef.current;
-    if (!c) return { az: 0, el: 0, dist: defaultDist };
-    if (c.dist != null && c.az != null && c.el != null) {
-      return { az: c.az, el: c.el, dist: c.dist };
-    }
-    if (c.pos) return orbitFromLegacyPos(c.pos, defaultDist);
-    return { az: 0, el: 0, dist: defaultDist };
-  }, [defaultDist]);
-  const orbitRef = useRef<OrbitState>(initialOrbit);
+  // Convert whatever shape the URL gave us into an arcball frame. New
+  // URLs already carry {dist, quat}; old twist-free URLs derive an
+  // equivalent quaternion from az/el.
+  const initialArcball = useMemo<ArcballState>(
+    () => arcballFromCameraState(mountCameraRef.current ?? null, defaultDist),
+    [defaultDist],
+  );
+  const arcballRef = useRef<ArcballState>(initialArcball);
   const screenPanRef = useRef<ScreenPanState>({
     x: mountCameraRef.current?.pan?.[0] ?? 0,
     y: mountCameraRef.current?.pan?.[1] ?? 0,
   });
   // R3F's Canvas seeds the camera once at mount — feed it the same
-  // position the orbit controller will pin on its first sync so the
+  // position the arcball controller will pin on its first sync so the
   // very first frame doesn't pop from (0,0,defaultDist) to the
   // restored pose.
   const initialCamPosition = useMemo<[number, number, number]>(() => {
-    const { az, el, dist } = initialOrbit;
-    const cosEl = Math.cos(el);
-    return [dist * Math.sin(az) * cosEl, dist * Math.sin(el), dist * Math.cos(az) * cosEl];
-  }, [initialOrbit]);
+    const v = new THREE.Vector3(0, 0, initialArcball.dist).applyQuaternion(initialArcball.quat);
+    return [v.x, v.y, v.z];
+  }, [initialArcball]);
 
-  // Re-entrant sync handles into the orbit + pan controllers. Reset
+  // Re-entrant sync handles into the arcball + pan controllers. Reset
   // mutates the refs directly and then asks each controller to flush
   // its derived state (camera transform / projection offset) onto the
   // live three.js objects.
-  const orbitSyncRef = useRef<(() => void) | null>(null);
+  const arcballSyncRef = useRef<(() => void) | null>(null);
   const panSyncRef = useRef<(() => void) | null>(null);
   const initiallyAtDefault = !mountCameraRef.current;
   const [atDefault, setAtDefault] = useState(initiallyAtDefault);
@@ -600,9 +601,9 @@ export function BrainViewer({
   // write to 50 ms so this can fire freely on every pointer event.
   const emitCamera = useCallback(() => {
     if (!onCameraChange) return;
-    const { az, el, dist } = orbitRef.current;
+    const { quat, dist } = arcballRef.current;
     const pan = screenPanRef.current;
-    const cam: CameraState = { dist, az: wrapAngle(az), el: wrapAngle(el) };
+    const cam: CameraState = { v: 4, dist, quat: tupleFromQuat(quat) };
     if (pan.x !== 0 || pan.y !== 0) cam.pan = [pan.x, pan.y];
     onCameraChange(cam);
     // "At default" controls the reset-view button's visibility. Test
@@ -610,9 +611,9 @@ export function BrainViewer({
     // epsilon so float residue from a recent input doesn't keep the
     // button stuck visible after the user dollies back home.
     const distEps = Math.max(1e-3, defaultDist * 1e-4);
+    const identityDot = Math.abs(quat.w);
     const isAtDefault =
-      Math.abs(az) < 1e-4 &&
-      Math.abs(el) < 1e-4 &&
+      Math.abs(1 - identityDot) < 1e-6 &&
       Math.abs(dist - defaultDist) < distEps &&
       pan.x === 0 &&
       pan.y === 0;
@@ -623,12 +624,11 @@ export function BrainViewer({
   }, [defaultDist, onCameraChange]);
 
   const handleReset = useCallback(() => {
-    orbitRef.current.az = 0;
-    orbitRef.current.el = 0;
-    orbitRef.current.dist = defaultDist;
+    arcballRef.current.quat.identity();
+    arcballRef.current.dist = defaultDist;
     screenPanRef.current.x = 0;
     screenPanRef.current.y = 0;
-    orbitSyncRef.current?.();
+    arcballSyncRef.current?.();
     panSyncRef.current?.();
     emitCamera();
   }, [defaultDist, emitCamera]);
@@ -735,12 +735,11 @@ export function BrainViewer({
           pickRef={pickRef}
           onHoverChange={handleHoverChange}
         />
-        <OrbitControls
-          orbitRef={orbitRef}
-          syncRef={orbitSyncRef}
+        <ArcballControls
+          arcballRef={arcballRef}
+          syncRef={arcballSyncRef}
           minDistance={minDistance}
           maxDistance={maxDistance}
-          rotateSpeed={1.0}
           zoomSpeed={1.0}
           onChange={emitCamera}
         />
@@ -850,7 +849,7 @@ function supportsViewOffset(
 }
 
 /** Screen-space panning is implemented as a projection offset, not as
- *  a camera/target translation. The orbit controller therefore keeps a
+ *  a camera/target translation. The arcball controller therefore keeps a
  *  stable rotation pivot at the volume center, while right-drag
  *  simply shifts where that centered view lands inside the canvas.
  *  Trades a slightly skewed perspective frustum at large pan offsets
@@ -946,50 +945,46 @@ function ScreenSpacePan({
   return null;
 }
 
-/** Twist-free orbit controller. Maintains (az, el, dist) in `orbitRef`
- *  and projects it onto the live camera on every mutation. Unlike
- *  TrackballControls there is no camera.up rotation accumulating
- *  twist around the view axis — `up` is derived from the same
- *  rotation chain that places the camera, so a full vertical drag
- *  past the pole simply flips the up vector to (0, -1, 0) rather than
- *  rocking the horizon. Elevation is unbounded, so the user can keep
- *  spinning past either pole indefinitely. Below the equator the
- *  horizontal-drag direction is reversed so screen-right consistently
- *  rotates the brain in the same direction relative to the viewport.
- *
- *  Left button → rotate. Wheel → exponential zoom clamped to the
- *  data-bounds-derived [minDistance, maxDistance]. Right-button pan
- *  lives in <ScreenSpacePan>; this component intentionally ignores
- *  the right button. */
-function OrbitControls({
-  orbitRef,
+/** Incremental screen-space trackball controller. Each pointer move
+ *  applies one small camera-local rotation whose axis is perpendicular
+ *  to the drag direction in screen space. Unlike the previous absolute
+ *  sphere projection, this cannot saturate at the virtual sphere rim:
+ *  continuing to drag continues to accumulate rotation. Diagonal drags
+ *  still produce diagonal screen-space rotation axes, so a visible
+ *  diagonal/longitudinal object axis can be spun directly instead of
+ *  decomposing into world yaw + pitch. */
+function ArcballControls({
+  arcballRef,
   syncRef,
   minDistance,
   maxDistance,
-  rotateSpeed,
   zoomSpeed,
   onChange,
 }: {
-  orbitRef: React.MutableRefObject<OrbitState>;
-  /** Filled with a callback that re-applies orbitRef to the live
+  arcballRef: React.MutableRefObject<ArcballState>;
+  /** Filled with a callback that re-applies arcballRef to the live
    *  camera. Reset uses it to push the zeroed state without waiting
    *  for the next pointer event. */
   syncRef: React.MutableRefObject<(() => void) | null>;
   minDistance: number;
   maxDistance: number;
-  rotateSpeed: number;
   zoomSpeed: number;
   onChange: () => void;
 }) {
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
   const invalidate = useThree((s) => s.invalidate);
-  const dragRef = useRef<{ pointerId: number; lastX: number; lastY: number } | null>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    lastX: number;
+    lastY: number;
+  } | null>(null);
 
   const sync = useCallback(() => {
-    applyOrbitToCamera(camera, orbitRef.current);
+    arcballRef.current.quat.normalize();
+    applyArcballToCamera(camera, arcballRef.current);
     invalidate();
-  }, [camera, invalidate, orbitRef]);
+  }, [arcballRef, camera, invalidate]);
 
   useEffect(() => {
     sync();
@@ -1010,6 +1005,7 @@ function OrbitControls({
         lastY: event.clientY,
       };
       el.setPointerCapture(event.pointerId);
+      event.preventDefault();
     };
 
     const onPointerMove = (event: PointerEvent) => {
@@ -1021,23 +1017,20 @@ function OrbitControls({
       drag.lastX = event.clientX;
       drag.lastY = event.clientY;
 
-      // Pixels-per-radian normalized to canvas height so a 45° diagonal
-      // drag rotates equally on both axes regardless of canvas aspect.
-      const height = el.clientHeight || 1;
-      const radiansPerPixel = (Math.PI * rotateSpeed) / height;
-
-      // Past the poles the camera is upside-down (its up vector points
-      // toward world -Y). Flip horizontal drag sign so dragging right
-      // still rotates the brain in the same screen-relative direction
-      // — without this, crossing a pole reverses yaw and feels broken.
-      const normEl = wrapAngle(orbitRef.current.el);
-      const upsideDown = Math.abs(normEl) > Math.PI / 2;
-      const azSign = upsideDown ? 1 : -1;
-
-      orbitRef.current.az += azSign * dx * radiansPerPixel;
-      orbitRef.current.el += dy * radiansPerPixel;
+      const size = Math.max(1, Math.min(el.clientWidth || 1, el.clientHeight || 1));
+      const radiansPerPixel = Math.PI / size;
+      const angle = Math.hypot(dx, dy) * radiansPerPixel;
+      // Axis is chosen so the apparent object motion follows the
+      // cursor: dragging right rotates around -screen-up, dragging
+      // down rotates around -screen-right. This keeps both X and Y
+      // directions aligned with the old orbit-controller feel while
+      // allowing unlimited accumulation.
+      const axis = new THREE.Vector3(-dy, -dx, 0).normalize();
+      const delta = new THREE.Quaternion().setFromAxisAngle(axis, angle);
+      arcballRef.current.quat.multiply(delta).normalize();
       sync();
       onChange();
+      event.preventDefault();
     };
 
     const stopDrag = (event: PointerEvent) => {
@@ -1052,12 +1045,11 @@ function OrbitControls({
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
       // Exponential dolly: each wheel tick multiplies distance by a
-      // fixed factor, so the perceived zoom rate is constant across
-      // the full [minDistance, maxDistance] range. Linear dolly feels
-      // sluggish near the volume and explosive far from it.
+      // fixed factor, so perceived zoom rate is constant across the
+      // full [minDistance, maxDistance] range.
       const factor = Math.exp(event.deltaY * 0.001 * zoomSpeed);
-      const next = orbitRef.current.dist * factor;
-      orbitRef.current.dist = Math.max(minDistance, Math.min(maxDistance, next));
+      const next = arcballRef.current.dist * factor;
+      arcballRef.current.dist = Math.max(minDistance, Math.min(maxDistance, next));
       sync();
       onChange();
     };
@@ -1074,7 +1066,7 @@ function OrbitControls({
       el.removeEventListener('pointercancel', stopDrag);
       el.removeEventListener('wheel', onWheel);
     };
-  }, [gl, minDistance, maxDistance, orbitRef, rotateSpeed, zoomSpeed, sync, onChange]);
+  }, [arcballRef, gl, minDistance, maxDistance, zoomSpeed, sync, onChange]);
 
   return null;
 }

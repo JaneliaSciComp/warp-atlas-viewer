@@ -41,9 +41,9 @@ describe('encodeHash / decodeHash', () => {
       focusedNeuron: 42,
       detail: true,
       camera: {
+        v: 4 as const,
         dist: 1200,
-        az: 0.5,
-        el: -0.3,
+        quat: [0, 0, 0, 1] as [number, number, number, number],
         pan: [12, -8] as [number, number],
       },
     };
@@ -61,11 +61,10 @@ describe('encodeHash / decodeHash', () => {
       },
     });
     const decoded = decodeHash(hash);
-    // v2 legacy fields survive the decode so the renderer can derive
-    // v3 (az, el, dist) from `pos`. v3 fields are absent.
-    expect(decoded?.camera?.pos).toEqual([1, 2, 3]);
+    expect(decoded?.camera?.v).toBe(4);
+    expect(decoded?.camera?.dist).toBeCloseTo(Math.sqrt(14), 6);
     expect(decoded?.camera?.quat).toEqual([0, 0, 0, 1]);
-    expect(decoded?.camera?.dist).toBeUndefined();
+    expect(decoded?.camera?.pos).toBeUndefined();
   });
 
   it('decodes a v1 legacy camera (pos + target)', () => {
@@ -76,9 +75,28 @@ describe('encodeHash / decodeHash', () => {
       },
     });
     const decoded = decodeHash(hash);
-    expect(decoded?.camera?.pos).toEqual([1, 2, 3]);
-    expect(decoded?.camera?.target).toEqual([0, 0, 0]);
-    expect(decoded?.camera?.dist).toBeUndefined();
+    expect(decoded?.camera?.v).toBe(4);
+    expect(decoded?.camera?.dist).toBeCloseTo(Math.sqrt(14), 6);
+    expect(decoded?.camera?.quat).toBeDefined();
+    expect(decoded?.camera?.pos).toBeUndefined();
+    expect(decoded?.camera?.target).toBeUndefined();
+  });
+
+  it('decodes a v3 twist-free camera (dist + az + el) to arcball state', () => {
+    const hash = encodeHash({
+      camera: {
+        dist: 100,
+        az: Math.PI / 2,
+        el: 0,
+      },
+    });
+    const decoded = decodeHash(hash);
+    expect(decoded?.camera?.v).toBe(4);
+    expect(decoded?.camera?.dist).toBe(100);
+    expect(decoded?.camera?.quat?.[1]).toBeCloseTo(Math.SQRT1_2, 6);
+    expect(decoded?.camera?.quat?.[3]).toBeCloseTo(Math.SQRT1_2, 6);
+    expect(decoded?.camera?.az).toBeUndefined();
+    expect(decoded?.camera?.el).toBeUndefined();
   });
 
   it('returns null for a hash without the #! prefix', () => {
@@ -228,36 +246,33 @@ describe('rounding helpers', () => {
     expect(out).toEqual([1.235, 7.891]);
   });
 
-  it('roundCamera rounds dist/az/el and pan to 5 decimals (v3)', () => {
+  it('roundCamera rounds dist, quat, and pan to 5 decimals (v4)', () => {
     const cam = roundCamera({
+      v: 4,
       dist: 1234.5678912,
-      az: 0.12345678,
-      el: -0.98765432,
+      quat: [0.123456789, -0.234567891, 0.345678912, 0.876543210],
       pan: [4.4444449, -5.5555551],
     });
     const isAt5 = (n: number) => Math.abs(n * 1e5 - Math.round(n * 1e5)) < 1e-7;
+    expect(cam.v).toBe(4);
     expect(isAt5(cam.dist!)).toBe(true);
-    expect(isAt5(cam.az!)).toBe(true);
-    expect(isAt5(cam.el!)).toBe(true);
+    expect(cam.quat?.every(isAt5)).toBe(true);
     expect(cam.pan?.every(isAt5)).toBe(true);
-    // Legacy fields are not re-emitted when v3 is present — the
-    // renderer always feeds v3 once it mounts.
+    expect(cam.az).toBeUndefined();
+    expect(cam.el).toBeUndefined();
     expect(cam.pos).toBeUndefined();
-    expect(cam.quat).toBeUndefined();
     expect(cam.target).toBeUndefined();
   });
 
-  it('roundCamera falls back to a legacy passthrough when v3 is absent', () => {
-    // Defensive path: a caller (test or a v1/v2 URL re-emitted before
-    // the renderer mounts) hands the rounder a pre-v3 shape. Preserve
-    // it so the next decode doesn't reject the field as malformed.
+  it('roundCamera converts legacy pose to v4 instead of passing it through', () => {
     const cam = roundCamera({
       pos: [1.111111, 2.222222, 3.333333],
       quat: [0, 0, 0, 1],
     });
-    expect(cam.dist).toBeUndefined();
-    expect(cam.pos).toBeDefined();
-    expect(cam.quat).toBeDefined();
+    expect(cam.v).toBe(4);
+    expect(cam.dist).toBeCloseTo(Math.hypot(1.111111, 2.222222, 3.333333), 5);
+    expect(cam.quat).toEqual([0, 0, 0, 1]);
+    expect(cam.pos).toBeUndefined();
   });
 
   it('roundViewport rounds zoom and pan', () => {
