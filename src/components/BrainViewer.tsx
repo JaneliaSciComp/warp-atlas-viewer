@@ -1,6 +1,5 @@
 import { useMemo, useRef, useEffect, useLayoutEffect, useState, useCallback } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
-import { TrackballControls } from '@react-three/drei';
 import * as THREE from 'three';
 import type { NeuronDataset, FilterState, SelectionState, SettingsState } from '../data/types';
 import type { CameraState } from '../utils/urlState';
@@ -59,7 +58,59 @@ interface ScreenPanState {
   y: number;
 }
 
+/** Twist-free orbit pose: camera lives on a sphere around the origin,
+ *  parameterized by azimuth + elevation in radians and a positive
+ *  distance. The renderer derives camera.position and camera.up from
+ *  these three scalars every time the state changes — no quaternion,
+ *  no accumulated trackball roll. */
+interface OrbitState {
+  /** Rotation around world Y. 0 ⇒ camera sits on the +Z axis. */
+  az: number;
+  /** Latitude from the equator. 0 ⇒ horizontal, +π/2 ⇒ overhead.
+   *  Unbounded so the user can flip past the poles indefinitely. */
+  el: number;
+  /** Camera-to-origin distance. Clamped to [minDistance, maxDistance]
+   *  on every change. */
+  dist: number;
+}
+
 const VOLUME_CENTER: [number, number, number] = [0, 0, 0];
+
+/** Project (az, el, dist) onto the live camera. The up vector is the
+ *  world Y axis rotated by the same R_y(az)·R_x(-el) chain that places
+ *  the camera, which keeps it perpendicular to the view direction and
+ *  free of accumulated twist at every elevation — even past the poles,
+ *  where up simply flips sign rather than going singular. */
+function applyOrbitToCamera(camera: THREE.Camera, orbit: OrbitState) {
+  const { az, el, dist } = orbit;
+  const cosEl = Math.cos(el);
+  const sinEl = Math.sin(el);
+  const cosAz = Math.cos(az);
+  const sinAz = Math.sin(az);
+  camera.position.set(dist * sinAz * cosEl, dist * sinEl, dist * cosAz * cosEl);
+  camera.up.set(-sinEl * sinAz, cosEl, -sinEl * cosAz);
+  camera.lookAt(VOLUME_CENTER[0], VOLUME_CENTER[1], VOLUME_CENTER[2]);
+}
+
+/** Wrap an angle to (-π, π]. Used only for emission/comparison — the
+ *  live orbit state keeps unwrapped angles so successive drags
+ *  accumulate intuitively past a pole. */
+function wrapAngle(a: number): number {
+  const x = a - 2 * Math.PI * Math.floor((a + Math.PI) / (2 * Math.PI));
+  // Float rounding can push the result just past π; pin it inside.
+  return x > Math.PI ? x - 2 * Math.PI : x;
+}
+
+/** Derive twist-free orbit state from a legacy camera position.
+ *  Roll baked into a v2 quaternion is dropped — v3 is structurally
+ *  twist-free, so a legacy share link with roll restores to the same
+ *  eye position but with the canonical up vector. */
+function orbitFromLegacyPos(pos: [number, number, number], defaultDist: number): OrbitState {
+  const dist = Math.hypot(pos[0], pos[1], pos[2]);
+  if (dist < 1e-6) return { az: 0, el: 0, dist: defaultDist };
+  const ny = Math.max(-1, Math.min(1, pos[1] / dist));
+  return { az: Math.atan2(pos[0], pos[2]), el: Math.asin(ny), dist };
+}
 
 
 /** Inner R3F component: owns the Points object and shader updates.
@@ -486,46 +537,101 @@ export function BrainViewer({
     onCanvasSizeChange(canvasSize);
   }, [canvasSize, onCanvasSizeChange]);
 
-  // Default camera position derived from the data bounds — straight-on
+  // Default camera distance derived from the data bounds — straight-on
   // dorsal view with the brain comfortably filling the landscape panel.
   // span doubles as the basis for the zoom limits below.
-  const { defaultCamPosition, minDistance, maxDistance } = useMemo(() => {
+  const { defaultDist, minDistance, maxDistance } = useMemo(() => {
     const { min, max } = data.bounds;
     const span = Math.max(max[0] - min[0], max[1] - min[1], max[2] - min[2]);
     return {
-      defaultCamPosition: [0, 0, span * 0.95] as [number, number, number],
-      // Hard zoom-in floor. Without it, TrackballControls' default
-      // minDistance=0 lets the wheel keep shrinking the camera-to-
-      // target offset asymptotically: the view stops changing once
-      // the eye is sub-pixel close, but further wheel ticks keep
-      // updating it, and zooming back out is a slow exponential climb
-      // back through all that compounded zoom. With minDistance set,
-      // TrackballControls._checkDistances clamps the eye and resets
-      // the zoom accumulator (_zoomStart.copy(_zoomEnd)) the instant
-      // we hit the floor, turning it into a hard wall.
+      defaultDist: span * 0.95,
+      // Hard zoom-in / zoom-out walls. Without minDistance the wheel
+      // can dolly the camera inside the brain; without maxDistance it
+      // can sail off into empty space. The orbit controller clamps
+      // `dist` against these on every wheel tick, so hitting either
+      // wall is a no-op rather than a slow exponential climb back.
       minDistance: span * 0.15,
       maxDistance: span * 5,
     };
   }, [data]);
-  // initialCamera is the URL-restored seed. Capture it once at mount in
-  // a ref so a later prop update (e.g. a parent re-emitting the URL
-  // state) can't yank the camera mid-interaction.
+  // initialCamera is the URL-restored seed. Capture it once at mount
+  // so a later prop update (e.g. a parent re-emitting the URL state)
+  // can't yank the camera mid-interaction.
   const mountCameraRef = useRef(initialCamera);
+  // Convert whatever shape the URL gave us into v3 orbit state. v3 is
+  // a direct copy; v1/v2 derive (az, el, dist) from `pos` and discard
+  // any roll the legacy quaternion captured.
+  const initialOrbit = useMemo<OrbitState>(() => {
+    const c = mountCameraRef.current;
+    if (!c) return { az: 0, el: 0, dist: defaultDist };
+    if (c.dist != null && c.az != null && c.el != null) {
+      return { az: c.az, el: c.el, dist: c.dist };
+    }
+    if (c.pos) return orbitFromLegacyPos(c.pos, defaultDist);
+    return { az: 0, el: 0, dist: defaultDist };
+  }, [defaultDist]);
+  const orbitRef = useRef<OrbitState>(initialOrbit);
   const screenPanRef = useRef<ScreenPanState>({
     x: mountCameraRef.current?.pan?.[0] ?? 0,
     y: mountCameraRef.current?.pan?.[1] ?? 0,
   });
-  const camPosition = useMemo(() => {
-    if (mountCameraRef.current) return mountCameraRef.current.pos;
-    return defaultCamPosition;
-  }, [defaultCamPosition]);
+  // R3F's Canvas seeds the camera once at mount — feed it the same
+  // position the orbit controller will pin on its first sync so the
+  // very first frame doesn't pop from (0,0,defaultDist) to the
+  // restored pose.
+  const initialCamPosition = useMemo<[number, number, number]>(() => {
+    const { az, el, dist } = initialOrbit;
+    const cosEl = Math.cos(el);
+    return [dist * Math.sin(az) * cosEl, dist * Math.sin(el), dist * Math.cos(az) * cosEl];
+  }, [initialOrbit]);
 
-  // Imperative handle into CameraSync so the overlay button can snap
-  // the camera back to its default position/pan without lifting the
-  // r3f controls instance out of the Canvas.
-  const resetRef = useRef<(() => void) | null>(null);
+  // Re-entrant sync handles into the orbit + pan controllers. Reset
+  // mutates the refs directly and then asks each controller to flush
+  // its derived state (camera transform / projection offset) onto the
+  // live three.js objects.
+  const orbitSyncRef = useRef<(() => void) | null>(null);
+  const panSyncRef = useRef<(() => void) | null>(null);
   const initiallyAtDefault = !mountCameraRef.current;
   const [atDefault, setAtDefault] = useState(initiallyAtDefault);
+  const atDefaultRef = useRef<boolean>(initiallyAtDefault);
+
+  // Emit the current camera state to App. Called by the controllers
+  // after every (rotate, zoom, pan) input — App debounces the URL
+  // write to 50 ms so this can fire freely on every pointer event.
+  const emitCamera = useCallback(() => {
+    if (!onCameraChange) return;
+    const { az, el, dist } = orbitRef.current;
+    const pan = screenPanRef.current;
+    const cam: CameraState = { dist, az: wrapAngle(az), el: wrapAngle(el) };
+    if (pan.x !== 0 || pan.y !== 0) cam.pan = [pan.x, pan.y];
+    onCameraChange(cam);
+    // "At default" controls the reset-view button's visibility. Test
+    // against the bounds-derived defaultDist with a proportional
+    // epsilon so float residue from a recent input doesn't keep the
+    // button stuck visible after the user dollies back home.
+    const distEps = Math.max(1e-3, defaultDist * 1e-4);
+    const isAtDefault =
+      Math.abs(az) < 1e-4 &&
+      Math.abs(el) < 1e-4 &&
+      Math.abs(dist - defaultDist) < distEps &&
+      pan.x === 0 &&
+      pan.y === 0;
+    if (atDefaultRef.current !== isAtDefault) {
+      atDefaultRef.current = isAtDefault;
+      setAtDefault(isAtDefault);
+    }
+  }, [defaultDist, onCameraChange]);
+
+  const handleReset = useCallback(() => {
+    orbitRef.current.az = 0;
+    orbitRef.current.el = 0;
+    orbitRef.current.dist = defaultDist;
+    screenPanRef.current.x = 0;
+    screenPanRef.current.y = 0;
+    orbitSyncRef.current?.();
+    panSyncRef.current?.();
+    emitCamera();
+  }, [defaultDist, emitCamera]);
 
   // Track the pointer-down position so we can distinguish a click (no
   // movement) from a drag-rotate. Without this, a drag-rotate ending
@@ -614,7 +720,7 @@ export function BrainViewer({
       onClick={onClickDiv}
     >
       <Canvas
-        camera={{ position: camPosition, fov: 45, near: 0.1, far: 10000 }}
+        camera={{ position: initialCamPosition, fov: 45, near: 0.1, far: 10000 }}
         gl={{ antialias: false, powerPreference: 'high-performance' }}
         dpr={[1, 2]}
       >
@@ -629,23 +735,19 @@ export function BrainViewer({
           pickRef={pickRef}
           onHoverChange={handleHoverChange}
         />
-        <TrackballControls
-          makeDefault
-          dynamicDampingFactor={0.1}
-          rotateSpeed={4.0}
-          zoomSpeed={1.5}
+        <OrbitControls
+          orbitRef={orbitRef}
+          syncRef={orbitSyncRef}
           minDistance={minDistance}
           maxDistance={maxDistance}
-          noPan
+          rotateSpeed={1.0}
+          zoomSpeed={1.0}
+          onChange={emitCamera}
         />
-        <ScreenSpacePan panRef={screenPanRef} />
-        <CameraSync
-          initialCamera={initialCamera ?? null}
-          onCameraChange={onCameraChange}
+        <ScreenSpacePan
           panRef={screenPanRef}
-          defaultCamPosition={defaultCamPosition}
-          resetRef={resetRef}
-          onAtDefaultChange={setAtDefault}
+          syncRef={panSyncRef}
+          onChange={emitCamera}
         />
         {settings.ambientOcclusion && (
           <AmbientOcclusion
@@ -664,7 +766,7 @@ export function BrainViewer({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              resetRef.current?.();
+              handleReset();
             }}
             className="pointer-events-auto font-mono text-[10px] bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-1.5 py-0.5 rounded hover:bg-neutral-800"
           >
@@ -747,14 +849,25 @@ function supportsViewOffset(
   return camera instanceof THREE.PerspectiveCamera || camera instanceof THREE.OrthographicCamera;
 }
 
-/** Screen-space panning is implemented as a projection offset, not as a
- *  camera/target translation. TrackballControls therefore keeps a stable
- *  orbit target at the volume center, while right-drag simply shifts where
- *  that centered view lands inside the canvas. */
+/** Screen-space panning is implemented as a projection offset, not as
+ *  a camera/target translation. The orbit controller therefore keeps a
+ *  stable rotation pivot at the volume center, while right-drag
+ *  simply shifts where that centered view lands inside the canvas.
+ *  Trades a slightly skewed perspective frustum at large pan offsets
+ *  (the camera no longer points down its principal axis) for the
+ *  "rotation always orbits the object's center" invariant we want in
+ *  a single-object viewer. */
 function ScreenSpacePan({
   panRef,
+  syncRef,
+  onChange,
 }: {
   panRef: React.MutableRefObject<ScreenPanState>;
+  /** Filled with a callback that re-applies the current pan state to
+   *  the live projection offset. Reset calls this after zeroing the
+   *  ref so the view snaps back without waiting for the next input. */
+  syncRef: React.MutableRefObject<(() => void) | null>;
+  onChange: () => void;
 }) {
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
@@ -772,7 +885,11 @@ function ScreenSpacePan({
 
   useEffect(() => {
     applyViewOffset();
-  }, [applyViewOffset]);
+    syncRef.current = applyViewOffset;
+    return () => {
+      syncRef.current = null;
+    };
+  }, [applyViewOffset, syncRef]);
 
   useEffect(() => {
     const el = gl.domElement;
@@ -795,6 +912,7 @@ function ScreenSpacePan({
       panRef.current.x += dx;
       panRef.current.y += dy;
       applyViewOffset();
+      onChange();
       event.preventDefault();
     };
 
@@ -823,173 +941,140 @@ function ScreenSpacePan({
       el.removeEventListener('pointercancel', stopDrag);
       el.removeEventListener('contextmenu', onContextMenu);
     };
-  }, [applyViewOffset, gl, panRef]);
+  }, [applyViewOffset, gl, panRef, onChange]);
 
   return null;
 }
 
-/** Reads/writes the camera-controls + camera state so App can mirror
- *  it to the URL hash. Restores `initialCamera` once on mount;
- *  thereafter polls the camera each frame and fires `onCameraChange`
- *  only after a few idle frames so the URL update lands when the user
- *  has truly stopped moving (covers TrackballControls' damping settle
- *  without spamming a write per frame). */
-function CameraSync({
-  initialCamera,
-  onCameraChange,
-  panRef,
-  defaultCamPosition,
-  resetRef,
-  onAtDefaultChange,
+/** Twist-free orbit controller. Maintains (az, el, dist) in `orbitRef`
+ *  and projects it onto the live camera on every mutation. Unlike
+ *  TrackballControls there is no camera.up rotation accumulating
+ *  twist around the view axis — `up` is derived from the same
+ *  rotation chain that places the camera, so a full vertical drag
+ *  past the pole simply flips the up vector to (0, -1, 0) rather than
+ *  rocking the horizon. Elevation is unbounded, so the user can keep
+ *  spinning past either pole indefinitely. Below the equator the
+ *  horizontal-drag direction is reversed so screen-right consistently
+ *  rotates the brain in the same direction relative to the viewport.
+ *
+ *  Left button → rotate. Wheel → exponential zoom clamped to the
+ *  data-bounds-derived [minDistance, maxDistance]. Right-button pan
+ *  lives in <ScreenSpacePan>; this component intentionally ignores
+ *  the right button. */
+function OrbitControls({
+  orbitRef,
+  syncRef,
+  minDistance,
+  maxDistance,
+  rotateSpeed,
+  zoomSpeed,
+  onChange,
 }: {
-  initialCamera: CameraState | null;
-  onCameraChange?: (cam: CameraState) => void;
-  panRef: React.MutableRefObject<ScreenPanState>;
-  defaultCamPosition: [number, number, number];
-  resetRef: React.MutableRefObject<(() => void) | null>;
-  onAtDefaultChange: (atDefault: boolean) => void;
+  orbitRef: React.MutableRefObject<OrbitState>;
+  /** Filled with a callback that re-applies orbitRef to the live
+   *  camera. Reset uses it to push the zeroed state without waiting
+   *  for the next pointer event. */
+  syncRef: React.MutableRefObject<(() => void) | null>;
+  minDistance: number;
+  maxDistance: number;
+  rotateSpeed: number;
+  zoomSpeed: number;
+  onChange: () => void;
 }) {
   const camera = useThree((s) => s.camera);
-  const size = useThree((s) => s.size);
+  const gl = useThree((s) => s.gl);
   const invalidate = useThree((s) => s.invalidate);
-  // The drei controls wire themselves in via makeDefault; useThree
-  // exposes the instance on .controls. Use any to avoid a public-API
-  // dependency on TrackballControlsImpl.
-  const controls = useThree((s) => s.controls) as any;
-  const restoredRef = useRef(false);
-  const lastRef = useRef<CameraState | null>(null);
-  // Position tolerance for the at-default check. Trackball damping
-  // can leave sub-unit residue after a snap, so compare against a
-  // fraction of the default eye distance rather than using exact
-  // equality.
-  const POS_EPS = Math.max(1e-3, Math.hypot(...defaultCamPosition) * 1e-4);
-  const atDefaultRef = useRef<boolean | null>(null);
+  const dragRef = useRef<{ pointerId: number; lastX: number; lastY: number } | null>(null);
+
+  const sync = useCallback(() => {
+    applyOrbitToCamera(camera, orbitRef.current);
+    invalidate();
+  }, [camera, invalidate, orbitRef]);
 
   useEffect(() => {
-    resetRef.current = () => {
-      camera.position.set(...defaultCamPosition);
-      // TrackballControls rotates camera.up during orbit, so position
-      // + target alone leaves the view rolled. Restore the canonical
-      // up vector so the volume returns to its original orientation.
-      camera.up.set(0, 1, 0);
-      controls?.target.set(...VOLUME_CENTER);
-      controls?.update();
-      panRef.current.x = 0;
-      panRef.current.y = 0;
-      if (supportsViewOffset(camera) && size.width > 0 && size.height > 0) {
-        camera.setViewOffset(size.width, size.height, 0, 0, size.width, size.height);
-      }
-      invalidate();
-    };
+    sync();
+    syncRef.current = sync;
     return () => {
-      resetRef.current = null;
+      syncRef.current = null;
     };
-  }, [camera, controls, defaultCamPosition, invalidate, panRef, resetRef, size.height, size.width]);
+  }, [sync, syncRef]);
 
   useEffect(() => {
-    if (!controls || restoredRef.current) return;
-    if (initialCamera) {
-      camera.position.set(...initialCamera.pos);
-      // Orient the camera. v2 URLs carry an explicit quaternion that
-      // captures any roll the trackball produced — apply it directly
-      // so the restored view matches the pre-share roll. v1 URLs only
-      // had pos + target, so fall back to look-at with the canonical
-      // up vector (roll for those links is unrecoverable; this matches
-      // the old behavior). The point cloud is always centered at the
-      // origin, so the orbit target stays VOLUME_CENTER regardless.
-      if (initialCamera.quat) {
-        camera.quaternion.set(
-          initialCamera.quat[0],
-          initialCamera.quat[1],
-          initialCamera.quat[2],
-          initialCamera.quat[3],
-        );
-        // Derive `up` from the quaternion so subsequent trackball
-        // rotations have the correct local frame to spin around.
-        camera.up.set(0, 1, 0).applyQuaternion(camera.quaternion);
-      } else if (initialCamera.target) {
-        camera.up.set(0, 1, 0);
-        camera.lookAt(
-          initialCamera.target[0],
-          initialCamera.target[1],
-          initialCamera.target[2],
-        );
-      }
-      controls.target.set(...VOLUME_CENTER);
-      controls.update();
-    }
-    restoredRef.current = true;
-  }, [controls, camera, initialCamera]);
+    const el = gl.domElement;
 
-  useFrame(() => {
-    if (!controls) return;
-    if (
-      controls.target.x !== VOLUME_CENTER[0] ||
-      controls.target.y !== VOLUME_CENTER[1] ||
-      controls.target.z !== VOLUME_CENTER[2]
-    ) {
-      controls.target.set(...VOLUME_CENTER);
-      controls.update();
-    }
-    const isAtDefault =
-      Math.abs(camera.position.x - defaultCamPosition[0]) < POS_EPS &&
-      Math.abs(camera.position.y - defaultCamPosition[1]) < POS_EPS &&
-      Math.abs(camera.position.z - defaultCamPosition[2]) < POS_EPS &&
-      Math.abs(camera.up.x) < 1e-3 &&
-      Math.abs(camera.up.y - 1) < 1e-3 &&
-      Math.abs(camera.up.z) < 1e-3 &&
-      panRef.current.x === 0 &&
-      panRef.current.y === 0;
-    if (atDefaultRef.current !== isAtDefault) {
-      atDefaultRef.current = isAtDefault;
-      onAtDefaultChange(isAtDefault);
-    }
-    if (!onCameraChange) return;
-    const pos: [number, number, number] = [camera.position.x, camera.position.y, camera.position.z];
-    const quat: [number, number, number, number] = [
-      camera.quaternion.x,
-      camera.quaternion.y,
-      camera.quaternion.z,
-      camera.quaternion.w,
-    ];
-    const rawPan = panRef.current;
-    const pan: [number, number] | undefined =
-      rawPan.x !== 0 || rawPan.y !== 0 ? [rawPan.x, rawPan.y] : undefined;
-    const cam: CameraState = pan ? { pos, quat, pan } : { pos, quat };
-    const last = lastRef.current;
-    // Sub-pixel epsilon: anything below this per-frame delta is
-    // numerically still as far as the rendered image cares about, so
-    // we stop emitting and let the App-side debounce write the URL.
-    // Exact float equality would keep counting the tail of trackball
-    // damping (~0.9× velocity decay each frame) as "movement" for
-    // ~130 frames after release — which kept resetting the debounce
-    // and stalled the URL hash for ~2 s. The remaining residue past
-    // this threshold is bounded by epsilon / dampingFactor (~1e-3
-    // unit), well inside the rounded URL precision.
-    const POS_DELTA_EPS = 1e-4;
-    const QUAT_DELTA_EPS = 1e-5;
-    const PAN_DELTA_EPS = 1e-4;
-    const moved =
-      !last ||
-      Math.abs(pos[0] - last.pos[0]) > POS_DELTA_EPS ||
-      Math.abs(pos[1] - last.pos[1]) > POS_DELTA_EPS ||
-      Math.abs(pos[2] - last.pos[2]) > POS_DELTA_EPS ||
-      Math.abs(quat[0] - (last.quat?.[0] ?? 0)) > QUAT_DELTA_EPS ||
-      Math.abs(quat[1] - (last.quat?.[1] ?? 0)) > QUAT_DELTA_EPS ||
-      Math.abs(quat[2] - (last.quat?.[2] ?? 0)) > QUAT_DELTA_EPS ||
-      Math.abs(quat[3] - (last.quat?.[3] ?? 1)) > QUAT_DELTA_EPS ||
-      Math.abs((pan?.[0] ?? 0) - (last.pan?.[0] ?? 0)) > PAN_DELTA_EPS ||
-      Math.abs((pan?.[1] ?? 0) - (last.pan?.[1] ?? 0)) > PAN_DELTA_EPS;
-    if (!moved) return;
-    // Emit on every (above-epsilon) change so the upstream camera ref
-    // stays current — the URL hash write is debounced 50 ms in App,
-    // which is what coalesces the per-frame stream into a single
-    // replaceState call once the damping settles below the epsilon.
-    // Holding emits until N idle frames meant a tab duplicated
-    // mid-rotation (or mid-damping) saw a stale hash.
-    lastRef.current = cam;
-    onCameraChange(cam);
-  });
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.button !== 0) return;
+      dragRef.current = {
+        pointerId: event.pointerId,
+        lastX: event.clientX,
+        lastY: event.clientY,
+      };
+      el.setPointerCapture(event.pointerId);
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      const drag = dragRef.current;
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      const dx = event.clientX - drag.lastX;
+      const dy = event.clientY - drag.lastY;
+      if (dx === 0 && dy === 0) return;
+      drag.lastX = event.clientX;
+      drag.lastY = event.clientY;
+
+      // Pixels-per-radian normalized to canvas height so a 45° diagonal
+      // drag rotates equally on both axes regardless of canvas aspect.
+      const height = el.clientHeight || 1;
+      const radiansPerPixel = (Math.PI * rotateSpeed) / height;
+
+      // Past the poles the camera is upside-down (its up vector points
+      // toward world -Y). Flip horizontal drag sign so dragging right
+      // still rotates the brain in the same screen-relative direction
+      // — without this, crossing a pole reverses yaw and feels broken.
+      const normEl = wrapAngle(orbitRef.current.el);
+      const upsideDown = Math.abs(normEl) > Math.PI / 2;
+      const azSign = upsideDown ? 1 : -1;
+
+      orbitRef.current.az += azSign * dx * radiansPerPixel;
+      orbitRef.current.el += dy * radiansPerPixel;
+      sync();
+      onChange();
+    };
+
+    const stopDrag = (event: PointerEvent) => {
+      const drag = dragRef.current;
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      dragRef.current = null;
+      if (el.hasPointerCapture(event.pointerId)) {
+        el.releasePointerCapture(event.pointerId);
+      }
+    };
+
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      // Exponential dolly: each wheel tick multiplies distance by a
+      // fixed factor, so the perceived zoom rate is constant across
+      // the full [minDistance, maxDistance] range. Linear dolly feels
+      // sluggish near the volume and explosive far from it.
+      const factor = Math.exp(event.deltaY * 0.001 * zoomSpeed);
+      const next = orbitRef.current.dist * factor;
+      orbitRef.current.dist = Math.max(minDistance, Math.min(maxDistance, next));
+      sync();
+      onChange();
+    };
+
+    el.addEventListener('pointerdown', onPointerDown);
+    el.addEventListener('pointermove', onPointerMove);
+    el.addEventListener('pointerup', stopDrag);
+    el.addEventListener('pointercancel', stopDrag);
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      el.removeEventListener('pointerdown', onPointerDown);
+      el.removeEventListener('pointermove', onPointerMove);
+      el.removeEventListener('pointerup', stopDrag);
+      el.removeEventListener('pointercancel', stopDrag);
+      el.removeEventListener('wheel', onWheel);
+    };
+  }, [gl, minDistance, maxDistance, orbitRef, rotateSpeed, zoomSpeed, sync, onChange]);
 
   return null;
 }

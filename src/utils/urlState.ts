@@ -32,30 +32,44 @@ import type {
 
 // Persisted 3D camera pose.
 //
-// v2 (current): { pos, quat, pan? } — explicit quaternion captures any
-//   roll the trackball produces, so refresh / duplicate / share all
-//   round-trip without rocking. The orbit target is always the volume
-//   center and is no longer serialized.
+// v3 (current): { dist, az, el, pan? } — semantic twist-free orbit
+//   state. The camera always orbits VOLUME_CENTER, so no target is
+//   serialized. `az` and `el` are radians; the renderer reconstructs
+//   camera position and up vector from spherical coords each frame.
+//   Roll is structurally impossible (the controller is twist-free), so
+//   the entire camera pose is captured by three scalars plus optional
+//   screen pan.
 //
-// v1 (legacy): { pos, target, pan? } — older share links omitted
-//   orientation, so the decoder synthesizes a quaternion at restore
-//   time by pointing pos → target with the canonical up vector
-//   (0, 1, 0). Roll is unrecoverable for legacy links; that's the
-//   bug that motivated the v2 schema.
+// v2 (legacy): { pos, quat, pan? } — explicit quaternion from the
+//   previous TrackballControls renderer. The decoder converts to v3 by
+//   extracting az/el/dist from `pos` (with target at the origin) and
+//   discarding `quat`. Any roll baked into old links is lost — that's
+//   acceptable in exchange for the v3 schema's stability.
 //
-// Either shape decodes into the unified CameraState below;
-// `quat` is the source of truth for orientation when present,
-// `target` is treated as a legacy hint only.
+// v1 (legacy): { pos, target, pan? } — oldest format. Decoder converts
+//   to v3 the same way as v2; `target` is required to validate but
+//   ignored thereafter (the point cloud is always centered at the
+//   origin, so a non-zero target field was misleading).
+//
+// `validateCamera` accepts any of the three shapes. New emissions are
+// always v3.
 export interface CameraState {
-  pos: [number, number, number];
-  /** Camera quaternion as [x, y, z, w]. Preferred orientation field. */
+  /** Camera-to-target distance (v3). */
+  dist?: number;
+  /** Azimuth in radians, rotation around world Y. 0 ⇒ camera on +Z (v3). */
+  az?: number;
+  /** Elevation in radians from the equator. 0 ⇒ horizontal, +π/2 ⇒
+   *  camera straight above the volume looking down (v3). */
+  el?: number;
+  /** Legacy camera position in world coords (v1/v2). */
+  pos?: [number, number, number];
+  /** Legacy camera quaternion (v2 only). Discarded during conversion. */
   quat?: [number, number, number, number];
-  /** Legacy orbit target (v1 schema). Only used as a fallback when
-   *  `quat` is missing — restore synthesizes orientation by aiming at
-   *  this point with `up = (0, 1, 0)`. */
+  /** Legacy orbit target (v1 only). Discarded during conversion — the
+   *  point cloud is always centered at the origin. */
   target?: [number, number, number];
-  /** Screen-space viewer pan in CSS pixels. Positive x/y move the volume
-   *  right/down in the viewport without changing the orbit target. */
+  /** Screen-space viewer pan in CSS pixels. Positive x/y move the
+   *  volume right/down in the viewport without changing the orbit. */
   pan?: [number, number];
 }
 
@@ -259,24 +273,36 @@ function validateSettings(raw: unknown): Partial<SettingsState> {
 function validateCamera(raw: unknown): CameraState | undefined {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
   const c = raw as Record<string, unknown>;
-  if (!Array.isArray(c.pos) || c.pos.length !== 3 || !c.pos.every(isFiniteNum)) return undefined;
-  // v2 (quat) and v1 (target) are both accepted. At least one must be
-  // present so the renderer has something to orient with.
+  // v3: { dist > 0, az, el }. dist is a magnitude so we reject ≤ 0;
+  // az/el are unbounded (elevation past ±π/2 is the "unlimited
+  // rotation" case past a pole).
+  const hasV3 =
+    isFiniteNum(c.dist) && c.dist > 0 && isFiniteNum(c.az) && isFiniteNum(c.el);
+  // v1/v2: { pos } with either { quat } (v2) or { target } (v1).
+  const hasPos =
+    Array.isArray(c.pos) && c.pos.length === 3 && c.pos.every(isFiniteNum);
   const hasQuat =
     Array.isArray(c.quat) && c.quat.length === 4 && c.quat.every(isFiniteNum);
   const hasTarget =
     Array.isArray(c.target) && c.target.length === 3 && c.target.every(isFiniteNum);
-  if (!hasQuat && !hasTarget) return undefined;
-  const out: CameraState = {
-    pos: [c.pos[0] as number, c.pos[1] as number, c.pos[2] as number],
-  };
-  if (hasQuat) {
-    const q = c.quat as number[];
-    out.quat = [q[0], q[1], q[2], q[3]];
-  }
-  if (hasTarget) {
-    const t = c.target as number[];
-    out.target = [t[0], t[1], t[2]];
+  const hasV2 = hasPos && hasQuat;
+  const hasV1 = hasPos && hasTarget;
+  if (!hasV3 && !hasV2 && !hasV1) return undefined;
+  const out: CameraState = {};
+  if (hasV3) {
+    out.dist = c.dist as number;
+    out.az = c.az as number;
+    out.el = c.el as number;
+  } else if (hasPos) {
+    const p = c.pos as number[];
+    out.pos = [p[0], p[1], p[2]];
+    if (hasQuat) {
+      const q = c.quat as number[];
+      out.quat = [q[0], q[1], q[2], q[3]];
+    } else if (hasTarget) {
+      const t = c.target as number[];
+      out.target = [t[0], t[1], t[2]];
+    }
   }
   if (Array.isArray(c.pan) && c.pan.length === 2 && c.pan.every(isFiniteNum)) {
     out.pan = [c.pan[0] as number, c.pan[1] as number];
@@ -427,36 +453,44 @@ function r(x: number, n = 3): number {
 // Camera fields use higher precision than the t-SNE viewport: scene
 // coordinates span hundreds of units and the camera renders at zoom
 // levels where 3-decimal rounding (~5e-4 unit) was visibly off when
-// duplicating a tab. Quaternion components are unit-magnitude so 5
-// decimals keeps roundtrip error below ~1e-5 in any axis.
+// duplicating a tab. Angles are radians so 5 decimals keeps roundtrip
+// orientation error below ~1e-5 rad (≈ a few thousandths of a degree).
 const POS_PRECISION = 5;
+const ANGLE_PRECISION = 5;
 const QUAT_PRECISION = 5;
 
 export function roundCamera(cam: CameraState): CameraState {
-  const out: CameraState = {
-    pos: [
+  const out: CameraState = {};
+  if (cam.dist != null && cam.az != null && cam.el != null) {
+    // v3 is the canonical emission shape — the renderer always feeds
+    // (dist, az, el) once it mounts.
+    out.dist = r(cam.dist, POS_PRECISION);
+    out.az = r(cam.az, ANGLE_PRECISION);
+    out.el = r(cam.el, ANGLE_PRECISION);
+  } else if (cam.pos) {
+    // Defensive legacy passthrough: if a caller hands the rounder a
+    // pre-v3 shape (test fixtures, or a v1/v2 URL being re-emitted
+    // before the renderer mounts), preserve it so the next decode
+    // doesn't reject the field as malformed.
+    out.pos = [
       r(cam.pos[0], POS_PRECISION),
       r(cam.pos[1], POS_PRECISION),
       r(cam.pos[2], POS_PRECISION),
-    ],
-  };
-  if (cam.quat) {
-    out.quat = [
-      r(cam.quat[0], QUAT_PRECISION),
-      r(cam.quat[1], QUAT_PRECISION),
-      r(cam.quat[2], QUAT_PRECISION),
-      r(cam.quat[3], QUAT_PRECISION),
     ];
-  } else if (cam.target) {
-    // No quaternion available yet (legacy v1 input, or mount window
-    // before the renderer emits a v2 camera). Keep `target` in the
-    // round-tripped state so `validateCamera` still accepts it on the
-    // next read — emitting `{pos}` alone produces an invalid schema.
-    out.target = [
-      r(cam.target[0], POS_PRECISION),
-      r(cam.target[1], POS_PRECISION),
-      r(cam.target[2], POS_PRECISION),
-    ];
+    if (cam.quat) {
+      out.quat = [
+        r(cam.quat[0], QUAT_PRECISION),
+        r(cam.quat[1], QUAT_PRECISION),
+        r(cam.quat[2], QUAT_PRECISION),
+        r(cam.quat[3], QUAT_PRECISION),
+      ];
+    } else if (cam.target) {
+      out.target = [
+        r(cam.target[0], POS_PRECISION),
+        r(cam.target[1], POS_PRECISION),
+        r(cam.target[2], POS_PRECISION),
+      ];
+    }
   }
   if (cam.pan && (cam.pan[0] !== 0 || cam.pan[1] !== 0)) {
     out.pan = [r(cam.pan[0], POS_PRECISION), r(cam.pan[1], POS_PRECISION)];
