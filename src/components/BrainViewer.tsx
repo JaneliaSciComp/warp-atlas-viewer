@@ -1,6 +1,6 @@
 import { useMemo, useRef, useEffect, useLayoutEffect, useState, useCallback } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
-import { TrackballControls } from '@react-three/drei';
+import { ArcballControls as ArcballControlsImpl } from 'three/examples/jsm/controls/ArcballControls.js';
 import * as THREE from 'three';
 import type { NeuronDataset, FilterState, SelectionState, SettingsState } from '../data/types';
 import type { CameraState } from '../utils/urlState';
@@ -629,14 +629,10 @@ export function BrainViewer({
           pickRef={pickRef}
           onHoverChange={handleHoverChange}
         />
-        <TrackballControls
-          makeDefault
-          dynamicDampingFactor={0.1}
-          rotateSpeed={4.0}
-          zoomSpeed={1.5}
+        <ArcballController
+          defaultCamPosition={defaultCamPosition}
           minDistance={minDistance}
           maxDistance={maxDistance}
-          noPan
         />
         <ScreenSpacePan panRef={screenPanRef} />
         <CameraSync
@@ -824,6 +820,91 @@ function ScreenSpacePan({
       el.removeEventListener('contextmenu', onContextMenu);
     };
   }, [applyViewOffset, gl, panRef]);
+
+  return null;
+}
+
+/** Wires three.js' ArcballControls into the R3F tree.
+ *
+ *  ArcballControls is a screen-space rotation controller: a drag-perp-
+ *  to-the-volume's-long-axis cleanly rolls it around that axis, instead
+ *  of the orbit-style "yaw then pitch" decomposition that decomposes a
+ *  diagonal drag into a freestyle stroke. The trade is that ArcballControls
+ *  accumulates roll across a sequence of rotations (the v2 camera URL
+ *  schema's `quat` field captures it so refresh/duplicate round-trips
+ *  faithfully).
+ *
+ *  Configuration vs. defaults:
+ *  - Left button → rotate, wheel → zoom (Arcball's defaults).
+ *  - Right-button native pan is unset; we route right-drag through
+ *    <ScreenSpacePan> instead, which keeps the rotation pivot pinned
+ *    at the volume center after a pan.
+ *  - Gizmos disabled — the orbit ring/spheres overlay would compete
+ *    visually with the brain in the single-object viewer.
+ *  - position0 / target0 / up0 are pinned to the dorsal default so
+ *    the reset button's ctrl.reset() always returns there, regardless
+ *    of any URL-restored starting pose. */
+function ArcballController({
+  defaultCamPosition,
+  minDistance,
+  maxDistance,
+}: {
+  defaultCamPosition: [number, number, number];
+  minDistance: number;
+  maxDistance: number;
+}) {
+  const camera = useThree((s) => s.camera);
+  const gl = useThree((s) => s.gl);
+  const invalidate = useThree((s) => s.invalidate);
+  const set = useThree((s) => s.set);
+
+  useEffect(() => {
+    // @types/three's ArcballControls.d.ts omits a handful of public
+    // runtime properties (`target`, `position0`/`target0`/`up0`,
+    // `enableGizmos`). The runtime exposes them, so cast through a
+    // local augmented type rather than scatter `any` at the call sites.
+    type ArcballRuntime = InstanceType<typeof ArcballControlsImpl> & {
+      target: THREE.Vector3;
+      position0: THREE.Vector3;
+      target0: THREE.Vector3;
+      up0: THREE.Vector3;
+      enableGizmos: boolean;
+    };
+    const ctrl = new ArcballControlsImpl(
+      camera as THREE.PerspectiveCamera,
+      gl.domElement,
+    ) as ArcballRuntime;
+    ctrl.minDistance = minDistance;
+    ctrl.maxDistance = maxDistance;
+    ctrl.enableGizmos = false;
+    ctrl.setGizmosVisible(false);
+    // Use our screen-pan instead of Arcball's pivot-moving pan. Clearing
+    // both the bare right-button and Ctrl+left bindings frees the right
+    // button for ScreenSpacePan and removes the Ctrl+left footgun.
+    ctrl.unsetMouseAction(2);
+    ctrl.unsetMouseAction(0, 'CTRL');
+    ctrl.target.set(0, 0, 0);
+    // Pin reset() to the dorsal default rather than whatever URL pose
+    // happened to be live at construction.
+    ctrl.position0.set(...defaultCamPosition);
+    ctrl.target0.set(0, 0, 0);
+    ctrl.up0.set(0, 1, 0);
+    ctrl.update();
+
+    const onChange = () => invalidate();
+    ctrl.addEventListener('change', onChange);
+
+    // Register as R3F's default `controls` slot so the existing
+    // CameraSync (which polls `useThree((s) => s.controls)` each frame)
+    // sees the Arcball instance for URL state emission and reset.
+    set({ controls: ctrl as unknown as THREE.EventDispatcher });
+
+    return () => {
+      ctrl.removeEventListener('change', onChange);
+      ctrl.dispose();
+      set({ controls: null as unknown as THREE.EventDispatcher });
+    };
+  }, [camera, gl, invalidate, set, defaultCamPosition, minDistance, maxDistance]);
 
   return null;
 }
