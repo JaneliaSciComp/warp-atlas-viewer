@@ -859,16 +859,16 @@ function ArcballController({
   const set = useThree((s) => s.set);
 
   useEffect(() => {
-    // @types/three's ArcballControls.d.ts omits a handful of public
-    // runtime properties (`target`, `position0`/`target0`/`up0`,
-    // `enableGizmos`). The runtime exposes them, so cast through a
-    // local augmented type rather than scatter `any` at the call sites.
+    // @types/three's ArcballControls.d.ts omits two public runtime
+    // properties (`target`, `enableGizmos`) and ArcballControls has
+    // no setter API for the reset target — its `saveState()` snapshots
+    // the live camera+gizmo matrices into private `_*_0` fields that
+    // `reset()` later restores. Cast through a local augmented type
+    // so the call sites stay clean.
     type ArcballRuntime = InstanceType<typeof ArcballControlsImpl> & {
       target: THREE.Vector3;
-      position0: THREE.Vector3;
-      target0: THREE.Vector3;
-      up0: THREE.Vector3;
       enableGizmos: boolean;
+      saveState(): void;
     };
     const ctrl = new ArcballControlsImpl(
       camera as THREE.PerspectiveCamera,
@@ -883,13 +883,18 @@ function ArcballController({
     // button for ScreenSpacePan and removes the Ctrl+left footgun.
     ctrl.unsetMouseAction(2);
     ctrl.unsetMouseAction(0, 'CTRL');
+    // Stage the camera at the dorsal default and snapshot it into
+    // Arcball's saveState slot, so the reset button always returns
+    // here regardless of what URL pose CameraSync later restores on
+    // top. CameraSync's restore effect runs after we register
+    // `controls` via set(), so the user-facing camera ends up at the
+    // URL pose while ctrl.reset() still returns to the default.
+    camera.position.set(...defaultCamPosition);
+    camera.up.set(0, 1, 0);
     ctrl.target.set(0, 0, 0);
-    // Pin reset() to the dorsal default rather than whatever URL pose
-    // happened to be live at construction.
-    ctrl.position0.set(...defaultCamPosition);
-    ctrl.target0.set(0, 0, 0);
-    ctrl.up0.set(0, 1, 0);
+    camera.lookAt(ctrl.target);
     ctrl.update();
+    ctrl.saveState();
 
     const onChange = () => invalidate();
     ctrl.addEventListener('change', onChange);
