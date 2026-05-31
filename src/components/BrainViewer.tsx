@@ -298,8 +298,11 @@ function PointCloud({
     const PICK_PAD_PX = 2;
     const MIN_DISK_PICK_RADIUS = 3;
 
-    // Match the world-rotation applied by <group> below: rotate +90°
-    // around Z (so AP/world-y → screen-x, ML/world-x → screen-y).
+    // Match the world transform applied by <group> below: scale y by
+    // −1 (flip the AP/longitudinal axis to match the paper figures),
+    // then rotate +90° around Z. Net effect on raw data coords:
+    //   (dx, dy, dz) → (dy, dx, dz)
+    // so AP/world-y → +screen-x and ML/world-x → +screen-y.
 
     // Pick in two tiers:
     //   1. If the cursor is inside one or more rendered point disks,
@@ -352,7 +355,7 @@ function PointCloud({
       if (!cellIsRenderable(data, filter, i)) continue;
       if (alphas && alphas[i] < 0.02) continue;
       const ox = positions[i * 3];
-      const x = -positions[i * 3 + 1];
+      const x = positions[i * 3 + 1];
       const y = ox;
       const z = positions[i * 3 + 2];
       tmp.set(x, y, z);
@@ -423,7 +426,7 @@ function PointCloud({
   });
 
   return (
-    <group rotation={[0, 0, Math.PI / 2]}>
+    <group rotation={[0, 0, Math.PI / 2]} scale={[1, -1, 1]}>
       {/* Opaque pass first so its depth values are in place before the
         * transparent pass reads them. Both points share the same
         * geometry — the materials' alphaMin / alphaMax uniforms
