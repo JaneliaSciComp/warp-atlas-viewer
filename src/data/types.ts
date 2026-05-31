@@ -344,6 +344,20 @@ export interface SettingsState {
      *  When false, every in-set cell renders at full alpha regardless
      *  of correlation magnitude. */
     fadeWeakCorrelation: boolean;
+    /** When true (default), right-mouse drag pans the viewport in screen
+     *  space while the orbit target stays locked at the volume center —
+     *  so rotation always pivots around the volume regardless of pan.
+     *  When false, right-mouse drag uses TrackballControls' native pan
+     *  (moves the orbit target with the camera), and rotation pivots
+     *  around the panned target instead of the volume. */
+    objectCentricRotation: boolean;
+    /** Rotation / pan / zoom inertia after releasing the mouse, 0..1.
+     *  0 → no momentum (motion stops the instant the drag ends).
+     *  1 → maximum momentum (slowest decay).
+     *  Default 0.9 ≈ TrackballControls' dynamicDampingFactor 0.1, the
+     *  original feel. Internally drives `staticMoving` (at 0) and
+     *  `dynamicDampingFactor = max(0.05, 1 - rotationMomentum)`. */
+    rotationMomentum: number;
     /** Developer toggle. When true, the 3D viewer renders a small
      *  diagnostic overlay (canvas size, in-set count, computed point
      *  size + ghost visibility, etc.) so the auto / scale-by-filter
@@ -374,6 +388,8 @@ export const DEFAULT_SETTINGS: SettingsState = {
     autoSizing: true,
     scaleByFilterCount: false,
     fadeWeakCorrelation: true,
+    objectCentricRotation: true,
+    rotationMomentum: 0.9,
     debugMode: false,
 };
 

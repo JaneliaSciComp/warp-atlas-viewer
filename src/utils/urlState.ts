@@ -253,6 +253,8 @@ function validateSettings(raw: unknown): Partial<SettingsState> {
   if (typeof s.scaleByFilterCount === 'boolean') out.scaleByFilterCount = s.scaleByFilterCount;
   if (typeof s.debugMode === 'boolean') out.debugMode = s.debugMode;
   if (typeof s.fadeWeakCorrelation === 'boolean') out.fadeWeakCorrelation = s.fadeWeakCorrelation;
+  if (typeof s.objectCentricRotation === 'boolean') out.objectCentricRotation = s.objectCentricRotation;
+  if (isFiniteNum(s.rotationMomentum)) out.rotationMomentum = clamp(s.rotationMomentum, 0, 1);
   return out;
 }
 

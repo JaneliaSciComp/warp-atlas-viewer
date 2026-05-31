@@ -631,14 +631,26 @@ export function BrainViewer({
         />
         <TrackballControls
           makeDefault
-          dynamicDampingFactor={0.1}
+          // rotationMomentum maps inversely to TrackballControls' damping:
+          // 0 → staticMoving (zero inertia), 1 → factor 0.05 (most drift).
+          // The default 0.9 yields ~0.1, matching the original feel.
+          staticMoving={settings.rotationMomentum === 0}
+          dynamicDampingFactor={Math.max(0.05, 1 - settings.rotationMomentum)}
           rotateSpeed={4.0}
           zoomSpeed={1.5}
           minDistance={minDistance}
           maxDistance={maxDistance}
-          noPan
+          // Object-centric mode disables native pan in favor of the
+          // screen-space projection offset below, which keeps the orbit
+          // target pinned to the volume center so rotation always pivots
+          // around the volume. With object-centric off, native pan moves
+          // the target, and rotation follows.
+          noPan={settings.objectCentricRotation}
         />
-        <ScreenSpacePan panRef={screenPanRef} />
+        <ScreenSpacePan
+          panRef={screenPanRef}
+          enabled={settings.objectCentricRotation}
+        />
         <CameraSync
           initialCamera={initialCamera ?? null}
           onCameraChange={onCameraChange}
@@ -646,6 +658,7 @@ export function BrainViewer({
           defaultCamPosition={defaultCamPosition}
           resetRef={resetRef}
           onAtDefaultChange={setAtDefault}
+          lockTargetToCenter={settings.objectCentricRotation}
         />
         {settings.ambientOcclusion && (
           <AmbientOcclusion
@@ -750,11 +763,19 @@ function supportsViewOffset(
 /** Screen-space panning is implemented as a projection offset, not as a
  *  camera/target translation. TrackballControls therefore keeps a stable
  *  orbit target at the volume center, while right-drag simply shifts where
- *  that centered view lands inside the canvas. */
+ *  that centered view lands inside the canvas.
+ *
+ *  When `enabled` is false (the user toggled off object-centric rotation),
+ *  this component clears any active view offset and detaches its pointer
+ *  listeners so TrackballControls' native pan can take over the right
+ *  mouse button. The cached `panRef` is preserved so toggling the mode
+ *  back on restores the previous screen-space pan. */
 function ScreenSpacePan({
   panRef,
+  enabled,
 }: {
   panRef: React.MutableRefObject<ScreenPanState>;
+  enabled: boolean;
 }) {
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
@@ -771,10 +792,20 @@ function ScreenSpacePan({
   }, [camera, invalidate, panRef, size.height, size.width]);
 
   useEffect(() => {
+    if (!enabled) {
+      // Drop any active projection offset so the native trackball pan
+      // sees a centered frustum to work against.
+      if (supportsViewOffset(camera) && size.width > 0 && size.height > 0) {
+        camera.setViewOffset(size.width, size.height, 0, 0, size.width, size.height);
+        invalidate();
+      }
+      return;
+    }
     applyViewOffset();
-  }, [applyViewOffset]);
+  }, [applyViewOffset, camera, enabled, invalidate, size.height, size.width]);
 
   useEffect(() => {
+    if (!enabled) return;
     const el = gl.domElement;
 
     const onPointerDown = (event: PointerEvent) => {
@@ -823,7 +854,7 @@ function ScreenSpacePan({
       el.removeEventListener('pointercancel', stopDrag);
       el.removeEventListener('contextmenu', onContextMenu);
     };
-  }, [applyViewOffset, gl, panRef]);
+  }, [applyViewOffset, enabled, gl, panRef]);
 
   return null;
 }
@@ -841,6 +872,7 @@ function CameraSync({
   defaultCamPosition,
   resetRef,
   onAtDefaultChange,
+  lockTargetToCenter,
 }: {
   initialCamera: CameraState | null;
   onCameraChange?: (cam: CameraState) => void;
@@ -848,6 +880,11 @@ function CameraSync({
   defaultCamPosition: [number, number, number];
   resetRef: React.MutableRefObject<(() => void) | null>;
   onAtDefaultChange: (atDefault: boolean) => void;
+  /** When true, the orbit target is forced back to VOLUME_CENTER each
+   *  frame so rotation always pivots around the volume. When false, the
+   *  user-driven pan (native TrackballControls pan) is allowed to move
+   *  the target freely. */
+  lockTargetToCenter: boolean;
 }) {
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
@@ -924,13 +961,18 @@ function CameraSync({
   useFrame(() => {
     if (!controls) return;
     if (
-      controls.target.x !== VOLUME_CENTER[0] ||
-      controls.target.y !== VOLUME_CENTER[1] ||
-      controls.target.z !== VOLUME_CENTER[2]
+      lockTargetToCenter &&
+      (controls.target.x !== VOLUME_CENTER[0] ||
+        controls.target.y !== VOLUME_CENTER[1] ||
+        controls.target.z !== VOLUME_CENTER[2])
     ) {
       controls.target.set(...VOLUME_CENTER);
       controls.update();
     }
+    const targetAtCenter =
+      Math.abs(controls.target.x - VOLUME_CENTER[0]) < POS_EPS &&
+      Math.abs(controls.target.y - VOLUME_CENTER[1]) < POS_EPS &&
+      Math.abs(controls.target.z - VOLUME_CENTER[2]) < POS_EPS;
     const isAtDefault =
       Math.abs(camera.position.x - defaultCamPosition[0]) < POS_EPS &&
       Math.abs(camera.position.y - defaultCamPosition[1]) < POS_EPS &&
@@ -939,7 +981,8 @@ function CameraSync({
       Math.abs(camera.up.y - 1) < 1e-3 &&
       Math.abs(camera.up.z) < 1e-3 &&
       panRef.current.x === 0 &&
-      panRef.current.y === 0;
+      panRef.current.y === 0 &&
+      targetAtCenter;
     if (atDefaultRef.current !== isAtDefault) {
       atDefaultRef.current = isAtDefault;
       onAtDefaultChange(isAtDefault);

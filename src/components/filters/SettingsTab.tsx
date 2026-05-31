@@ -152,6 +152,52 @@ export function SettingsTab({
 
             <section className="flex flex-col gap-2">
                 <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+                    3D camera controls
+                </div>
+                <p className="text-neutral-400 leading-snug">
+                    <span className="text-neutral-200">Object-centric rotation</span>{" "}
+                    keeps the orbit pivot pinned at the volume's center —
+                    right-drag pans in screen space without moving that
+                    pivot, so rotation always spins around the volume. Turn
+                    off to use trackball-style pan: right-drag moves the
+                    orbit target, and rotation then pivots around the new
+                    target.
+                    <span className="text-neutral-200"> Momentum</span>{" "}
+                    controls how long rotation and pan continue to drift
+                    after the mouse is released. 0 stops motion the moment
+                    you let go; the default (0.9) matches the original
+                    feel.
+                </p>
+                <label
+                    className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
+                    title="rotation always pivots around the volume center; right-drag pans in screen space"
+                >
+                    <input
+                        type="checkbox"
+                        checked={settings.objectCentricRotation}
+                        onChange={(e) =>
+                            update({ objectCentricRotation: e.target.checked })
+                        }
+                        className="accent-neutral-300"
+                    />
+                    object-centric rotation
+                </label>
+                <NumberRow
+                    label="momentum"
+                    value={settings.rotationMomentum}
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    onChange={(v) =>
+                        update({
+                            rotationMomentum: Math.max(0, Math.min(1, v)),
+                        })
+                    }
+                />
+            </section>
+
+            <section className="flex flex-col gap-2">
+                <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
                     t-SNE point density
                 </div>
                 <p className="text-neutral-400 leading-snug">
