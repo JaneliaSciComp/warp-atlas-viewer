@@ -11,15 +11,17 @@ The largest panel on screen. Every visible cell is rendered as a point in mapzeb
 
 | Action | Result |
 |---|---|
-| **Drag** | Orbit the camera around the volume center. |
+| **Drag** | Orbit the camera around the current orbit target. With default object-centric rotation, that target is the volume center. |
 | **Mouse wheel** | Zoom in or out. |
 | **Hover a cell** | Tooltip with cell id, anatomical region, and top expressed genes. |
 | **Click a cell** | Focus the cell; the [Detail panel](/ui/detail) switches to display only it. |
 | **Click empty space** | Clear the focus. |
-| **Right-drag** | Shift the volume within the viewport (screen-space pan). |
+| **Right-drag** | Pan. By default this shifts the volume in screen space while keeping the orbit target centered; with object-centric rotation off, it uses native trackball pan and moves the orbit target. |
 
 ::: tip Pan / orbit trade-off
-Right-drag shifts the view in screen space; the orbit pivot stays locked to the volume's geometric center, so rotation always pivots around the volume itself rather than the off-center view. Refresh the page to reset both the camera and the screen pan to defaults.
+The default [Settings → 3D camera controls](/settings#3d-camera-controls) keep rotation object-centric: right-drag moves the volume within the viewport, but rotation still pivots around the volume center. Turn object-centric rotation off when you want trackball-style pan, where right-drag moves the orbit target and later rotations pivot around that new target.
+
+Refresh/share preserves the full camera state — position, orientation, orbit target, and screen-space pan. Use the **reset view** button in the 3D viewer to return to the default pose.
 :::
 
 ## Contents

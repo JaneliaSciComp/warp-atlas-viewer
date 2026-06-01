@@ -63,6 +63,30 @@ The t-SNE scatter has its own size and ghost-visibility section because its dot 
 
 These settings do not interact with the 3D-viewer controls in either direction.
 
+## 3D camera controls
+
+Controls how the 3D viewer interprets drag inertia and right-drag panning. These settings change camera *behavior*; the current camera pose itself (position, orientation, orbit target, and screen-space pan) is still stored separately in the [URL hash](/sharing#contents-of-the-hash).
+
+### Object-centric rotation
+
+**Object-centric rotation** is on by default. In this mode:
+
+- regular drag orbits around the volume center,
+- right-drag shifts the view in screen space without moving that orbit target,
+- subsequent rotations continue to pivot around the volume center, even after the volume has been shifted within the viewport.
+
+Turn it off for native trackball-style panning. In that mode, right-drag moves the camera and the orbit target together; subsequent rotations pivot around the panned target instead of the volume center. Shared links and refreshes preserve whichever target is active, so the recreated view behaves the same way.
+
+The 3D viewer's **reset view** button restores the default camera position, orientation, orbit target, and any screen-space pan.
+
+### Momentum
+
+**Momentum** controls how long rotation, pan, and zoom continue to drift after mouse release:
+
+- `0` disables inertia, so motion stops immediately,
+- `1` gives the slowest decay,
+- the default `0.9` matches the original trackball feel.
+
 ## Rendering
 
 Controls that affect how scatter plots are drawn. They do not change the Detail panel plots or which cells pass filters.
@@ -162,11 +186,11 @@ Off by default; persisted in the URL hash like every other setting.
 
 ## What Settings does not control
 
-The Settings tab governs thresholds, palette anchors, point density, and rendering style. The following are intentionally excluded:
+The Settings tab governs thresholds, palette anchors, point density, rendering style, and 3D camera-control behavior. The following are intentionally excluded:
 
 - the active color scheme (use the [Colors card](/filters/colors)),
 - selections (use [click or lasso](/selections)),
-- the 3D camera position (orbit and wheel),
+- the current 3D camera pose (position, orientation, orbit target, and pan),
 - the t-SNE viewport (pan and zoom).
 
 These are also stored in the URL hash, but outside the Settings tab.

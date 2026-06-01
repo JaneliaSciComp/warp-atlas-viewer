@@ -11,7 +11,7 @@ The **About** tab in the bottom panel provides preset views that reconfigure the
 - sets **Transcriptomics** (Gene or Subtype mode, with one selection),
 - sets the **Visual Stimuli** and/or **Swim** selection where relevant,
 - clears any active selection (focused cell or lasso),
-- resets Anatomy to all regions/specimens while leaving Settings unchanged.
+- resets Anatomy to the default manuscript-atlas region mode with all regions/specimens selected while leaving Settings unchanged.
 
 The state produced by each preset is fully captured by the URL hash, so the resulting view can be shared directly from the address bar.
 
