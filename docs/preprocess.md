@@ -73,6 +73,12 @@ The dataset assigns each cell to one of 16 focal anatomical groupings (plus *Una
 
 The integer-to-name mapping isn't shipped with the source data — it was recovered by intersecting `Brain_reg.npy` with `BrainRegions_All.npy` (the cell × 112-atlas-region matrix) and resolving ties against the paper's 16-region list. The default region colors are sampled directly from the paper's region figure legend (`data/brain_regions.png`), with optional Turbo and high-contrast categorical palettes available in the same 16-region slot order; *Unassigned* is rendered as a dedicated neutral gray rather than a hue in every palette.
 
+### Atlas regions (mapzebrain 112) {#atlas-regions}
+
+The published dataset also ships a 112-region mapzebrain atlas (*Modified from Kunst et al., 2019*) as a cell × region boolean matrix in `BrainRegions_All.npy`, with names in each fish's `region_names.npy`. The atlas is hierarchical and overlapping: each cell can sit in 0–9 regions (e.g. a cerebellar cell is in both `cerebellum` and `rhombencephalon`).
+
+The preprocessor packs this matrix into a 14-byte little-endian bitfield per cell (`atlasRegionMask.bin`, ~3.84 MB) and emits the cleaned region names (`_` → space) in the manifest as `atlasRegionNames`. The viewer decodes membership with `(mask[i*14 + (r>>3)] >> (r&7)) & 1`. The 112-region atlas is filter-only — it does not drive a color scheme.
+
 ### Stimulus on-windows
 
 The stimulus on-windows, in seconds, are extracted from the downsampled regressor traces and written into the manifest. The Detail panel uses these to shade the corresponding bands on the ΔF/F trace.
@@ -89,8 +95,8 @@ The viewer loads `swim_corr_All` — the per-cell Pearson r between each cell's 
 
 The manifest is a small JSON file that records:
 
-- cell count and the counts of genes, clusters, regions, and stimuli,
-- name arrays (genes, clusters, regions, stimuli),
+- cell count and the counts of genes, clusters, regions, atlas regions, and stimuli,
+- name arrays (genes, clusters, focal regions, mapzebrain atlas regions, stimuli),
 - stimulus on-windows in seconds,
 - the trace sample rate (1 Hz after downsampling),
 - quantization parameters needed to recover trace values,

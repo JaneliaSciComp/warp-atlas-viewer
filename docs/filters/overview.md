@@ -19,7 +19,7 @@ The **Colors** card controls how visible cells are *painted*. The other four car
 
 Each filter card has an "everything passes" default, typically a dropdown set to **all**. A card in this state contributes nothing to the AND chain. Selecting any other value narrows the visible set.
 
-The Filters tab's **Reset** button restores the viewer's default filter state in one action: Transcriptomics and Visual Stimuli return to no selection, Anatomy's region and specimen controls return to "all", and Colors returns to the default Region scheme.
+The Filters tab's **Reset** button restores the viewer's default filter state in one action: Transcriptomics and Visual Stimuli return to no selection, Anatomy's region, atlas-region, and specimen controls return to "all", and Colors returns to the default Region scheme.
 
 ### Visible-cell readout {#visible-cell-readout}
 
@@ -32,7 +32,7 @@ Two cards support a logical toggle on selections within them:
 - **Transcriptomics (gene mode)** — `OR` retains cells expressing **any** of the selected genes; `AND` retains cells expressing **all** of them.
 - **Visual Stimuli** — `OR` retains cells whose correlation passes the active mode for **any** selected stim; `AND` requires the check to hold for **every** selected stim. The OR / AND row only takes effect when the mode is not `no filter`; it grays out otherwise. See [Visual Stimuli → Mode dropdown](./stimuli#mode-dropdown).
 
-Anatomy provides no OR toggle: the region and specimen dropdowns each select a single value or "all".
+Anatomy provides no OR toggle: the region, atlas-region, and specimen dropdowns each select a single value or "all", and combine under AND.
 
 ## Worked example
 
@@ -63,4 +63,4 @@ A click-focused cell or lasso group is retained across filter changes, even when
 - [Transcriptomics](./transcriptomics) — gene multi-select and subtype dropdown.
 - [Visual Stimuli](./stimuli) — the 8 stimuli and OR / AND logic.
 - [Swim correlation](./swim) — the behavioral regressor channel.
-- [Anatomy](./anatomy) — region and specimen filters.
+- [Anatomy](./anatomy) — focal region (16), mapzebrain atlas region (112), and specimen filters.

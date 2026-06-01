@@ -45,11 +45,12 @@ After loading, all per-cell quantities are held in a single in-memory dataset:
 
 - 3D positions and t-SNE coordinates,
 - per-cell gene spot counts (41 genes) and curated binary gene calls,
-- transcriptomic cluster, anatomical region, and source-specimen indices,
+- transcriptomic cluster, focal-region, and source-specimen indices,
+- mapzebrain 112-region atlas membership (packed bitfield, 14 bytes per cell),
 - quantized mean ΔF/F traces (134 samples per cell),
 - per-stimulus Pearson correlations (8 stimuli per cell, cycle-wide),
 - per-cell Pearson correlation against estimated swim power,
-- name arrays for genes, clusters, regions, and stimuli,
+- name arrays for genes, clusters, focal regions, atlas regions, and stimuli,
 - supporting metadata including the trace sample rate and stimulus on-windows.
 
 ## Rendering
