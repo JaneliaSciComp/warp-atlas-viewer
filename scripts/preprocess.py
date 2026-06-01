@@ -99,7 +99,12 @@ def main():
     for fish in ('Fish2', 'Fish3'):
         other = np.load(DATA / fish / 'region_names.npy', allow_pickle=True)
         assert (other == atlas_names).all(), f'{fish}/region_names.npy diverges from Fish1'
-    atlas_names = [str(s).replace('_', ' ') for s in atlas_names.tolist()]
+    # Convert source identifiers like `pretectum__alar_part` to display
+    # labels without leaving double spaces from doubled underscores.
+    atlas_names = [
+        ' '.join(str(s).replace('_', ' ').split())
+        for s in atlas_names.tolist()
+    ]
     assert len(atlas_names) == 112
     assert atlas_mask.shape[1] == 112
     # cluster_labelsAll2 is the canonical 1-indexed labeling: label 0 means
