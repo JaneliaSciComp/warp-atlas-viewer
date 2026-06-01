@@ -56,6 +56,14 @@ export function SearchSelect({
 
   const selected = options.find((o) => o.value === value);
   const selectedLabel = selected?.label ?? '';
+  // Reserve enough width for the longest option's label so the trigger
+  // (and the arrow buttons next to it) don't reflow as the user cycles
+  // through values. The widget uses a monospace font, so character
+  // count is a faithful proxy for rendered width without measuring DOM.
+  const longestLabel = options.reduce(
+    (a, o) => (o.label.length > a.length ? o.label : a),
+    '',
+  );
 
   // Close on outside-click and on Escape. Both the trigger button and
   // the (portaled) popover count as inside.
@@ -187,15 +195,26 @@ export function SearchSelect({
         aria-controls={listboxId}
         onClick={() => setOpen((o) => !o)}
         title={selectedLabel}
-        className={
-          'flex items-center justify-between gap-1 bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-neutral-200 font-mono text-left' +
-          (truncateClass
-            ? ` ${truncateClass} overflow-hidden text-ellipsis whitespace-nowrap`
-            : '')
-        }
+        className="flex items-center justify-between gap-1 bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-neutral-200 font-mono text-left"
       >
-        <span className="overflow-hidden text-ellipsis whitespace-nowrap">
-          {selectedLabel}
+        {/* Sizer + selected label overlay. The invisible sizer reserves
+         *  width for the longest option (capped by truncateClass), and
+         *  the visible label is absolutely positioned on top. Keeps the
+         *  trigger width fixed so the arrow buttons stay put while
+         *  cycling. */}
+        <span className="relative inline-block">
+          <span
+            aria-hidden
+            className={
+              'invisible block whitespace-nowrap overflow-hidden' +
+              (truncateClass ? ` ${truncateClass}` : '')
+            }
+          >
+            {longestLabel || ' '}
+          </span>
+          <span className="absolute inset-0 overflow-hidden text-ellipsis whitespace-nowrap">
+            {selectedLabel}
+          </span>
         </span>
         <span aria-hidden className="text-neutral-500">▾</span>
       </button>
