@@ -79,7 +79,8 @@ export function AnatomyCard({
             { value: -1, label: 'all' },
             ...atlasOrder.map(({ name, i, count }) => ({
               value: i,
-              label: `${name} (${count.toLocaleString()})`,
+              label: name,
+              aside: count.toLocaleString(),
             })),
           ]}
           arrows

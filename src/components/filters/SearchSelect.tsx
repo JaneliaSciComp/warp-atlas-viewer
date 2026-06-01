@@ -5,6 +5,9 @@ import { Command } from 'cmdk';
 export interface SearchOption {
   value: number;
   label: string;
+  /** Optional right-aligned secondary text (e.g. a cell count). Rendered
+   *  in a dimmer color, not included in the searchable value. */
+  aside?: string;
 }
 
 /** Searchable combobox built on cmdk. Used for dropdowns where the
@@ -56,6 +59,7 @@ export function SearchSelect({
 
   const selected = options.find((o) => o.value === value);
   const selectedLabel = selected?.label ?? '';
+  const selectedAside = selected?.aside;
   // Reserve enough width for the longest option's label so the trigger
   // (and the arrow buttons next to it) don't reflow as the user cycles
   // through values. The widget uses a monospace font, so character
@@ -64,6 +68,16 @@ export function SearchSelect({
     (a, o) => (o.label.length > a.length ? o.label : a),
     '',
   );
+  const widestAside = options.reduce(
+    (a, o) => ((o.aside?.length ?? 0) > a.length ? (o.aside ?? '') : a),
+    '',
+  );
+  const hasAside = widestAside.length > 0;
+  // Concatenate longest name + widest aside in the sizer so the trigger
+  // budgets for the worst-case row, even if no single option actually
+  // pairs the two extremes. The two-space spacer roughly matches the
+  // visible flex `gap-2` in the foreground layer.
+  const sizerText = hasAside ? `${longestLabel}  ${widestAside}` : longestLabel;
 
   // Close on outside-click and on Escape. Both the trigger button and
   // the (portaled) popover count as inside.
@@ -160,12 +174,15 @@ export function SearchSelect({
                   setOpen(false);
                 }}
                 className={
-                  'px-2 py-1 text-xs font-mono cursor-pointer text-neutral-300 whitespace-nowrap ' +
+                  'flex items-center gap-3 px-2 py-1 text-xs font-mono cursor-pointer text-neutral-300 whitespace-nowrap ' +
                   'data-[selected=true]:bg-neutral-700 data-[selected=true]:text-neutral-100 ' +
                   (o.value === value ? 'text-neutral-100' : '')
                 }
               >
-                {o.label}
+                <span className="truncate min-w-0">{o.label}</span>
+                {o.aside && (
+                  <span className="ml-auto shrink-0 text-neutral-500">{o.aside}</span>
+                )}
               </Command.Item>
             ))}
           </Command.List>
@@ -210,10 +227,13 @@ export function SearchSelect({
               (truncateClass ? ` ${truncateClass}` : '')
             }
           >
-            {longestLabel || ' '}
+            {sizerText || ' '}
           </span>
-          <span className="absolute inset-0 overflow-hidden text-ellipsis whitespace-nowrap">
-            {selectedLabel}
+          <span className="absolute inset-0 flex items-center gap-3 overflow-hidden">
+            <span className="truncate min-w-0">{selectedLabel}</span>
+            {selectedAside && (
+              <span className="ml-auto shrink-0 text-neutral-500">{selectedAside}</span>
+            )}
           </span>
         </span>
         <span aria-hidden className="text-neutral-500">▾</span>
