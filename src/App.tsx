@@ -53,6 +53,7 @@ const INITIAL_FILTER: FilterState = {
   showUnassignedRegion: true,
   regionPalette: 'nipy_spectral',
   isolatedRegion: -1,
+  isolatedAtlasRegion: -1,
   isolatedFish: -1,
   txMode: 'all',
   selectedGenes: [],

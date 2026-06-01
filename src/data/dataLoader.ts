@@ -1,8 +1,8 @@
 import type { NeuronDataset } from './types';
 import { generateMockData } from './mockData';
 
-export interface ManifestV2 {
-  version: 2;
+export interface ManifestV3 {
+  version: 3;
   count: number;
   traceLength: number;
   traceSampleRateHz?: number;
@@ -13,6 +13,8 @@ export interface ManifestV2 {
   nStimuli: number;
   geneNames: string[];
   regionNames: string[];
+  /** 112 mapzebrain atlas region names (Modified from Kunst et al., 2019). */
+  atlasRegionNames: string[];
   stimulusNames: string[];
   clusterNames: string[];
   bounds: { min: [number, number, number]; max: [number, number, number] };
@@ -27,6 +29,7 @@ export interface ManifestV2 {
     stimulusCorr: string;
     swimCorr: string;
     activityTrace: string;
+    atlasRegionMask: string;
     regressors?: string;
   };
 }
@@ -66,9 +69,12 @@ export async function loadNeuronDataset(
         `or append ?mock=1 to the URL to load a synthetic demo atlas.`,
     );
   }
-  const manifest = (await res.json()) as ManifestV2;
-  if (manifest.version !== 2) {
-    throw new Error(`unsupported manifest version ${manifest.version} (expected 2)`);
+  const manifest = (await res.json()) as ManifestV3;
+  if (manifest.version !== 3) {
+    throw new Error(
+      `unsupported manifest version ${manifest.version} (expected 3). ` +
+        `Re-run scripts/preprocess.py to regenerate ${PREPROCESSED_BASE}.`,
+    );
   }
   validateManifest(manifest);
   return await loadFromManifest(manifest, onProgress);
@@ -78,7 +84,7 @@ export async function loadNeuronDataset(
  *  assumes these are well-formed (counts drive typed-array sizes, bounds
  *  drive camera framing, quant drives trace decoding), so catching
  *  malformed values here saves a forensic dive later. */
-export function validateManifest(m: ManifestV2): void {
+export function validateManifest(m: ManifestV3): void {
   const posInt = (name: string, v: unknown) => {
     if (!Number.isInteger(v) || (v as number) <= 0) {
       throw new Error(`manifest.${name} must be a positive integer (got ${JSON.stringify(v)})`);
@@ -97,6 +103,9 @@ export function validateManifest(m: ManifestV2): void {
   }
   if (!Array.isArray(m.regionNames) || m.regionNames.length === 0) {
     throw new Error('manifest.regionNames must be a non-empty array');
+  }
+  if (!Array.isArray(m.atlasRegionNames) || m.atlasRegionNames.length === 0) {
+    throw new Error('manifest.atlasRegionNames must be a non-empty array');
   }
   if (!Array.isArray(m.clusterNames) || m.clusterNames.length === 0) {
     throw new Error('manifest.clusterNames must be a non-empty array');
@@ -129,25 +138,27 @@ export function validateManifest(m: ManifestV2): void {
  *  — all of which would otherwise silently produce mis-shaped typed
  *  arrays that read past valid data or NaN downstream. */
 export function expectedBytes(
-  key: keyof ManifestV2['files'],
-  m: ManifestV2,
+  key: keyof ManifestV3['files'],
+  m: ManifestV3,
 ): number {
   const C = m.count;
   const G = m.geneNames.length;
   const S = m.nStimuli;
   const T = m.traceLength;
+  const Abytes = Math.ceil(m.atlasRegionNames.length / 8);
   switch (key) {
-    case 'positions':     return C * 3 * 4; // float32
-    case 'regionIds':     return C * 2;     // int16
-    case 'clusterIds':    return C * 2;     // int16
-    case 'fishIds':       return C;         // uint8
-    case 'geneCounts':    return C * G * 4; // float32
-    case 'geneBinary':    return C * G;     // uint8
-    case 'umap':          return C * 2 * 4; // float32
-    case 'stimulusCorr':  return C * S * 4; // float32
-    case 'swimCorr':      return C * 4;     // float32
-    case 'activityTrace': return C * T * 2; // uint16
-    case 'regressors':    return S * T * 4; // float32, NOT per-cell
+    case 'positions':       return C * 3 * 4; // float32
+    case 'regionIds':       return C * 2;     // int16
+    case 'clusterIds':      return C * 2;     // int16
+    case 'fishIds':         return C;         // uint8
+    case 'geneCounts':      return C * G * 4; // float32
+    case 'geneBinary':      return C * G;     // uint8
+    case 'umap':            return C * 2 * 4; // float32
+    case 'stimulusCorr':    return C * S * 4; // float32
+    case 'swimCorr':        return C * 4;     // float32
+    case 'activityTrace':   return C * T * 2; // uint16
+    case 'atlasRegionMask': return C * Abytes; // packed bitfield
+    case 'regressors':      return S * T * 4; // float32, NOT per-cell
   }
 }
 
@@ -216,7 +227,7 @@ function decodeActivityTrace(
 }
 
 async function loadFromManifest(
-  m: ManifestV2,
+  m: ManifestV3,
   onProgress?: LoadProgressCallback,
 ): Promise<NeuronDataset> {
   console.info(
@@ -226,10 +237,10 @@ async function loadFromManifest(
   const t0 = performance.now();
 
   // List of binary files we need (skip optional regressors if absent).
-  const fileKeys: Array<keyof ManifestV2['files']> = [
+  const fileKeys: Array<keyof ManifestV3['files']> = [
     'positions', 'regionIds', 'clusterIds', 'fishIds',
     'geneCounts', 'geneBinary', 'umap', 'stimulusCorr', 'swimCorr',
-    'activityTrace',
+    'activityTrace', 'atlasRegionMask',
   ];
   if (m.files.regressors) fileKeys.push('regressors');
 
@@ -299,6 +310,8 @@ async function loadFromManifest(
     traceSampleRateHz: m.traceSampleRateHz ?? 1.0,
     stimulusWindowsSec: m.stimulusWindowsSec,
     regressors: lookup.has('regressors') ? new Float32Array(lookup.get('regressors')!) : undefined,
+    atlasRegionMask: new Uint8Array(lookup.get('atlasRegionMask')!),
+    atlasRegionNames: m.atlasRegionNames,
     geneNames: m.geneNames,
     regionNames: m.regionNames,
     stimulusNames: m.stimulusNames,

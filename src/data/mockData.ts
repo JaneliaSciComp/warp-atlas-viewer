@@ -42,6 +42,11 @@ export function generateMockData(n: number = 10000): NeuronDataset {
   const stimulusCorr = new Float32Array(n * N_STIMULI);
   const swimCorr = new Float32Array(n);
   const activityTrace = new Float32Array(n * TIMEPOINTS);
+  // 112-region atlas membership, packed bitfield (14 bytes per cell,
+  // bits little-endian) so mock cells look real-shaped to coloring.ts.
+  const N_ATLAS = 112;
+  const ATLAS_BYTES = Math.ceil(N_ATLAS / 8); // 14
+  const atlasRegionMask = new Uint8Array(n * ATLAS_BYTES);
 
   // Brain shape: ellipsoid.
   const AP = 600;
@@ -51,6 +56,7 @@ export function generateMockData(n: number = 10000): NeuronDataset {
   const clusterCenters: Array<{
     x: number; y: number; z: number;
     region: number;
+    atlasRegions: number[];
     geneSig: number[];
     stimSig: number[];
     swimSig: number;
@@ -63,6 +69,9 @@ export function generateMockData(n: number = 10000): NeuronDataset {
       y: ML * 0.5 + (rand() - 0.5) * ML * 0.6,
       z: DV * 0.5 + (rand() - 0.5) * DV * 0.6,
       region,
+      // 2–5 atlas regions per cluster — roughly tracks the real
+      // distribution where most cells sit in 2–5 overlapping leaves.
+      atlasRegions: pickK(N_ATLAS, 2 + Math.floor(rand() * 4), rand),
       geneSig: pickK(N_GENES, 2 + Math.floor(rand() * 4), rand),
       stimSig: Array.from({ length: N_STIMULI }, () => rand() * 0.9 - 0.1),
       swimSig: (rand() - 0.5) * 0.8,
@@ -75,6 +84,12 @@ export function generateMockData(n: number = 10000): NeuronDataset {
     clusterIds[i] = cid;
     regionIds[i] = c.region;
     fishIds[i] = i % 3;
+
+    const atlasBase = i * ATLAS_BYTES;
+    for (let k = 0; k < c.atlasRegions.length; k++) {
+      const r = c.atlasRegions[k];
+      atlasRegionMask[atlasBase + (r >> 3)] |= 1 << (r & 7);
+    }
 
     const dx = randn() * 30;
     const dy = randn() * 25;
@@ -166,6 +181,8 @@ export function generateMockData(n: number = 10000): NeuronDataset {
       return [center - 4, center + 4] as [number, number];
     }),
     regressors,
+    atlasRegionMask,
+    atlasRegionNames: Array.from({ length: N_ATLAS }, (_, i) => `atlas region ${i + 1}`),
     geneNames: [...GENE_NAMES],
     regionNames: [...REGION_NAMES],
     stimulusNames: [...STIMULUS_NAMES],

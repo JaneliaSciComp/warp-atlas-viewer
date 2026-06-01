@@ -3,6 +3,7 @@ import {
   allocColoring,
   anyFilterActive,
   applyColoring,
+  cellInAtlasRegion,
   cellInSet,
   cellIsRenderable,
   cellPasses,
@@ -36,6 +37,13 @@ const TEST_DATA: NeuronDataset = {
   activityTrace: new Float32Array(4),
   traceLength: 1,
   traceSampleRateHz: 1,
+  // 3 atlas regions, 1 byte/cell, bits little-endian:
+  //   cell 0 in {a0, a2}  → 0b00000101 = 5
+  //   cell 1 in {a1, a2}  → 0b00000110 = 6
+  //   cell 2 in {a0, a2}  → 0b00000101 = 5
+  //   cell 3 in {a1}      → 0b00000010 = 2
+  atlasRegionMask: new Uint8Array([5, 6, 5, 2]),
+  atlasRegionNames: ['a0', 'a1', 'a2'],
   geneNames: ['g0', 'g1'],
   regionNames: ['r0', 'r1'],
   stimulusNames: ['stim_0', 'stim_1'],
@@ -50,6 +58,7 @@ const BASE_FILTER: FilterState = {
   showUnassignedRegion: true,
   regionPalette: 'nipy_spectral',
   isolatedRegion: -1,
+  isolatedAtlasRegion: -1,
   isolatedFish: -1,
   txMode: 'all',
   selectedGenes: [],
@@ -78,6 +87,19 @@ describe('cellPasses', () => {
   it('isolates a region', () => {
     expect(passes({ ...BASE_FILTER, isolatedRegion: 0 })).toEqual([0, 1]);
     expect(passes({ ...BASE_FILTER, isolatedRegion: 1 })).toEqual([2, 3]);
+  });
+
+  it('isolates a mapzebrain atlas region', () => {
+    expect(passes({ ...BASE_FILTER, isolatedAtlasRegion: 0 })).toEqual([0, 2]);
+    expect(passes({ ...BASE_FILTER, isolatedAtlasRegion: 1 })).toEqual([1, 3]);
+    expect(passes({ ...BASE_FILTER, isolatedAtlasRegion: 2 })).toEqual([0, 1, 2]);
+  });
+
+  it('ANDs the paper region and the atlas region', () => {
+    // r0 = {0,1}, atlas a1 = {1,3} → intersection {1}
+    expect(
+      passes({ ...BASE_FILTER, isolatedRegion: 0, isolatedAtlasRegion: 1 }),
+    ).toEqual([1]);
   });
 
   it('isolates a fish', () => {
@@ -206,6 +228,24 @@ describe('cellPasses', () => {
   });
 });
 
+describe('cellInAtlasRegion', () => {
+  it('decodes packed-bit membership for each cell × region pair', () => {
+    // Per the TEST_DATA mask above:
+    //   cell 0: regions {0, 2}
+    //   cell 1: regions {1, 2}
+    //   cell 2: regions {0, 2}
+    //   cell 3: regions {1}
+    expect(cellInAtlasRegion(TEST_DATA, 0, 0)).toBe(true);
+    expect(cellInAtlasRegion(TEST_DATA, 0, 1)).toBe(false);
+    expect(cellInAtlasRegion(TEST_DATA, 0, 2)).toBe(true);
+    expect(cellInAtlasRegion(TEST_DATA, 1, 0)).toBe(false);
+    expect(cellInAtlasRegion(TEST_DATA, 1, 1)).toBe(true);
+    expect(cellInAtlasRegion(TEST_DATA, 1, 2)).toBe(true);
+    expect(cellInAtlasRegion(TEST_DATA, 3, 1)).toBe(true);
+    expect(cellInAtlasRegion(TEST_DATA, 3, 2)).toBe(false);
+  });
+});
+
 describe('anyFilterActive', () => {
   it('is false when nothing is constraining', () => {
     expect(anyFilterActive(TEST_DATA, BASE_FILTER)).toBe(false);
@@ -213,6 +253,7 @@ describe('anyFilterActive', () => {
 
   it('is true once any filter dimension is constraining', () => {
     expect(anyFilterActive(TEST_DATA, { ...BASE_FILTER, isolatedRegion: 0 })).toBe(true);
+    expect(anyFilterActive(TEST_DATA, { ...BASE_FILTER, isolatedAtlasRegion: 0 })).toBe(true);
     expect(anyFilterActive(TEST_DATA, { ...BASE_FILTER, isolatedFish: 1 })).toBe(true);
     expect(
       anyFilterActive(TEST_DATA, { ...BASE_FILTER, txMode: 'gene', selectedGenes: [0] }),

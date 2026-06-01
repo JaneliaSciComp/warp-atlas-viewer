@@ -24,6 +24,8 @@ const TEST_DATA: NeuronDataset = {
   activityTrace: new Float32Array([1, 2, 3, 4, 5, 6, 7, 8]),
   traceLength: 2,
   traceSampleRateHz: 1,
+  atlasRegionMask: new Uint8Array(4),
+  atlasRegionNames: [],
   geneNames: ['g0', 'g1'],
   regionNames: ['r0', 'r1'],
   stimulusNames: ['stim_0', 'stim_1'],

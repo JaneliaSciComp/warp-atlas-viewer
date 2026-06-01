@@ -90,6 +90,18 @@ def main():
     genes_df = np.load(PP / 'genes_df_All.npy')      # (N, 41)
     genes_bin = np.load(PP / 'BinaryGenes_All.npy')  # (N, 41)
     brain_reg = np.load(PP / 'Brain_reg.npy')        # (N,)    1..16, 0=unassigned
+    # 112-region mapzebrain atlas membership (Modified from Kunst et al.,
+    # 2019). Overlapping/hierarchical — each cell can sit in 0..9 regions
+    # (e.g. cerebellum ⊂ rhombencephalon). Region names live in the
+    # per-fish region_names.npy files; all three fish ship identical lists.
+    atlas_mask = np.load(PP / 'BrainRegions_All.npy')  # (N, 112) bool
+    atlas_names = np.load(DATA / 'Fish1' / 'region_names.npy', allow_pickle=True)
+    for fish in ('Fish2', 'Fish3'):
+        other = np.load(DATA / fish / 'region_names.npy', allow_pickle=True)
+        assert (other == atlas_names).all(), f'{fish}/region_names.npy diverges from Fish1'
+    atlas_names = [str(s).replace('_', ' ') for s in atlas_names.tolist()]
+    assert len(atlas_names) == 112
+    assert atlas_mask.shape[1] == 112
     # cluster_labelsAll2 is the canonical 1-indexed labeling: label 0 means
     # "not assigned to any of the 332 named subtypes", and label k (1..332)
     # corresponds exactly to good_cls_names[k-1] (verified by exact-profile
@@ -126,6 +138,12 @@ def main():
     genes_df = genes_df[keep_idx].astype(np.float32)
     genes_bin = genes_bin[keep_idx].astype(np.uint8)
     brain_reg_int = brain_reg[keep_idx].astype(np.int16)
+    # Pack the 112-bit membership row to 14 bytes little-endian so the JS
+    # side decodes with `(mask[i*14 + (r>>3)] >> (r&7)) & 1`.
+    atlas_mask_packed = np.packbits(
+        atlas_mask[keep_idx].astype(np.uint8), axis=1, bitorder='little'
+    )
+    assert atlas_mask_packed.shape == (keep_idx.size, 14)
     cluster_lbl = cluster_lbl[keep_idx].astype(np.int16)
     fish_id = fish_id[keep_idx].astype(np.int32)
     tsne = tsne[keep_idx].astype(np.float32)
@@ -244,6 +262,7 @@ def main():
         'swimCorr': ('swimCorr.bin', swim_corr),
         'activityTrace': ('activityTrace.bin', trace_q),
         'regressors': ('regressors.bin', regressors_avg.astype(np.float32)),
+        'atlasRegionMask': ('atlasRegionMask.bin', atlas_mask_packed),
     }
 
     for key, (name, arr) in files.items():
@@ -254,7 +273,7 @@ def main():
         print(f'[preprocess] {name:24s} {arr.dtype} {arr.shape}  {size_mb:7.2f} MB')
 
     manifest = {
-        'version': 2,
+        'version': 3,
         'count': int(n),
         'traceLength': int(trace.shape[1]),
         'traceSampleRateHz': float(effective_rate),
@@ -263,6 +282,7 @@ def main():
         'nStimuli': int(stim_corr.shape[1]),
         'geneNames': GENE_ORDER,
         'regionNames': BRAIN_REG_NAMES,
+        'atlasRegionNames': atlas_names,
         'stimulusNames': STIMULUS_NAMES,
         'clusterNames': cluster_names,
         'bounds': {'min': bounds_min, 'max': bounds_max},

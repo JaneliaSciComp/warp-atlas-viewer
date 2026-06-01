@@ -91,6 +91,19 @@ export interface CellPredicates {
   passesSwim: boolean;
 }
 
+/** Decode bit `r` of cell `i`'s packed atlas-region membership row.
+ *  Layout: `nBytes` bytes per cell, bits little-endian within each byte.
+ *  nBytes is `ceil(atlasRegionNames.length / 8)` — derived per call so
+ *  this stays correct if a future dataset ships a different region count. */
+export function cellInAtlasRegion(
+  ds: NeuronDataset,
+  i: number,
+  r: number,
+): boolean {
+  const nBytes = Math.ceil(ds.atlasRegionNames.length / 8);
+  return ((ds.atlasRegionMask[i * nBytes + (r >> 3)] >> (r & 7)) & 1) === 1;
+}
+
 export function cellPasses(
   ds: NeuronDataset,
   filter: FilterState,
@@ -106,6 +119,7 @@ export function cellPasses(
   // Anatomy card.
   const inRegion =
     (filter.isolatedRegion < 0 || ds.regionIds[i] === filter.isolatedRegion) &&
+    (filter.isolatedAtlasRegion < 0 || cellInAtlasRegion(ds, i, filter.isolatedAtlasRegion)) &&
     (filter.isolatedFish < 0 || ds.fishIds[i] === filter.isolatedFish);
 
   const genes = filter.selectedGenes;
@@ -213,6 +227,7 @@ export function anyFilterActive(ds: NeuronDataset, filter: FilterState): boolean
   const stimsActive = filter.selectedStimuli.length > 0 && filter.stimMode !== 'off';
   return (
     filter.isolatedRegion >= 0 ||
+    filter.isolatedAtlasRegion >= 0 ||
     filter.isolatedFish >= 0 ||
     (filter.txMode === 'gene' && filter.selectedGenes.length > 0) ||
     filter.txMode === 'subtype' ||
@@ -371,6 +386,11 @@ export function applyColoring(
   // exists for single-cell callers (picker, lasso), where allocation
   // cost is negligible.
   const isoRegion = filter.isolatedRegion;
+  const isoAtlasRegion = filter.isolatedAtlasRegion;
+  const atlasMaskArr = ds.atlasRegionMask;
+  const atlasBytesPerCell = Math.ceil(ds.atlasRegionNames.length / 8);
+  const atlasByteOff = isoAtlasRegion >= 0 ? isoAtlasRegion >> 3 : 0;
+  const atlasBitMask = isoAtlasRegion >= 0 ? 1 << (isoAtlasRegion & 7) : 0;
   const isoFish = filter.isolatedFish;
   const txMode = filter.txMode;
   const geneSelArr = filter.selectedGenes;
@@ -396,6 +416,7 @@ export function applyColoring(
   const hideUnassigned = hidesUnassignedRegion(filter);
   const filterActive =
     isoRegion >= 0 ||
+    isoAtlasRegion >= 0 ||
     isoFish >= 0 ||
     geneFilterActive ||
     clusterFilterActive ||
@@ -435,6 +456,8 @@ export function applyColoring(
     const renderable = !(hideUnassigned && regionIds[i] === 0);
     const inRegion =
       (isoRegion < 0 || regionIds[i] === isoRegion) &&
+      (isoAtlasRegion < 0 ||
+        (atlasMaskArr[i * atlasBytesPerCell + atlasByteOff] & atlasBitMask) !== 0) &&
       (isoFish < 0 || fishIds[i] === isoFish);
     let passesTx = true;
     if (geneFilterActive) {
@@ -564,8 +587,10 @@ export function applyColoring(
       size = baseSize;
       const inRegion =
         (isoRegion < 0 || regionIds[i] === isoRegion) &&
+        (isoAtlasRegion < 0 ||
+          (atlasMaskArr[i * atlasBytesPerCell + atlasByteOff] & atlasBitMask) !== 0) &&
         (isoFish < 0 || fishIds[i] === isoFish);
-      const liftBranch = inRegion && isolatedRegion >= 0;
+      const liftBranch = inRegion && (isolatedRegion >= 0 || isoAtlasRegion >= 0);
       const baseAlpha = liftBranch ? LIFT_ALPHA : DIM_ALPHA;
       if (filterActive) {
         const t = effectiveGhostIntensity;
@@ -656,7 +681,7 @@ export function applyColoring(
             // in-region cells when a region is isolated so the region's
             // outline still reads through the plasma foreground.
             r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2];
-            alpha = isolatedRegion >= 0 ? LIFT_ALPHA : DIM_ALPHA;
+            alpha = isolatedRegion >= 0 || isoAtlasRegion >= 0 ? LIFT_ALPHA : DIM_ALPHA;
           } else {
             const c = plasma(v);
             r = c[0]; g = c[1]; b = c[2];
@@ -683,7 +708,7 @@ export function applyColoring(
           const v = Math.max(0, Math.min(1, (dff - ACTIVITY_LO) / activityRange));
           if (v <= 0) {
             r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2];
-            alpha = isolatedRegion >= 0 ? LIFT_ALPHA : DIM_ALPHA;
+            alpha = isolatedRegion >= 0 || isoAtlasRegion >= 0 ? LIFT_ALPHA : DIM_ALPHA;
           } else {
             const c = plasma(v);
             r = c[0]; g = c[1]; b = c[2];

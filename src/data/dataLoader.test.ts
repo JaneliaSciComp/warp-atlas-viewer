@@ -3,12 +3,12 @@ import {
   expectedBytes,
   validateBuffer,
   validateManifest,
-  type ManifestV2,
+  type ManifestV3,
 } from './dataLoader';
 
-function validManifest(overrides: Partial<ManifestV2> = {}): ManifestV2 {
+function validManifest(overrides: Partial<ManifestV3> = {}): ManifestV3 {
   return {
-    version: 2,
+    version: 3,
     count: 4,
     traceLength: 2,
     traceSampleRateHz: 1,
@@ -16,6 +16,7 @@ function validManifest(overrides: Partial<ManifestV2> = {}): ManifestV2 {
     nStimuli: 2,
     geneNames: ['g0', 'g1'],
     regionNames: ['r0'],
+    atlasRegionNames: ['a0', 'a1', 'a2'],
     stimulusNames: ['s0', 's1'],
     clusterNames: ['c0'],
     bounds: { min: [0, 0, 0], max: [1, 1, 1] },
@@ -30,6 +31,7 @@ function validManifest(overrides: Partial<ManifestV2> = {}): ManifestV2 {
       stimulusCorr: 'stimulusCorr.bin',
       swimCorr: 'swimCorr.bin',
       activityTrace: 'activityTrace.bin',
+      atlasRegionMask: 'atlasRegionMask.bin',
     },
     ...overrides,
   };
@@ -49,6 +51,7 @@ describe('validateManifest', () => {
   it('rejects empty name arrays', () => {
     expect(() => validateManifest(validManifest({ geneNames: [] }))).toThrow(/geneNames/);
     expect(() => validateManifest(validManifest({ regionNames: [] }))).toThrow(/regionNames/);
+    expect(() => validateManifest(validManifest({ atlasRegionNames: [] }))).toThrow(/atlasRegionNames/);
     expect(() => validateManifest(validManifest({ clusterNames: [] }))).toThrow(/clusterNames/);
   });
 
@@ -90,6 +93,7 @@ describe('expectedBytes', () => {
   // stimulusCorr   4 * 2 * 4 = 32
   // swimCorr       4 * 4     = 16
   // activityTrace  4 * 2 * 2 = 16 (uint16)
+  // atlasRegionMask 4 * ceil(3/8) = 4 (packed bitfield, 3 atlas regions = 1 byte/cell)
   // regressors     2 * 2 * 4 = 16  ← per-stim × traceLength, NOT per-cell
   const m = validManifest();
 
@@ -104,6 +108,7 @@ describe('expectedBytes', () => {
     ['stimulusCorr', 32],
     ['swimCorr', 16],
     ['activityTrace', 16],
+    ['atlasRegionMask', 4],
     ['regressors', 16],
   ] as const)('sizes %s as %d bytes', (key, expected) => {
     expect(expectedBytes(key, m)).toBe(expected);

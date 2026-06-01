@@ -182,6 +182,7 @@ function validateFilter(raw: unknown): Partial<FilterState> {
   if (typeof f.showUnassignedRegion === 'boolean') out.showUnassignedRegion = f.showUnassignedRegion;
   if (isString(f.regionPalette, REGION_PALETTES)) out.regionPalette = f.regionPalette;
   if (isInt(f.isolatedRegion) && f.isolatedRegion >= -1) out.isolatedRegion = f.isolatedRegion;
+  if (isInt(f.isolatedAtlasRegion) && f.isolatedAtlasRegion >= -1) out.isolatedAtlasRegion = f.isolatedAtlasRegion;
   if (isInt(f.isolatedFish) && f.isolatedFish >= -1) out.isolatedFish = f.isolatedFish;
   if (isString(f.txMode, TX_MODES)) out.txMode = f.txMode;
   if (Array.isArray(f.selectedGenes)) {
@@ -366,12 +367,15 @@ export function sanitizeFilterAgainstDataset(
   const G = data.geneNames.length;
   const C = data.clusterNames.length;
   const R = data.regionNames.length;
+  const AR = data.atlasRegionNames.length;
   const S = data.stimulusNames.length;
   const T = data.traceLength;
   const fishSet = fishIdSet(data.fishIds);
   return {
     ...f,
     isolatedRegion: f.isolatedRegion >= -1 && f.isolatedRegion < R ? f.isolatedRegion : -1,
+    isolatedAtlasRegion:
+      f.isolatedAtlasRegion >= -1 && f.isolatedAtlasRegion < AR ? f.isolatedAtlasRegion : -1,
     isolatedFish: f.isolatedFish === -1 || fishSet.has(f.isolatedFish) ? f.isolatedFish : -1,
     selectedGenes: f.selectedGenes.filter((g) => g >= 0 && g < G),
     selectedCluster: f.selectedCluster >= 0 && f.selectedCluster < C ? f.selectedCluster : 0,

@@ -17,6 +17,7 @@ const INITIAL_FILTER: FilterState = {
   showUnassignedRegion: true,
   regionPalette: 'nipy_spectral',
   isolatedRegion: -1,
+  isolatedAtlasRegion: -1,
   isolatedFish: -1,
   txMode: 'all',
   selectedGenes: [],
@@ -94,6 +95,14 @@ describe('encodeHash / decodeHash', () => {
     });
     const decoded = decodeHash(bogus);
     expect(decoded?.filter?.isolatedRegion).toBeUndefined();
+  });
+
+  it('round-trips isolatedAtlasRegion', () => {
+    const hash = encodeHash({ filter: { isolatedAtlasRegion: 42 } });
+    const decoded = decodeHash(hash);
+    expect(decoded?.filter?.isolatedAtlasRegion).toBe(42);
+    const bogus = encodeHash({ filter: { isolatedAtlasRegion: -7 as number } });
+    expect(decodeHash(bogus)?.filter?.isolatedAtlasRegion).toBeUndefined();
   });
 
   it('dedupes and sorts selectedGenes / selectedStimuli on parse', () => {

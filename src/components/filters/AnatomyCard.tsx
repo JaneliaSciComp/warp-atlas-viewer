@@ -31,6 +31,13 @@ export function AnatomyCard({
     const full = matchesPaperLayout ? REGION_FULL_NAMES[i] : undefined;
     return !full || full === abbr ? abbr : `${abbr} — ${full}`;
   };
+  // 112-region mapzebrain atlas (Modified from Kunst et al., 2019).
+  // Sorted alphabetically by display label — the names are long and not
+  // shared with the paper's 16-region vocabulary, so anatomical order
+  // doesn't carry through and alphabetical is easier to scan.
+  const atlasOrder = data.atlasRegionNames
+    .map((name, i) => ({ name, i }))
+    .sort((a, b) => a.name.localeCompare(b.name));
   return (
     <Card title="Anatomy">
       <Select
@@ -40,6 +47,16 @@ export function AnatomyCard({
         options={[
           ALL_OPTION,
           ...regionOrder.map((i) => ({ value: i, label: regionLabel(i) })),
+        ]}
+        arrows
+      />
+      <Select
+        label="atlas region"
+        value={filter.isolatedAtlasRegion}
+        onChange={(v) => update({ isolatedAtlasRegion: v })}
+        options={[
+          ALL_OPTION,
+          ...atlasOrder.map(({ name, i }) => ({ value: i, label: name })),
         ]}
         arrows
       />

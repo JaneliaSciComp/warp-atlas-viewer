@@ -35,6 +35,15 @@ export interface NeuronDataset {
     /** Metadata. */
     geneNames: string[];
     regionNames: string[];
+    /** Names of the 112 mapzebrain atlas regions (Modified from Kunst
+     *  et al., 2019). Underscores in the source data are rewritten to
+     *  spaces for display. Cells can belong to multiple regions (the
+     *  atlas is hierarchical: e.g. cerebellum ⊂ rhombencephalon). */
+    atlasRegionNames: string[];
+    /** Packed bitfield encoding 112-bit per-cell atlas membership.
+     *  Layout: 14 bytes (little-endian bits) per cell, row-major.
+     *  Decode with `(atlasRegionMask[i*14 + (r>>3)] >> (r&7)) & 1`. */
+    atlasRegionMask: Uint8Array;
     stimulusNames: string[];
     clusterNames: string[];
 
@@ -121,6 +130,11 @@ export interface FilterState {
 
     // ── Anatomy filter ────────────────────────────────────────────────
     isolatedRegion: number; // index into regionNames, -1 = show all
+    /** Index into atlasRegionNames (0..111), -1 = show all. ANDed with
+     *  isolatedRegion: a cell passes only if it's in BOTH the chosen
+     *  paper focal region (if set) AND the chosen mapzebrain atlas
+     *  region (if set). */
+    isolatedAtlasRegion: number;
     /** Fish-of-origin filter: 0..nFish-1 keeps only cells from that
      *  specimen; -1 keeps all (the pooled-atlas default). Mirrors how
      *  the WARP paper's main figures pool all 3 fish but supplements
