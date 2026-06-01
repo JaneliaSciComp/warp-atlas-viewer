@@ -147,11 +147,11 @@ export function DetailPanel({ data, filter, settings, selection, focusedNeuron }
 
       <section className="mb-3 text-xs font-mono text-neutral-300 space-y-0.5">
         <div>
-          <span className="text-neutral-500">regions:</span>{' '}
+          <span className="text-neutral-500">manuscript regions:</span>{' '}
           {topItems(stats.regionCounts, data.regionNames, 3)}
         </div>
         <div>
-          <span className="text-neutral-500">atlas:</span>{' '}
+          <span className="text-neutral-500">mapZebrain regions:</span>{' '}
           {topItems(stats.atlasRegionCounts, data.atlasRegionNames, 5)}
         </div>
         <div>
