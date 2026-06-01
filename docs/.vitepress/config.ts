@@ -103,6 +103,7 @@ export default defineConfig({
         items: [
           { text: 'Selections', link: '/selections' },
           { text: 'Sharing views', link: '/sharing' },
+          { text: 'Exporting cells', link: '/export' },
           { text: 'Settings', link: '/settings' },
         ],
       },

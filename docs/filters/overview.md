@@ -25,6 +25,8 @@ The Filters tab's **Reset** button restores the viewer's default filter state in
 
 A small readout next to the reset button reports the **number of cells currently visible**. A cell counts as visible when its final rendered alpha is ≥ 0.5 — so cells dropped by the active filters, the ghost visibility (see [Settings → 3D point density](/settings#3d-point-density)), and the [fade-weak-correlations](/settings#fade-weak-correlations) alpha modulation all drop out of the count.
 
+The same population — the *effective set* — is what the [**Export**](/export) button in the viewer header writes to CSV.
+
 ## OR versus AND within a card
 
 Two cards support a logical toggle on selections within them:

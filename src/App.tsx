@@ -7,6 +7,7 @@ import { useSelection } from './hooks/useSelection';
 import { useUniqueFishIds } from './hooks/useUniqueFishIds';
 import { FilterControls } from './components/FilterControls';
 import { LinksMenu } from './components/LinksMenu';
+import { ExportButton } from './components/ExportButton';
 import { ColorLegend } from './components/ColorLegend';
 import { anyFilterActive, cellInSet } from './utils/coloring';
 import {
@@ -669,6 +670,7 @@ export default function App() {
           </p>
         </div>
         <div className="flex items-center gap-4">
+          <ExportButton data={data} effectiveSelection={effectiveSelection} />
           <LinksMenu />
           <a
             href="https://www.janelia.org"
