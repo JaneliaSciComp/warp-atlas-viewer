@@ -160,7 +160,7 @@ export function TranscriptomicsCard({
             .map((c, i) => ({ value: i, label: c }))
             .sort((a, b) => a.label.localeCompare(b.label))}
           arrows
-          truncateClass="max-w-[15rem]"
+          truncateClass="max-w-[10rem]"
         />
       )}
     </Card>
