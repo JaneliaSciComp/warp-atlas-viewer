@@ -254,6 +254,34 @@ describe('cellInAtlasRegion', () => {
     expect(cellInAtlasRegion(TEST_DATA, 3, 1)).toBe(true);
     expect(cellInAtlasRegion(TEST_DATA, 3, 2)).toBe(false);
   });
+
+  it('decodes memberships across packed-byte boundaries', () => {
+    // 17 atlas regions → 3 bytes/cell. This catches off-by-one errors in
+    // both halves of the bit address: byte index `(r >> 3)` and bit index
+    // `(r & 7)`.
+    const ds: NeuronDataset = {
+      ...TEST_DATA,
+      count: 2,
+      atlasRegionNames: Array.from({ length: 17 }, (_, i) => `a${i}`),
+      atlasRegionMask: new Uint8Array([
+        // cell 0: regions {0, 8, 16}
+        0b00000001, 0b00000001, 0b00000001,
+        // cell 1: regions {7, 15}
+        0b10000000, 0b10000000, 0b00000000,
+      ]),
+    };
+
+    expect(cellInAtlasRegion(ds, 0, 0)).toBe(true);
+    expect(cellInAtlasRegion(ds, 0, 8)).toBe(true);
+    expect(cellInAtlasRegion(ds, 0, 16)).toBe(true);
+    expect(cellInAtlasRegion(ds, 0, 7)).toBe(false);
+    expect(cellInAtlasRegion(ds, 0, 15)).toBe(false);
+
+    expect(cellInAtlasRegion(ds, 1, 7)).toBe(true);
+    expect(cellInAtlasRegion(ds, 1, 15)).toBe(true);
+    expect(cellInAtlasRegion(ds, 1, 8)).toBe(false);
+    expect(cellInAtlasRegion(ds, 1, 16)).toBe(false);
+  });
 });
 
 describe('anyFilterActive', () => {
