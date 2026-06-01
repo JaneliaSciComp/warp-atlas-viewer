@@ -151,6 +151,10 @@ export function DetailPanel({ data, filter, settings, selection, focusedNeuron }
           {topItems(stats.regionCounts, data.regionNames, 3)}
         </div>
         <div>
+          <span className="text-neutral-500">atlas:</span>{' '}
+          {topItems(stats.atlasRegionCounts, data.atlasRegionNames, 5)}
+        </div>
+        <div>
           <span className="text-neutral-500">clusters:</span>{' '}
           {topItems(stats.clusterCounts, data.clusterNames, 3)}
         </div>
@@ -478,8 +482,14 @@ export function computeStats(data: NeuronDataset, indices: Uint32Array | null, s
   const stimulusMeans = new Float32Array(S);
   const meanTrace = new Float32Array(T);
   const regionCounts = new Map<number, number>();
+  const atlasRegionCounts = new Map<number, number>();
   const clusterCounts = new Map<number, number>();
   const fishCounts = new Map<number, number>();
+  // Atlas membership is a packed bitfield: 14 bytes / 112 bits per cell
+  // in WARP. Derive sizing from the dataset so a future atlas with a
+  // different region count still works.
+  const A = data.atlasRegionNames.length;
+  const atlasBytes = Math.ceil(A / 8);
   // Swim correlation summary. swimMean matches the per-stimulus chart's
   // arithmetic-mean convention. swimPos/Neg/Off partition the selection
   // by the user's responsive-floor magnitude so a mixed group doesn't
@@ -515,6 +525,12 @@ export function computeStats(data: NeuronDataset, indices: Uint32Array | null, s
     inc(regionCounts, data.regionIds[i]);
     inc(clusterCounts, data.clusterIds[i]);
     inc(fishCounts, data.fishIds[i]);
+    const atlasBase = i * atlasBytes;
+    for (let r = 0; r < A; r++) {
+      if ((data.atlasRegionMask[atlasBase + (r >> 3)] >> (r & 7)) & 1) {
+        inc(atlasRegionCounts, r);
+      }
+    }
   }
   const inv = 1 / n;
   for (let g = 0; g < G; g++) geneMeans[g] *= inv;
@@ -525,7 +541,7 @@ export function computeStats(data: NeuronDataset, indices: Uint32Array | null, s
 
   return {
     geneMeans, stimulusMeans, meanTrace,
-    regionCounts, clusterCounts, fishCounts,
+    regionCounts, atlasRegionCounts, clusterCounts, fishCounts,
     swimMean, swimPos, swimNeg, swimOff,
     swimMin, swimMax, swimBins, swimBinWidth: SWIM_BIN_WIDTH,
   };
