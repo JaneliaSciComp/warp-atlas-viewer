@@ -7,16 +7,17 @@ export interface SearchOption {
   label: string;
 }
 
-/** Searchable combobox built on cmdk. Used for long dropdowns (the
- *  112-region atlas) where the native `<select>`'s first-letter
- *  type-ahead isn't enough. Closed state visually mirrors the Select
- *  in shared.tsx so the Anatomy card reads as one consistent control
- *  set; the open state replaces the native picker with a search input
- *  + filtered list.
+/** Searchable combobox built on cmdk. Used for dropdowns where the
+ *  native `<select>`'s first-letter type-ahead isn't enough: the
+ *  112-region mapzebrain atlas, the 333 transcriptomic subtypes, and
+ *  gene-filter rows. Closed state visually mirrors the Select in
+ *  shared.tsx so mixed cards read as one consistent control set; the
+ *  open state replaces the native picker with a search input + filtered
+ *  list.
  *
  *  The control is intentionally minimal — no virtualization, no fuzzy
  *  weighting beyond cmdk's defaults — because the longest list we feed
- *  it is 112 entries. */
+ *  it is only a few hundred entries. */
 export function SearchSelect({
   label,
   value,
