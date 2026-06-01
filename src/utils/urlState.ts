@@ -107,14 +107,42 @@ export function roundLasso(poly: Float32Array): number[] {
   return out;
 }
 
+/** Collapse the three anatomy fields (anatomyAtlas / isolatedRegion /
+ *  isolatedAtlasRegion) into the URL-only compact pair (atlas / region).
+ *  Only the active atlas's region survives the round-trip; the dormant
+ *  slot is dropped since it can't affect rendering by the visible-state-
+ *  only invariant. The legacy long-form keys are still accepted by the
+ *  decoder for backward compatibility with already-shared links. */
+function compactAnatomy(f: Partial<FilterState>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...f };
+  delete out.anatomyAtlas;
+  delete out.isolatedRegion;
+  delete out.isolatedAtlasRegion;
+  const usingAtlas =
+    f.anatomyAtlas === 'mapzebrain' ||
+    (typeof f.isolatedAtlasRegion === 'number' && f.isolatedAtlasRegion >= 0);
+  if (usingAtlas) {
+    out.atlas = 'mapzebrain';
+    if (typeof f.isolatedAtlasRegion === 'number' && f.isolatedAtlasRegion >= 0) {
+      out.region = f.isolatedAtlasRegion;
+    }
+  } else if (typeof f.isolatedRegion === 'number' && f.isolatedRegion >= 0) {
+    out.region = f.isolatedRegion;
+  }
+  return out;
+}
+
 export function encodeHash(state: PersistedState): string {
-  const trimmed: PersistedState = {};
+  const trimmed: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(state) as Array<[keyof PersistedState, unknown]>) {
     if (v == null) continue;
     if (typeof v === 'string' && v.length === 0) continue;
     if (typeof v === 'object' && !Array.isArray(v) && Object.keys(v as object).length === 0) continue;
     if (Array.isArray(v) && v.length === 0) continue;
-    (trimmed as Record<string, unknown>)[k] = v;
+    trimmed[k] = v;
+  }
+  if (trimmed.filter && typeof trimmed.filter === 'object' && !Array.isArray(trimmed.filter)) {
+    trimmed.filter = compactAnatomy(trimmed.filter as Partial<FilterState>);
   }
   if (Object.keys(trimmed).length === 0) return '';
   return '#!' + encodeURIComponent(JSON.stringify(trimmed));
@@ -184,6 +212,20 @@ function validateFilter(raw: unknown): Partial<FilterState> {
   if (isString(f.geneScale, GENE_SCALES)) out.geneScale = f.geneScale;
   if (typeof f.showUnassignedRegion === 'boolean') out.showUnassignedRegion = f.showUnassignedRegion;
   if (isString(f.regionPalette, REGION_PALETTES)) out.regionPalette = f.regionPalette;
+  // Anatomy fields are emitted in compact form (`atlas` / `region`).
+  // The decoder also accepts the legacy long-form keys (`anatomyAtlas`,
+  // `isolatedRegion`, `isolatedAtlasRegion`) so already-shared URLs
+  // keep resolving. Order: compact first, legacy overrides.
+  if (isString(f.atlas, ANATOMY_ATLASES)) out.anatomyAtlas = f.atlas;
+  if (isInt(f.region) && (f.region as number) >= -1) {
+    // The compact `region` is interpreted against whichever atlas the
+    // same hash declares. Default is manuscript (matches the in-memory
+    // default), so a hash with only `region: N` and no `atlas` field
+    // means a focal-region pick.
+    const atlasMode = out.anatomyAtlas ?? 'manuscript';
+    if (atlasMode === 'mapzebrain') out.isolatedAtlasRegion = f.region;
+    else out.isolatedRegion = f.region;
+  }
   if (isString(f.anatomyAtlas, ANATOMY_ATLASES)) out.anatomyAtlas = f.anatomyAtlas;
   if (isInt(f.isolatedRegion) && f.isolatedRegion >= -1) out.isolatedRegion = f.isolatedRegion;
   if (isInt(f.isolatedAtlasRegion) && f.isolatedAtlasRegion >= -1) out.isolatedAtlasRegion = f.isolatedAtlasRegion;
@@ -193,6 +235,7 @@ function validateFilter(raw: unknown): Partial<FilterState> {
   // to the dropdown the user originally saw.
   if (
     !isString(f.anatomyAtlas, ANATOMY_ATLASES) &&
+    !isString(f.atlas, ANATOMY_ATLASES) &&
     isInt(f.isolatedAtlasRegion) &&
     (f.isolatedAtlasRegion as number) >= 0
   ) {

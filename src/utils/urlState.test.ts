@@ -116,6 +116,27 @@ describe('encodeHash / decodeHash', () => {
     expect(decodeHash(legacy)?.filter?.anatomyAtlas).toBe('mapzebrain');
   });
 
+  it('emits compact atlas/region keys instead of the long-form anatomy fields', () => {
+    const hash = encodeHash({
+      filter: { anatomyAtlas: 'mapzebrain', isolatedAtlasRegion: 5 },
+    });
+    // Strip the prefix and parse the raw payload so the test checks the
+    // wire format, not just round-trippability.
+    const payload = JSON.parse(decodeURIComponent(hash.slice(2)));
+    expect(payload.filter).toEqual({ atlas: 'mapzebrain', region: 5 });
+    // Round-trip still resolves both in-memory slots.
+    const decoded = decodeHash(hash);
+    expect(decoded?.filter?.anatomyAtlas).toBe('mapzebrain');
+    expect(decoded?.filter?.isolatedAtlasRegion).toBe(5);
+  });
+
+  it('emits region for the focal atlas without an atlas key (manuscript is default)', () => {
+    const hash = encodeHash({ filter: { isolatedRegion: 3 } });
+    const payload = JSON.parse(decodeURIComponent(hash.slice(2)));
+    expect(payload.filter).toEqual({ region: 3 });
+    expect(decodeHash(hash)?.filter?.isolatedRegion).toBe(3);
+  });
+
   it('dedupes and sorts selectedGenes / selectedStimuli on parse', () => {
     const hash = encodeHash({
       filter: { selectedGenes: [5, 1, 5, 3], selectedStimuli: [3, 1, 3] },
