@@ -52,6 +52,7 @@ const INITIAL_FILTER: FilterState = {
   geneScale: 'log',
   showUnassignedRegion: true,
   regionPalette: 'nipy_spectral',
+  anatomyAtlas: 'manuscript',
   isolatedRegion: -1,
   isolatedAtlasRegion: -1,
   isolatedFish: -1,

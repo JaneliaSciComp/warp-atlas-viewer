@@ -1,5 +1,6 @@
 import type { NeuronDataset, FilterState } from '../../data/types';
-import { Card, KindToggle, Select } from './shared';
+import { Card, KindToggle } from './shared';
+import { SearchSelect } from './SearchSelect';
 
 /** Dedupe an array of integer indices while preserving insertion
  *  order — used so the gene-filter rows render in the order the user
@@ -96,11 +97,12 @@ export function TranscriptomicsCard({
         <>
           {sel.map((g, rowIdx) => (
             <div key={rowIdx} className="flex items-center gap-1">
-              <Select
+              <SearchSelect
                 label=""
                 value={g}
                 onChange={(v) => replaceGene(rowIdx, v)}
                 options={rowOptions(rowIdx)}
+                truncateClass="max-w-[10rem]"
               />
               <button
                 type="button"
@@ -150,7 +152,7 @@ export function TranscriptomicsCard({
           )}
         </>
       ) : (
-        <Select
+        <SearchSelect
           label="cluster"
           value={filter.selectedCluster}
           onChange={onClusterChange}
@@ -158,6 +160,7 @@ export function TranscriptomicsCard({
             .map((c, i) => ({ value: i, label: c }))
             .sort((a, b) => a.label.localeCompare(b.label))}
           arrows
+          truncateClass="max-w-[15rem]"
         />
       )}
     </Card>

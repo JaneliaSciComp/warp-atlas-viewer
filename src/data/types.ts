@@ -83,6 +83,18 @@ export type GeneScale = "log" | "linear";
  *  switching modes never loses the user's previous pick. */
 export type TxMode = "all" | "gene" | "subtype";
 
+/** Which atlas the Anatomy card's "region" dropdown is currently
+ *  reading. The two atlases are alternatives, not stacked filters: at
+ *  any moment exactly one of `isolatedRegion` / `isolatedAtlasRegion`
+ *  influences rendering, decided by this mode.
+ *    'manuscript' → 16 focal regions (paper's Figure 5 / S6 vocabulary),
+ *                   reads `isolatedRegion`.
+ *    'mapzebrain' → 112-region mapzebrain atlas (Modified from Kunst et
+ *                   al., 2019), reads `isolatedAtlasRegion`.
+ *  Both index fields persist across mode flips so toggling back
+ *  restores the previously picked region in either atlas. */
+export type AnatomyAtlas = "manuscript" | "mapzebrain";
+
 /**
  * INVARIANT — visible-state-only rendering:
  *
@@ -129,11 +141,14 @@ export interface FilterState {
     regionPalette: RegionPalette;
 
     // ── Anatomy filter ────────────────────────────────────────────────
+    /** Which of the two atlases the "region" dropdown reads. See
+     *  AnatomyAtlas — at any moment exactly one of isolatedRegion /
+     *  isolatedAtlasRegion is active. The other persists for ergonomic
+     *  toggle-back but contributes nothing to rendering. */
+    anatomyAtlas: AnatomyAtlas;
     isolatedRegion: number; // index into regionNames, -1 = show all
-    /** Index into atlasRegionNames (0..111), -1 = show all. ANDed with
-     *  isolatedRegion: a cell passes only if it's in BOTH the chosen
-     *  paper focal region (if set) AND the chosen mapzebrain atlas
-     *  region (if set). */
+    /** Index into atlasRegionNames (0..111), -1 = show all. Only active
+     *  when anatomyAtlas === 'mapzebrain'; persists across mode flips. */
     isolatedAtlasRegion: number;
     /** Fish-of-origin filter: 0..nFish-1 keeps only cells from that
      *  specimen; -1 keeps all (the pooled-atlas default). Mirrors how

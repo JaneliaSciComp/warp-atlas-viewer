@@ -24,6 +24,7 @@ export function SearchSelect({
   options,
   truncateClass,
   placeholder = 'search…',
+  arrows = false,
 }: {
   label: string;
   value: number;
@@ -31,7 +32,19 @@ export function SearchSelect({
   options: SearchOption[];
   truncateClass?: string;
   placeholder?: string;
+  /** When true, render prev/next chevrons around the trigger that cycle
+   *  through the option list (wrapping at the edges). Mirrors the
+   *  `arrows` prop on the native Select so swapping in a SearchSelect
+   *  doesn't lose the cycle-by-one ergonomic on long-but-ordered lists. */
+  arrows?: boolean;
 }) {
+  const step = (delta: number) => {
+    if (options.length === 0) return;
+    let i = options.findIndex((o) => o.value === value);
+    if (i < 0) i = 0;
+    const next = (i + delta + options.length) % options.length;
+    onChange(options[next].value);
+  };
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [pos, setPos] = useState<{ left: number; bottom: number; width: number } | null>(null);
@@ -155,6 +168,16 @@ export function SearchSelect({
   return (
     <label className="flex items-center gap-1 text-xs">
       {label && <span className="text-neutral-400">{label}</span>}
+      {arrows && (
+        <button
+          type="button"
+          onClick={() => step(-1)}
+          aria-label={`previous ${label}`}
+          className="bg-neutral-900 border border-neutral-700 rounded px-1.5 py-1 text-neutral-300 hover:bg-neutral-700 leading-none"
+        >
+          ‹
+        </button>
+      )}
       <button
         ref={triggerRef}
         type="button"
@@ -175,6 +198,16 @@ export function SearchSelect({
         </span>
         <span aria-hidden className="text-neutral-500">▾</span>
       </button>
+      {arrows && (
+        <button
+          type="button"
+          onClick={() => step(1)}
+          aria-label={`next ${label}`}
+          className="bg-neutral-900 border border-neutral-700 rounded px-1.5 py-1 text-neutral-300 hover:bg-neutral-700 leading-none"
+        >
+          ›
+        </button>
+      )}
       {popover}
     </label>
   );

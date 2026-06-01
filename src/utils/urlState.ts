@@ -15,6 +15,7 @@
 //      indices.
 
 import type {
+  AnatomyAtlas,
   ColorMode,
   FilterState,
   GeneLogic,
@@ -32,10 +33,11 @@ import type {
 
 // Persisted 3D camera pose.
 //
-// v2 (current): { pos, quat, pan? } — explicit quaternion captures any
-//   roll the trackball produces, so refresh / duplicate / share all
-//   round-trip without rocking. The orbit target is always the volume
-//   center and is no longer serialized.
+// v2 (current): { pos, quat, target, pan? } — explicit quaternion
+//   captures any roll the trackball produces, and target captures the
+//   current orbit pivot. Object-centric rotation keeps target at the
+//   volume center; trackball-pan mode moves it, so it must be serialized
+//   for refresh / duplicate / share to round-trip the exact view.
 //
 // v1 (legacy): { pos, target, pan? } — older share links omitted
 //   orientation, so the decoder synthesizes a quaternion at restore
@@ -43,16 +45,16 @@ import type {
 //   (0, 1, 0). Roll is unrecoverable for legacy links; that's the
 //   bug that motivated the v2 schema.
 //
-// Either shape decodes into the unified CameraState below;
-// `quat` is the source of truth for orientation when present,
-// `target` is treated as a legacy hint only.
+// Either shape decodes into the unified CameraState below. `quat` is the
+// source of truth for orientation when present; `target` is the orbit
+// pivot and is also the legacy orientation fallback when `quat` is absent.
 export interface CameraState {
   pos: [number, number, number];
   /** Camera quaternion as [x, y, z, w]. Preferred orientation field. */
   quat?: [number, number, number, number];
-  /** Legacy orbit target (v1 schema). Only used as a fallback when
-   *  `quat` is missing — restore synthesizes orientation by aiming at
-   *  this point with `up = (0, 1, 0)`. */
+  /** Orbit target/pivot. Required to recreate native TrackballControls
+   *  pan; also used as the legacy orientation fallback when `quat` is
+   *  missing by aiming the camera at this point with `up = (0, 1, 0)`. */
   target?: [number, number, number];
   /** Screen-space viewer pan in CSS pixels. Positive x/y move the volume
    *  right/down in the viewport without changing the orbit target. */
@@ -149,6 +151,7 @@ export function decodeHash(hash: string): PersistedState | null {
 const COLOR_MODES = new Set<ColorMode>(['highlight', 'region', 'gene', 'stim', 'swim', 'activity', 'fish']);
 const GENE_SCALES = new Set<GeneScale>(['log', 'linear']);
 const REGION_PALETTES = new Set<RegionPalette>(['nipy_spectral', 'turbo', 'distinct']);
+const ANATOMY_ATLASES = new Set<AnatomyAtlas>(['manuscript', 'mapzebrain']);
 const TX_MODES = new Set<TxMode>(['all', 'gene', 'subtype']);
 const GENE_LOGICS = new Set<GeneLogic>(['or', 'and']);
 const STIM_LOGICS = new Set<StimLogic>(['or', 'and']);
@@ -181,8 +184,20 @@ function validateFilter(raw: unknown): Partial<FilterState> {
   if (isString(f.geneScale, GENE_SCALES)) out.geneScale = f.geneScale;
   if (typeof f.showUnassignedRegion === 'boolean') out.showUnassignedRegion = f.showUnassignedRegion;
   if (isString(f.regionPalette, REGION_PALETTES)) out.regionPalette = f.regionPalette;
+  if (isString(f.anatomyAtlas, ANATOMY_ATLASES)) out.anatomyAtlas = f.anatomyAtlas;
   if (isInt(f.isolatedRegion) && f.isolatedRegion >= -1) out.isolatedRegion = f.isolatedRegion;
   if (isInt(f.isolatedAtlasRegion) && f.isolatedAtlasRegion >= -1) out.isolatedAtlasRegion = f.isolatedAtlasRegion;
+  // Legacy hashes from before the explicit anatomyAtlas toggle could
+  // set isolatedAtlasRegion to a positive index alongside the default
+  // 'manuscript' mode. Infer 'mapzebrain' so the link still resolves
+  // to the dropdown the user originally saw.
+  if (
+    !isString(f.anatomyAtlas, ANATOMY_ATLASES) &&
+    isInt(f.isolatedAtlasRegion) &&
+    (f.isolatedAtlasRegion as number) >= 0
+  ) {
+    out.anatomyAtlas = 'mapzebrain';
+  }
   if (isInt(f.isolatedFish) && f.isolatedFish >= -1) out.isolatedFish = f.isolatedFish;
   if (isString(f.txMode, TX_MODES)) out.txMode = f.txMode;
   if (Array.isArray(f.selectedGenes)) {
@@ -263,8 +278,10 @@ function validateCamera(raw: unknown): CameraState | undefined {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
   const c = raw as Record<string, unknown>;
   if (!Array.isArray(c.pos) || c.pos.length !== 3 || !c.pos.every(isFiniteNum)) return undefined;
-  // v2 (quat) and v1 (target) are both accepted. At least one must be
-  // present so the renderer has something to orient with.
+  // Current v2 links carry both quat and target. Older v2 links may carry
+  // quat only (implicitly target = volume center), and v1 links carried
+  // target only. At least one orientation field must be present so the
+  // renderer has something to orient with.
   const hasQuat =
     Array.isArray(c.quat) && c.quat.length === 4 && c.quat.every(isFiniteNum);
   const hasTarget =
@@ -453,11 +470,13 @@ export function roundCamera(cam: CameraState): CameraState {
       r(cam.quat[2], QUAT_PRECISION),
       r(cam.quat[3], QUAT_PRECISION),
     ];
-  } else if (cam.target) {
-    // No quaternion available yet (legacy v1 input, or mount window
-    // before the renderer emits a v2 camera). Keep `target` in the
-    // round-tripped state so `validateCamera` still accepts it on the
-    // next read — emitting `{pos}` alone produces an invalid schema.
+  }
+  if (cam.target) {
+    // Target is part of the live camera state: native TrackballControls
+    // pan moves it, and restoring only pos+quat would recover the view
+    // direction but not the orbit pivot for subsequent rotations.
+    // Keeping it also preserves v1 target-only links until the renderer
+    // emits a quat-bearing state.
     out.target = [
       r(cam.target[0], POS_PRECISION),
       r(cam.target[1], POS_PRECISION),

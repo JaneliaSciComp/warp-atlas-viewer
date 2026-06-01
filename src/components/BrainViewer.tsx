@@ -930,13 +930,13 @@ function CameraSync({
     if (!controls || restoredRef.current) return;
     if (initialCamera) {
       camera.position.set(...initialCamera.pos);
-      // Orient the camera. v2 URLs carry an explicit quaternion that
-      // captures any roll the trackball produced — apply it directly
-      // so the restored view matches the pre-share roll. v1 URLs only
-      // had pos + target, so fall back to look-at with the canonical
-      // up vector (roll for those links is unrecoverable; this matches
-      // the old behavior). The point cloud is always centered at the
-      // origin, so the orbit target stays VOLUME_CENTER regardless.
+      // Orient the camera. Current URLs carry both an explicit quaternion
+      // (captures any roll the trackball produced) and the orbit target
+      // (captures native pan). Older v2 URLs may only have pos + quat and
+      // implicitly target the volume center; v1 URLs only had pos + target,
+      // so fall back to look-at with the canonical up vector (roll for
+      // those links is unrecoverable).
+      const target = initialCamera.target ?? VOLUME_CENTER;
       if (initialCamera.quat) {
         camera.quaternion.set(
           initialCamera.quat[0],
@@ -949,13 +949,9 @@ function CameraSync({
         camera.up.set(0, 1, 0).applyQuaternion(camera.quaternion);
       } else if (initialCamera.target) {
         camera.up.set(0, 1, 0);
-        camera.lookAt(
-          initialCamera.target[0],
-          initialCamera.target[1],
-          initialCamera.target[2],
-        );
+        camera.lookAt(target[0], target[1], target[2]);
       }
-      controls.target.set(...VOLUME_CENTER);
+      controls.target.set(...target);
       controls.update();
     }
     restoredRef.current = true;
@@ -998,10 +994,15 @@ function CameraSync({
       camera.quaternion.z,
       camera.quaternion.w,
     ];
+    const target: [number, number, number] = [
+      controls.target.x,
+      controls.target.y,
+      controls.target.z,
+    ];
     const rawPan = panRef.current;
     const pan: [number, number] | undefined =
       rawPan.x !== 0 || rawPan.y !== 0 ? [rawPan.x, rawPan.y] : undefined;
-    const cam: CameraState = pan ? { pos, quat, pan } : { pos, quat };
+    const cam: CameraState = pan ? { pos, quat, target, pan } : { pos, quat, target };
     const last = lastRef.current;
     // Sub-pixel epsilon: anything below this per-frame delta is
     // numerically still as far as the rendered image cares about, so
@@ -1013,6 +1014,7 @@ function CameraSync({
     // this threshold is bounded by epsilon / dampingFactor (~1e-3
     // unit), well inside the rounded URL precision.
     const POS_DELTA_EPS = 1e-4;
+    const TARGET_DELTA_EPS = 1e-4;
     const QUAT_DELTA_EPS = 1e-5;
     const PAN_DELTA_EPS = 1e-4;
     const moved =
@@ -1020,6 +1022,9 @@ function CameraSync({
       Math.abs(pos[0] - last.pos[0]) > POS_DELTA_EPS ||
       Math.abs(pos[1] - last.pos[1]) > POS_DELTA_EPS ||
       Math.abs(pos[2] - last.pos[2]) > POS_DELTA_EPS ||
+      Math.abs(target[0] - (last.target?.[0] ?? VOLUME_CENTER[0])) > TARGET_DELTA_EPS ||
+      Math.abs(target[1] - (last.target?.[1] ?? VOLUME_CENTER[1])) > TARGET_DELTA_EPS ||
+      Math.abs(target[2] - (last.target?.[2] ?? VOLUME_CENTER[2])) > TARGET_DELTA_EPS ||
       Math.abs(quat[0] - (last.quat?.[0] ?? 0)) > QUAT_DELTA_EPS ||
       Math.abs(quat[1] - (last.quat?.[1] ?? 0)) > QUAT_DELTA_EPS ||
       Math.abs(quat[2] - (last.quat?.[2] ?? 0)) > QUAT_DELTA_EPS ||

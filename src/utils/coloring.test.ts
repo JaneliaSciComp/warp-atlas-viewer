@@ -57,6 +57,7 @@ const BASE_FILTER: FilterState = {
   geneScale: 'log',
   showUnassignedRegion: true,
   regionPalette: 'nipy_spectral',
+  anatomyAtlas: 'manuscript',
   isolatedRegion: -1,
   isolatedAtlasRegion: -1,
   isolatedFish: -1,
@@ -89,17 +90,26 @@ describe('cellPasses', () => {
     expect(passes({ ...BASE_FILTER, isolatedRegion: 1 })).toEqual([2, 3]);
   });
 
-  it('isolates a mapzebrain atlas region', () => {
-    expect(passes({ ...BASE_FILTER, isolatedAtlasRegion: 0 })).toEqual([0, 2]);
-    expect(passes({ ...BASE_FILTER, isolatedAtlasRegion: 1 })).toEqual([1, 3]);
-    expect(passes({ ...BASE_FILTER, isolatedAtlasRegion: 2 })).toEqual([0, 1, 2]);
+  it('isolates a mapzebrain atlas region when anatomyAtlas is mapzebrain', () => {
+    const f = { ...BASE_FILTER, anatomyAtlas: 'mapzebrain' as const };
+    expect(passes({ ...f, isolatedAtlasRegion: 0 })).toEqual([0, 2]);
+    expect(passes({ ...f, isolatedAtlasRegion: 1 })).toEqual([1, 3]);
+    expect(passes({ ...f, isolatedAtlasRegion: 2 })).toEqual([0, 1, 2]);
   });
 
-  it('ANDs the paper region and the atlas region', () => {
-    // r0 = {0,1}, atlas a1 = {1,3} → intersection {1}
+  it('treats atlas and focal region as alternatives (only the selected atlas filters)', () => {
+    // isolatedAtlasRegion is set but anatomyAtlas is 'manuscript' → ignored.
     expect(
-      passes({ ...BASE_FILTER, isolatedRegion: 0, isolatedAtlasRegion: 1 }),
-    ).toEqual([1]);
+      passes({ ...BASE_FILTER, isolatedAtlasRegion: 1 }),
+    ).toEqual([0, 1, 2, 3]);
+    // isolatedRegion is set but anatomyAtlas is 'mapzebrain' → ignored.
+    expect(
+      passes({
+        ...BASE_FILTER,
+        anatomyAtlas: 'mapzebrain' as const,
+        isolatedRegion: 0,
+      }),
+    ).toEqual([0, 1, 2, 3]);
   });
 
   it('isolates a fish', () => {
@@ -253,7 +263,17 @@ describe('anyFilterActive', () => {
 
   it('is true once any filter dimension is constraining', () => {
     expect(anyFilterActive(TEST_DATA, { ...BASE_FILTER, isolatedRegion: 0 })).toBe(true);
-    expect(anyFilterActive(TEST_DATA, { ...BASE_FILTER, isolatedAtlasRegion: 0 })).toBe(true);
+    expect(
+      anyFilterActive(TEST_DATA, {
+        ...BASE_FILTER,
+        anatomyAtlas: 'mapzebrain',
+        isolatedAtlasRegion: 0,
+      }),
+    ).toBe(true);
+    // Atlas region set but mode still 'manuscript' → dormant, no filter.
+    expect(
+      anyFilterActive(TEST_DATA, { ...BASE_FILTER, isolatedAtlasRegion: 0 }),
+    ).toBe(false);
     expect(anyFilterActive(TEST_DATA, { ...BASE_FILTER, isolatedFish: 1 })).toBe(true);
     expect(
       anyFilterActive(TEST_DATA, { ...BASE_FILTER, txMode: 'gene', selectedGenes: [0] }),

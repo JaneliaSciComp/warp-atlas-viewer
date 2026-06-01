@@ -16,6 +16,7 @@ const INITIAL_FILTER: FilterState = {
   geneScale: 'log',
   showUnassignedRegion: true,
   regionPalette: 'nipy_spectral',
+  anatomyAtlas: 'manuscript',
   isolatedRegion: -1,
   isolatedAtlasRegion: -1,
   isolatedFish: -1,
@@ -103,6 +104,16 @@ describe('encodeHash / decodeHash', () => {
     expect(decoded?.filter?.isolatedAtlasRegion).toBe(42);
     const bogus = encodeHash({ filter: { isolatedAtlasRegion: -7 as number } });
     expect(decodeHash(bogus)?.filter?.isolatedAtlasRegion).toBeUndefined();
+  });
+
+  it('round-trips anatomyAtlas and infers mapzebrain for legacy atlas-only hashes', () => {
+    const hash = encodeHash({ filter: { anatomyAtlas: 'mapzebrain' } });
+    expect(decodeHash(hash)?.filter?.anatomyAtlas).toBe('mapzebrain');
+    // Legacy: isolatedAtlasRegion set without anatomyAtlas → infer 'mapzebrain'.
+    const legacy = '#!' + encodeURIComponent(JSON.stringify({
+      filter: { isolatedAtlasRegion: 5 },
+    }));
+    expect(decodeHash(legacy)?.filter?.anatomyAtlas).toBe('mapzebrain');
   });
 
   it('dedupes and sorts selectedGenes / selectedStimuli on parse', () => {
@@ -208,18 +219,18 @@ describe('rounding helpers', () => {
     expect(out).toEqual([1.235, 7.891]);
   });
 
-  it('roundCamera rounds pos, quat, and screen pan to 5 decimals (v2)', () => {
+  it('roundCamera rounds pos, quat, target, and screen pan to 5 decimals (v2)', () => {
     const cam = roundCamera({
       pos: [1.1234567, 2.2222229, 3.33333334],
       quat: [0.123456789, -0.234567891, 0.345678912, 0.876543210],
+      target: [6.6666666, -7.7777777, 8.8888888],
       pan: [4.4444449, -5.5555551],
     });
     const isAt5 = (n: number) => Math.abs(n * 1e5 - Math.round(n * 1e5)) < 1e-7;
     expect(cam.pos.every(isAt5)).toBe(true);
     expect(cam.quat?.every(isAt5)).toBe(true);
+    expect(cam.target?.every(isAt5)).toBe(true);
     expect(cam.pan?.every(isAt5)).toBe(true);
-    // Legacy `target` is intentionally not re-emitted by the encoder.
-    expect(cam.target).toBeUndefined();
   });
 
   it('roundCamera preserves legacy target when no quat is present', () => {
@@ -236,14 +247,14 @@ describe('rounding helpers', () => {
     expect(cam.target!.every(isAt5)).toBe(true);
   });
 
-  it('roundCamera drops legacy target once quat is present', () => {
+  it('roundCamera keeps target when quat is present so native pan round-trips', () => {
     const cam = roundCamera({
       pos: [1, 2, 3],
       quat: [0, 0, 0, 1],
-      target: [0, 0, 0],
+      target: [10.123456, -20.654321, 30.111119],
     });
     expect(cam.quat).toBeDefined();
-    expect(cam.target).toBeUndefined();
+    expect(cam.target).toEqual([10.12346, -20.65432, 30.11112]);
   });
 
   it('roundViewport rounds zoom and pan', () => {

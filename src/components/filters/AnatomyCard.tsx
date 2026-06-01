@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { NeuronDataset, FilterState } from '../../data/types';
 import { REGION_FULL_NAMES, REGION_PAPER_ORDER } from '../../utils/constants';
-import { ALL_OPTION, Card, Select } from './shared';
+import { ALL_OPTION, Card, KindToggle, Select } from './shared';
 import { SearchSelect } from './SearchSelect';
 
 export function AnatomyCard({
@@ -56,32 +56,48 @@ export function AnatomyCard({
   const atlasOrder = data.atlasRegionNames
     .map((name, i) => ({ name, i, count: atlasCounts[i] }))
     .sort((a, b) => a.name.localeCompare(b.name));
+  const useAtlas = filter.anatomyAtlas === 'mapzebrain';
   return (
     <Card title="Anatomy">
-      <Select
-        label="region"
-        value={filter.isolatedRegion}
-        onChange={(v) => update({ isolatedRegion: v })}
-        options={[
-          ALL_OPTION,
-          ...regionOrder.map((i) => ({ value: i, label: regionLabel(i) })),
-        ]}
-        arrows
-        truncateClass="max-w-[15rem]"
-      />
-      <SearchSelect
-        label="atlas region"
-        value={filter.isolatedAtlasRegion}
-        onChange={(v) => update({ isolatedAtlasRegion: v })}
-        options={[
-          { value: -1, label: 'all' },
-          ...atlasOrder.map(({ name, i, count }) => ({
-            value: i,
-            label: `${name} (${count.toLocaleString()})`,
-          })),
-        ]}
-        truncateClass="max-w-[15rem]"
-      />
+      <label className="flex items-center gap-1 text-xs">
+        <span className="text-neutral-400">atlas</span>
+        <KindToggle
+          value={filter.anatomyAtlas}
+          onChange={(v) => update({ anatomyAtlas: v })}
+          options={[
+            { value: 'manuscript', label: 'Manuscript (v1)' },
+            { value: 'mapzebrain', label: 'mapZebrain (v1)' },
+          ]}
+        />
+      </label>
+      {useAtlas ? (
+        <SearchSelect
+          label="region"
+          value={filter.isolatedAtlasRegion}
+          onChange={(v) => update({ isolatedAtlasRegion: v })}
+          options={[
+            { value: -1, label: 'all' },
+            ...atlasOrder.map(({ name, i, count }) => ({
+              value: i,
+              label: `${name} (${count.toLocaleString()})`,
+            })),
+          ]}
+          arrows
+          truncateClass="max-w-[15rem]"
+        />
+      ) : (
+        <SearchSelect
+          label="region"
+          value={filter.isolatedRegion}
+          onChange={(v) => update({ isolatedRegion: v })}
+          options={[
+            { value: -1, label: 'all' },
+            ...regionOrder.map((i) => ({ value: i, label: regionLabel(i) })),
+          ]}
+          arrows
+          truncateClass="max-w-[15rem]"
+        />
+      )}
       {uniqueFishIds.length > 1 && (
         <Select
           label="specimen"

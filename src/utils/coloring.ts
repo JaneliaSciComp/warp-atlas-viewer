@@ -117,9 +117,12 @@ export function cellPasses(
   // predicate slot — both are "which subset of the atlas's pooled
   // cells do you want to keep" controls that the user picks in the
   // Anatomy card.
+  const useAtlas = filter.anatomyAtlas === 'mapzebrain';
   const inRegion =
-    (filter.isolatedRegion < 0 || ds.regionIds[i] === filter.isolatedRegion) &&
-    (filter.isolatedAtlasRegion < 0 || cellInAtlasRegion(ds, i, filter.isolatedAtlasRegion)) &&
+    (useAtlas
+      ? filter.isolatedAtlasRegion < 0 ||
+        cellInAtlasRegion(ds, i, filter.isolatedAtlasRegion)
+      : filter.isolatedRegion < 0 || ds.regionIds[i] === filter.isolatedRegion) &&
     (filter.isolatedFish < 0 || ds.fishIds[i] === filter.isolatedFish);
 
   const genes = filter.selectedGenes;
@@ -225,9 +228,9 @@ export function cellInSet(
  *  selections only cover cells that are actually shown. */
 export function anyFilterActive(ds: NeuronDataset, filter: FilterState): boolean {
   const stimsActive = filter.selectedStimuli.length > 0 && filter.stimMode !== 'off';
+  const useAtlas = filter.anatomyAtlas === 'mapzebrain';
   return (
-    filter.isolatedRegion >= 0 ||
-    filter.isolatedAtlasRegion >= 0 ||
+    (useAtlas ? filter.isolatedAtlasRegion >= 0 : filter.isolatedRegion >= 0) ||
     filter.isolatedFish >= 0 ||
     (filter.txMode === 'gene' && filter.selectedGenes.length > 0) ||
     filter.txMode === 'subtype' ||
@@ -308,7 +311,11 @@ export function applyColoring(
   const activityRange = Math.max(0.001, ACTIVITY_HI - ACTIVITY_LO);
 
   const useLog = filter.geneScale !== 'linear';
-  const isolatedRegion = filter.isolatedRegion;
+  // Mirror the active-atlas gate from the hot-loop hoist below: when
+  // the mapzebrain atlas is selected, the manuscript region filter is
+  // dormant and shouldn't trigger LIFT_ALPHA either.
+  const isolatedRegion =
+    filter.anatomyAtlas === 'mapzebrain' ? -1 : filter.isolatedRegion;
   // Stim cutoffs come from user settings; STIM_RANGE is derived. We
   // tolerate stimHi <= stimLo by clamping the divisor to something
   // small but positive so the ramp still maps without dividing by zero.
@@ -385,8 +392,13 @@ export function applyColoring(
   // nothing per cell — no closure, no result object. cellPasses still
   // exists for single-cell callers (picker, lasso), where allocation
   // cost is negligible.
-  const isoRegion = filter.isolatedRegion;
-  const isoAtlasRegion = filter.isolatedAtlasRegion;
+  // Only one atlas's region filter is active at a time; the other is
+  // dormant. Hoist the active slot into `isoRegion` / `isoAtlasRegion`
+  // (set to -1 when dormant) so the per-cell branch in the hot loop
+  // doesn't have to re-check the mode each iteration.
+  const useAtlas = filter.anatomyAtlas === 'mapzebrain';
+  const isoRegion = useAtlas ? -1 : filter.isolatedRegion;
+  const isoAtlasRegion = useAtlas ? filter.isolatedAtlasRegion : -1;
   const atlasMaskArr = ds.atlasRegionMask;
   const atlasBytesPerCell = Math.ceil(ds.atlasRegionNames.length / 8);
   const atlasByteOff = isoAtlasRegion >= 0 ? isoAtlasRegion >> 3 : 0;
