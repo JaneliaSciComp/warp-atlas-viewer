@@ -65,8 +65,8 @@ export function AnatomyCard({
           value={filter.anatomyAtlas}
           onChange={(v) => update({ anatomyAtlas: v })}
           options={[
-            { value: 'manuscript', label: 'Manuscript (v1)' },
-            { value: 'mapzebrain', label: 'mapZebrain (v1)' },
+            { value: 'manuscript', label: 'Manuscript' },
+            { value: 'mapzebrain', label: 'mapZebrain' },
           ]}
         />
       </label>
