@@ -75,12 +75,19 @@ export function Select({
   onChange,
   options,
   arrows = false,
+  /** When set, constrains the closed select width and CSS-truncates the
+   *  selected option's label with an ellipsis. The dropdown panel still
+   *  sizes to its content, so the full label is visible while picking.
+   *  The truncated value also gets a `title` tooltip with the full text.
+   *  Useful for dropdowns with long entries (e.g. the 112-region atlas). */
+  truncateClass,
 }: {
   label: string;
   value: number;
   onChange: (v: number) => void;
   options: Array<{ value: number; label: string }>;
   arrows?: boolean;
+  truncateClass?: string;
 }) {
   // Step relative to the (display-sorted) option order. Wraps at boundaries
   // so cycling never dead-ends. The "all" sentinel is just another option
@@ -109,7 +116,13 @@ export function Select({
       <select
         value={value}
         onChange={(e) => onChange(parseInt(e.target.value, 10))}
-        className="bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-neutral-200 font-mono"
+        title={options.find((o) => o.value === value)?.label}
+        className={
+          'bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-neutral-200 font-mono' +
+          (truncateClass
+            ? ` ${truncateClass} overflow-hidden text-ellipsis whitespace-nowrap`
+            : '')
+        }
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>

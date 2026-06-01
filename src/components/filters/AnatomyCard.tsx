@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { NeuronDataset, FilterState } from '../../data/types';
 import { REGION_FULL_NAMES, REGION_PAPER_ORDER } from '../../utils/constants';
 import { ALL_OPTION, Card, Select } from './shared';
@@ -35,8 +36,24 @@ export function AnatomyCard({
   // Sorted alphabetically by display label — the names are long and not
   // shared with the paper's 16-region vocabulary, so anatomical order
   // doesn't carry through and alphabetical is easier to scan.
+  // Per-region cell counts: a single pass over the packed mask, cached
+  // against the (immutable) buffer reference. ~3.4 MB / ~4 ms one-time
+  // for the real WARP dataset.
+  const atlasCounts = useMemo(() => {
+    const R = data.atlasRegionNames.length;
+    const bytes = Math.ceil(R / 8);
+    const counts = new Int32Array(R);
+    const mask = data.atlasRegionMask;
+    for (let i = 0; i < data.count; i++) {
+      const base = i * bytes;
+      for (let r = 0; r < R; r++) {
+        if ((mask[base + (r >> 3)] >> (r & 7)) & 1) counts[r]++;
+      }
+    }
+    return counts;
+  }, [data.atlasRegionMask, data.atlasRegionNames.length, data.count]);
   const atlasOrder = data.atlasRegionNames
-    .map((name, i) => ({ name, i }))
+    .map((name, i) => ({ name, i, count: atlasCounts[i] }))
     .sort((a, b) => a.name.localeCompare(b.name));
   return (
     <Card title="Anatomy">
@@ -49,6 +66,7 @@ export function AnatomyCard({
           ...regionOrder.map((i) => ({ value: i, label: regionLabel(i) })),
         ]}
         arrows
+        truncateClass="max-w-[15rem]"
       />
       <Select
         label="atlas region"
@@ -56,9 +74,13 @@ export function AnatomyCard({
         onChange={(v) => update({ isolatedAtlasRegion: v })}
         options={[
           ALL_OPTION,
-          ...atlasOrder.map(({ name, i }) => ({ value: i, label: name })),
+          ...atlasOrder.map(({ name, i, count }) => ({
+            value: i,
+            label: `${name} (${count.toLocaleString()})`,
+          })),
         ]}
         arrows
+        truncateClass="max-w-[15rem]"
       />
       {uniqueFishIds.length > 1 && (
         <Select
