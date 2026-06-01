@@ -73,7 +73,7 @@ For a single focused cell the histogram collapses to a single bar at that cell's
 
 ### Selection summary and per-specimen breakdown {#per-specimen-breakdown}
 
-Above the charts, the panel reports how the selection partitions across the 3 source specimens as counts. A selection dominated by a single specimen warrants a check that the finding holds across all three.
+Above the charts, the panel reports the top focal regions, top mapzebrain atlas regions, top transcriptomic clusters, and how the selection partitions across the 3 source specimens as counts. A selection dominated by a single specimen warrants a check that the finding holds across all three.
 
 ## Selection precedence
 

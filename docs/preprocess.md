@@ -11,7 +11,7 @@ This page documents the decisions baked into that conversion, so that quantities
 
 ## Input and output
 
-![Preprocessing reduces a ~30 GB source — per-specimen folders and post-processed analysis arrays — to a ~210 MB output bundle of a neurons.json manifest plus typed-array blobs (positions, genes, traces, …).](/preprocess-io.svg)
+![Preprocessing reduces a ~30 GB source — per-specimen folders and post-processed analysis arrays — to a ~150 MB output bundle of a neurons.json manifest plus typed-array blobs (positions, genes, traces, atlas membership, …).](/preprocess-io.svg)
 
 ## Transformations, in order
 

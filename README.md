@@ -23,7 +23,7 @@ Four filter cards (**Transcriptomics × Visual Stimuli × Swim × Anatomy**) com
 - **Transcriptomics**: keep cells expressing one or more genes (combined with OR / AND), or cells in a single named subtype (e.g. `pou4f2_cckb`).
 - **Visual Stimuli**: scope Stim-correlation coloring or keep cells responsive to one or more of 8 stimuli; a mode dropdown picks the direction (`no filter` / `+ correlated` / `- anti-correlated` / `± either`) and multi-stim selections combine with OR / AND. Icons render the stimulus identity. Responsiveness threshold is tunable in Settings.
 - **Swim**: keep cells correlated (+ swim-driven) or anti-correlated (− anti-swim) with estimated swim power; magnitude threshold tunable in Settings.
-- **Anatomy**: isolate one of 16 regions and/or one of 3 fish specimens.
+- **Anatomy**: isolate one of 16 paper-focal regions, search the 112-region mapzebrain atlas, and/or restrict to one of 3 fish specimens.
 
 Selections are independent of filters:
 
@@ -40,6 +40,7 @@ A **Help** tab in the bottom panel includes one-click presets that reproduce spe
 - **Vite** + **TypeScript** + **React 18**
 - **Three.js** via `@react-three/fiber` + `@react-three/drei` for the 3D point cloud
 - **recharts** for the detail-panel charts
+- **cmdk** for searchable long-list controls
 - **Tailwind CSS** for layout
 - Data is preprocessed Python → typed-array `.bin` blobs + a JSON manifest
 
@@ -50,7 +51,7 @@ No backend, no database, no auth. Everything is static files plus client-side re
 - Node.js ^20.19.0 or >=22.12.0 (developed against 22.20.0) — install with
   [NVM](https://github.com/nvm-sh/nvm), then run `nvm install && nvm use`
 - Python ≥ 3.10 with NumPy (only needed for the one-time preprocessing step)
-- ~30 GB free disk for the source dataset; ~210 MB for the preprocessed binaries
+- ~30 GB free disk for the source dataset; ~150 MB for the preprocessed binaries
 
 ## Setup
 
@@ -90,9 +91,10 @@ What it does:
 - Centers and scales the t-SNE embedding to roughly the [-50, 50] box so the panel's pixel projection doesn't depend on the upstream scale.
 - Aligns cluster labels to names: index 0 is "Unassigned", indices 1..332 align one-to-one with the 332 named subtypes (uses `cluster_labelsAll2`, not the permuted `cluster_labelsAll3`).
 - Embeds a hand-built Brain_reg → anatomy mapping (16 focal regions plus "Unassigned" at index 0). The mapping was recovered offline by intersecting `Brain_reg` with the 112-region atlas overlap and is hard-coded in the script.
+- Packs the 112-region mapzebrain atlas membership matrix into a compact per-cell bitfield (`atlasRegionMask.bin`) and emits the cleaned atlas labels for the searchable atlas-region filter.
 - Computes stimulus on-windows in seconds from the downsampled regressor traces, for the Detail-panel trace overlay bars.
 
-Output: `preprocessed/neurons.json` (manifest) plus 10 `.bin` files (~210 MB total).
+Output: `preprocessed/neurons.json` (manifest) plus 12 `.bin` files (~150 MB total).
 
 ### 3. Run the dev server
 
@@ -115,7 +117,8 @@ managing the data files separately.
 
 **`npm run bundle`**: fully self-contained static bundle. Runs `npm
 run build`, copies `./preprocessed/` into `./dist/preprocessed/`, and
-builds the docs site into `./dist/docs/`. The result (~211 MB) is a
+builds the docs site into `./dist/docs/`. The result (~150 MB plus the
+app/docs assets) is a
 single directory you can `tar`/`zip`/`rsync` to any static host.
 
 The viewer itself uses relative paths everywhere. The embedded docs

@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import type { NeuronDataset, FilterState } from '../../data/types';
 import { REGION_FULL_NAMES, REGION_PAPER_ORDER } from '../../utils/constants';
 import { ALL_OPTION, Card, Select } from './shared';
+import { SearchSelect } from './SearchSelect';
 
 export function AnatomyCard({
   data,
@@ -68,18 +69,17 @@ export function AnatomyCard({
         arrows
         truncateClass="max-w-[15rem]"
       />
-      <Select
+      <SearchSelect
         label="atlas region"
         value={filter.isolatedAtlasRegion}
         onChange={(v) => update({ isolatedAtlasRegion: v })}
         options={[
-          ALL_OPTION,
+          { value: -1, label: 'all' },
           ...atlasOrder.map(({ name, i, count }) => ({
             value: i,
             label: `${name} (${count.toLocaleString()})`,
           })),
         ]}
-        arrows
         truncateClass="max-w-[15rem]"
       />
       {uniqueFishIds.length > 1 && (
