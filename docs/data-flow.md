@@ -29,7 +29,7 @@ A Python script reduces the published arrays to web-friendly binary blobs and a 
 - Calcium traces are downsampled 2× (268 → 134 samples, 2 Hz → 1 Hz) with negligible perceptual loss on the smooth ΔF/F signal.
 - Traces are quantized to uint16 over an auto-fit range, reducing file size and enabling browser caching across reloads.
 - Region names are attached to the 16 focal anatomical groupings carried in the dataset.
-- The overlapping 112-region mapzebrain atlas membership matrix is packed into a 14-byte-per-cell bitfield.
+- The overlapping 112-region [mapzebrain](https://mapzebrain.org) atlas membership matrix is packed into a 14-byte-per-cell bitfield.
 - Cluster labels are aligned so that index 0 corresponds to *Unassigned* and indices 1…332 correspond to the 332 named subtypes.
 
 The output is a manifest plus 12 binary blobs totaling approximately 150 MB.

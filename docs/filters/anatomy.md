@@ -41,7 +41,7 @@ A non-trivial number of cells carry the *Unassigned* label, generally because th
 
 ## Atlas region
 
-The full 112-region mapzebrain atlas (*Modified from Kunst et al., 2019*) is exposed as a searchable combobox. Type part of a region name to filter the alphabetical list; each entry shows the cell count in parentheses, e.g. `cerebellum (16,642)`. Long names truncate with an ellipsis in the closed control; hovering reveals the full name.
+The full 112-region [mapzebrain](https://mapzebrain.org) atlas (*Modified from Kunst et al., 2019*) is exposed as a searchable combobox. Type part of a region name to filter the alphabetical list; each entry shows the cell count in parentheses, e.g. `cerebellum (16,642)`. Long names truncate with an ellipsis in the closed control; hovering reveals the full name.
 
 Unlike the 16-region focal list, the atlas is **hierarchical and overlapping**: each cell can belong to 0–9 regions at once (e.g. a cerebellar cell is also in `rhombencephalon`). Empty regions remain in the dropdown as `(0)` rather than being hidden, so the selectable set always matches the published atlas.
 

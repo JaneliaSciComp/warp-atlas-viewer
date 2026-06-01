@@ -75,7 +75,7 @@ The integer-to-name mapping isn't shipped with the source data — it was recove
 
 ### Atlas regions (mapzebrain 112) {#atlas-regions}
 
-The published dataset also ships a 112-region mapzebrain atlas (*Modified from Kunst et al., 2019*) as a cell × region boolean matrix in `BrainRegions_All.npy`, with names in each fish's `region_names.npy`. The atlas is hierarchical and overlapping: each cell can sit in 0–9 regions (e.g. a cerebellar cell is in both `cerebellum` and `rhombencephalon`).
+The published dataset also ships a 112-region [mapzebrain](https://mapzebrain.org) atlas (*Modified from Kunst et al., 2019*) as a cell × region boolean matrix in `BrainRegions_All.npy`, with names in each fish's `region_names.npy`. The atlas is hierarchical and overlapping: each cell can sit in 0–9 regions (e.g. a cerebellar cell is in both `cerebellum` and `rhombencephalon`).
 
 The preprocessor packs this matrix into a 14-byte little-endian bitfield per cell (`atlasRegionMask.bin`, ~3.84 MB) and emits the cleaned region names (`_` → space) in the manifest as `atlasRegionNames`. The viewer decodes membership with `(mask[i*14 + (r>>3)] >> (r&7)) & 1`. The 112-region atlas is filter-only — it does not drive a color scheme.
 

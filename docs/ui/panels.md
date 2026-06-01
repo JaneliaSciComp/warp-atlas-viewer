@@ -11,7 +11,7 @@ The viewer occupies a single full-screen page divided into four regions:
 
 ## 3D viewer
 
-The large area filling most of the screen. Every visible cell is rendered as a GPU point in mapzebrain coordinates. The [color legend](/ui/legend) appears in the top-right corner for color schemes that need a mapping. See [3D viewer](/ui/viewer) for controls.
+The large area filling most of the screen. Every visible cell is rendered as a GPU point in [mapzebrain](https://mapzebrain.org) coordinates. The [color legend](/ui/legend) appears in the top-right corner for color schemes that need a mapping. See [3D viewer](/ui/viewer) for controls.
 
 ## t-SNE panel
 

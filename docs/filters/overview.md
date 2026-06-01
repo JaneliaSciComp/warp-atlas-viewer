@@ -63,4 +63,4 @@ A click-focused cell or lasso group is retained across filter changes, even when
 - [Transcriptomics](./transcriptomics) — gene multi-select and subtype dropdown.
 - [Visual Stimuli](./stimuli) — the 8 stimuli and OR / AND logic.
 - [Swim correlation](./swim) — the behavioral regressor channel.
-- [Anatomy](./anatomy) — focal region (16), mapzebrain atlas region (112), and specimen filters.
+- [Anatomy](./anatomy) — focal region (16), [mapzebrain](https://mapzebrain.org) atlas region (112), and specimen filters.

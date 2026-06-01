@@ -5,7 +5,7 @@ description: Controls and content of the anatomical view.
 
 # 3D viewer
 
-The largest panel on screen. Every visible cell is rendered as a point in mapzebrain coordinates, with the view oriented so that anterior is at the top of the screen.
+The largest panel on screen. Every visible cell is rendered as a point in [mapzebrain](https://mapzebrain.org) coordinates, with the view oriented so that anterior is at the top of the screen.
 
 ## Controls
 

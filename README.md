@@ -23,7 +23,7 @@ Four filter cards (**Transcriptomics × Visual Stimuli × Swim × Anatomy**) com
 - **Transcriptomics**: keep cells expressing one or more genes (combined with OR / AND), or cells in a single named subtype (e.g. `pou4f2_cckb`).
 - **Visual Stimuli**: scope Stim-correlation coloring or keep cells responsive to one or more of 8 stimuli; a mode dropdown picks the direction (`no filter` / `+ correlated` / `- anti-correlated` / `± either`) and multi-stim selections combine with OR / AND. Icons render the stimulus identity. Responsiveness threshold is tunable in Settings.
 - **Swim**: keep cells correlated (+ swim-driven) or anti-correlated (− anti-swim) with estimated swim power; magnitude threshold tunable in Settings.
-- **Anatomy**: isolate one of 16 paper-focal regions, search the 112-region mapzebrain atlas, and/or restrict to one of 3 fish specimens.
+- **Anatomy**: isolate one of 16 paper-focal regions, search the 112-region [mapzebrain](https://mapzebrain.org) atlas, and/or restrict to one of 3 fish specimens.
 
 Selections are independent of filters:
 

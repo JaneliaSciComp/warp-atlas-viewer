@@ -19,7 +19,7 @@ description: Terms and abbreviations used in the WARP Atlas Viewer and these doc
 **Atlas region**
 : One of 112 hierarchical, overlapping mapzebrain regions (*Modified from Kunst et al., 2019*). Each cell can sit in 0–9 atlas regions at once. Filter-only — no color scheme. See [Preprocessing → Atlas regions](/preprocess#atlas-regions).
 
-**Mapzebrain**
+**[Mapzebrain](https://mapzebrain.org)**
 : The shared zebrafish brain coordinate frame into which the specimens were co-registered. The viewer's 3D positions are in mapzebrain coordinates, and the 112-region atlas is also drawn from this reference.
 
 ## Transcriptomics
