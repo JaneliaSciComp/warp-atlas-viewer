@@ -1,13 +1,20 @@
 ---
 title: Anatomy filter
-description: Restrict to one of 16 paper-focal regions, one of 112 mapzebrain atlas regions, one of 3 specimens, or any combination.
+description: Restrict to one of 16 paper-focal regions or one of 112 mapzebrain atlas regions, optionally combined with a specimen filter.
 ---
 
 # Anatomy
 
 Three controls:
 
-## Region
+1. **Atlas** — a toggle that picks which atlas the *region* dropdown reads:
+   - **Manuscript** *(default)* — the paper's 16 focal regions.
+   - **mapZebrain** — the 112-region [mapzebrain](https://mapzebrain.org) atlas (*Modified from Kunst et al., 2019*, version 1).
+   The two atlases are alternatives, not stacked filters; switching the toggle swaps the *region* dropdown's contents. Each atlas's last pick is remembered, so toggling back restores it.
+2. **Region** — a searchable dropdown whose entries depend on the active atlas.
+3. **Specimen** — restrict to one of the 3 source fish.
+
+## Region — Manuscript atlas
 
 One of 16 focal anatomical regions plus *Unassigned*, plus an "all" option. Selecting a region restricts visibility to cells in that region.
 
@@ -39,13 +46,11 @@ See [Preprocessing → Region names](/preprocess#anatomy-mapping) for how the in
 A non-trivial number of cells carry the *Unassigned* label, generally because they fall outside the 16 focal groupings rather than because they lacked a coordinate. *Unassigned* is expected to be one of the larger groups.
 :::
 
-## Atlas region
+## Region — mapZebrain atlas
 
-The full 112-region [mapzebrain](https://mapzebrain.org) atlas (*Modified from Kunst et al., 2019*) is exposed as a searchable combobox. Type part of a region name to filter the alphabetical list; each entry shows the cell count in parentheses, e.g. `cerebellum (16,642)`. Long names truncate with an ellipsis in the closed control; hovering reveals the full name.
+When the atlas toggle is set to **mapZebrain**, the *region* dropdown lists all 112 mapzebrain regions as a searchable combobox. Type part of a region name to filter the alphabetical list; each entry shows the cell count in parentheses, e.g. `cerebellum (16,642)`. Long names truncate with an ellipsis in the closed control; hovering reveals the full name.
 
-Unlike the 16-region focal list, the atlas is **hierarchical and overlapping**: each cell can belong to 0–9 regions at once (e.g. a cerebellar cell is also in `rhombencephalon`). Empty regions remain in the dropdown as `(0)` rather than being hidden, so the selectable set always matches the published atlas.
-
-The atlas dropdown combines under AND with the focal region. For example, `region = Pal` together with `atlas region = dorsal telencephalon (pallium)` keeps only cells that are in both the paper's *Pal* abbreviation **and** the mapzebrain leaf — useful when a paper-region abbreviation aggregates several leaves and only one of them is of interest.
+Unlike the 16-region focal list, the mapzebrain atlas is **hierarchical and overlapping**: each cell can belong to 0–9 regions at once (e.g. a cerebellar cell is also in `rhombencephalon`). Empty regions remain in the dropdown as `(0)` rather than being hidden, so the selectable set always matches the published atlas.
 
 Currently filter-only: the 112-region atlas does not drive a color scheme. *Color = Region* always uses the paper's 16-region palette.
 
@@ -63,12 +68,12 @@ Per-specimen views appear in three places:
 
 ## Combinations
 
-| Goal | Region | Atlas region | Specimen |
+| Goal | Atlas | Region | Specimen |
 |---|---|---|---|
-| Tectal periventricular cells across all specimens | `OTpv` | all | all |
-| Pallial cells from Fish 1 only | `Pal` | all | `Fish 1` |
-| All cells in Fish 3 | all | all | `Fish 3` |
-| Cerebellar cells only | all | `cerebellum` | all |
-| Inferior olive cells, any specimen | all | `inferior olive` | all |
+| Tectal periventricular cells across all specimens | Manuscript | `OTpv` | all |
+| Pallial cells from Fish 1 only | Manuscript | `Pal` | `Fish 1` |
+| All cells in Fish 3 | Manuscript | all | `Fish 3` |
+| Cerebellar cells only | mapZebrain | `cerebellum` | all |
+| Inferior olive cells, any specimen | mapZebrain | `inferior olive` | all |
 
-All three anatomy controls combine under AND with each other and with the other cards. For example, `region = OTpv` together with `Transcriptomics = pou4f2_cckb` retains cells in the tectal periventricular layer that also belong to that cluster — the appropriate combination for assessing whether a transcriptomic cluster has a meaningful anatomical footprint.
+The atlas toggle and region dropdown are joined to a single "region" predicate; specimen is independent. Both combine under AND with the other cards. For example, atlas = Manuscript, region = `OTpv` together with `Transcriptomics = pou4f2_cckb` retains cells in the tectal periventricular layer that also belong to that cluster — the appropriate combination for assessing whether a transcriptomic cluster has a meaningful anatomical footprint.
