@@ -83,11 +83,12 @@ export function SettingsTab({
                     Base point size for the 3D brain scatter and the
                     visibility of cells outside the active filters (ghosts).
                     <span className="text-neutral-200"> Auto</span> derives
-                    both from the canvas size: on a tiny window dots shrink
-                    to ~3 px and ghosts fade to ~0.1 (almost invisible —
-                    needed because ghosts stack heavily in a small canvas);
-                    by ~1500×478 dots reach their 9 px cap and ghosts hit
-                    ~0.6, approaching full visibility on larger displays.
+                    both from the 3D canvas height: very short views use
+                    small dots (~2–3 px) with moderate ghost visibility
+                    (~0.5); around 600 px tall dots are ~9 px; taller views
+                    continue growing (about 17 px at 1500 px tall) while
+                    ghosts peak near 0.8–0.85 and then taper back on very
+                    tall views.
                     <span className="text-neutral-200"> Scale by filter</span>{" "}
                     additionally enlarges active (in-set) cells as the
                     filter narrows — 50 cells → 2× their base size, all

@@ -38,7 +38,7 @@ The active **Colors** scheme determines per-cell color. See [Colors](/filters/co
 
 - The point cloud is drawn in a single GPU pass, so render cost is largely independent of the filter combination.
 - Filtered-out cells are drawn dim and transparent rather than skipped, preserving the silhouette of the full brain as context. The amount of dim is controlled by the ghost visibility in [Settings → 3D point density](/settings#3d-point-density).
-- Point size and ghost visibility self-tune to the live canvas area in auto mode — a smaller window shrinks dots toward 3 px and fades ghosts toward nearly invisible (they would otherwise stack and overwhelm the colored cells), and a larger window grows both back up. Optionally, **scale by filter** can also enlarge active cells (up to 2× their auto size) when the filter narrows to a small group. Both knobs live in [Settings → 3D point density](/settings#3d-point-density); turning auto off exposes the manual sliders.
+- Point size and ghost visibility self-tune to the live canvas height in auto mode — shorter views use smaller dots with moderate ghost visibility, while taller views grow dots and peak ghost visibility near typical full-height layouts. Optionally, **scale by filter** can also enlarge active cells (up to 2× their auto size) when the filter narrows to a small group. Both knobs live in [Settings → 3D point density](/settings#3d-point-density); turning auto off exposes the manual sliders.
 
 ## See also
 

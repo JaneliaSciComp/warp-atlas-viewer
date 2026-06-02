@@ -25,7 +25,7 @@ If a recipient reports that the lasso is missing, redraw it with fewer vertices 
 
 ## Cells appear too small or too large
 
-Adjust **Settings → 3D point density**. With **auto** mode on *(default)* the point size is derived from the live 3D canvas area, so smaller windows get smaller dots and larger windows get bigger dots, capped at 9 px once the canvas reaches ~723 k px². Turn **auto** off to set the size by hand (range 2 – 40 px); high-DPI displays generally benefit from a larger value. Enable **scale by filter** (nested under auto) to additionally enlarge active cells when the filter narrows, up to 2× the auto base size at ~50 in-set cells. A focused cell is marked with a separate white ring instead of being resized.
+Adjust **Settings → 3D point density**. With **auto** mode on *(default)* the point size is derived from the live 3D canvas height: very short views use small dots, around 600 px tall is roughly 9 px, and taller views continue to grow (about 17 px at 1500 px tall). Turn **auto** off to set the size by hand (range 1 – 40 px); high-DPI displays generally benefit from a larger value. Enable **scale by filter** (nested under auto) to additionally enlarge active cells when the filter narrows, up to 2× the auto base size at ~50 in-set cells. A focused cell is marked with a separate white ring instead of being resized.
 
 For the t-SNE panel, use **Settings → t-SNE point density**. It has its own size and ghost-visibility sliders since its dot field is much denser and there is no perspective falloff.
 
@@ -63,6 +63,6 @@ Some clusters are small (< 100 cells) and can be entirely hidden by an overlappi
 
 Address-bar caches in browsers can lag the application state. After a state change, click into the address bar (or refresh) before copying to ensure the URL is current. During fast Activity playback the URL hash is briefly stale by design.
 
-## Help, Filters, or Settings tab is empty after a dataset error
+## About, Filters, or Settings tab is empty after a dataset error
 
 When data loading fails, some cards short-circuit to an empty state to avoid rendering against missing data. Resolve the data error first (see the top of this page); the tabs repopulate on reload.

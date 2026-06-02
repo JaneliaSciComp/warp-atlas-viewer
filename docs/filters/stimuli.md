@@ -80,4 +80,4 @@ Exploring the abstract's observation that `pou4f2_cckb` is a dark-flash populati
 | Visual Stimuli | `[dark]` + `+ correlated` |
 | Anatomy | all |
 
-The remaining cells are `pou4f2_cckb` cluster members positively correlated with the dark flash, colored by correlation strength. This is preset #1 in the [Findings](/findings) page.
+The remaining cells are `pou4f2_cckb` cluster members positively correlated with the dark flash, colored by correlation strength. This matches the `pou4f2_cckb` dimming-light preset in the [Findings](/findings) page and the About tab.

@@ -30,8 +30,8 @@ Click the **‹** handle on the right edge of the 3D viewer to toggle the Detail
 Bottom-left. A tab shell with three tabs:
 
 - **Filters** — five cards (Colors, Transcriptomics, Visual Stimuli, Swim, Anatomy) controlling visibility and coloring. See [filters overview](/filters/overview).
-- **Settings** — threshold cutoffs, ramp anchors, point size. See [Settings](/settings).
-- **Help** — a condensed version of this guide and the [paper presets](/findings).
+- **Settings** — threshold cutoffs, ramp anchors, point density, rendering, and camera behavior. See [Settings](/settings).
+- **About** — a condensed viewer overview, documentation link, and the [paper presets](/findings).
 
 ::: tip Collapse handle
 Click the **⌄** handle at the bottom edge of the 3D viewer to hide the filter strip.
