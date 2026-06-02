@@ -51,7 +51,7 @@ The visible cells are gene-positive, positively stim-correlated, and anatomicall
 
 ## "Responsive": threshold
 
-A cell passes the stim filter if its Pearson r against the active stim's regressor clears `±stimLo` according to the mode (`+ correlated`, `- anti-correlated`, `± either`). `no filter` leaves the stim filter off. `stimLo` lives in [Settings → Stim correlation cutoffs](/settings#stim-correlation-cutoffs). The default floor `0.13` is the manuscript's full-vector threshold; raising it imposes a stricter criterion, lowering it a more permissive one.
+A cell passes the stim filter if its Pearson r against the active stim's regressor clears `±stimLo` according to the mode (`+ correlated`, `- anti-correlated`, `± either`). `no filter` leaves the stim filter off. `stimLo` is in [Settings → Stim correlation cutoffs](/settings#stim-correlation-cutoffs). The default floor `0.13` is the manuscript's full-vector threshold; raising it imposes a stricter criterion, lowering it a more permissive one.
 
 The same floor doubles as the **deadband boundary** for the [Stim correlation color scheme](/filters/colors#stim-correlation) (the divergent coolwarm ramp's neutral midpoint).
 

@@ -34,7 +34,7 @@ The mode dropdown controls whether selected stimuli only affect coloring or also
 In `no filter` mode, the OR / AND row grays out because there is no active stimulus-response predicate for it to combine.
 
 ::: tip `no filter` and the active color scheme
-`no filter` mode never removes cells from the view. Its only visible effect is to scope which stimuli the **Stim correlation** color ramp paints by, so a stim selection in this mode looks like a no-op unless Colors is set to **Stim correlation**. The mode dropdown still tracks the value when other color schemes are active; it just doesn't have anywhere to show its effect until you switch back to Stim coloring.
+`no filter` mode never removes cells from the view. Its only visible effect is to scope which stimuli the **Stim correlation** color ramp paints by, so a stim selection in this mode looks like a no-op unless Colors is set to **Stim correlation**. The mode dropdown still tracks the value when other color schemes are active; it has no visible effect until you switch back to Stim coloring.
 :::
 
 ## Definition of "responsive"

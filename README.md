@@ -86,7 +86,7 @@ What it does:
 - Filters to the 274,455 cells with valid coordinates and zero-fills any remaining NaN in the activity-trace and stim-correlation arrays.
 - Reorders coords (z, x, y) → (x, y, z), centers on origin, and flips the AP axis so anterior renders at the top of the screen.
 - Boxcar-downsamples the activity traces and the shared regressor traces 2× (268 → 134 timepoints, 2 Hz → 1 Hz) to halve the wire size.
-- Affine-quantizes the activity trace to uint16 over an auto-fit range. This roughly halves the trace file again and pushes it below browser per-resource HTTP-cache caps so it sticks across reloads. The quantization step (~1e-4) is ~1000× below per-sample measurement noise, so it is effectively lossless.
+- Affine-quantizes the activity trace to uint16 over an auto-fit range. This roughly halves the trace file again and pushes it below browser per-resource HTTP-cache caps so it persists across reloads. The quantization step (~1e-4) is ~1000× below per-sample measurement noise, so it is effectively lossless.
 - Remaps source fish IDs (59 / 63 / 71) to a dense 0 / 1 / 2; fails loudly on any unknown ID rather than silently aliasing it to 0.
 - Centers and scales the t-SNE embedding to roughly the [-50, 50] box so the panel's pixel projection doesn't depend on the upstream scale.
 - Aligns cluster labels to names: index 0 is "Unassigned", indices 1..332 align one-to-one with the 332 named subtypes (uses `cluster_labelsAll2`, not the permuted `cluster_labelsAll3`).
@@ -150,7 +150,7 @@ the data.
 
 ### Documentation site
 
-End-user documentation for the viewer lives in `docs/` and is built
+End-user documentation for the viewer is in `docs/` and is built
 with [VitePress](https://vitepress.dev/). It's a separate static site
 from the viewer itself — explainer pages for the UI, the filter cards,
 the visualizations, and the data flow, with built-in full-text search.
@@ -198,7 +198,7 @@ template.
 |---|---|---|
 | `WARP_ALLOWED_HOSTS` | `localhost` | Comma-separated list of hostnames the dev server accepts. Supports Vite's `.example.com` wildcard syntax. |
 
-The shared loader lives at `scripts/devEnv.mjs`; both
+The shared loader is at `scripts/devEnv.mjs`; both
 `vite.config.ts` and `docs/.vitepress/config.ts` import its
 `allowedHosts` export.
 
@@ -291,7 +291,7 @@ preprocessed/                       output of preprocess.py (gitignored)
 ## Troubleshooting
 
 - **"Loading WARP atlas…" never finishes / Error loading data**: open DevTools → Network and check whether `/preprocessed/neurons.json` 200s. If 404, you skipped preprocessing (append `?mock=1` to demo without it). For other failures, check the JS console for `[dataLoader]` messages.
-- **Bundle warning at build time** about chunks > 500 kB: expected. Three.js + recharts aren't small. Code-splitting is out of scope for the prototype.
+- **Bundle warning at build time** about chunks > 500 kB: expected. Three.js and recharts each weigh in well over the threshold. Code-splitting is out of scope for the prototype.
 - **External hostname blocked by Vite**: add it to `WARP_ALLOWED_HOSTS` in your `.env.local` (see [Local dev-server config](#local-dev-server-config)).
 - **Detail / bottom panels disappeared**: they have collapse handles (the `›` on the right edge and the `⌄` at the bottom of the 3D viewer). Click to toggle.
 - **A URL someone shared shows blank state**: share URLs can exceed browser hash caps if the lasso polygon is huge; the app drops the lasso first, then the whole hash, and warns in the console. Re-lasso and re-share.

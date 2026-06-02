@@ -65,7 +65,7 @@ What to look for: a hindbrain-weighted subset of `otpa+` cells (the paper highli
 
 ### pvalb7_eomesa task-related neurons (Figure 4D-E · abstract)
 
-A hippocampal-like pvalb7⁺ / eomesa⁺ population sits in the dorsal pallium and shows task-structured calcium activity.
+A hippocampal-like pvalb7⁺ / eomesa⁺ population is in the dorsal pallium and shows task-structured calcium activity.
 
 - **Colors:** `Simple`
 - **Transcriptomics:** Subtype = `pvalb7_eomesa`

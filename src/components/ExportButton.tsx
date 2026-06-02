@@ -42,8 +42,8 @@ export function ExportButton({
         rowCount: effectiveSelection.indices.length,
         scopeLabel:
           src === 'umap'
-            ? 'the cells you lassoed in the t-SNE panel, intersected with the active filters'
-            : 'the cells matching your 3D viewer selection, intersected with the active filters',
+            ? 'the cells in the current t-SNE lasso, intersected with the active filters'
+            : 'the cells in the current 3D viewer selection, intersected with the active filters',
       };
     }
     // 'filter' or null (no selection, no filter)
@@ -108,7 +108,7 @@ export function ExportButton({
               <p className="text-sm text-neutral-300 mb-2">
                 Exporting <strong>{rowCount.toLocaleString()}</strong> cell
                 {rowCount === 1 ? '' : 's'}
-                {' '}({formatBytes(sizeBytes)} approx.) — {scopeLabel}.
+                {' '}(~{formatBytes(sizeBytes)}) — {scopeLabel}.
               </p>
               <p className="text-xs text-neutral-400 mb-3">
                 Each row is one cell. Columns (in order):

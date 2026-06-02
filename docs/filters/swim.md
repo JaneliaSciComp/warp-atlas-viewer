@@ -7,7 +7,7 @@ description: Filter by the per-cell Pearson r between calcium activity and estim
 
 The Swim card filters by the **per-cell Pearson r between calcium activity and estimated swim power**, a behavioral regressor derived from the ephys tail-electrode channel (windowed variance of the swim signal). It is a separate channel from the eight visual stimuli, since swimming is a motor variable rather than a sensory input, but it is closely linked because several stimuli (notably forward visual motion) elicit swimming.
 
-The Swim card sits between **Visual Stimuli** and **Anatomy** in the Filters tab.
+The Swim card is between **Visual Stimuli** and **Anatomy** in the Filters tab.
 
 ## Controls
 

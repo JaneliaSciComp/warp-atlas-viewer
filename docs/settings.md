@@ -100,7 +100,7 @@ The slider range is `0` – `1` in `0.05` steps.
 The t-SNE scatter has its own size and ghost-visibility section because its dot field is much denser per cell and there's no perspective falloff to shrink distant points. These controls are always manual; there is no t-SNE auto mode.
 
 - **point size (px)** — uniform dot diameter for every cell. Range `2` – `40` px; default `11`.
-- **ghost visibility** (0..1) — visibility of out-of-filter cells in t-SNE specifically. Defaults to `0.25` because the higher density of t-SNE points makes them stack more aggressively than in the 3D view; the lower default keeps the active population readable without hiding the ghosts you're aiming at when re-lassoing.
+- **ghost visibility** (0..1) — visibility of out-of-filter cells in t-SNE specifically. Defaults to `0.25` because the higher density of t-SNE points makes them stack more aggressively than in the 3D view; the lower default keeps the active population readable without hiding the ghosts you're targeting when re-lassoing.
 
 These settings do not interact with the 3D-viewer controls in either direction.
 
@@ -167,7 +167,7 @@ Two anchors for the signed per-cell Pearson r between calcium activity and the s
 - **responsive floor (|r| ≥)** — the magnitude floor for the stim filter (cells must clear `±stimLo` per the active mode on the [Visual Stimuli card](/filters/stimuli#mode-dropdown)) and the **deadband** boundary for the divergent [Stim correlation color ramp](/filters/colors#stim-correlation).
 - **saturation (|r| ≥)** — magnitude at which the divergent ramp reaches its endpoints. Does not affect the filter.
 
-Defaults are floor `0.13` and saturation `0.30`. The floor matches the manuscript's full-vector responsive threshold (Methods: "Selecting positively and negatively correlated neurons"); the saturation sits near the 99th percentile of the cycle-wide correlation distribution.
+Defaults are floor `0.13` and saturation `0.30`. The floor matches the manuscript's full-vector responsive threshold (Methods: "Selecting positively and negatively correlated neurons"); the saturation is near the 99th percentile of the cycle-wide correlation distribution.
 
 The sliders constrain the floor to stay below saturation and saturation to stay above the floor; both values are bounded by the valid correlation range (`0` – `1`).
 

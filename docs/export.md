@@ -54,6 +54,6 @@ It's default-off because traces roughly **double the file size** and add 134 col
 
 ## Tips
 
-- A typical filtered export (a few thousand to a few tens of thousands of cells) opens cleanly in any spreadsheet or notebook environment.
+- A typical filtered export (a few thousand to a few tens of thousands of cells) opens in any spreadsheet or notebook environment.
 - Worst case is the full population with no filter (~274k cells × ~60 columns ≈ 150 MB; with traces enabled ~300 MB). The dialog shows an estimated size before you commit — narrow the filter first if that's larger than you intended.
 - Floating-point precision is fixed (2 decimals for coordinates, 3 for correlations and ΔF/F) — enough headroom for downstream analysis without bloating the file.
