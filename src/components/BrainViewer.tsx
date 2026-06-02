@@ -61,6 +61,32 @@ interface ScreenPanState {
 
 const VOLUME_CENTER: [number, number, number] = [0, 0, 0];
 
+// Work around a Chromium 148 / ANGLE Metal bug on macOS where buffer
+// uploads larger than ANGLE's 1 MiB staging chunks can be corrupted.
+// The largest per-chunk point attribute here is vec3 float:
+//   60,000 * 3 * 4 = 720,000 bytes
+// which leaves comfortable headroom below 1 MiB. Keeping the chunk size
+// below 65,536 also lets the chunk-local draw-order index buffers use
+// Uint16Array everywhere (no WebGL uint-index extension dependency).
+const POINT_CHUNK_SIZE = 60_000;
+
+interface PointChunk {
+  id: number;
+  start: number;
+  count: number;
+  opaqueGeometry: THREE.BufferGeometry;
+  transparentAllGeometry: THREE.BufferGeometry;
+  transparentOutGeometry: THREE.BufferGeometry;
+  transparentInGeometry: THREE.BufferGeometry;
+  colorAttr: THREE.BufferAttribute;
+  alphaAttr: THREE.BufferAttribute;
+  sizeAttr: THREE.BufferAttribute;
+  outIndexAttr: THREE.BufferAttribute;
+  inIndexAttr: THREE.BufferAttribute;
+  outIndex: Uint16Array;
+  inIndex: Uint16Array;
+}
+
 
 /** Inner R3F component: owns the Points object and shader updates.
  *  Filter / settings / selection are already baked into `coloring`;
@@ -89,15 +115,90 @@ function PointCloud({
 
   const buffers = useMemo(() => allocColoring(data.count), [data]);
 
-  const geometry = useMemo(() => {
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(data.positions, 3));
-    g.setAttribute('instColor', new THREE.BufferAttribute(buffers.colors, 3));
-    g.setAttribute('instAlpha', new THREE.BufferAttribute(buffers.alphas, 1));
-    g.setAttribute('instSize', new THREE.BufferAttribute(buffers.sizes, 1));
-    g.computeBoundingSphere();
-    return g;
+  const chunks = useMemo<PointChunk[]>(() => {
+    const out: PointChunk[] = [];
+    for (let start = 0, id = 0; start < data.count; start += POINT_CHUNK_SIZE, id++) {
+      const count = Math.min(POINT_CHUNK_SIZE, data.count - start);
+      const positionAttr = new THREE.BufferAttribute(
+        data.positions.subarray(start * 3, (start + count) * 3),
+        3,
+      );
+      const colorAttr = new THREE.BufferAttribute(
+        buffers.colors.subarray(start * 3, (start + count) * 3),
+        3,
+      ).setUsage(THREE.DynamicDrawUsage);
+      const alphaAttr = new THREE.BufferAttribute(
+        buffers.alphas.subarray(start, start + count),
+        1,
+      ).setUsage(THREE.DynamicDrawUsage);
+      const sizeAttr = new THREE.BufferAttribute(
+        buffers.sizes.subarray(start, start + count),
+        1,
+      ).setUsage(THREE.DynamicDrawUsage);
+
+      const outIndex = new Uint16Array(count);
+      const inIndex = new Uint16Array(count);
+      const outIndexAttr = new THREE.BufferAttribute(outIndex, 1).setUsage(
+        THREE.DynamicDrawUsage,
+      );
+      const inIndexAttr = new THREE.BufferAttribute(inIndex, 1).setUsage(
+        THREE.DynamicDrawUsage,
+      );
+
+      const makeGeometry = (index?: THREE.BufferAttribute) => {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', positionAttr);
+        g.setAttribute('instColor', colorAttr);
+        g.setAttribute('instAlpha', alphaAttr);
+        g.setAttribute('instSize', sizeAttr);
+        if (index) {
+          g.setIndex(index);
+          g.setDrawRange(0, 0);
+        }
+        return g;
+      };
+
+      const opaqueGeometry = makeGeometry();
+      opaqueGeometry.computeBoundingSphere();
+      const transparentAllGeometry = makeGeometry();
+      const transparentOutGeometry = makeGeometry(outIndexAttr);
+      const transparentInGeometry = makeGeometry(inIndexAttr);
+      if (opaqueGeometry.boundingSphere) {
+        transparentAllGeometry.boundingSphere = opaqueGeometry.boundingSphere.clone();
+        transparentOutGeometry.boundingSphere = opaqueGeometry.boundingSphere.clone();
+        transparentInGeometry.boundingSphere = opaqueGeometry.boundingSphere.clone();
+      }
+
+      out.push({
+        id,
+        start,
+        count,
+        opaqueGeometry,
+        transparentAllGeometry,
+        transparentOutGeometry,
+        transparentInGeometry,
+        colorAttr,
+        alphaAttr,
+        sizeAttr,
+        outIndexAttr,
+        inIndexAttr,
+        outIndex,
+        inIndex,
+      });
+    }
+    return out;
   }, [data, buffers]);
+
+  useEffect(() => {
+    return () => {
+      for (const chunk of chunks) {
+        chunk.opaqueGeometry.dispose();
+        chunk.transparentAllGeometry.dispose();
+        chunk.transparentOutGeometry.dispose();
+        chunk.transparentInGeometry.dispose();
+      }
+    };
+  }, [chunks]);
 
   // Two-pass rendering. Opaque-ish cells (α ≥ 0.5: region/fish/highlight
   // colors at 0.85+, signal-saturated gene/stim/swim cells at 1.0) write
@@ -179,23 +280,49 @@ function PointCloud({
       buffers.colors[i * 3 + 2] = Math.min(1, buffers.colors[i * 3 + 2] * 1.2 + 0.25);
       buffers.alphas[i] = 1.0;
     }
-    (geometry.attributes.instColor as THREE.BufferAttribute).needsUpdate = true;
-    (geometry.attributes.instAlpha as THREE.BufferAttribute).needsUpdate = true;
-    (geometry.attributes.instSize as THREE.BufferAttribute).needsUpdate = true;
-    // drawOrder partitions cells so out-of-filter indices come first
-    // and in-filter ones last. Setting it as the geometry's index
-    // buffer makes Three.js draw them in that order — combined with
-    // depthWrite: false (so the depth buffer doesn't enforce true 3D
-    // ordering for transparents) this guarantees in-set cells
-    // composite over the dim ghost haze regardless of where they
-    // sit in space. When no filter is active drawOrder is null and
-    // we clear the index so the renderer falls back to natural order.
-    if (coloring.drawOrder) {
-      geometry.setIndex(new THREE.BufferAttribute(coloring.drawOrder, 1));
-    } else if (geometry.index) {
-      geometry.setIndex(null);
+
+    for (const chunk of chunks) {
+      chunk.colorAttr.needsUpdate = true;
+      chunk.alphaAttr.needsUpdate = true;
+      chunk.sizeAttr.needsUpdate = true;
     }
-  }, [data, filter, settings, coloring, selection, focusedNeuron, buffers, geometry]);
+
+    // drawOrder partitions cells so out-of-filter indices come first
+    // and in-filter ones last. With chunked geometries we can't attach
+    // one global index buffer, so split it into chunk-local transparent
+    // index buffers and render *all* out-of-filter chunks before *all*
+    // in-filter chunks. This preserves the previous foreground-over-
+    // ghost compositing guarantee while keeping every WebGL upload well
+    // under ANGLE Metal's problematic 1 MiB staging-buffer boundary.
+    if (coloring.drawOrder && coloring.filterSelection) {
+      const outCounts = new Uint32Array(chunks.length);
+      const inCounts = new Uint32Array(chunks.length);
+      const inCursor = data.count - coloring.filterSelection.length;
+      for (let k = 0; k < coloring.drawOrder.length; k++) {
+        const i = coloring.drawOrder[k];
+        const chunkId = Math.floor(i / POINT_CHUNK_SIZE);
+        const chunk = chunks[chunkId];
+        const local = i - chunk.start;
+        if (k < inCursor) {
+          chunk.outIndex[outCounts[chunkId]++] = local;
+        } else {
+          chunk.inIndex[inCounts[chunkId]++] = local;
+        }
+      }
+      for (let c = 0; c < chunks.length; c++) {
+        const chunk = chunks[c];
+        chunk.transparentOutGeometry.setDrawRange(0, outCounts[c]);
+        chunk.transparentInGeometry.setDrawRange(0, inCounts[c]);
+        chunk.outIndexAttr.needsUpdate = true;
+        chunk.inIndexAttr.needsUpdate = true;
+      }
+    } else {
+      for (const chunk of chunks) {
+        chunk.transparentOutGeometry.setDrawRange(0, 0);
+        chunk.transparentInGeometry.setDrawRange(0, 0);
+      }
+    }
+  }, [data, filter, settings, coloring, selection, focusedNeuron, buffers, chunks]);
 
   // Focused-neuron ring marker. Mirrors the t-SNE white outline: a
   // hollow circle that grows with the cell up close and floors at a
@@ -425,23 +552,57 @@ function PointCloud({
     }
   });
 
+  const hasDrawOrder = coloring?.drawOrder != null && coloring.filterSelection != null;
+
   return (
     <group rotation={[0, 0, Math.PI / 2]} scale={[1, -1, 1]}>
       {/* Opaque pass first so its depth values are in place before the
-        * transparent pass reads them. Both points share the same
-        * geometry — the materials' alphaMin / alphaMax uniforms
-        * partition cells by alpha at the fragment level. */}
-      <points geometry={geometry} material={opaqueMaterial} renderOrder={0} />
-      <points
-        geometry={geometry}
-        material={transparentMaterial}
-        renderOrder={1}
-        userData={skipAmbientOcclusionUserData}
-      />
+        * transparent pass reads them. The cloud is split into small
+        * geometries to avoid Chromium/ANGLE Metal's >1 MiB upload bug,
+        * but the materials' alphaMin / alphaMax uniforms still partition
+        * cells into the same opaque and transparent halves. */}
+      {chunks.map((chunk) => (
+        <points
+          key={`opaque-${chunk.id}`}
+          geometry={chunk.opaqueGeometry}
+          material={opaqueMaterial}
+          renderOrder={0}
+        />
+      ))}
+      {!hasDrawOrder &&
+        chunks.map((chunk) => (
+          <points
+            key={`transparent-all-${chunk.id}`}
+            geometry={chunk.transparentAllGeometry}
+            material={transparentMaterial}
+            renderOrder={10}
+            userData={skipAmbientOcclusionUserData}
+          />
+        ))}
+      {hasDrawOrder &&
+        chunks.map((chunk) => (
+          <points
+            key={`transparent-out-${chunk.id}`}
+            geometry={chunk.transparentOutGeometry}
+            material={transparentMaterial}
+            renderOrder={10}
+            userData={skipAmbientOcclusionUserData}
+          />
+        ))}
+      {hasDrawOrder &&
+        chunks.map((chunk) => (
+          <points
+            key={`transparent-in-${chunk.id}`}
+            geometry={chunk.transparentInGeometry}
+            material={transparentMaterial}
+            renderOrder={20}
+            userData={skipAmbientOcclusionUserData}
+          />
+        ))}
       <points
         geometry={markerGeometry}
         material={markerMaterial}
-        renderOrder={2}
+        renderOrder={30}
         userData={skipAmbientOcclusionUserData}
       />
     </group>
