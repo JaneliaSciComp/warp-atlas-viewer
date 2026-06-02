@@ -16,7 +16,7 @@ Three controls:
 
 ## Region — Manuscript atlas
 
-One of 16 focal anatomical regions plus *Unassigned*, plus an "all" option. Selecting a region restricts visibility to cells in that region.
+One of 16 focal anatomical regions plus *Unassigned*, plus an "all" option. Selecting a region restricts visibility to cells in that region. Each entry shows the cell count in parentheses, in the same format as the mapZebrain dropdown.
 
 The list is ordered anterior → posterior, matching the paper's figure legends:
 
