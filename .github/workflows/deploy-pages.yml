@@ -20,6 +20,7 @@ env:
   PREPROCESSED_FILES: >-
     neurons.json
     activityTrace.bin
+    atlasRegionMask.bin
     clusterIds.bin
     fishIds.bin
     geneBinary.bin
