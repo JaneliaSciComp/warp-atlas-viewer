@@ -415,7 +415,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
     swimHi: 0.35,
     ghostIntensity: 0.6,
     autoSizing: true,
-    scaleByFilterCount: false,
+    scaleByFilterCount: true,
     fadeWeakCorrelation: true,
     objectCentricRotation: true,
     rotationMomentum: 0.9,

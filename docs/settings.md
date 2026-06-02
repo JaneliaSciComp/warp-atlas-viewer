@@ -18,7 +18,7 @@ A **show descriptions** checkbox sits next to the reset button. When unchecked, 
 Controls how big the dots are and how visible out-of-filter cells (ghosts) are in the 3D brain view. Two independent knobs:
 
 - **auto** *(default on)* — derives point size and ghost visibility from the live 3D canvas area, so the viewer self-adapts as you resize the window or expand/collapse the bottom panel. Sliders are hidden while auto is on.
-- **scale by filter** *(default off, nested under auto)* — additionally enlarges *active* (in-set) cells as the filter narrows, so a small selected cluster reads louder than the surrounding population. Ghost cells are not boosted.
+- **scale by filter** *(default on, nested under auto)* — additionally enlarges *active* (in-set) cells as the filter narrows, so a small selected cluster reads louder than the surrounding population. Ghost cells are not boosted.
 
 With auto **off**, the two sliders are exposed directly:
 
