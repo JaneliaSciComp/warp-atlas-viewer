@@ -33,6 +33,14 @@ export function AnatomyCard({
     const full = matchesPaperLayout ? REGION_FULL_NAMES[i] : undefined;
     return !full || full === abbr ? abbr : `${abbr} — ${full}`;
   };
+  // Per-region cell counts for the 16 focal regions plus Unassigned.
+  // Each cell carries exactly one regionId, so a single pass tallies them.
+  const regionCounts = useMemo(() => {
+    const counts = new Int32Array(data.regionNames.length);
+    const ids = data.regionIds;
+    for (let i = 0; i < data.count; i++) counts[ids[i]]++;
+    return counts;
+  }, [data.regionIds, data.regionNames.length, data.count]);
   // 112-region mapZebrain atlas (Modified from Kunst et al., 2019).
   // Sorted alphabetically by display label — the names are long and not
   // shared with the paper's 16-region vocabulary, so anatomical order
@@ -93,7 +101,11 @@ export function AnatomyCard({
           onChange={(v) => update({ isolatedRegion: v })}
           options={[
             { value: -1, label: 'all' },
-            ...regionOrder.map((i) => ({ value: i, label: regionLabel(i) })),
+            ...regionOrder.map((i) => ({
+              value: i,
+              label: regionLabel(i),
+              aside: regionCounts[i].toLocaleString(),
+            })),
           ]}
           arrows
           truncateClass="max-w-[15rem]"
