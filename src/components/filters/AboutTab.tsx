@@ -53,7 +53,7 @@ const FINDINGS: FindingPreset[] = [
     title: 'pou4f2_cckb_chata — dark and bright flashes',
     figure: 'Figure 3D',
     description:
-      'Tectal pou4f2_cckb_chata cells respond to both bright and dark flashes — combined via OR logic so cells that pass either count.',
+      'Tectal pou4f2_cckb_chata cells respond to both bright and dark flashes. The two stimuli are combined via OR logic so cells that pass either count.',
     colorMode: 'stim',
     cluster: 'pou4f2_cckb_chata',
     stimuli: [4, 5],
@@ -90,7 +90,7 @@ const FINDINGS: FindingPreset[] = [
     title: 'pou4f2_cckb dimming-light response',
     figure: 'Figure 5F · abstract',
     description:
-      'Tectal pou4f2_cckb subtype is positively correlated with the dark-flash stimulus — the cckb-pou4f2 luminance-coding population highlighted in the abstract.',
+      'Tectal pou4f2_cckb subtype is positively correlated with the dark-flash stimulus. This is the cckb-pou4f2 luminance-coding population described in the abstract.',
     colorMode: 'stim',
     cluster: 'pou4f2_cckb',
     stimuli: [4],
@@ -157,9 +157,9 @@ export function AboutTab({
           counts for 41 genes, (3) one of 333 molecularly-defined
           subtypes, (4) a calcium response to 8 visual stimuli, and
           (5) a correlation between its activity and swim power. The
-          3D viewer and the t-SNE show the same cells in two spaces —
-          anything you select in one is highlighted in the other. The
-          Details panel summarizes the current selection: a single
+          3D viewer and the t-SNE show the same cells in two spaces,
+          and anything you select in one is also selected in the other.
+          The Details panel summarizes the current selection: a single
           cell's profile, or aggregate stats across a group.
         </p>
       </section>

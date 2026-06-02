@@ -71,13 +71,13 @@ The dataset assigns each cell to one of 16 focal anatomical groupings (plus *Una
 | 15 | SubP | Subpallium |
 | 16 | Pal | Dorsal pallium |
 
-The integer-to-name mapping isn't shipped with the source data — it was recovered by intersecting `Brain_reg.npy` with `BrainRegions_All.npy` (the cell × 112-atlas-region matrix) and resolving ties against the paper's 16-region list. The default region colors are sampled directly from the paper's region figure legend (`data/brain_regions.png`), with optional Turbo and high-contrast categorical palettes available in the same 16-region slot order; *Unassigned* is rendered as a dedicated neutral gray rather than a hue in every palette.
+The integer-to-name mapping isn't shipped with the source data. It was recovered by intersecting `Brain_reg.npy` with `BrainRegions_All.npy` (the cell × 112-atlas-region matrix) and resolving ties against the paper's 16-region list. The default region colors are sampled directly from the paper's region figure legend (`data/brain_regions.png`), with optional Turbo and high-contrast categorical palettes available in the same 16-region slot order; *Unassigned* is rendered as a dedicated neutral gray rather than a hue in every palette.
 
 ### Atlas regions (mapzebrain 112) {#atlas-regions}
 
 The published dataset also ships a 112-region [mapzebrain](https://mapzebrain.org) atlas (*Modified from Kunst et al., 2019*) as a cell × region boolean matrix in `BrainRegions_All.npy`, with names in each fish's `region_names.npy`. The atlas is hierarchical and overlapping: each cell can sit in 0–9 regions (e.g. a cerebellar cell is in both `cerebellum` and `rhombencephalon`).
 
-The preprocessor packs this matrix into a 14-byte little-endian bitfield per cell (`atlasRegionMask.bin`, ~3.84 MB) and emits the cleaned region names (`_` → space) in the manifest as `atlasRegionNames`. The viewer decodes membership with `(mask[i*14 + (r>>3)] >> (r&7)) & 1`. The 112-region atlas is filter-only — it does not drive a color scheme.
+The preprocessor packs this matrix into a 14-byte little-endian bitfield per cell (`atlasRegionMask.bin`, ~3.84 MB) and emits the cleaned region names (`_` → space) in the manifest as `atlasRegionNames`. The viewer decodes membership with `(mask[i*14 + (r>>3)] >> (r&7)) & 1`. The 112-region atlas is filter-only. It does not drive a color scheme.
 
 ### Stimulus on-windows
 
@@ -85,11 +85,11 @@ The stimulus on-windows, in seconds, are extracted from the downsampled regresso
 
 ### Stimulus correlations
 
-The viewer loads `big_corr_regsAllMix` from the published dataset — the **cycle-wide** Pearson r between each cell's activity trace and each stimulus regressor (maximum of the regular and delayed variants). This is the array the manuscript uses for Fig 5C/D and for naming stimulus-responsive subtypes. The dataset also publishes a windowed variant (`high_corr_perSimMix`, median across the 9 presentations); that array biases everything positive and is not currently surfaced in the viewer.
+The viewer loads `big_corr_regsAllMix` from the published dataset. This array holds the **cycle-wide** Pearson r between each cell's activity trace and each stimulus regressor (maximum of the regular and delayed variants), and the manuscript uses it for Fig 5C/D and for naming stimulus-responsive subtypes. The dataset also publishes a windowed variant (`high_corr_perSimMix`, median across the 9 presentations); that array biases everything positive and is not currently surfaced in the viewer.
 
 ### Swim correlation
 
-The viewer loads `swim_corr_All` — the per-cell Pearson r between each cell's calcium activity and estimated swim power (windowed variance of the ephys tail-electrode channel). NaN values are zero-filled in the same pattern as the stimulus correlations. This is the channel surfaced by the [Swim card](/filters/swim) and the swim color scheme.
+The viewer loads `swim_corr_All`, the per-cell Pearson r between each cell's calcium activity and estimated swim power (windowed variance of the ephys tail-electrode channel). NaN values are zero-filled in the same pattern as the stimulus correlations. This is the channel surfaced by the [Swim card](/filters/swim) and the swim color scheme.
 
 ## Manifest
 

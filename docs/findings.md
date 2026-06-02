@@ -45,7 +45,7 @@ What to look for: tectal cells retained by response to at least one of the four 
 
 ### `pou4f2_cckb_chata` — dark and bright flashes (Figure 3D)
 
-Tectal `pou4f2_cckb_chata` cells respond to both bright and dark flashes; the two stimuli are combined with **OR** so that cells responsive to either are retained.
+Tectal `pou4f2_cckb_chata` cells respond to both bright and dark flashes. The two stimuli are combined with **OR** so that cells responsive to either are retained.
 
 - **Colors:** `Stim correlation`
 - **Transcriptomics:** Subtype = `pou4f2_cckb_chata`
@@ -55,7 +55,7 @@ What to look for: optic-tectum cells with flash-driven correlation bars. Use **A
 
 ### `otpa`+ swim-related neurons (Figure 3G)
 
-`otpa`-expressing neurons whose calcium activity correlates with swim power — the motor-coding population the paper maps in Fig 3G. The visible set is `otpa+ AND swim-driven`, painted by `otpa` spot count.
+`otpa`-expressing neurons are the motor-coding population the paper maps in Fig 3G; their calcium activity correlates with swim power. The visible set is `otpa+ AND swim-driven`, painted by `otpa` spot count.
 
 - **Colors:** `Gene expression`
 - **Transcriptomics:** Gene = `[otpa]`
@@ -65,7 +65,7 @@ What to look for: a hindbrain-weighted subset of `otpa+` cells (the paper highli
 
 ### `pvalb7_eomesa` — task-related neurons (Figure 4D–E, abstract)
 
-A hippocampal-like pvalb7⁺ / eomesa⁺ population in the dorsal pallium with task-structured calcium activity.
+A hippocampal-like pvalb7⁺ / eomesa⁺ population sits in the dorsal pallium and shows task-structured calcium activity.
 
 - **Colors:** `Simple`
 - **Transcriptomics:** Subtype = `pvalb7_eomesa`
@@ -74,7 +74,7 @@ What to look for: a telencephalic / dorsal-pallial distribution. Use the Detail 
 
 ### `gad1b_tph2_gfra1a` — anti-forward-motion raphe (Figure 5D)
 
-Dorsal-raphe `gad1b_tph2_gfra1a` cells, one of the 15 largest multi-gene subtypes negatively correlated with forward visual motion (Fig 5D). The preset combines the cluster filter with a stim filter on forward motion in `− anti-correlated` mode, so the 3D coloring (divergent coolwarm) directly shows the anti-correlation at the blue end of the ramp.
+Dorsal-raphe `gad1b_tph2_gfra1a` cells form one of the 15 largest multi-gene subtypes negatively correlated with forward visual motion (Fig 5D). The preset combines the cluster filter with a stim filter on forward motion in `− anti-correlated` mode, so the 3D coloring (divergent coolwarm) directly shows the anti-correlation at the blue end of the ramp.
 
 - **Colors:** `Stim correlation`
 - **Transcriptomics:** Subtype = `gad1b_tph2_gfra1a`
@@ -82,9 +82,9 @@ Dorsal-raphe `gad1b_tph2_gfra1a` cells, one of the 15 largest multi-gene subtype
 
 What to look for:
 
-- the cluster cells painted **blue** in the 3D viewer — the divergent ramp's negative end,
+- the cluster cells painted **blue** in the 3D viewer (the divergent ramp's negative end),
 - the **Detail panel's per-stimulus correlation chart** — the leftmost bar (forward motion) should be negative, while the other bars are near zero or modestly positive,
-- the **swim correlation histogram** at the bottom of the Detail panel — exposes the per-cell distribution, including the cluster's anti-swim tail,
+- the **swim correlation histogram** at the bottom of the Detail panel exposes the per-cell distribution, including the cluster's anti-swim tail,
 - the cluster's **anatomical signature** in the 3D viewer (a subset is in SupRaphe, though most cells in the cluster fall outside the viewer's 16 focal regions and carry the *Unassigned* label).
 
 ### `pou4f2_cckb` — dimming-light response (Figure 5F, abstract)

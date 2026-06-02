@@ -7,7 +7,7 @@ description: How the published dataset becomes the rendered point cloud.
 
 ![Pipeline: the published dataset on Figshare is converted by a preprocessing step into a bundle that the viewer fetches at startup into an in-memory dataset, which is reduced each frame to per-cell visibility, color, and size buffers and drawn by the GPU into the 3D viewer, t-SNE, and Detail panel.](/data-flow.svg)
 
-The viewer runs entirely in the browser. There is no backend or database — only static files served alongside the page.
+The viewer runs entirely in the browser. There is no backend or database, only static files served alongside the page.
 
 ## Source dataset
 
@@ -22,7 +22,7 @@ The functional quantities shown in the viewer are summary arrays from the publis
 
 ## Preprocessing
 
-A Python script reduces the published arrays to web-friendly binary blobs and a JSON manifest. This stage incorporates several decisions about which cells to retain and how each quantity is encoded — see [Preprocessing](/preprocess) for the full list. The principal transformations are:
+A Python script reduces the published arrays to web-friendly binary blobs and a JSON manifest. This stage incorporates several decisions about which cells to retain and how each quantity is encoded. See [Preprocessing](/preprocess) for the full list. The principal transformations are:
 
 - Cells without valid coordinates are excluded; approximately 274,455 cells are retained.
 - Coordinates are reordered and centered, and the AP axis is flipped so that anterior renders upward.

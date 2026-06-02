@@ -76,4 +76,4 @@ Per-specimen views appear in three places:
 | Cerebellar cells only | mapZebrain | `cerebellum` | all |
 | Inferior olive cells, any specimen | mapZebrain | `inferior olive` | all |
 
-The atlas toggle and region dropdown are joined to a single "region" predicate; specimen is independent. Both combine under AND with the other cards. For example, atlas = Manuscript, region = `OTpv` together with `Transcriptomics = pou4f2_cckb` retains cells in the tectal periventricular layer that also belong to that cluster — the appropriate combination for assessing whether a transcriptomic cluster has a meaningful anatomical footprint.
+The atlas toggle and region dropdown are joined to a single "region" predicate; specimen is independent. Both combine under AND with the other cards. For example, atlas = Manuscript, region = `OTpv` together with `Transcriptomics = pou4f2_cckb` retains cells in the tectal periventricular layer that also belong to that cluster. This is the appropriate combination for assessing whether a transcriptomic cluster has a meaningful anatomical footprint.

@@ -32,7 +32,7 @@ Values outside the `[floor, ceiling]` range clamp to the corresponding end of th
 
 The Stim correlation and Swim correlation schemes use the same coolwarm divergent map (blue → neutral → red) because both underlying values are signed. The midpoint corresponds to the deadband around `r = 0`, allowing positive and negative populations to be told apart by *color hue* rather than only by *magnitude*.
 
-When [Settings → Fade weak correlations](/settings#fade-weak-correlations) is on, alpha is scaled by `|r|` so cells near the midpoint fade into the dark background and the colored extremes stand out. The legend gradient mirrors this — its midpoint is partially transparent, matching what's on screen. Turning the setting off renders both the gradient and the cells at full opacity.
+When [Settings → Fade weak correlations](/settings#fade-weak-correlations) is on, alpha is scaled by `|r|` so cells near the midpoint fade into the dark background and the colored extremes stand out. The legend gradient mirrors this: its midpoint is partially transparent, matching what's on screen. Turning the setting off renders both the gradient and the cells at full opacity.
 
 Anchors `±stimLo` / `±stimHi` and `±swimLo` / `±swimHi` are configurable in [Settings](/settings#stim-correlation-cutoffs).
 

@@ -23,9 +23,9 @@ The Filters tab's **Reset** button restores the viewer's default filter state in
 
 ### Visible-cell readout {#visible-cell-readout}
 
-A small readout next to the reset button reports the **number of cells currently visible**. A cell counts as visible when its final rendered alpha is ≥ 0.5 — so cells dropped by the active filters, the ghost visibility (see [Settings → 3D point density](/settings#3d-point-density)), and the [fade-weak-correlations](/settings#fade-weak-correlations) alpha modulation all drop out of the count.
+A small readout next to the reset button reports the **number of cells currently visible**. A cell counts as visible when its final rendered alpha is ≥ 0.5, so cells dropped by the active filters, the ghost visibility (see [Settings → 3D point density](/settings#3d-point-density)), and the [fade-weak-correlations](/settings#fade-weak-correlations) alpha modulation all drop out of the count.
 
-The same population — the *effective set* — is what the [**Export**](/export) button in the viewer header writes to CSV.
+The same population (the *effective set*) is what the [**Export**](/export) button in the viewer header writes to CSV.
 
 ## OR versus AND within a card
 
@@ -34,7 +34,7 @@ Two cards support a logical toggle on selections within them:
 - **Transcriptomics (gene mode)** — `OR` retains cells expressing **any** of the selected genes; `AND` retains cells expressing **all** of them.
 - **Visual Stimuli** — `OR` retains cells whose correlation passes the active mode for **any** selected stim; `AND` requires the check to hold for **every** selected stim. The OR / AND row only takes effect when the mode is not `no filter`; it grays out otherwise. See [Visual Stimuli → Mode dropdown](./stimuli#mode-dropdown).
 
-Anatomy provides no OR toggle. The atlas toggle picks which atlas the region dropdown reads from — they're alternatives, not stacked. The region and specimen pickers each select a single value or "all".
+Anatomy provides no OR toggle. The atlas toggle picks which atlas the region dropdown reads from; the two atlases are alternatives, not stacked. The region and specimen pickers each select a single value or "all".
 
 ## Worked example
 

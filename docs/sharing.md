@@ -5,7 +5,7 @@ description: How the URL hash encodes view state, and what it contains.
 
 # Sharing views
 
-Every meaningful piece of view state is encoded in the URL hash (the `#…` portion of the address bar). Copying the URL and reopening it elsewhere reproduces the same view — identical filters, colors, camera, panel visibility, and selection.
+Every meaningful piece of view state is encoded in the URL hash (the `#…` portion of the address bar). Copying the URL and reopening it elsewhere reproduces the same view, with identical filters, colors, camera, panel visibility, and selection.
 
 ## Contents of the hash
 

@@ -26,7 +26,7 @@ A horizontal bar chart of per-gene FISH spot counts.
 - Bars are sorted by magnitude (descending). If more than 20 genes have non-zero values, the panel truncates and reports the number hidden.
 
 ::: tip Reading the bar chart
-For a single cell, the bars are a fingerprint of detectable genes. For a group, the same bars summarize the dominant transcriptomic identity — useful for identifying an unfamiliar lasso selection.
+For a single cell, the bars are a fingerprint of detectable genes. For a group, the same bars summarize the dominant transcriptomic identity, which is useful for identifying an unfamiliar lasso selection.
 :::
 
 ### 2. Mean ΔF/F trace

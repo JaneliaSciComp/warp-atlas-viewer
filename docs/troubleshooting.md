@@ -25,15 +25,15 @@ If a recipient reports that the lasso is missing, redraw it with fewer vertices 
 
 ## Cells appear too small or too large
 
-Adjust **Settings → 3D point density**. With **auto** mode on *(default)* the point size is derived from the live 3D canvas area — smaller windows get smaller dots, larger windows get bigger dots, capped at 9 px once the canvas reaches ~723 k px². Turn **auto** off to set the size by hand (range 2 – 40 px); high-DPI displays generally benefit from a larger value. Enable **scale by filter** (nested under auto) to additionally enlarge active cells when the filter narrows — up to 2× the auto base size at ~50 in-set cells. A focused cell is marked with a separate white ring instead of being resized.
+Adjust **Settings → 3D point density**. With **auto** mode on *(default)* the point size is derived from the live 3D canvas area, so smaller windows get smaller dots and larger windows get bigger dots, capped at 9 px once the canvas reaches ~723 k px². Turn **auto** off to set the size by hand (range 2 – 40 px); high-DPI displays generally benefit from a larger value. Enable **scale by filter** (nested under auto) to additionally enlarge active cells when the filter narrows, up to 2× the auto base size at ~50 in-set cells. A focused cell is marked with a separate white ring instead of being resized.
 
-For the t-SNE panel, use **Settings → t-SNE point density** — it has its own size and ghost-visibility sliders since its dot field is much denser and there is no perspective falloff.
+For the t-SNE panel, use **Settings → t-SNE point density**. It has its own size and ghost-visibility sliders since its dot field is much denser and there is no perspective falloff.
 
 ## Camera orientation feels lost after panning
 
 With default **Settings → 3D camera controls → object-centric rotation**, **right-drag** shifts the volume within the viewport (screen-space pan), but rotation still pivots around the volume center. If the view is far off-center, click the **reset view** button at the top-left of the 3D viewer to snap the camera, orbit target, and screen pan back to defaults.
 
-If object-centric rotation is off, right-drag uses native trackball pan: it moves the orbit target, so later rotations pivot around that panned target. Refreshing or sharing preserves the full camera state — position, orientation, orbit target, and screen-space pan — so use **reset view** rather than refresh when you want to return to the default pose.
+If object-centric rotation is off, right-drag uses native trackball pan: it moves the orbit target, so later rotations pivot around that panned target. Refreshing or sharing preserves the full camera state (position, orientation, orbit target, and screen-space pan), so use **reset view** rather than refresh when you want to return to the default pose.
 
 ## Activity playback appears jittery at 100×
 

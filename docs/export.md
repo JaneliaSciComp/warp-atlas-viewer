@@ -9,7 +9,7 @@ The viewer's header includes an **Export** button next to *Links*. It opens a di
 
 ## Scope: the "effective set"
 
-The export matches what the [Detail panel](/ui/detail) and the visible-cell readout in the [Filters tab](/filters/overview) describe — the *effective set* — by this precedence:
+The export matches what the [Detail panel](/ui/detail) and the visible-cell readout in the [Filters tab](/filters/overview) describe (the *effective set*) by this precedence:
 
 1. If you have an active **selection** (a 3D viewer click-group or a t-SNE lasso), the export covers exactly those cells, intersected with the active filters.
 2. Otherwise the export covers every cell that passes the currently active filter cards.
@@ -38,7 +38,7 @@ Header row is included. Values containing commas, quotes, or newlines are escape
 
 ## Activity traces (optional)
 
-The dialog has an opt-in checkbox **Include the 134-sample mean ΔF/F activity trace**. When ticked, the export appends 134 columns at the end of each row — `dff_t0`, `dff_t1`, …, `dff_t133` — one per trace sample, in the [preprocessed 1 Hz timebase](/preprocess#trace-downsampling). For the WARP dataset the index doubles as the sample's time in seconds.
+The dialog has an opt-in checkbox **Include the 134-sample mean ΔF/F activity trace**. When ticked, the export appends 134 columns at the end of each row (`dff_t0`, `dff_t1`, …, `dff_t133`), one per trace sample, in the [preprocessed 1 Hz timebase](/preprocess#trace-downsampling). For the WARP dataset the index doubles as the sample's time in seconds.
 
 It's default-off because traces roughly **double the file size** and add 134 columns that most spreadsheet-driven analyses don't want. Leave it on when you intend to recompute correlations or fit your own models against the raw trace.
 
