@@ -160,7 +160,7 @@ export function ExportButton({
                   {' '}<code className="font-mono">dff_t{data.traceLength - 1}</code>).
                   <span className="text-neutral-500">
                     {' '}Roughly doubles file size and adds {data.traceLength}{' '}
-                    columns; leave off for spreadsheet-friendly output.
+                    columns.
                   </span>
                 </span>
               </label>
