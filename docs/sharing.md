@@ -41,7 +41,3 @@ When the hash would be too long, the viewer falls back in two stages:
 2. If the URL is still too long, the entire hash is dropped and the link opens in the default view. A second warning is logged.
 
 If a recipient does not see the lasso, redraw it with fewer vertices and resend.
-
-### Dataset version drift
-
-The hash references genes, clusters, regions, stimuli, and cells by numeric index. When opening a link against a different dataset bundle, the viewer sanitizes out-of-range indices back to safe defaults, but it cannot detect reordered names that still occupy valid indices. Shared links are therefore intended for the same dataset ordering they were created against.
