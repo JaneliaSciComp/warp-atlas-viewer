@@ -19,26 +19,26 @@ The dialog tells you which case applies in plain English and reports the row cou
 
 ## CSV columns
 
-Each row is one cell. Columns appear in this stable order so downstream parsers can rely on positions:
+Each row is one cell. Columns appear in this order:
 
 | # | Column | Notes |
 |---:|---|---|
-| 1 | `cell_id` | 0-based index into the in-memory arrays for the currently loaded dataset. Stable across reloads of the same bundle. |
+| 1 | `cell_id` | 0-based index into the in-memory arrays. |
 | 2–4 | `x`, `y`, `z` | Viewer coordinates in the [mapZebrain](https://mapzebrain.org) frame: axis-reordered, centered on the population mean, AP axis flipped. Matches what you see on screen. Two decimal places. |
 | 5–6 | `tsne_x`, `tsne_y` | 2D t-SNE embedding, scaled to roughly the `[-50, 50]` box. Two decimal places. |
 | 7 | `fish` | Source specimen as 1, 2, or 3 (user-facing labels). |
 | 8 | `manuscript_region` | The paper's 16-region abbreviation (or `Unassigned`). |
 | 9 | `mapzebrain_regions` | Semicolon-separated list of the cell's 112-region atlas memberships. May be empty for cells outside every atlas region. |
 | 10 | `cluster` | Transcriptomic subtype name (one of the 332 named subtypes or `Unassigned`). |
-| 11 → `10+G` | `gene_<name>` | Raw FISH spot count per gene in the panel (currently 41 genes). Integer-formatted. |
-| `11+G` → `10+G+S` | `corr_<name>` | Signed Pearson r between the cell's calcium trace and each stimulus regressor (currently 8 stimuli). Three decimal places. |
+| 11 → `10+G` | `gene_<name>` | Raw FISH spot count per gene in the 41-gene panel. Integer-formatted. |
+| `11+G` → `10+G+S` | `corr_<name>` | Signed Pearson r between the cell's calcium trace and each of the 8 stimulus regressors. Three decimal places. |
 | `11+G+S` | `swim_corr` | Signed Pearson r between the calcium trace and estimated swim power. Three decimal places. |
 
 Header row is included. Values containing commas, quotes, or newlines are escaped per RFC 4180 (wrap in `"..."`, double any embedded quotes).
 
 ## Activity traces (optional)
 
-The dialog has an opt-in checkbox **Include the 134-sample mean ΔF/F activity trace**. When ticked, the export appends 134 columns at the end of each row (`dff_t0`, `dff_t1`, …, `dff_t133`), one per trace sample, in the [preprocessed 1 Hz timebase](/preprocess#trace-downsampling). For the WARP dataset the index doubles as the sample's time in seconds.
+The dialog has an opt-in checkbox **Include the 134-sample mean ΔF/F activity trace**. When ticked, the export appends 134 columns at the end of each row (`dff_t0`, `dff_t1`, …, `dff_t133`), one per trace sample, in the [preprocessed 1 Hz timebase](/preprocess#trace-downsampling). The index doubles as the sample's time in seconds.
 
 It's default-off because traces roughly **double the file size** and add 134 columns that most spreadsheet-driven analyses don't want. Leave it on when you intend to recompute correlations or fit your own models against the raw trace.
 
