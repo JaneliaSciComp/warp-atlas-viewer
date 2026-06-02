@@ -71,7 +71,7 @@ export function LinksMenu() {
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex items-center gap-1 px-2 py-1 text-sm font-medium text-yellow-300 hover:text-yellow-200"
+        className="flex items-center gap-1 px-2 py-1 text-sm font-medium text-neutral-100"
       >
         Links
         <ChevronDownIcon />
