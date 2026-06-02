@@ -109,9 +109,9 @@ The `×` between filter cards is logical AND. A card set to "all" doesn't restri
 
 ### B8. Anatomy → specimen filter
 - Setup: Anatomy → specimen → pick one fish (only visible if the dataset has more than one fish).
-- Expected: only that fish's cells are kept. The brain should still look like a brain (registration is into the shared mapzebrain frame), but in only one specimen's coverage.
+- Expected: only that fish's cells are kept. The brain should still look like a brain (registration is into the shared mapZebrain frame), but in only one specimen's coverage.
 - Toggle Colors=Specimen to confirm only that fish's color is present.
-- Pass if only one fish's cells render, with mapzebrain-aligned anatomy preserved.
+- Pass if only one fish's cells render, with mapZebrain-aligned anatomy preserved.
 
 ---
 

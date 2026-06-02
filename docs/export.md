@@ -24,7 +24,7 @@ Each row is one cell. Columns appear in this stable order so downstream parsers 
 | # | Column | Notes |
 |---:|---|---|
 | 1 | `cell_id` | 0-based index into the in-memory arrays for the currently loaded dataset. Stable across reloads of the same bundle. |
-| 2–4 | `x`, `y`, `z` | Viewer coordinates in the [mapzebrain](https://mapzebrain.org) frame: axis-reordered, centered on the population mean, AP axis flipped. Matches what you see on screen. Two decimal places. |
+| 2–4 | `x`, `y`, `z` | Viewer coordinates in the [mapZebrain](https://mapzebrain.org) frame: axis-reordered, centered on the population mean, AP axis flipped. Matches what you see on screen. Two decimal places. |
 | 5–6 | `tsne_x`, `tsne_y` | 2D t-SNE embedding, scaled to roughly the `[-50, 50]` box. Two decimal places. |
 | 7 | `fish` | Source specimen as 1, 2, or 3 (user-facing labels). |
 | 8 | `manuscript_region` | The paper's 16-region abbreviation (or `Unassigned`). |

@@ -14,7 +14,7 @@ hero:
 
 features:
   - title: Linked anatomical and transcriptomic views
-    details: Approximately 274,000 neurons are rendered as a single point cloud in <a href="https://mapzebrain.org">mapzebrain</a> coordinates, with a paired t-SNE projection in which selections propagate across views.
+    details: Approximately 274,000 neurons are rendered as a single point cloud in <a href="https://mapzebrain.org">mapZebrain</a> coordinates, with a paired t-SNE projection in which selections propagate across views.
   - title: Compositional filtering
     details: Transcriptomic, stimulus-response, swim-behavior, and anatomical criteria can be combined with logical AND. A fifth card controls how the resulting cells are colored.
   - title: Seven color encodings

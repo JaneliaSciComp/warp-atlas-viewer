@@ -116,7 +116,7 @@ export function ExportButton({
               <ul className="text-xs font-mono text-neutral-300 mb-3 space-y-0.5 pl-3 list-disc marker:text-neutral-600">
                 <li>
                   <code>cell_id</code>, <code>x</code>, <code>y</code>,{' '}
-                  <code>z</code> (viewer coordinates in mapzebrain frame,
+                  <code>z</code> (viewer coordinates in mapZebrain frame,
                   centered + AP-flipped)
                 </li>
                 <li>

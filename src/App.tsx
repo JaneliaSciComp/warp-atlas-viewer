@@ -664,7 +664,7 @@ export default function App() {
           <h1 className="text-base font-semibold text-neutral-100">WARP Atlas Viewer</h1>
           <p
             className="font-mono text-[11px] text-neutral-500"
-            title="Cells from each fish are registered into shared mapzebrain atlas coordinates."
+            title="Cells from each fish are registered into shared mapZebrain atlas coordinates."
           >
             {data.count.toLocaleString()} cells pooled from {uniqueFishIds.length} fish{data.source === 'mock' ? ' (mock)' : ''}
           </p>

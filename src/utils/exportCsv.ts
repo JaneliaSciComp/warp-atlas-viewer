@@ -13,7 +13,7 @@ export interface ExportOptions {
  *
  *  Floats are formatted to fixed decimals to keep file size manageable
  *  while preserving meaningful precision (coords to 2 places ≈ 0.01 μm
- *  in mapzebrain units; correlations to 3 places ≈ ±0.001 — well below
+ *  in mapZebrain units; correlations to 3 places ≈ ±0.001 — well below
  *  per-cell noise floors). Spot counts stay integer-formatted.
  *
  *  Column layout (kept stable across releases so downstream parsers can
@@ -117,7 +117,7 @@ function f3(v: number): string {
 
 /** RFC-4180 minimal escape: if the value contains a comma, quote, or
  *  newline, wrap it in double quotes and double any embedded quotes.
- *  Cluster names (e.g. `pou4f2_cckb`) and mapzebrain region names
+ *  Cluster names (e.g. `pou4f2_cckb`) and mapZebrain region names
  *  (cleaned underscores → spaces) don't currently need this, but
  *  defending against future name drift is cheap. */
 export function csvEscape(v: string): string {

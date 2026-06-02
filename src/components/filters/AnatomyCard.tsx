@@ -33,7 +33,7 @@ export function AnatomyCard({
     const full = matchesPaperLayout ? REGION_FULL_NAMES[i] : undefined;
     return !full || full === abbr ? abbr : `${abbr} — ${full}`;
   };
-  // 112-region mapzebrain atlas (Modified from Kunst et al., 2019).
+  // 112-region mapZebrain atlas (Modified from Kunst et al., 2019).
   // Sorted alphabetically by display label — the names are long and not
   // shared with the paper's 16-region vocabulary, so anatomical order
   // doesn't carry through and alphabetical is easier to scan.

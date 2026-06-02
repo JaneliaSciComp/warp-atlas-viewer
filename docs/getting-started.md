@@ -5,7 +5,7 @@ description: A brief tour of the viewer's main panels and how they relate.
 
 # Quick start
 
-The viewer renders approximately 274,000 zebrafish neurons as a 3D point cloud. Each point corresponds to a single cell from one of three specimens, co-registered into the [mapzebrain](https://mapzebrain.org) reference frame. Every cell carries:
+The viewer renders approximately 274,000 zebrafish neurons as a 3D point cloud. Each point corresponds to a single cell from one of three specimens, co-registered into the [mapZebrain](https://mapzebrain.org) reference frame. Every cell carries:
 
 - spot counts for 41 panel genes,
 - a transcriptomic subtype label (one of 333 molecularly defined clusters),

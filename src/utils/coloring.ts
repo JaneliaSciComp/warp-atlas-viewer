@@ -312,7 +312,7 @@ export function applyColoring(
 
   const useLog = filter.geneScale !== 'linear';
   // Mirror the active-atlas gate from the hot-loop hoist below: when
-  // the mapzebrain atlas is selected, the manuscript region filter is
+  // the mapZebrain atlas is selected, the manuscript region filter is
   // dormant and shouldn't trigger LIFT_ALPHA either.
   const isolatedRegion =
     filter.anatomyAtlas === 'mapzebrain' ? -1 : filter.isolatedRegion;

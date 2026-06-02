@@ -152,7 +152,7 @@ export function AboutTab({
           >
             paper
           </a>
-          ), pooled from 3 fish into a shared mapzebrain reference
+          ), pooled from 3 fish into a shared mapZebrain reference
           frame. Each cell carries (1) a 3D position, (2) expression
           counts for 41 genes, (3) one of 333 molecularly-defined
           subtypes, (4) a calcium response to 8 visual stimuli, and

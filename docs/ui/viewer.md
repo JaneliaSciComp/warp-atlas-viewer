@@ -5,7 +5,7 @@ description: Controls and content of the anatomical view.
 
 # 3D viewer
 
-The largest panel on screen. Every visible cell is rendered as a point in [mapzebrain](https://mapzebrain.org) coordinates, with the view oriented so that anterior is at the top of the screen.
+The largest panel on screen. Every visible cell is rendered as a point in [mapZebrain](https://mapzebrain.org) coordinates, with the view oriented so that anterior is at the top of the screen.
 
 ## Controls
 
@@ -26,7 +26,7 @@ Refresh/share preserves the full camera state (position, orientation, orbit targ
 
 ## Contents
 
-- **Anatomy:** the mapzebrain reference frame. The camera starts oriented toward the dorsal surface.
+- **Anatomy:** the mapZebrain reference frame. The camera starts oriented toward the dorsal surface.
 - **Cell count:** approximately 274,455 cells total. The number actually visible depends on the current filter combination; the [visible-cell readout](/filters/overview#visible-cell-readout) in the Filters tab reports it.
 - **Specimen mix:** every cell originates from one of 3 specimens, pooled by default. Use **Anatomy → specimen** to restrict to one specimen, or **Colors → Specimen** to paint by source specimen. See [Specimens](/filters/anatomy#specimens).
 

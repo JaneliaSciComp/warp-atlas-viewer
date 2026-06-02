@@ -17,10 +17,10 @@ description: Terms and abbreviations used in the WARP Atlas Viewer and these doc
 : One of 16 focal anatomical groupings (plus *Unassigned* at index 0). Each cell has exactly one region. Drives the [Region color scheme](/filters/colors#region) and the focal-region option of the [Anatomy card](/filters/anatomy)'s region dropdown. See [Preprocessing → Region names](/preprocess#anatomy-mapping).
 
 **Region (mapZebrain atlas)**
-: One of 112 hierarchical, overlapping mapzebrain regions (*Modified from Kunst et al., 2019*, version 1). Each cell can sit in 0–9 atlas regions at once. Exposed via the [Anatomy card](/filters/anatomy)'s atlas toggle. Filter-only — no color scheme. See [Preprocessing → Atlas regions](/preprocess#atlas-regions).
+: One of 112 hierarchical, overlapping mapZebrain regions (*Modified from Kunst et al., 2019*, version 1). Each cell can sit in 0–9 atlas regions at once. Exposed via the [Anatomy card](/filters/anatomy)'s atlas toggle. Filter-only — no color scheme. See [Preprocessing → Atlas regions](/preprocess#atlas-regions).
 
-**[Mapzebrain](https://mapzebrain.org)**
-: The shared zebrafish brain coordinate frame into which the specimens were co-registered. The viewer's 3D positions are in mapzebrain coordinates, and the 112-region atlas is also drawn from this reference.
+**[mapZebrain](https://mapzebrain.org)**
+: The shared zebrafish brain coordinate frame into which the specimens were co-registered. The viewer's 3D positions are in mapZebrain coordinates, and the 112-region atlas is also drawn from this reference.
 
 ## Transcriptomics
 

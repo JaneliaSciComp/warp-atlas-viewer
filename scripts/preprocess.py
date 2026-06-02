@@ -90,7 +90,7 @@ def main():
     genes_df = np.load(PP / 'genes_df_All.npy')      # (N, 41)
     genes_bin = np.load(PP / 'BinaryGenes_All.npy')  # (N, 41)
     brain_reg = np.load(PP / 'Brain_reg.npy')        # (N,)    1..16, 0=unassigned
-    # 112-region mapzebrain atlas membership (Modified from Kunst et al.,
+    # 112-region mapZebrain atlas membership (Modified from Kunst et al.,
     # 2019). Overlapping/hierarchical — each cell can sit in 0..9 regions
     # (e.g. cerebellum ⊂ rhombencephalon). Region names live in the
     # per-fish region_names.npy files; all three fish ship identical lists.

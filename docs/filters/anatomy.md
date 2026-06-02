@@ -1,6 +1,6 @@
 ---
 title: Anatomy filter
-description: Restrict to one of 16 paper-focal regions or one of 112 mapzebrain atlas regions, optionally combined with a specimen filter.
+description: Restrict to one of 16 paper-focal regions or one of 112 mapZebrain atlas regions, optionally combined with a specimen filter.
 ---
 
 # Anatomy
@@ -9,7 +9,7 @@ Three controls:
 
 1. **Atlas** — a toggle that picks which atlas the *region* dropdown reads:
    - **Manuscript** *(default)* — the paper's 16 focal regions.
-   - **mapZebrain** — the 112-region [mapzebrain](https://mapzebrain.org) atlas (*Modified from Kunst et al., 2019*, version 1).
+   - **mapZebrain** — the 112-region [mapZebrain](https://mapzebrain.org) atlas (*Modified from Kunst et al., 2019*, version 1).
    The two atlases are alternatives, not stacked filters; switching the toggle swaps the *region* dropdown's contents. Each atlas's last pick is remembered, so toggling back restores it.
 2. **Region** — a searchable dropdown whose entries depend on the active atlas.
 3. **Specimen** — restrict to one of the 3 source fish.
@@ -48,15 +48,15 @@ A non-trivial number of cells carry the *Unassigned* label, generally because th
 
 ## Region — mapZebrain atlas
 
-When the atlas toggle is set to **mapZebrain**, the *region* dropdown lists all 112 mapzebrain regions as a searchable combobox. Type part of a region name to filter the alphabetical list; each entry shows the cell count in parentheses, e.g. `cerebellum (16,642)`. Long names truncate with an ellipsis in the closed control; hovering reveals the full name.
+When the atlas toggle is set to **mapZebrain**, the *region* dropdown lists all 112 mapZebrain regions as a searchable combobox. Type part of a region name to filter the alphabetical list; each entry shows the cell count in parentheses, e.g. `cerebellum (16,642)`. Long names truncate with an ellipsis in the closed control; hovering reveals the full name.
 
-Unlike the 16-region focal list, the mapzebrain atlas is **hierarchical and overlapping**: each cell can belong to 0–9 regions at once (e.g. a cerebellar cell is also in `rhombencephalon`). Empty regions remain in the dropdown as `(0)` rather than being hidden, so the selectable set always matches the published atlas.
+Unlike the 16-region focal list, the mapZebrain atlas is **hierarchical and overlapping**: each cell can belong to 0–9 regions at once (e.g. a cerebellar cell is also in `rhombencephalon`). Empty regions remain in the dropdown as `(0)` rather than being hidden, so the selectable set always matches the published atlas.
 
 Currently filter-only: the 112-region atlas does not drive a color scheme. *Color = Region* always uses the paper's 16-region palette.
 
 ## Specimens
 
-One of the 3 source specimens, or "all" *(default)*. The specimens were imaged separately and their cells co-registered into the mapzebrain reference frame. Every point in the viewer is a single cell from a single specimen; no synthesized averages are displayed.
+One of the 3 source specimens, or "all" *(default)*. The specimens were imaged separately and their cells co-registered into the mapZebrain reference frame. Every point in the viewer is a single cell from a single specimen; no synthesized averages are displayed.
 
 Per-specimen views appear in three places:
 

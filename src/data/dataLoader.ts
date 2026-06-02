@@ -13,7 +13,7 @@ export interface ManifestV3 {
   nStimuli: number;
   geneNames: string[];
   regionNames: string[];
-  /** 112 mapzebrain atlas region names (Modified from Kunst et al., 2019). */
+  /** 112 mapZebrain atlas region names (Modified from Kunst et al., 2019). */
   atlasRegionNames: string[];
   stimulusNames: string[];
   clusterNames: string[];

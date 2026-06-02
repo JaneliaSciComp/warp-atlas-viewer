@@ -35,7 +35,7 @@ export interface NeuronDataset {
     /** Metadata. */
     geneNames: string[];
     regionNames: string[];
-    /** Names of the 112 mapzebrain atlas regions (Modified from Kunst
+    /** Names of the 112 mapZebrain atlas regions (Modified from Kunst
      *  et al., 2019). Underscores in the source data are rewritten to
      *  spaces for display. Cells can belong to multiple regions (the
      *  atlas is hierarchical: e.g. cerebellum ⊂ rhombencephalon). */
@@ -89,7 +89,7 @@ export type TxMode = "all" | "gene" | "subtype";
  *  influences rendering, decided by this mode.
  *    'manuscript' → 16 focal regions (paper's Figure 5 / S6 vocabulary),
  *                   reads `isolatedRegion`.
- *    'mapzebrain' → 112-region mapzebrain atlas (Modified from Kunst et
+ *    'mapzebrain' → 112-region mapZebrain atlas (Modified from Kunst et
  *                   al., 2019), reads `isolatedAtlasRegion`.
  *  Both index fields persist across mode flips so toggling back
  *  restores the previously picked region in either atlas. */
