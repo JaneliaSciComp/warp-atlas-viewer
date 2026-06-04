@@ -18,6 +18,8 @@ import projectionVertSrc from '../shaders/projection.vert.glsl?raw';
 import projectionFragSrc from '../shaders/projection.frag.glsl?raw';
 import projectionCompositeVertSrc from '../shaders/projection_composite.vert.glsl?raw';
 import projectionCompositeFragSrc from '../shaders/projection_composite.frag.glsl?raw';
+import projectionIdVertSrc from '../shaders/projection_id.vert.glsl?raw';
+import projectionIdFragSrc from '../shaders/projection_id.frag.glsl?raw';
 import { AmbientOcclusion, skipAmbientOcclusionUserData } from './AmbientOcclusion';
 
 interface Props {
@@ -89,9 +91,19 @@ function PointCloud({
   pickRef: React.MutableRefObject<PickState>;
   onHoverChange: (i: number) => void;
 }) {
-  const { gl, camera, size } = useThree();
+  const { gl, scene, camera, size } = useThree();
 
   const buffers = useMemo(() => allocColoring(data.count), [data]);
+
+  // Static per-cell index attribute (0..count-1). Used by the
+  // projection-mode ID pass to encode the winning cell per pixel.
+  // Values never change after dataset load so we don't track
+  // needsUpdate after the initial upload.
+  const cellIds = useMemo(() => {
+    const arr = new Float32Array(data.count);
+    for (let i = 0; i < data.count; i++) arr[i] = i;
+    return arr;
+  }, [data]);
 
   const geometry = useMemo(() => {
     const g = new THREE.BufferGeometry();
@@ -104,9 +116,10 @@ function PointCloud({
     // alpha to 1 for all in-set cells. Only the projection vertex
     // shader reads this attribute.
     g.setAttribute('instIntensity', new THREE.BufferAttribute(buffers.intensities, 1));
+    g.setAttribute('instCellId', new THREE.BufferAttribute(cellIds, 1));
     g.computeBoundingSphere();
     return g;
-  }, [data, buffers]);
+  }, [data, buffers, cellIds]);
 
   // Two-pass rendering. Opaque-ish cells (α ≥ 0.5: region/fish/highlight
   // colors at 0.85+, signal-saturated gene/stim/swim cells at 1.0) write
@@ -169,6 +182,63 @@ function PointCloud({
       },
     });
   }, [gl]);
+  // ID-pass machinery for projection-mode picking. Same depth-test
+  // reduction as the visible max/min projection, but writes the
+  // winning cell's packed index per pixel to an offscreen RGBA8
+  // target. The picker reads a single pixel under the cursor and
+  // decodes it, so hover/click lands on the cell the user is actually
+  // looking at (not the nearest cell center in screen space). Only
+  // armed when projectionMode is max or min; mean/sum disable picking
+  // entirely since there's no single cell that "won" the pixel.
+  const idRt = useMemo(
+    () =>
+      new THREE.WebGLRenderTarget(1, 1, {
+        depthBuffer: true,
+        stencilBuffer: false,
+        type: THREE.UnsignedByteType,
+        format: THREE.RGBAFormat,
+        minFilter: THREE.NearestFilter,
+        magFilter: THREE.NearestFilter,
+      }),
+    [],
+  );
+  const idMaterial = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        glslVersion: THREE.GLSL3,
+        vertexShader: projectionIdVertSrc,
+        fragmentShader: projectionIdFragSrc,
+        depthTest: true,
+        depthWrite: true,
+        transparent: false,
+        blending: THREE.NoBlending,
+        uniforms: {
+          pixelRatio: { value: gl.getPixelRatio() },
+          sizeScale: { value: 1 },
+          mode: { value: 0 },
+          intensityFloor: { value: 0.05 },
+        },
+      }),
+    [gl],
+  );
+  useEffect(() => {
+    const pr = gl.getPixelRatio();
+    idRt.setSize(
+      Math.max(1, Math.floor(size.width * pr)),
+      Math.max(1, Math.floor(size.height * pr)),
+    );
+  }, [gl, idRt, size.height, size.width]);
+  useEffect(() => {
+    idMaterial.uniforms.mode.value = settings.projectionMode === 'min' ? 1 : 0;
+  }, [idMaterial, settings.projectionMode]);
+  useEffect(
+    () => () => {
+      idRt.dispose();
+      idMaterial.dispose();
+    },
+    [idRt, idMaterial],
+  );
+
   // Reconcile material state to the active projection mode. Three.js
   // material properties (blending, depthWrite, transparent) are JS-side
   // flags, not uniforms — mutating them in-place avoids re-creating the
@@ -349,8 +419,62 @@ function PointCloud({
   }, [focusedNeuron, data, markerGeometry]);
 
   const ndcRef = useRef(new THREE.Vector3());
+  const idPixelRef = useRef(new Uint8Array(4));
 
   useFrame(() => {
+    const projMode = settings.projectionMode;
+    // Mean / sum projection: no single cell "wins" a pixel, so there's
+    // no meaningful target for hover/click — disable picking entirely
+    // and let the cursor pass through to camera controls.
+    if (projMode === 'mean' || projMode === 'sum') {
+      if (pickRef.current.hovered !== -1) {
+        pickRef.current.hovered = -1;
+        onHoverChange(-1);
+      }
+      return;
+    }
+    // Max / min projection: pick via an ID-buffer readback so the
+    // selected cell matches the pixel actually drawn on screen
+    // (rather than the geometrically-nearest cell center, which can
+    // diverge wildly when a deep high-intensity cell punches through
+    // a shallow low-intensity one). Same depth-test reduction as the
+    // visible projection pass, written into an RGBA8 offscreen with
+    // cell index packed across RGB.
+    if (projMode === 'max' || projMode === 'min') {
+      const pos = pickRef.current.pos;
+      if (!pos) {
+        if (pickRef.current.hovered !== -1) {
+          pickRef.current.hovered = -1;
+          onHoverChange(-1);
+        }
+        return;
+      }
+      const prevOverride = scene.overrideMaterial;
+      const prevTarget = gl.getRenderTarget();
+      try {
+        scene.overrideMaterial = idMaterial;
+        gl.setRenderTarget(idRt);
+        gl.setClearColor(0x000000, 0);
+        gl.clear(true, true, false);
+        gl.render(scene, camera);
+      } finally {
+        scene.overrideMaterial = prevOverride;
+        gl.setRenderTarget(prevTarget);
+      }
+      const pr = gl.getPixelRatio();
+      // readPixels uses bottom-up Y; our cursor coords are top-down.
+      const px = Math.floor(pos.x * pr);
+      const py = Math.floor((size.height - pos.y) * pr);
+      const pixel = idPixelRef.current;
+      gl.readRenderTargetPixels(idRt, px, py, 1, 1, pixel);
+      const packed = pixel[0] | (pixel[1] << 8) | (pixel[2] << 16);
+      const id = packed === 0 ? -1 : packed - 1;
+      if (id !== pickRef.current.hovered) {
+        pickRef.current.hovered = id;
+        onHoverChange(id);
+      }
+      return;
+    }
     const pos = pickRef.current.pos;
     if (!pos) {
       if (pickRef.current.hovered !== -1) {
