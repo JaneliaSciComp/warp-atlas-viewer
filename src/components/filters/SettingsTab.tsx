@@ -128,7 +128,7 @@ export function SettingsTab({
                 ) : (
                     <>
                         <NumberRow
-                            label="point size (px)"
+                            label="3D point size (px)"
                             value={settings.pointSize}
                             min={1}
                             max={40}
@@ -136,7 +136,7 @@ export function SettingsTab({
                             onChange={(v) => update({ pointSize: v })}
                         />
                         <NumberRow
-                            label="ghost visibility"
+                            label="3D ghost visibility"
                             value={settings.ghostIntensity}
                             min={0}
                             max={1}
@@ -220,7 +220,7 @@ export function SettingsTab({
                     out-of-filter cells (ghosts).
                 </p>
                 <NumberRow
-                    label="point size (px)"
+                    label="t-SNE point size (px)"
                     value={settings.umapPointSize}
                     min={2}
                     max={40}
@@ -228,7 +228,7 @@ export function SettingsTab({
                     onChange={(v) => update({ umapPointSize: v })}
                 />
                 <NumberRow
-                    label="ghost visibility"
+                    label="t-SNE ghost visibility"
                     value={settings.umapGhostIntensity}
                     min={0}
                     max={1}
