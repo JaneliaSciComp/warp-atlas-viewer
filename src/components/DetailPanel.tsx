@@ -91,8 +91,7 @@ export function DetailPanel({ data, filter, settings, selection, focusedNeuron }
 
   // Convert sample index → seconds for the activity trace plot, so the
   // x-axis matches the manuscript's convention (real time, not sample
-  // index). For the WARP data this is 1 sample/sec (originally 2 Hz,
-  // boxcar-downsampled 2x in preprocess.py).
+  // index).
   const sampleRate = data.traceSampleRateHz;
   const traceData: Array<{ t: number; y: number }> = [];
   for (let t = 0; t < stats.meanTrace.length; t++) {

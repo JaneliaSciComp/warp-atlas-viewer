@@ -156,11 +156,12 @@ def main():
     stim_corr = np.nan_to_num(stim_corr[keep_idx], copy=False).astype(np.float32)
     swim_corr = np.nan_to_num(swim_corr[keep_idx], copy=False).astype(np.float32)
 
-    # Downsample the activity trace temporally by 2x using simple boxcar
-    # averaging. Keeps stimulus-onset dynamics visible while halving the
-    # download size. 268 timepoints @ 2 Hz → 134 timepoints @ 1 Hz.
+    # Ship the activity trace at its native rate. Boxcar-averaging by N>1
+    # halves the download size but flattens the per-frame dynamics that
+    # make the slider feel responsive; keep DOWNSAMPLE = 1 unless the
+    # bandwidth pressure outweighs the temporal fidelity.
     SAMPLING_RATE_HZ = 2.0
-    DOWNSAMPLE = 2
+    DOWNSAMPLE = 1
     T_orig = trace.shape[1]
     T_ds = T_orig // DOWNSAMPLE
     trace = trace[:, :T_ds * DOWNSAMPLE].reshape(-1, T_ds, DOWNSAMPLE).mean(axis=2).astype(np.float32)

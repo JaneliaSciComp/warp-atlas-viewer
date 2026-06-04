@@ -398,7 +398,7 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
       ((t - ACTIVITY_LO) / (ACTIVITY_HI - ACTIVITY_LO)) * 100;
     return (
       <GradientLegend
-        title={`Activity · t = ${Math.round(seconds)} s`}
+        title={`Activity · t = ${seconds.toFixed(1)} s`}
         axisLabel="mean ΔF/F"
         ticks={ticks}
         gradient={plasmaGrad}

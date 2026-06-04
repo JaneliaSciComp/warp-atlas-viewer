@@ -174,7 +174,7 @@ function ActivityTimeRow({
           ›
         </button>
         <span className="font-mono text-neutral-200 tabular-nums w-12 text-right whitespace-nowrap">
-          {Math.round(seconds)} s
+          {seconds.toFixed(1)} s
         </span>
       </label>
       <div className="flex justify-center items-center gap-1.5">
