@@ -760,6 +760,19 @@ export function BrainViewer({
             reset view
           </button>
         )}
+        {settings.projectionMode !== 'off' && (
+          // Status pill: tells the viewer that what they're seeing is
+          // not the normal per-cell render. Yellow tint reads as
+          // "non-default state" without competing with the reset
+          // button's neutral grey. Tag-shaped, non-interactive — the
+          // mode is changed from the Settings tab.
+          <div
+            className="pointer-events-none font-mono text-[10px] bg-yellow-900/40 border border-yellow-700/60 text-yellow-200 px-1.5 py-0.5 rounded"
+            title="per-pixel projection through the point cloud — change in Settings"
+          >
+            projection: {settings.projectionMode}
+          </div>
+        )}
         {settings.debugMode && (
           <DebugOverlay
             canvasSize={canvasSize}
