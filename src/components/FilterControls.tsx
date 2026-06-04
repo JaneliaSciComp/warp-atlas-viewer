@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { NeuronDataset, FilterState, SelectionState, SettingsState } from '../data/types';
 import { ActivityCard } from './filters/ActivityCard';
 import { AnatomyCard } from './filters/AnatomyCard';
@@ -53,6 +53,32 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
   const update = (patch: Partial<FilterState>) => setFilter({ ...filter, ...patch });
   const [tab, setTab] = useState<Tab>('filters');
 
+  // Per-tab scroll memory. The conditional rendering below unmounts the
+  // outgoing tab's content, so without this the scroll container resets
+  // (or clamps to a shorter tab's max scrollHeight) on every switch.
+  // We capture the outgoing scrollTop synchronously in the click handler
+  // — useLayoutEffect runs *after* the DOM swap, when scrollTop has
+  // already been clamped to the new tab's height — and restore the
+  // incoming scrollTop before paint so there's no flicker.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollByTab = useRef<Record<Tab, number>>({
+    filters: 0,
+    settings: 0,
+    about: 0,
+  });
+  const switchTab = (next: Tab) => {
+    if (next === tab) return;
+    if (scrollRef.current) {
+      scrollByTab.current[tab] = scrollRef.current.scrollTop;
+    }
+    setTab(next);
+  };
+  useLayoutEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollByTab.current[tab];
+    }
+  }, [tab]);
+
   return (
     <div className="flex flex-col h-full min-h-0 bg-neutral-800 border-t border-neutral-700">
       <div className="flex-shrink-0 flex border-b border-neutral-700 px-2 pt-1">
@@ -61,7 +87,7 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
           return (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
+              onClick={() => switchTab(t.id)}
               className={
                 'px-3 py-1.5 text-xs uppercase tracking-wider font-mono -mb-px border-b-2 ' +
                 (active
@@ -74,7 +100,7 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
           );
         })}
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto p-3">
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-3">
         {tab === 'filters' && (
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-3">
