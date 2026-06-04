@@ -235,8 +235,9 @@ export type GeneThresholdMode = "paper" | "global";
  *    'min'  → per-pixel minimum intensity (DRR-style darkfield).
  *    'mean' → intensity-weighted average color across all cells touching
  *             the pixel (additive sum / count).
- *    'sum'  → integrated signal: additive accumulation with no divide,
- *             clamped to the display range. Pairs naturally with max
+ *    'sum'  → integrated signal: additive accumulation of color ×
+ *             intensity with no divide, clamped to the display range.
+ *             Pairs naturally with max
  *             for sparse-signal schemes (gene/activity) where mean
  *             washes out bright cells with the dim majority.
  *  "Intensity" is the per-cell scheme magnitude (gene/activity v,

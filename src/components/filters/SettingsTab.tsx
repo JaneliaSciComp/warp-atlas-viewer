@@ -383,8 +383,8 @@ export function SettingsTab({
                     intensity-weighted average color of every cell touching
                     the pixel.
                     <span className="text-neutral-200"> Sum</span> — the
-                    integrated signal along the ray (additive accumulation,
-                    clamped to the display range). Pairs well with sparse-signal
+                    integrated signal along the ray (adds color × intensity,
+                    then clamps to the display range). Pairs well with sparse-signal
                     schemes like gene where mean dilutes bright cells with
                     the dim majority. Ambient occlusion and the focused-neuron
                     ring marker are disabled while projection is active.

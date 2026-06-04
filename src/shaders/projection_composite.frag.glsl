@@ -1,21 +1,19 @@
 // Fullscreen composite for the additive-blend projection modes.
 //
-// Both `mean` and `sum` use additive blending into the off-screen
-// target, but with different per-cell emissions and therefore
-// different composite math:
+// Both `mean` and `sum` additively blend the same per-cell emission
+// into the off-screen target: (color × intensity, intensity). They
+// differ only in composite math:
 //
 //   mode = 0 (mean) → projection shader emits (color × intensity,
 //     intensity); composite divides RGB by A to recover the
 //     intensity-weighted mean color. Bounded to plasma/coolwarm
 //     gamut; insensitive to how many cells touched the pixel.
 //
-//   mode = 1 (sum)  → projection shader emits (color, 1.0); composite
-//     clamps the per-channel accumulation to [0, 1]. Single-cell
-//     pixels show the cell's full color (matching mean); dense pixels
-//     saturate gradually toward white as channels max out, encoding
-//     "how much signal stacked here." Mean and sum therefore diverge
-//     only where multiple cells overlap along the ray — exactly the
-//     regime where Sum is supposed to differ.
+//   mode = 1 (sum)  → composite clamps the raw per-channel
+//     accumulation to [0, 1] without dividing. This keeps the
+//     integrated magnitude: a single half-strength cell appears half as
+//     bright, while many cells stacking along the ray saturate toward
+//     white as channels max out.
 //
 // Pixels that no cell ever touched (A ≈ 0) fall back to the
 // background color in both modes.

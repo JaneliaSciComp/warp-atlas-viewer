@@ -14,12 +14,10 @@
 //               with additive blending; the composite pass divides
 //               RGB by A to recover intensity-weighted mean color.
 //
-//   mode = 3  → sum projection. Emit (color, 1.0) — color is NOT
-//               intensity-weighted because the composite doesn't
-//               divide. With additive blending, single-cell pixels
-//               keep the cell's full plasma/coolwarm color and dense
-//               accumulations saturate toward white. The composite
-//               clamps the raw sum to the displayable range.
+//   mode = 3  → sum projection. Emit (color × intensity, intensity)
+//               just like mean, but the composite does NOT divide by
+//               accumulated intensity. It instead clamps the raw
+//               integrated signal to the displayable range.
 //
 // GLSL ES 3.00 (Three.js sets `glslVersion: THREE.GLSL3` on the host
 // material). In GLSL3 ShaderMaterial mode Three does NOT auto-define
@@ -45,7 +43,7 @@ void main() {
   if (mode == 2) {
     fragColor = vec4(vColor * i, i);
   } else if (mode == 3) {
-    fragColor = vec4(vColor, 1.0);
+    fragColor = vec4(vColor * i, i);
   } else {
     gl_FragDepth = (mode == 0) ? (1.0 - i) : i;
     fragColor = vec4(vColor, 1.0);
