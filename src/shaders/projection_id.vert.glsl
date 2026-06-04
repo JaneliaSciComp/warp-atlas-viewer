@@ -21,7 +21,8 @@ void main() {
   vIntensity = instIntensity;
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mvPosition;
-  float dist = -mvPosition.z;
-  float size = instSize * sizeScale * pixelRatio * (160.0 / max(dist, 40.0));
-  gl_PointSize = max(1.5, size);
+  // Must match projection.vert.glsl's flat sizing — otherwise the
+  // picker's depth-test reduction lands on different cells than the
+  // visible pass and hover/click would point at the wrong neuron.
+  gl_PointSize = max(1.5, instSize * sizeScale * pixelRatio);
 }

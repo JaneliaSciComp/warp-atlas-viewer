@@ -1,10 +1,20 @@
-// Vertex shader for the projection-mode render path. Mirrors
-// neuron.vert.glsl's transform and point-sprite sizing, but forwards
-// the per-cell scheme-aware intensity (gene/activity = normalized v,
+// Vertex shader for the projection-mode render path. Forwards the
+// per-cell scheme-aware intensity (gene/activity = normalized v,
 // stim/swim = |r| past the deadband regardless of fadeWeakCorrelation,
 // region/fish/highlight = 1 for in-set, 0 for ghosts). Sourcing this
 // independently of instAlpha is what lets stim with fade-off still
 // produce a magnitude-aware projection.
+//
+// Sizing diverges from neuron.vert.glsl: the normal shader's
+// `160 / max(dist, 40)` depth attenuation is intentionally dropped
+// for projection mode. Under that falloff a deep cell renders as a
+// tiny dot covering few pixels, which:
+//   - loses the depth-test race in max/min: shallow lower-intensity
+//     cells cover more pixels and steal pixels they shouldn't.
+//   - under-weights deep cells in mean/sum: a small disk contributes
+//     to fewer pixels' accumulation than a large surface disk.
+// A constant on-screen size gives every cell equal coverage in the
+// reduction — the standard MIP-style convention for volume rendering.
 //
 // GLSL ES 3.00: required so the fragment shader can write
 // gl_FragDepth (used for the max/min depth-test trick). Three.js
@@ -26,7 +36,5 @@ void main() {
   vIntensity = instIntensity;
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mvPosition;
-  float dist = -mvPosition.z;
-  float size = instSize * sizeScale * pixelRatio * (160.0 / max(dist, 40.0));
-  gl_PointSize = max(1.5, size);
+  gl_PointSize = max(1.5, instSize * sizeScale * pixelRatio);
 }
