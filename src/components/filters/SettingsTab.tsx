@@ -402,6 +402,56 @@ export function SettingsTab({
                         ]}
                     />
                 </div>
+                {settings.projectionMode !== "off" && (
+                    <>
+                        <NumberRow
+                            label="projection threshold"
+                            value={settings.projectionIntensityFloor}
+                            min={0}
+                            max={1}
+                            step={0.01}
+                            title="minimum per-cell projection intensity included; raise to hide weak/noisy signal"
+                            onChange={(v) =>
+                                update({
+                                    projectionIntensityFloor: Math.max(
+                                        0,
+                                        Math.min(1, v),
+                                    ),
+                                })
+                            }
+                        />
+                        <p className="text-neutral-500 text-[11px] leading-snug ml-3">
+                            Threshold culls cells below this scheme-aware
+                            intensity before projecting. Lower it to include
+                            weak signal; raise it to reduce haze/noise.
+                        </p>
+                    </>
+                )}
+                {settings.projectionMode === "sum" && (
+                    <>
+                        <NumberRow
+                            label="sum exposure"
+                            value={settings.projectionSumExposure}
+                            min={0.05}
+                            max={5}
+                            step={0.05}
+                            title="multiplier applied to Sum's accumulated signal before display clamping"
+                            onChange={(v) =>
+                                update({
+                                    projectionSumExposure: Math.max(
+                                        0.05,
+                                        Math.min(5, v),
+                                    ),
+                                })
+                            }
+                        />
+                        <p className="text-neutral-500 text-[11px] leading-snug ml-3">
+                            Exposure scales Sum before clamping. Lower values
+                            preserve detail in dense projections; higher values
+                            boost faint integrated signal.
+                        </p>
+                    </>
+                )}
             </section>
 
             <section className="flex flex-col gap-2">

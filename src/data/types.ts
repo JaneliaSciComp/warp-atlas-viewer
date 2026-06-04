@@ -410,6 +410,15 @@ export interface SettingsState {
      *  volume rendering). Ambient occlusion and the focused-neuron
      *  ring marker are disabled while projection is active. */
     projectionMode: ProjectionMode;
+    /** Minimum per-cell projection intensity included in the projection
+     *  pass, 0..1. Raising this culls weak/noisy cells before max/min,
+     *  mean, sum, and projection picking run. Default 0.05. */
+    projectionIntensityFloor: number;
+    /** Exposure multiplier applied to Sum projection's accumulated
+     *  color × intensity before clamping to display range. Lower values
+     *  reduce saturation in dense activity views; higher values boost
+     *  weak integrated signal. Default 1.0. */
+    projectionSumExposure: number;
     /** Developer toggle. When true, the 3D viewer renders a small
      *  diagnostic overlay (canvas size, in-set count, computed point
      *  size + ghost visibility, etc.) so the auto / scale-by-filter
@@ -443,6 +452,8 @@ export const DEFAULT_SETTINGS: SettingsState = {
     objectCentricRotation: true,
     rotationMomentum: 0.9,
     projectionMode: "off",
+    projectionIntensityFloor: 0.05,
+    projectionSumExposure: 1.0,
     debugMode: false,
 };
 

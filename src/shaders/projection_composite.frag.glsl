@@ -9,11 +9,12 @@
 //     intensity-weighted mean color. Bounded to plasma/coolwarm
 //     gamut; insensitive to how many cells touched the pixel.
 //
-//   mode = 1 (sum)  → composite clamps the raw per-channel
-//     accumulation to [0, 1] without dividing. This keeps the
-//     integrated magnitude: a single half-strength cell appears half as
-//     bright, while many cells stacking along the ray saturate toward
-//     white as channels max out.
+//   mode = 1 (sum)  → composite multiplies the raw per-channel
+//     accumulation by `sumExposure`, then clamps to [0, 1] without
+//     dividing. This keeps the integrated magnitude: a single
+//     half-strength cell appears half as bright at exposure 1, while
+//     many cells stacking along the ray saturate toward white as
+//     channels max out.
 //
 // Pixels that no cell ever touched (A ≈ 0) fall back to the
 // background color in both modes.
@@ -26,6 +27,7 @@ precision highp float;
 uniform sampler2D src;
 uniform vec3 background;
 uniform int mode;
+uniform float sumExposure;
 
 in vec2 vUv;
 
@@ -39,7 +41,7 @@ void main() {
   }
   vec3 rgb;
   if (mode == 1) {
-    rgb = min(acc.rgb, vec3(1.0));
+    rgb = min(acc.rgb * sumExposure, vec3(1.0));
   } else {
     rgb = acc.rgb / acc.a;
   }

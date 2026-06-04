@@ -231,6 +231,11 @@ function PointCloud({
   useEffect(() => {
     idMaterial.uniforms.mode.value = settings.projectionMode === 'min' ? 1 : 0;
   }, [idMaterial, settings.projectionMode]);
+  useEffect(() => {
+    const floor = Math.max(0, Math.min(1, settings.projectionIntensityFloor));
+    projectionMaterial.uniforms.intensityFloor.value = floor;
+    idMaterial.uniforms.intensityFloor.value = floor;
+  }, [idMaterial, projectionMaterial, settings.projectionIntensityFloor]);
   useEffect(
     () => () => {
       idRt.dispose();
@@ -893,7 +898,10 @@ export function BrainViewer({
           />
         )}
         {(settings.projectionMode === 'mean' || settings.projectionMode === 'sum') && (
-          <AccumulationProjectionPass mode={settings.projectionMode} />
+          <AccumulationProjectionPass
+            mode={settings.projectionMode}
+            sumExposure={settings.projectionSumExposure}
+          />
         )}
       </Canvas>
       {tooltip && hover && (
@@ -1298,7 +1306,13 @@ function CameraSync({
  *  the GPU's depth test does the reduction in a single direct-to-
  *  backbuffer pass and no hijack is needed.
  */
-function AccumulationProjectionPass({ mode }: { mode: 'mean' | 'sum' }) {
+function AccumulationProjectionPass({
+  mode,
+  sumExposure,
+}: {
+  mode: 'mean' | 'sum';
+  sumExposure: number;
+}) {
   const { gl, scene, camera, size } = useThree();
 
   const { rt, fullscreenScene, fullscreenCamera, compositeMaterial } = useMemo(() => {
@@ -1320,6 +1334,7 @@ function AccumulationProjectionPass({ mode }: { mode: 'mean' | 'sum' }) {
         src: { value: rt.texture },
         background: { value: new THREE.Color('#0a0a0a') },
         mode: { value: 0 },
+        sumExposure: { value: 1 },
       },
     });
     const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), compositeMaterial);
@@ -1332,6 +1347,9 @@ function AccumulationProjectionPass({ mode }: { mode: 'mean' | 'sum' }) {
   useEffect(() => {
     compositeMaterial.uniforms.mode.value = mode === 'sum' ? 1 : 0;
   }, [compositeMaterial, mode]);
+  useEffect(() => {
+    compositeMaterial.uniforms.sumExposure.value = Math.max(0.01, Math.min(10, sumExposure));
+  }, [compositeMaterial, sumExposure]);
 
   useEffect(() => {
     return () => {
