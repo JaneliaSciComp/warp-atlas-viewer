@@ -228,6 +228,16 @@ export type StimMode = "off" | "positive" | "negative" | "both";
 export type GeneLogic = "or" | "and";
 export type GeneMultiColor = "max" | "sum" | "richness";
 export type GeneThresholdMode = "paper" | "global";
+/** Projection mode for the 3D point cloud. 'off' renders cells as usual.
+ *  The other modes render an off-screen reduction along the view ray and
+ *  display that image, so deep cells aren't occluded by shallow ones:
+ *    'max'  → per-pixel maximum intensity (MIP).
+ *    'min'  → per-pixel minimum intensity.
+ *    'mean' → per-pixel average intensity across all cells touching the
+ *             pixel (additive sum / count).
+ *  "Intensity" is the per-cell value already driving the cell's color
+ *  (sourced from ColoringResult.alphas for v1). */
+export type ProjectionMode = "off" | "max" | "min" | "mean";
 
 /** User-tunable rendering parameters that aren't filters per se —
  *  e.g. the calcium-imaging thresholds that anchor the Stim color
@@ -387,6 +397,14 @@ export interface SettingsState {
      *  original feel. Internally drives `staticMoving` (at 0) and
      *  `dynamicDampingFactor = max(0.05, 1 - rotationMomentum)`. */
     rotationMomentum: number;
+    /** Per-pixel projection of the point cloud, viewed from the camera.
+     *  When not 'off', the 3D viewer renders into an off-screen target
+     *  and composites a per-pixel reduction (max/min/mean) of in-set
+     *  cell intensities. Lets deep cells punch through dense surface
+     *  layers (the same intuition as a max-intensity projection in
+     *  volume rendering). Ambient occlusion and the focused-neuron
+     *  ring marker are disabled while projection is active. */
+    projectionMode: ProjectionMode;
     /** Developer toggle. When true, the 3D viewer renders a small
      *  diagnostic overlay (canvas size, in-set count, computed point
      *  size + ghost visibility, etc.) so the auto / scale-by-filter
@@ -419,6 +437,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
     fadeWeakCorrelation: true,
     objectCentricRotation: true,
     rotationMomentum: 0.9,
+    projectionMode: "off",
     debugMode: false,
 };
 

@@ -325,6 +325,38 @@ export function SettingsTab({
 
             <section className="flex flex-col gap-2">
                 <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+                    Projection
+                </div>
+                <p className="text-neutral-400 leading-snug">
+                    Reduces the point cloud along the view ray to a single
+                    value per screen pixel, so deep cells aren't hidden by
+                    the dense surface layer.
+                    <span className="text-neutral-200"> Max</span> — at each
+                    pixel, show the cell with the highest activity / strongest
+                    expression along the ray (intensity-driven MIP).
+                    <span className="text-neutral-200"> Min</span> — the
+                    weakest in-set cell along the ray.
+                    <span className="text-neutral-200"> Mean</span> — the
+                    intensity-weighted average color of every cell touching
+                    the pixel. Ambient occlusion and the focused-neuron
+                    ring marker are disabled while projection is active.
+                </p>
+                <div className="flex items-center gap-2">
+                    <KindToggle
+                        value={settings.projectionMode}
+                        onChange={(v) => update({ projectionMode: v })}
+                        options={[
+                            { value: "off", label: "Off" },
+                            { value: "max", label: "Max" },
+                            { value: "min", label: "Min" },
+                            { value: "mean", label: "Mean" },
+                        ]}
+                    />
+                </div>
+            </section>
+
+            <section className="flex flex-col gap-2">
+                <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
                     Gene plasma ceiling
                 </div>
                 <p className="text-neutral-400 leading-snug">

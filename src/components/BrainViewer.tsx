@@ -14,6 +14,10 @@ import {
 import type { SharedColoring } from '../hooks/useColoring';
 import vertSrc from '../shaders/neuron.vert.glsl?raw';
 import fragSrc from '../shaders/neuron.frag.glsl?raw';
+import projectionVertSrc from '../shaders/projection.vert.glsl?raw';
+import projectionFragSrc from '../shaders/projection.frag.glsl?raw';
+import projectionCompositeVertSrc from '../shaders/projection_composite.vert.glsl?raw';
+import projectionCompositeFragSrc from '../shaders/projection_composite.frag.glsl?raw';
 import { AmbientOcclusion, skipAmbientOcclusionUserData } from './AmbientOcclusion';
 
 interface Props {
@@ -136,6 +140,50 @@ function PointCloud({
       },
     });
   }, [gl]);
+
+  // Projection material. One ShaderMaterial whose blending / depth-write
+  // state is reconciled to the active projectionMode each frame.
+  //   max  → depth-test trick picks the highest-intensity cell per pixel.
+  //   min  → mirror of max with inverted depth encoding.
+  //   mean → additive blending into an off-screen target; the dedicated
+  //          MeanProjectionPass component below composites it back.
+  // Intensity floor culls effectively-invisible ghosts so the projection
+  // shows only cells the normal pass would have rendered.
+  const projectionMaterial = useMemo(() => {
+    return new THREE.ShaderMaterial({
+      glslVersion: THREE.GLSL3,
+      vertexShader: projectionVertSrc,
+      fragmentShader: projectionFragSrc,
+      uniforms: {
+        pixelRatio: { value: gl.getPixelRatio() },
+        sizeScale: { value: 1 },
+        mode: { value: 0 },
+        intensityFloor: { value: 0.05 },
+      },
+    });
+  }, [gl]);
+  // Reconcile material state to the active projection mode. Three.js
+  // material properties (blending, depthWrite, transparent) are JS-side
+  // flags, not uniforms — mutating them in-place avoids re-creating the
+  // shader program on every mode flip.
+  useEffect(() => {
+    const m = projectionMaterial;
+    const mode = settings.projectionMode;
+    if (mode === 'mean') {
+      m.uniforms.mode.value = 2;
+      m.blending = THREE.AdditiveBlending;
+      m.transparent = true;
+      m.depthWrite = false;
+      m.depthTest = false;
+    } else {
+      m.uniforms.mode.value = mode === 'min' ? 1 : 0;
+      m.blending = THREE.NoBlending;
+      m.transparent = false;
+      m.depthWrite = true;
+      m.depthTest = true;
+    }
+    m.needsUpdate = true;
+  }, [projectionMaterial, settings.projectionMode]);
 
   // Canvas-size adaptation now lives inside applyColoring's auto-mode
   // formulas (basePointSize is derived from canvas height), so the
@@ -425,25 +473,42 @@ function PointCloud({
     }
   });
 
+  const projectionOn = settings.projectionMode !== 'off';
   return (
     <group rotation={[0, 0, Math.PI / 2]} scale={[1, -1, 1]}>
-      {/* Opaque pass first so its depth values are in place before the
-        * transparent pass reads them. Both points share the same
-        * geometry — the materials' alphaMin / alphaMax uniforms
-        * partition cells by alpha at the fragment level. */}
-      <points geometry={geometry} material={opaqueMaterial} renderOrder={0} />
-      <points
-        geometry={geometry}
-        material={transparentMaterial}
-        renderOrder={1}
-        userData={skipAmbientOcclusionUserData}
-      />
-      <points
-        geometry={markerGeometry}
-        material={markerMaterial}
-        renderOrder={2}
-        userData={skipAmbientOcclusionUserData}
-      />
+      {projectionOn ? (
+        // Single projection pass replaces both the opaque + transparent
+        // normal passes. For max/min this draws directly into the back
+        // buffer; for mean the MeanProjectionPass component below takes
+        // over the render and routes this geometry through an off-screen
+        // target instead.
+        <points
+          geometry={geometry}
+          material={projectionMaterial}
+          renderOrder={0}
+          userData={skipAmbientOcclusionUserData}
+        />
+      ) : (
+        <>
+          {/* Opaque pass first so its depth values are in place before the
+            * transparent pass reads them. Both points share the same
+            * geometry — the materials' alphaMin / alphaMax uniforms
+            * partition cells by alpha at the fragment level. */}
+          <points geometry={geometry} material={opaqueMaterial} renderOrder={0} />
+          <points
+            geometry={geometry}
+            material={transparentMaterial}
+            renderOrder={1}
+            userData={skipAmbientOcclusionUserData}
+          />
+          <points
+            geometry={markerGeometry}
+            material={markerMaterial}
+            renderOrder={2}
+            userData={skipAmbientOcclusionUserData}
+          />
+        </>
+      )}
     </group>
   );
 }
@@ -663,12 +728,13 @@ export function BrainViewer({
           onAtDefaultChange={setAtDefault}
           lockTargetToCenter={settings.objectCentricRotation}
         />
-        {settings.ambientOcclusion && (
+        {settings.ambientOcclusion && settings.projectionMode === 'off' && (
           <AmbientOcclusion
             intensity={settings.ambientOcclusionIntensity}
             radius={settings.ambientOcclusionRadius}
           />
         )}
+        {settings.projectionMode === 'mean' && <MeanProjectionPass />}
       </Canvas>
       {tooltip && hover && (
         <div className="neuron-tooltip" style={{ left: hover.x + 14, top: hover.y + 14 }}>
@@ -1041,6 +1107,81 @@ function CameraSync({
     lastRef.current = cam;
     onCameraChange(cam);
   });
+
+  return null;
+}
+
+/** Mean-projection render hijack. Takes over the render loop at
+ *  priority 1 (so r3f stops auto-rendering) and runs a two-step pass
+ *  per frame:
+ *    1. Clear an off-screen RGBA target to (0, 0, 0, 0) and render the
+ *       scene into it. The projection material's additive blending
+ *       accumulates `vec4(color × intensity, intensity)` per touched
+ *       pixel.
+ *    2. Render a fullscreen quad to the back buffer with the composite
+ *       shader, which divides RGB by A to recover the intensity-weighted
+ *       mean color (and falls back to the background color where no
+ *       cell ever touched the pixel).
+ *  Only mounted when projectionMode === 'mean'; for max/min modes the
+ *  GPU's depth test does the reduction in a single direct-to-backbuffer
+ *  pass and no hijack is needed.
+ */
+function MeanProjectionPass() {
+  const { gl, scene, camera, size } = useThree();
+
+  const { rt, fullscreenScene, fullscreenCamera, compositeMaterial } = useMemo(() => {
+    const rt = new THREE.WebGLRenderTarget(1, 1, {
+      depthBuffer: false,
+      stencilBuffer: false,
+      type: THREE.HalfFloatType,
+      format: THREE.RGBAFormat,
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+    });
+    const compositeMaterial = new THREE.ShaderMaterial({
+      glslVersion: THREE.GLSL3,
+      vertexShader: projectionCompositeVertSrc,
+      fragmentShader: projectionCompositeFragSrc,
+      depthTest: false,
+      depthWrite: false,
+      uniforms: {
+        src: { value: rt.texture },
+        background: { value: new THREE.Color('#0a0a0a') },
+      },
+    });
+    const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), compositeMaterial);
+    const fullscreenScene = new THREE.Scene();
+    fullscreenScene.add(quad);
+    const fullscreenCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    return { rt, fullscreenScene, fullscreenCamera, compositeMaterial };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      rt.dispose();
+      compositeMaterial.dispose();
+      const quad = fullscreenScene.children[0] as THREE.Mesh;
+      (quad.geometry as THREE.BufferGeometry).dispose();
+    };
+  }, [rt, compositeMaterial, fullscreenScene]);
+
+  useEffect(() => {
+    const pr = gl.getPixelRatio();
+    rt.setSize(Math.max(1, Math.floor(size.width * pr)), Math.max(1, Math.floor(size.height * pr)));
+  }, [gl, rt, size.height, size.width]);
+
+  useFrame(() => {
+    const prevTarget = gl.getRenderTarget();
+    const prevClearColor = gl.getClearColor(new THREE.Color());
+    const prevClearAlpha = gl.getClearAlpha();
+    gl.setRenderTarget(rt);
+    gl.setClearColor(0x000000, 0);
+    gl.clear(true, true, true);
+    gl.render(scene, camera);
+    gl.setRenderTarget(prevTarget);
+    gl.setClearColor(prevClearColor, prevClearAlpha);
+    gl.render(fullscreenScene, fullscreenCamera);
+  }, 1);
 
   return null;
 }
