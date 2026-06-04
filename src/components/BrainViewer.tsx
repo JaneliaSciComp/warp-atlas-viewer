@@ -183,7 +183,18 @@ function PointCloud({
       // while sum emits full color so a single-cell pixel keeps its
       // saturation and dense pixels saturate toward white.
       m.uniforms.mode.value = mode === 'sum' ? 3 : 2;
-      m.blending = THREE.AdditiveBlending;
+      // Use raw ONE/ONE additive blending. Three's built-in
+      // AdditiveBlending uses SRC_ALPHA/ONE when the renderer is not
+      // premultiplied, which would multiply the emitted RGB and alpha by
+      // alpha again. For mean that turns Σ(color*i)/Σ(i) into an
+      // unintended intensity-squared weighting.
+      m.blending = THREE.CustomBlending;
+      m.blendEquation = THREE.AddEquation;
+      m.blendSrc = THREE.OneFactor;
+      m.blendDst = THREE.OneFactor;
+      m.blendEquationAlpha = THREE.AddEquation;
+      m.blendSrcAlpha = THREE.OneFactor;
+      m.blendDstAlpha = THREE.OneFactor;
       m.transparent = true;
       m.depthWrite = false;
       m.depthTest = false;
