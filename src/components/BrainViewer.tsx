@@ -165,8 +165,8 @@ function PointCloud({
   //   min       → mirror of max with inverted depth encoding.
   //   mean/sum  → additive blending into an off-screen target; the
   //               AccumulationProjectionPass component below composites
-  //               it back, dividing by Σi for mean or tonemapping the
-  //               raw sum for sum.
+  //               it back, dividing by Σi for mean or clamping the raw
+  //               accumulated color for sum.
   // Intensity floor culls effectively-invisible ghosts so the projection
   // shows only cells the normal pass would have rendered.
   const projectionMaterial = useMemo(() => {
@@ -450,16 +450,25 @@ function PointCloud({
         return;
       }
       const prevOverride = scene.overrideMaterial;
+      const prevBackground = scene.background;
       const prevTarget = gl.getRenderTarget();
+      const prevClearColor = gl.getClearColor(new THREE.Color());
+      const prevClearAlpha = gl.getClearAlpha();
       try {
         scene.overrideMaterial = idMaterial;
+        // The viewer scene has an opaque background color for the normal
+        // backbuffer render. Suppress it for the ID target so empty pixels
+        // stay the packed background value (0,0,0) and decode to "no cell".
+        scene.background = null;
         gl.setRenderTarget(idRt);
         gl.setClearColor(0x000000, 0);
         gl.clear(true, true, false);
         gl.render(scene, camera);
       } finally {
         scene.overrideMaterial = prevOverride;
+        scene.background = prevBackground;
         gl.setRenderTarget(prevTarget);
+        gl.setClearColor(prevClearColor, prevClearAlpha);
       }
       const pr = gl.getPixelRatio();
       // readPixels uses bottom-up Y; our cursor coords are top-down.
@@ -1284,7 +1293,7 @@ function CameraSync({
  *       pixel.
  *    2. Render a fullscreen quad to the back buffer with the composite
  *       shader. The composite's `mode` uniform selects the divide-by-A
- *       (mean) or Reinhard-tonemap (sum) branch.
+ *       (mean) or channel-clamp (sum) branch.
  *  Only mounted when projectionMode is mean or sum; for max/min modes
  *  the GPU's depth test does the reduction in a single direct-to-
  *  backbuffer pass and no hijack is needed.
@@ -1340,14 +1349,25 @@ function AccumulationProjectionPass({ mode }: { mode: 'mean' | 'sum' }) {
 
   useFrame(() => {
     const prevTarget = gl.getRenderTarget();
+    const prevBackground = scene.background;
     const prevClearColor = gl.getClearColor(new THREE.Color());
     const prevClearAlpha = gl.getClearAlpha();
-    gl.setRenderTarget(rt);
-    gl.setClearColor(0x000000, 0);
-    gl.clear(true, true, true);
-    gl.render(scene, camera);
-    gl.setRenderTarget(prevTarget);
-    gl.setClearColor(prevClearColor, prevClearAlpha);
+    try {
+      gl.setRenderTarget(rt);
+      gl.setClearColor(0x000000, 0);
+      gl.clear(true, true, true);
+      // The main scene's background is intentionally opaque. If left in
+      // place while rendering the accumulation target, Three clears the
+      // float texture to that background with alpha=1, which makes every
+      // pixel look "touched" and corrupts mean/sum compositing. Keep the
+      // accumulation buffer transparent except where point sprites draw.
+      scene.background = null;
+      gl.render(scene, camera);
+    } finally {
+      scene.background = prevBackground;
+      gl.setRenderTarget(prevTarget);
+      gl.setClearColor(prevClearColor, prevClearAlpha);
+    }
     gl.render(fullscreenScene, fullscreenCamera);
   }, 1);
 

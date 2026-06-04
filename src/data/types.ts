@@ -236,7 +236,7 @@ export type GeneThresholdMode = "paper" | "global";
  *    'mean' → intensity-weighted average color across all cells touching
  *             the pixel (additive sum / count).
  *    'sum'  → integrated signal: additive accumulation with no divide,
- *             Reinhard-tonemapped for display. Pairs naturally with max
+ *             clamped to the display range. Pairs naturally with max
  *             for sparse-signal schemes (gene/activity) where mean
  *             washes out bright cells with the dim majority.
  *  "Intensity" is the per-cell scheme magnitude (gene/activity v,

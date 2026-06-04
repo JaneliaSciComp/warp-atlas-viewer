@@ -19,7 +19,7 @@
 //               divide. With additive blending, single-cell pixels
 //               keep the cell's full plasma/coolwarm color and dense
 //               accumulations saturate toward white. The composite
-//               tone-maps the raw sum to clamp the high end.
+//               clamps the raw sum to the displayable range.
 //
 // GLSL ES 3.00 (Three.js sets `glslVersion: THREE.GLSL3` on the host
 // material). In GLSL3 ShaderMaterial mode Three does NOT auto-define
