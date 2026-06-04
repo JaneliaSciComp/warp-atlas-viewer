@@ -11,13 +11,13 @@ This page documents the decisions baked into that conversion, so that quantities
 
 ## Input and output
 
-![Preprocessing reduces a ~30 GB source — per-specimen folders and post-processed analysis arrays — to a ~150 MB output bundle of a neurons.json manifest plus typed-array blobs (positions, genes, traces, atlas membership, …).](/preprocess-io.svg)
+![Preprocessing reduces a ~30 GB source — per-specimen folders and post-processed analysis arrays — to a ~125 MB output bundle of a neurons.json manifest plus gzipped typed-array blobs (positions, genes, traces, atlas membership, …).](/preprocess-io.svg)
 
 ## Transformations, in order
 
 ### Cell filter
 
-Only cells with valid coordinates are retained; approximately 274,455 cells pass through every subsequent step. NaN values in the calcium-trace and stimulus-correlation arrays are zero-filled rather than dropped, so a cell retains its position and transcriptomic identity even when its functional readout is unavailable.
+Only cells with valid coordinates are retained; approximately 274,455 cells pass through every subsequent step. NaN values in the calcium-trace, stimulus-correlation, and swim-correlation arrays are zero-filled rather than dropped, so a cell retains its position and transcriptomic identity even when its functional readout is unavailable.
 
 ### Coordinate reorientation
 
@@ -25,15 +25,15 @@ Only cells with valid coordinates are retained; approximately 274,455 cells pass
 - Coordinates are centered on the origin so that the orbit pivot is meaningful.
 - The AP axis is flipped so that anterior renders upward.
 
-### Trace downsampling
+### Trace sample rate {#trace-sample-rate}
 
-The published calcium traces are 268 samples at 2 Hz. A 2× boxcar downsample yields 134 samples at 1 Hz. The same downsample is applied to the stimulus regressors so that on-window timings remain aligned with the cell traces.
+The published calcium traces are 268 samples at 2 Hz, representing a 134 s mean stimulus cycle. The preprocessor ships them at this native rate; no temporal downsampling is applied.
 
-These traces are representative mean stimulus cycles from the published post-processed arrays, not raw trial-by-trial recordings. The downsampling changes only the display bundle; it does not re-estimate response correlations.
+These traces are representative mean stimulus cycles from the published post-processed arrays, not raw trial-by-trial recordings.
 
 ### Trace quantization
 
-The downsampled traces are affine-quantized to uint16 over an auto-fit range. The quantization step is roughly three orders of magnitude below the per-sample measurement noise, making the conversion effectively lossless. The resulting file fits below the browser's per-resource HTTP-cache limit and therefore persists across reloads.
+The traces are affine-quantized to uint16 over an auto-fit range. The quantization step is roughly three orders of magnitude below the per-sample measurement noise, making the conversion effectively lossless, and the uint16 storage halves the file size relative to float32.
 
 ### Specimen ID remapping
 
@@ -77,11 +77,11 @@ The integer-to-name mapping isn't shipped with the source data. It was recovered
 
 The published dataset also ships a 112-region [mapZebrain](https://mapzebrain.org) atlas (*Modified from Kunst et al., 2019*) as a cell × region boolean matrix in `BrainRegions_All.npy`, with names in each fish's `region_names.npy`. The atlas is hierarchical and overlapping: each cell can sit in 0–9 regions (e.g. a cerebellar cell is in both `cerebellum` and `rhombencephalon`).
 
-The preprocessor packs this matrix into a 14-byte little-endian bitfield per cell (`atlasRegionMask.bin`, ~3.84 MB) and emits the cleaned region names (`_` → space) in the manifest as `atlasRegionNames`. The viewer decodes membership with `(mask[i*14 + (r>>3)] >> (r&7)) & 1`. The 112-region atlas is filter-only. It does not drive a color scheme.
+The preprocessor packs this matrix into a 14-byte little-endian bitfield per cell (~3.84 MB in memory; shipped as `atlasRegionMask.bin.gz`, ~0.12 MB on disk) and emits the cleaned region names (`_` → space) in the manifest as `atlasRegionNames`. The viewer decodes membership with `(mask[i*14 + (r>>3)] >> (r&7)) & 1`. The 112-region atlas is filter-only. It does not drive a color scheme.
 
 ### Stimulus on-windows
 
-The stimulus on-windows, in seconds, are extracted from the downsampled regressor traces and written into the manifest. The Detail panel uses these to shade the corresponding bands on the ΔF/F trace.
+The stimulus on-windows, in seconds, are extracted from the regressor traces and written into the manifest. The Detail panel uses these to shade the corresponding bands on the ΔF/F trace.
 
 ### Stimulus correlations
 
@@ -91,6 +91,10 @@ The viewer loads `big_corr_regsAllMix` from the published dataset. This array ho
 
 The viewer loads `swim_corr_All`, the per-cell Pearson r between each cell's calcium activity and estimated swim power (windowed variance of the ephys tail-electrode channel). NaN values are zero-filled in the same pattern as the stimulus correlations. This is the channel surfaced by the [Swim card](/filters/swim) and the swim color scheme.
 
+### Gzip {#gzip}
+
+Each binary blob is written to disk as `<name>.bin.gz` (gzip level 6). Static hosts such as GitHub Pages and S3 serve these files opaquely, and the viewer decompresses them in the browser via `DecompressionStream('gzip')`. Compression varies sharply by file: the sparse gene-call and atlas-membership bitfields collapse to a few percent of their raw size, while the noise-dominated activity trace lands around 77%. The overall on-disk bundle is approximately 125 MB versus ~225 MB raw.
+
 ## Manifest
 
 The manifest is a small JSON file that records:
@@ -98,11 +102,11 @@ The manifest is a small JSON file that records:
 - cell count and the counts of genes, clusters, regions, atlas regions, and stimuli,
 - name arrays (genes, clusters, focal regions, mapZebrain atlas regions, stimuli),
 - stimulus on-windows in seconds,
-- the trace sample rate (1 Hz after downsampling),
+- the trace sample rate (2 Hz, the published native rate),
 - quantization parameters needed to recover trace values,
-- the list of binary blobs and their expected sizes.
+- the list of binary blob filenames. Per-blob byte sizes aren't shipped; the viewer derives them from the cell count, gene count, and other scalars above.
 
-The viewer fetches the manifest first to determine the size of each blob, then issues the remaining requests in parallel.
+The viewer fetches the manifest first, then issues the remaining requests for the binary blobs in parallel.
 
 ## Mock data
 

@@ -25,7 +25,7 @@
 
   <!-- B: Preprocessed bundle -->
   <rect class="box" x="200" y="148" width="320" height="56"/>
-  <text class="box-label" x="360" y="182" text-anchor="middle">Preprocessed bundle (~150 MB)</text>
+  <text class="box-label" x="360" y="182" text-anchor="middle">Preprocessed bundle (~125 MB)</text>
 
   <!-- arrow B -> C -->
   <line class="arrow" x1="360" y1="204" x2="360" y2="268" marker-end="url(#arrow)"/>

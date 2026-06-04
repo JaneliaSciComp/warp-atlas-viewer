@@ -1,9 +1,9 @@
 import type { NeuronDataset } from '../data/types';
 
 export interface ExportOptions {
-  /** When true, append 134 trace columns (`dff_t0` … `dff_tN-1`) with
-   *  the per-cell mean ΔF/F trace. Default false — see the Exporting
-   *  Cells doc for why this is opt-in. */
+  /** When true, append `traceLength` trace columns (`dff_t0` … `dff_t<T-1>`)
+   *  with the per-cell mean ΔF/F trace. Default false — see the
+   *  Exporting Cells doc for why this is opt-in. */
   includeActivityTrace?: boolean;
 }
 

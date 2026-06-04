@@ -26,17 +26,18 @@ A Python script reduces the published arrays to web-friendly binary blobs and a 
 
 - Cells without valid coordinates are excluded; approximately 274,455 cells are retained.
 - Coordinates are reordered and centered, and the AP axis is flipped so that anterior renders upward.
-- Calcium traces are downsampled 2× (268 → 134 samples, 2 Hz → 1 Hz) with negligible perceptual loss on the smooth ΔF/F signal.
-- Traces are quantized to uint16 over an auto-fit range, reducing file size and enabling browser caching across reloads.
+- Calcium traces ship at the published 2 Hz sampling rate (268 samples per cell over a 134 s mean stimulus cycle).
+- Traces are quantized to uint16 over an auto-fit range, halving the file size and enabling browser caching across reloads.
 - Region names are attached to the 16 focal anatomical groupings carried in the dataset.
 - The overlapping 112-region [mapZebrain](https://mapzebrain.org) atlas membership matrix is packed into a 14-byte-per-cell bitfield.
 - Cluster labels are aligned so that index 0 corresponds to *Unassigned* and indices 1…332 correspond to the 332 named subtypes.
+- Each binary blob is gzipped on disk; the bundle is decompressed by the browser at load time.
 
-The output is a manifest plus 12 binary blobs totaling approximately 150 MB.
+The output is a manifest plus 12 gzipped binary blobs totaling approximately 125 MB on disk.
 
 ## Loading
 
-On page load the manifest is fetched first, followed by parallel requests for each binary blob. Each blob is decoded into a typed array sized to the cell count declared in the manifest. After gzip the on-the-wire payload is substantially smaller than the on-disk total, and quantized traces remain in the browser's HTTP cache so subsequent loads are markedly faster.
+On page load the manifest is fetched first, followed by parallel requests for each gzipped blob. The viewer pipes each response body through `DecompressionStream('gzip')` (or accepts the auto-decoded body in dev environments that set `Content-Encoding: gzip`), then decodes the result into a typed array sized to the cell count declared in the manifest. Quantized traces remain in the browser's HTTP cache so subsequent loads are markedly faster.
 
 If the manifest is missing, the loader surfaces an error. Appending `?mock=1` to the URL bypasses real data and synthesizes a 10,000-cell dataset suitable for UI demonstration.
 
@@ -48,7 +49,7 @@ After loading, all per-cell quantities are held in a single in-memory dataset:
 - per-cell gene spot counts (41 genes) and curated binary gene calls,
 - transcriptomic cluster, focal-region, and source-specimen indices,
 - mapZebrain 112-region atlas membership (packed bitfield, 14 bytes per cell),
-- quantized mean ΔF/F traces (134 samples per cell),
+- quantized mean ΔF/F traces (268 samples per cell at 2 Hz),
 - per-stimulus Pearson correlations (8 stimuli per cell, cycle-wide),
 - per-cell Pearson correlation against estimated swim power,
 - name arrays for genes, clusters, focal regions, atlas regions, and stimuli,

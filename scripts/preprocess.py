@@ -5,7 +5,7 @@ binary blobs + a JSON manifest that the web app loads.
 
 Reads from   ./data/postprocessed and ./data/Fish1/assign_spots_em (gene name
                                   ordering)
-Writes to    ./preprocessed/{neurons.json, *.bin}
+Writes to    ./preprocessed/{neurons.json, *.bin.gz}
 Never modifies anything in ./data/.
 """
 

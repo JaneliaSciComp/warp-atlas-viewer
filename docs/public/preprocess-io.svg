@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 220" role="img" aria-labelledby="title desc" font-family="ui-sans-serif, system-ui, sans-serif">
   <title id="title">Preprocessing input and output</title>
-  <desc id="desc">Source data of approximately 30 GB on the left — per-specimen folders and post-processed analysis arrays — is converted by preprocessing into a 150 MB output bundle on the right: a neurons.json manifest plus typed-array blobs containing positions, genes, traces, atlas membership, and other per-cell quantities.</desc>
+  <desc id="desc">Source data of approximately 30 GB on the left — per-specimen folders and post-processed analysis arrays — is converted by preprocessing into a 125 MB output bundle on the right: a neurons.json manifest plus gzipped typed-array blobs containing positions, genes, traces, atlas membership, and other per-cell quantities.</desc>
   <style>
     .box { fill: rgba(255,255,255,0.04); stroke: #888; stroke-width: 1.5; rx: 6; ry: 6; }
     .box-title { fill: #ddd; font-size: 14px; font-weight: 600; }
@@ -29,7 +29,7 @@
 
   <!-- Output -->
   <rect class="box" x="420" y="30" width="280" height="160"/>
-  <text class="box-title" x="560" y="60" text-anchor="middle">Output (~150 MB)</text>
+  <text class="box-title" x="560" y="60" text-anchor="middle">Output (~125 MB)</text>
   <text class="box-detail" x="560" y="95" text-anchor="middle">neurons.json manifest</text>
   <text class="box-detail" x="560" y="115" text-anchor="middle">+ typed-array blobs</text>
   <text class="box-detail" x="560" y="140" text-anchor="middle">(positions, genes,</text>

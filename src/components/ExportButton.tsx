@@ -11,9 +11,9 @@ import {
 /** Header button + modal dialog for exporting the current effective set
  *  of cells to CSV. The "effective set" is the same population the
  *  Detail panel describes: user selection (lasso / click) if any, else
- *  the filter intersection, else every cell. The 134-sample ΔF/F trace
- *  is not exported — see docs/export.md for rationale and the column
- *  list. */
+ *  the filter intersection, else every cell. The mean ΔF/F trace is
+ *  opt-in via the dialog — see docs/export.md for rationale and the
+ *  column list. */
 export function ExportButton({
   data,
   effectiveSelection,
