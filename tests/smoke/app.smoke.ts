@@ -69,7 +69,7 @@ test('cycles through projection modes without shader errors', async ({ page }) =
   const projectionSection = page.locator('section').filter({
     has: page.getByText('Projection', { exact: true }),
   });
-  for (const label of ['Max', 'Min', 'Mean', 'Off']) {
+  for (const label of ['Max', 'Min', 'Mean', 'Sum', 'Off']) {
     await projectionSection.getByRole('button', { name: label, exact: true }).click();
     await page.waitForTimeout(200);
   }

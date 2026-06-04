@@ -381,7 +381,12 @@ export function SettingsTab({
                     weakest in-set cell along the ray.
                     <span className="text-neutral-200"> Mean</span> — the
                     intensity-weighted average color of every cell touching
-                    the pixel. Ambient occlusion and the focused-neuron
+                    the pixel.
+                    <span className="text-neutral-200"> Sum</span> — the
+                    integrated signal along the ray (additive accumulation,
+                    Reinhard-tonemapped). Pairs well with sparse-signal
+                    schemes like gene where mean dilutes bright cells with
+                    the dim majority. Ambient occlusion and the focused-neuron
                     ring marker are disabled while projection is active.
                 </p>
                 <div className="flex items-center gap-2">
@@ -393,6 +398,7 @@ export function SettingsTab({
                             { value: "max", label: "Max" },
                             { value: "min", label: "Min" },
                             { value: "mean", label: "Mean" },
+                            { value: "sum", label: "Sum" },
                         ]}
                     />
                 </div>

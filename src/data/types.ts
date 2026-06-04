@@ -232,12 +232,16 @@ export type GeneThresholdMode = "paper" | "global";
  *  The other modes render an off-screen reduction along the view ray and
  *  display that image, so deep cells aren't occluded by shallow ones:
  *    'max'  → per-pixel maximum intensity (MIP).
- *    'min'  → per-pixel minimum intensity.
- *    'mean' → per-pixel average intensity across all cells touching the
- *             pixel (additive sum / count).
- *  "Intensity" is the per-cell value already driving the cell's color
- *  (sourced from ColoringResult.alphas for v1). */
-export type ProjectionMode = "off" | "max" | "min" | "mean";
+ *    'min'  → per-pixel minimum intensity (DRR-style darkfield).
+ *    'mean' → intensity-weighted average color across all cells touching
+ *             the pixel (additive sum / count).
+ *    'sum'  → integrated signal: additive accumulation with no divide,
+ *             Reinhard-tonemapped for display. Pairs naturally with max
+ *             for sparse-signal schemes (gene/activity) where mean
+ *             washes out bright cells with the dim majority.
+ *  "Intensity" is the per-cell scheme magnitude (gene/activity v,
+ *  |r| for stim/swim, 1 for categorical, 0 for ghosts). */
+export type ProjectionMode = "off" | "max" | "min" | "mean" | "sum";
 
 /** User-tunable rendering parameters that aren't filters per se —
  *  e.g. the calcium-imaging thresholds that anchor the Stim color

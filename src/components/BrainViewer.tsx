@@ -148,10 +148,12 @@ function PointCloud({
 
   // Projection material. One ShaderMaterial whose blending / depth-write
   // state is reconciled to the active projectionMode each frame.
-  //   max  → depth-test trick picks the highest-intensity cell per pixel.
-  //   min  → mirror of max with inverted depth encoding.
-  //   mean → additive blending into an off-screen target; the dedicated
-  //          MeanProjectionPass component below composites it back.
+  //   max       → depth-test trick picks the highest-intensity cell.
+  //   min       → mirror of max with inverted depth encoding.
+  //   mean/sum  → additive blending into an off-screen target; the
+  //               AccumulationProjectionPass component below composites
+  //               it back, dividing by Σi for mean or tonemapping the
+  //               raw sum for sum.
   // Intensity floor culls effectively-invisible ghosts so the projection
   // shows only cells the normal pass would have rendered.
   const projectionMaterial = useMemo(() => {
@@ -174,7 +176,10 @@ function PointCloud({
   useEffect(() => {
     const m = projectionMaterial;
     const mode = settings.projectionMode;
-    if (mode === 'mean') {
+    if (mode === 'mean' || mode === 'sum') {
+      // Mean and sum share the same projection pass — both additively
+      // accumulate (color × intensity, intensity) into an off-screen
+      // float target. The composite pass differentiates them.
       m.uniforms.mode.value = 2;
       m.blending = THREE.AdditiveBlending;
       m.transparent = true;
@@ -486,7 +491,7 @@ function PointCloud({
       {projectionOn ? (
         // Single projection pass replaces both the opaque + transparent
         // normal passes. For max/min this draws directly into the back
-        // buffer; for mean the MeanProjectionPass component below takes
+        // buffer; for mean/sum the AccumulationProjectionPass component below takes
         // over the render and routes this geometry through an off-screen
         // target instead.
         <points
@@ -741,7 +746,9 @@ export function BrainViewer({
             radius={settings.ambientOcclusionRadius}
           />
         )}
-        {settings.projectionMode === 'mean' && <MeanProjectionPass />}
+        {(settings.projectionMode === 'mean' || settings.projectionMode === 'sum') && (
+          <AccumulationProjectionPass mode={settings.projectionMode} />
+        )}
       </Canvas>
       {tooltip && hover && (
         <div className="neuron-tooltip" style={{ left: hover.x + 14, top: hover.y + 14 }}>
@@ -1131,22 +1138,21 @@ function CameraSync({
   return null;
 }
 
-/** Mean-projection render hijack. Takes over the render loop at
- *  priority 1 (so r3f stops auto-rendering) and runs a two-step pass
- *  per frame:
+/** Accumulation-projection render hijack used by both mean and sum.
+ *  Takes over the render loop at priority 1 (so r3f stops auto-
+ *  rendering) and runs a two-step pass per frame:
  *    1. Clear an off-screen RGBA target to (0, 0, 0, 0) and render the
  *       scene into it. The projection material's additive blending
  *       accumulates `vec4(color × intensity, intensity)` per touched
  *       pixel.
  *    2. Render a fullscreen quad to the back buffer with the composite
- *       shader, which divides RGB by A to recover the intensity-weighted
- *       mean color (and falls back to the background color where no
- *       cell ever touched the pixel).
- *  Only mounted when projectionMode === 'mean'; for max/min modes the
- *  GPU's depth test does the reduction in a single direct-to-backbuffer
- *  pass and no hijack is needed.
+ *       shader. The composite's `mode` uniform selects the divide-by-A
+ *       (mean) or Reinhard-tonemap (sum) branch.
+ *  Only mounted when projectionMode is mean or sum; for max/min modes
+ *  the GPU's depth test does the reduction in a single direct-to-
+ *  backbuffer pass and no hijack is needed.
  */
-function MeanProjectionPass() {
+function AccumulationProjectionPass({ mode }: { mode: 'mean' | 'sum' }) {
   const { gl, scene, camera, size } = useThree();
 
   const { rt, fullscreenScene, fullscreenCamera, compositeMaterial } = useMemo(() => {
@@ -1167,6 +1173,7 @@ function MeanProjectionPass() {
       uniforms: {
         src: { value: rt.texture },
         background: { value: new THREE.Color('#0a0a0a') },
+        mode: { value: 0 },
       },
     });
     const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), compositeMaterial);
@@ -1175,6 +1182,10 @@ function MeanProjectionPass() {
     const fullscreenCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     return { rt, fullscreenScene, fullscreenCamera, compositeMaterial };
   }, []);
+
+  useEffect(() => {
+    compositeMaterial.uniforms.mode.value = mode === 'sum' ? 1 : 0;
+  }, [compositeMaterial, mode]);
 
   useEffect(() => {
     return () => {
