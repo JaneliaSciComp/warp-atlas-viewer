@@ -1,14 +1,21 @@
 // Fullscreen composite for the additive-blend projection modes.
 //
-// Both `mean` and `sum` use the same projection-pass shader (additive
-// blending of (color × intensity, intensity)). They diverge only in
-// how the accumulated buffer is interpreted here:
+// Both `mean` and `sum` use additive blending into the off-screen
+// target, but with different per-cell emissions and therefore
+// different composite math:
 //
-//   mode = 0 (mean) → RGB / A → intensity-weighted average color.
-//   mode = 1 (sum)  → Reinhard tone-map of RGB → integrated signal.
-//     Sum keeps bright cells bright when they stack along the ray
-//     (where mean would dilute them with dim non-expressers), at the
-//     cost of saturating dense pixels toward white.
+//   mode = 0 (mean) → projection shader emits (color × intensity,
+//     intensity); composite divides RGB by A to recover the
+//     intensity-weighted mean color. Bounded to plasma/coolwarm
+//     gamut; insensitive to how many cells touched the pixel.
+//
+//   mode = 1 (sum)  → projection shader emits (color, 1.0); composite
+//     clamps the per-channel accumulation to [0, 1]. Single-cell
+//     pixels show the cell's full color (matching mean); dense pixels
+//     saturate gradually toward white as channels max out, encoding
+//     "how much signal stacked here." Mean and sum therefore diverge
+//     only where multiple cells overlap along the ray — exactly the
+//     regime where Sum is supposed to differ.
 //
 // Pixels that no cell ever touched (A ≈ 0) fall back to the
 // background color in both modes.
@@ -34,10 +41,7 @@ void main() {
   }
   vec3 rgb;
   if (mode == 1) {
-    // Sum: Reinhard tone-mapping. Bounded to [0, 1] without needing to
-    // know the max accumulated value in advance; dense pixels saturate
-    // gradually toward white.
-    rgb = acc.rgb / (vec3(1.0) + acc.rgb);
+    rgb = min(acc.rgb, vec3(1.0));
   } else {
     rgb = acc.rgb / acc.a;
   }

@@ -177,10 +177,12 @@ function PointCloud({
     const m = projectionMaterial;
     const mode = settings.projectionMode;
     if (mode === 'mean' || mode === 'sum') {
-      // Mean and sum share the same projection pass — both additively
-      // accumulate (color × intensity, intensity) into an off-screen
-      // float target. The composite pass differentiates them.
-      m.uniforms.mode.value = 2;
+      // Mean and sum both additively blend into the off-screen target,
+      // but with different per-cell emissions: mean weights by intensity
+      // so the composite's divide-by-A recovers a true weighted average,
+      // while sum emits full color so a single-cell pixel keeps its
+      // saturation and dense pixels saturate toward white.
+      m.uniforms.mode.value = mode === 'sum' ? 3 : 2;
       m.blending = THREE.AdditiveBlending;
       m.transparent = true;
       m.depthWrite = false;
