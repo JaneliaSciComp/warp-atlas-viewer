@@ -50,7 +50,7 @@ jobs:
           mkdir -p preprocessed
           cd preprocessed
           for f in $PREPROCESSED_FILES; do
-            echo "==> $f"
+            echo "==> $DATA_BASE_URL/$f"
             curl -fSL --retry 3 --retry-delay 2 -o "$f" "$DATA_BASE_URL/$f"
           done
           ls -lh
