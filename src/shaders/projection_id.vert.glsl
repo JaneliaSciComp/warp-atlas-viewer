@@ -16,13 +16,15 @@ uniform float sizeScale;
 flat out int vCellId;
 out float vIntensity;
 
+// Keep in lockstep with projection.vert.glsl's PROJECTION_SIZE_SCALE —
+// if the picker's disk size diverges from the visible pass, hover/click
+// can resolve to a different cell than the one drawn on screen.
+const float PROJECTION_SIZE_SCALE = 0.4;
+
 void main() {
   vCellId = int(instCellId + 0.5);
   vIntensity = instIntensity;
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mvPosition;
-  // Must match projection.vert.glsl's flat sizing — otherwise the
-  // picker's depth-test reduction lands on different cells than the
-  // visible pass and hover/click would point at the wrong neuron.
-  gl_PointSize = max(1.5, instSize * sizeScale * pixelRatio);
+  gl_PointSize = max(1.5, instSize * sizeScale * pixelRatio * PROJECTION_SIZE_SCALE);
 }
