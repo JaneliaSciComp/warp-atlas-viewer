@@ -1,8 +1,10 @@
 // Vertex shader for the projection-mode render path. Mirrors
 // neuron.vert.glsl's transform and point-sprite sizing, but forwards
-// the per-cell alpha as the projection "intensity" (same scalar that
-// drives the cell's alpha in the normal pass: high for active in-set
-// cells, low for ghosts).
+// the per-cell scheme-aware intensity (gene/activity = normalized v,
+// stim/swim = |r| past the deadband regardless of fadeWeakCorrelation,
+// region/fish/highlight = 1 for in-set, 0 for ghosts). Sourcing this
+// independently of instAlpha is what lets stim with fade-off still
+// produce a magnitude-aware projection.
 //
 // GLSL ES 3.00: required so the fragment shader can write
 // gl_FragDepth (used for the max/min depth-test trick). Three.js
@@ -10,7 +12,7 @@
 // the material has `glslVersion: THREE.GLSL3`.
 
 in vec3 instColor;
-in float instAlpha;
+in float instIntensity;
 in float instSize;
 
 uniform float pixelRatio;
@@ -21,7 +23,7 @@ out float vIntensity;
 
 void main() {
   vColor = instColor;
-  vIntensity = instAlpha;
+  vIntensity = instIntensity;
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mvPosition;
   float dist = -mvPosition.z;

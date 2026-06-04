@@ -23,6 +23,14 @@ export interface ColoringResult {
   colors: Float32Array; // length n*3
   alphas: Float32Array; // length n
   sizes: Float32Array; // length n
+  /** Per-cell projection intensity in [0, 1] — the underlying scheme
+   *  scalar, NOT the display alpha. Stim/swim use magnitude |r| past
+   *  the deadband regardless of fadeWeakCorrelation; gene/activity
+   *  use the same v that drives the plasma ramp; highlight/region/fish
+   *  are categorical and carry 1.0 for in-set, 0 for ghosts. Read by
+   *  the 3D viewer's projection-mode render path; the t-SNE panel and
+   *  the normal 3D pass do not consume this. */
+  intensities: Float32Array; // length n
 }
 
 export function allocColoring(n: number): ColoringResult {
@@ -30,6 +38,7 @@ export function allocColoring(n: number): ColoringResult {
     colors: new Float32Array(n * 3),
     alphas: new Float32Array(n),
     sizes: new Float32Array(n),
+    intensities: new Float32Array(n),
   };
 }
 
@@ -297,7 +306,7 @@ export function applyColoring(
   out: ColoringResult,
 ): ColoringStats {
   const { count, regionIds, fishIds, clusterIds, geneCounts, geneBinary, stimulusCorr, swimCorr, activityTrace, traceLength } = ds;
-  const { colors, alphas, sizes } = out;
+  const { colors, alphas, sizes, intensities } = out;
   const G = ds.geneNames.length;
   const S = ds.stimulusNames.length;
   // Activity scheme: clamp the URL-restored sample index into the
@@ -577,6 +586,10 @@ export function applyColoring(
   for (let i = 0; i < count; i++) {
     const inSet = inSetArr[i] === 1;
     let r = 0, g = 0, b = 0, alpha = 0.85, size = effectivePointSize;
+    // Per-cell projection intensity (scheme-aware magnitude in [0, 1]).
+    // Branches below overwrite it; ghosts and hidden cells leave it at
+    // zero so the projection-mode renderer culls them via intensityFloor.
+    let intensity = 0;
 
     if (hideUnassigned && regionIds[i] === 0) {
       colors[i * 3] = 0;
@@ -584,6 +597,7 @@ export function applyColoring(
       colors[i * 3 + 2] = 0;
       alphas[i] = 0;
       sizes[i] = size;
+      intensities[i] = 0;
       continue;
     }
 
@@ -616,11 +630,16 @@ export function applyColoring(
         case 'region': {
           const c = regionColor(regionIds[i], filter.regionPalette);
           r = c[0]; g = c[1]; b = c[2];
+          // Categorical scheme: no magnitude. In-set cells get full
+          // intensity so projection renders any of them; ghosts have
+          // already been left at 0 by the default above.
+          intensity = 1;
           break;
         }
         case 'fish': {
           const c = fishColor(ds.fishIds[i]);
           r = c[0]; g = c[1]; b = c[2];
+          intensity = 1;
           break;
         }
         case 'gene': {
@@ -698,6 +717,9 @@ export function applyColoring(
             const c = plasma(v);
             r = c[0]; g = c[1]; b = c[2];
             alpha = 1.0;
+            // v is the plasma input (0..1) — exactly the magnitude
+            // signal projection-mode wants.
+            intensity = v;
           }
           break;
         }
@@ -709,6 +731,7 @@ export function applyColoring(
           // visual encoding overlaid.
           r = 0.94; g = 0.97; b = 0.13;
           alpha = 1.0;
+          intensity = 1;
           break;
         }
         case 'activity': {
@@ -725,6 +748,7 @@ export function applyColoring(
             const c = plasma(v);
             r = c[0]; g = c[1]; b = c[2];
             alpha = 1.0;
+            intensity = v;
           }
           break;
         }
@@ -787,6 +811,10 @@ export function applyColoring(
           const c = coolwarm(signed);
           r = c[0]; g = c[1]; b = c[2];
           alpha = fadeWeak ? FADE_FLOOR + (1 - FADE_FLOOR) * v : 1.0;
+          // |r|-magnitude projection signal independent of fadeWeak:
+          // alpha collapses to 1 with fade off, so projection would lose
+          // its discriminator if it kept reading alpha.
+          intensity = v;
           break;
         }
         case 'swim': {
@@ -809,6 +837,7 @@ export function applyColoring(
           const c = coolwarm(signed);
           r = c[0]; g = c[1]; b = c[2];
           alpha = fadeWeak ? FADE_FLOOR + (1 - FADE_FLOOR) * v : 1.0;
+          intensity = v;
           break;
         }
       }
@@ -853,6 +882,7 @@ export function applyColoring(
     colors[i * 3 + 2] = b;
     alphas[i] = alpha;
     sizes[i] = size;
+    intensities[i] = intensity;
   }
 
   // Slice the in-set tail out of drawOrder as filterSelection so App's
@@ -893,7 +923,7 @@ export function applySelectionAsFilterGhost(
   selection: SelectionState,
 ): void {
   if (selection.source !== 'umap' || selection.indices.length === 0) return;
-  const { colors, alphas, sizes } = out;
+  const { colors, alphas, sizes, intensities } = out;
   const selSet = new Set<number>(Array.from(selection.indices));
   const t = effectiveGhostIntensity;
   const ghostAlpha = DIM_ALPHA * t;
@@ -916,6 +946,7 @@ export function applySelectionAsFilterGhost(
       colors[i * 3 + 2] = b0;
       alphas[i] = ghostAlpha;
       sizes[i] = ghostSize;
+      intensities[i] = 0;
     }
   } else {
     for (let i = 0; i < count; i++) {
@@ -925,6 +956,7 @@ export function applySelectionAsFilterGhost(
       colors[i * 3 + 2] = b0;
       alphas[i] = ghostAlpha;
       sizes[i] = ghostSize;
+      intensities[i] = 0;
     }
   }
 }

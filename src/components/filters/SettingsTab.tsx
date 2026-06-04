@@ -141,12 +141,26 @@ export function SettingsTab({
                             min={0}
                             max={1}
                             step={0.05}
+                            disabled={settings.projectionMode !== "off"}
+                            title={
+                                settings.projectionMode !== "off"
+                                    ? "ghost cells have intensity 0 and are culled by projection's threshold — visibility has no effect"
+                                    : undefined
+                            }
                             onChange={(v) =>
                                 update({
                                     ghostIntensity: Math.max(0, Math.min(1, v)),
                                 })
                             }
                         />
+                        {settings.projectionMode !== "off" && (
+                            <p className="text-neutral-500 text-[11px] leading-snug ml-3">
+                                Disabled while a projection mode is active —
+                                ghost cells are culled by projection's
+                                intensity threshold, so their alpha and size
+                                no longer affect the rendered image.
+                            </p>
+                        )}
                     </>
                 )}
             </section>
@@ -244,71 +258,100 @@ export function SettingsTab({
                     palette reads too dark against the dark background.
                 </p>
                 <label
-                    className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
-                    title="enable screen-space ambient occlusion in the 3D viewer"
+                    className={
+                        "flex items-center gap-2 text-xs cursor-pointer select-none ml-3 " +
+                        (settings.projectionMode !== "off"
+                            ? "text-neutral-500 cursor-not-allowed"
+                            : "text-neutral-300")
+                    }
+                    title={
+                        settings.projectionMode !== "off"
+                            ? "projection mode renders without ambient occlusion"
+                            : "enable screen-space ambient occlusion in the 3D viewer"
+                    }
                 >
                     <input
                         type="checkbox"
                         checked={settings.ambientOcclusion}
+                        disabled={settings.projectionMode !== "off"}
                         onChange={(e) =>
                             update({ ambientOcclusion: e.target.checked })
                         }
-                        className="accent-neutral-300"
+                        className="accent-neutral-300 disabled:opacity-50"
                     />
                     ambient occlusion
                 </label>
-                <div
-                    className={
-                        settings.ambientOcclusion
-                            ? "opacity-100"
-                            : "opacity-40 pointer-events-none"
-                    }
-                >
-                    <NumberRow
-                        label="occlusion strength"
-                        value={settings.ambientOcclusionIntensity}
-                        min={0}
-                        max={0.4}
-                        step={0.005}
-                        onChange={(v) =>
-                            update({
-                                ambientOcclusionIntensity: Math.max(
-                                    0,
-                                    Math.min(0.4, v),
-                                ),
-                            })
-                        }
-                    />
-                    <NumberRow
-                        label="shadow radius (px)"
-                        value={settings.ambientOcclusionRadius}
-                        min={1}
-                        max={72}
-                        step={1}
-                        onChange={(v) =>
-                            update({
-                                ambientOcclusionRadius: Math.max(
-                                    1,
-                                    Math.min(72, Math.round(v)),
-                                ),
-                            })
-                        }
-                    />
-                </div>
+                {settings.projectionMode !== "off" && (
+                    <p className="text-neutral-500 text-[11px] leading-snug ml-3">
+                        Disabled while a projection mode is active —
+                        projection renders without ambient occlusion.
+                    </p>
+                )}
+                {settings.ambientOcclusion && settings.projectionMode === "off" && (
+                    <>
+                        <NumberRow
+                            label="occlusion strength"
+                            value={settings.ambientOcclusionIntensity}
+                            min={0}
+                            max={0.4}
+                            step={0.005}
+                            onChange={(v) =>
+                                update({
+                                    ambientOcclusionIntensity: Math.max(
+                                        0,
+                                        Math.min(0.4, v),
+                                    ),
+                                })
+                            }
+                        />
+                        <NumberRow
+                            label="shadow radius (px)"
+                            value={settings.ambientOcclusionRadius}
+                            min={1}
+                            max={72}
+                            step={1}
+                            onChange={(v) =>
+                                update({
+                                    ambientOcclusionRadius: Math.max(
+                                        1,
+                                        Math.min(72, Math.round(v)),
+                                    ),
+                                })
+                            }
+                        />
+                    </>
+                )}
                 <label
-                    className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
-                    title="render active/in-filter cells at full opacity in both scatter views; ghost cells remain transparent"
+                    className={
+                        "flex items-center gap-2 text-xs cursor-pointer select-none ml-3 " +
+                        (settings.projectionMode !== "off"
+                            ? "text-neutral-500 cursor-not-allowed"
+                            : "text-neutral-300")
+                    }
+                    title={
+                        settings.projectionMode !== "off"
+                            ? "projection mode ignores per-cell alpha, so the opaque-active override has no effect"
+                            : "render active/in-filter cells at full opacity in both scatter views; ghost cells remain transparent"
+                    }
                 >
                     <input
                         type="checkbox"
                         checked={settings.opaqueActiveCells}
+                        disabled={settings.projectionMode !== "off"}
                         onChange={(e) =>
                             update({ opaqueActiveCells: e.target.checked })
                         }
-                        className="accent-neutral-300"
+                        className="accent-neutral-300 disabled:opacity-50"
                     />
                     opaque active cells
                 </label>
+                {settings.projectionMode !== "off" && (
+                    <p className="text-neutral-500 text-[11px] leading-snug ml-3">
+                        Disabled while a projection mode is active —
+                        projection ignores per-cell alpha, so forcing
+                        opaque has no visual effect.
+                    </p>
+                )}
                 <NumberRow
                     label="active brightness"
                     value={settings.activeBrightness}
@@ -525,19 +568,37 @@ export function SettingsTab({
                     visually).
                 </p>
                 <label
-                    className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
-                    title="fade out cells with |r| near zero so the divergent ramp's neutral midpoint doesn't compete with the colored extremes"
+                    className={
+                        "flex items-center gap-2 text-xs cursor-pointer select-none ml-3 " +
+                        (settings.projectionMode !== "off"
+                            ? "text-neutral-500 cursor-not-allowed"
+                            : "text-neutral-300")
+                    }
+                    title={
+                        settings.projectionMode !== "off"
+                            ? "projection mode reads the per-cell magnitude directly, so fade-by-alpha doesn't apply"
+                            : "fade out cells with |r| near zero so the divergent ramp's neutral midpoint doesn't compete with the colored extremes"
+                    }
                 >
                     <input
                         type="checkbox"
                         checked={settings.fadeWeakCorrelation}
+                        disabled={settings.projectionMode !== "off"}
                         onChange={(e) =>
                             update({ fadeWeakCorrelation: e.target.checked })
                         }
-                        className="accent-neutral-300"
+                        className="accent-neutral-300 disabled:opacity-50"
                     />
                     fade weak correlations
                 </label>
+                {settings.projectionMode !== "off" && (
+                    <p className="text-neutral-500 text-[11px] leading-snug ml-3">
+                        Disabled while a projection mode is active —
+                        projection reads the per-cell magnitude directly
+                        and culls weak cells below its own threshold, so
+                        alpha-fade no longer changes the rendered image.
+                    </p>
+                )}
             </section>
 
             <section className="flex flex-col gap-2">
@@ -606,6 +667,8 @@ function NumberRow({
     max,
     step,
     onChange,
+    disabled,
+    title,
 }: {
     label: string;
     value: number;
@@ -613,9 +676,17 @@ function NumberRow({
     max: number;
     step: number;
     onChange: (v: number) => void;
+    disabled?: boolean;
+    title?: string;
 }) {
     return (
-        <label className="flex items-center justify-between gap-3 pl-3">
+        <label
+            className={
+                "flex items-center justify-between gap-3 pl-3 " +
+                (disabled ? "opacity-50 cursor-not-allowed" : "")
+            }
+            title={title}
+        >
             <span className="text-neutral-300">{label}</span>
             <span className="flex items-center gap-2">
                 <input
@@ -624,6 +695,7 @@ function NumberRow({
                     max={max}
                     step={step}
                     value={value}
+                    disabled={disabled}
                     onChange={(e) => onChange(parseFloat(e.target.value))}
                     className="w-32 accent-yellow-300"
                 />
@@ -633,6 +705,7 @@ function NumberRow({
                     max={max}
                     step={step}
                     value={value}
+                    disabled={disabled}
                     onChange={(e) => {
                         const v = parseFloat(e.target.value);
                         if (Number.isFinite(v)) onChange(v);

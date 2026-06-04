@@ -99,6 +99,11 @@ function PointCloud({
     g.setAttribute('instColor', new THREE.BufferAttribute(buffers.colors, 3));
     g.setAttribute('instAlpha', new THREE.BufferAttribute(buffers.alphas, 1));
     g.setAttribute('instSize', new THREE.BufferAttribute(buffers.sizes, 1));
+    // Projection-mode intensity (scheme-aware magnitude). Separate from
+    // alpha so projection works even when fadeWeakCorrelation collapses
+    // alpha to 1 for all in-set cells. Only the projection vertex
+    // shader reads this attribute.
+    g.setAttribute('instIntensity', new THREE.BufferAttribute(buffers.intensities, 1));
     g.computeBoundingSphere();
     return g;
   }, [data, buffers]);
@@ -200,6 +205,7 @@ function PointCloud({
     buffers.colors.set(coloring.result.colors);
     buffers.alphas.set(coloring.result.alphas);
     buffers.sizes.set(coloring.result.sizes);
+    buffers.intensities.set(coloring.result.intensities);
     // Treat a t-SNE lasso selection as an additional filter for the 3D
     // viewer only: demote in-set cells outside the lasso to standard
     // ghost values. UmapPanel reads the shared (non-demoted) buffer so
@@ -230,6 +236,7 @@ function PointCloud({
     (geometry.attributes.instColor as THREE.BufferAttribute).needsUpdate = true;
     (geometry.attributes.instAlpha as THREE.BufferAttribute).needsUpdate = true;
     (geometry.attributes.instSize as THREE.BufferAttribute).needsUpdate = true;
+    (geometry.attributes.instIntensity as THREE.BufferAttribute).needsUpdate = true;
     // drawOrder partitions cells so out-of-filter indices come first
     // and in-filter ones last. Setting it as the geometry's index
     // buffer makes Three.js draw them in that order — combined with
