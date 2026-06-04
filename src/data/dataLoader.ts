@@ -178,36 +178,49 @@ export function validateBuffer(
 
 /**
  * Stream a binary response, calling `onChunk(deltaBytes)` for each chunk
- * received, then assemble into an ArrayBuffer.
+ * received, then assemble into an ArrayBuffer. If the assembled bytes
+ * start with the gzip magic `1f 8b`, they're piped through
+ * DecompressionStream before returning — so callers always see raw data.
+ *
+ * The magic-byte sniff (instead of trusting the URL's `.gz` suffix) is
+ * deliberate: GitHub Pages and S3 serve `.gz` files opaquely, so the
+ * browser hands us still-compressed bytes and we have to unpack them
+ * here. Vite's dev server, by contrast, sets `Content-Encoding: gzip`
+ * on `.gz` files so the browser auto-decompresses — in that case we get
+ * raw bytes already and skip the second pass. Same code path on both.
  */
 async function streamBin(
   response: Response,
   onChunk: (deltaBytes: number) => void,
 ): Promise<ArrayBuffer> {
+  let received: Uint8Array<ArrayBuffer>;
   if (!response.body) {
-    // Fallback: no streaming support, just read at once. We can't report
-    // intermediate progress but we can at least credit the final size.
     const buf = await response.arrayBuffer();
     onChunk(buf.byteLength);
-    return buf;
+    received = new Uint8Array(buf) as Uint8Array<ArrayBuffer>;
+  } else {
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      total += value.length;
+      onChunk(value.length);
+    }
+    received = new Uint8Array(total) as Uint8Array<ArrayBuffer>;
+    let offset = 0;
+    for (const c of chunks) {
+      received.set(c, offset);
+      offset += c.length;
+    }
   }
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    total += value.length;
-    onChunk(value.length);
-  }
-  const out = new Uint8Array(total);
-  let offset = 0;
-  for (const c of chunks) {
-    out.set(c, offset);
-    offset += c.length;
-  }
-  return out.buffer;
+  const isGzipped = received.length >= 2 && received[0] === 0x1f && received[1] === 0x8b;
+  if (!isGzipped) return received.buffer;
+  const ds = new DecompressionStream('gzip');
+  const src = new Blob([received]).stream();
+  return await new Response(src.pipeThrough(ds)).arrayBuffer();
 }
 
 /** Decode the activityTrace buffer: the wire format is uint16 indices
@@ -273,7 +286,9 @@ async function loadFromManifest(
   reportProgress();
 
   // Stream each response body, accumulating bytes into the shared
-  // counter. All fetches run in parallel.
+  // counter. All fetches run in parallel. streamBin auto-detects gzip
+  // via magic bytes so a server that serves .gz opaquely (GitHub Pages,
+  // S3) and one that auto-decodes (vite dev) both work without flags.
   const buffers = await Promise.all(
     responses.map((r) =>
       streamBin(r, (delta) => {

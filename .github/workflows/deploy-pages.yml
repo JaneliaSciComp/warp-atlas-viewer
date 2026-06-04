@@ -19,18 +19,18 @@ env:
   DATA_BASE_URL: https://s3.janelia.org/ahrens-lab/warp
   PREPROCESSED_FILES: >-
     neurons.json
-    activityTrace.bin
-    atlasRegionMask.bin
-    clusterIds.bin
-    fishIds.bin
-    geneBinary.bin
-    geneCounts.bin
-    positions.bin
-    regionIds.bin
-    regressors.bin
-    stimulusCorr.bin
-    swimCorr.bin
-    umap.bin
+    activityTrace.bin.gz
+    atlasRegionMask.bin.gz
+    clusterIds.bin.gz
+    fishIds.bin.gz
+    geneBinary.bin.gz
+    geneCounts.bin.gz
+    positions.bin.gz
+    regionIds.bin.gz
+    regressors.bin.gz
+    stimulusCorr.bin.gz
+    swimCorr.bin.gz
+    umap.bin.gz
 
 jobs:
   build:

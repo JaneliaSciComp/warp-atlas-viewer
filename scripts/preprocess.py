@@ -9,6 +9,7 @@ Writes to    ./preprocessed/{neurons.json, *.bin}
 Never modifies anything in ./data/.
 """
 
+import gzip
 import json
 import os
 from pathlib import Path
@@ -271,12 +272,26 @@ def main():
         'atlasRegionMask': ('atlasRegionMask.bin', atlas_mask_packed),
     }
 
+    # Gzip every binary so static hosts (GitHub Pages, S3) ship a smaller
+    # payload without any server-side compression config. The browser
+    # un-gzips via DecompressionStream — see dataLoader.streamBin. We
+    # remove any matching uncompressed leftovers from a prior run so the
+    # output directory only contains the active artifacts.
     for key, (name, arr) in files.items():
-        path = OUT / name
-        with open(path, 'wb') as f:
-            f.write(arr.tobytes())
-        size_mb = arr.nbytes / 1e6
-        print(f'[preprocess] {name:24s} {arr.dtype} {arr.shape}  {size_mb:7.2f} MB')
+        stale = OUT / name
+        if stale.exists():
+            stale.unlink()
+        path = OUT / (name + '.gz')
+        raw = arr.tobytes()
+        with gzip.open(path, 'wb', compresslevel=6) as f:
+            f.write(raw)
+        gz_mb = path.stat().st_size / 1e6
+        raw_mb = arr.nbytes / 1e6
+        ratio = 100.0 * path.stat().st_size / max(1, arr.nbytes)
+        print(
+            f'[preprocess] {name + ".gz":27s} {arr.dtype} {arr.shape}  '
+            f'{gz_mb:7.2f} MB  ({ratio:5.1f}% of {raw_mb:7.2f} MB raw)'
+        )
 
     manifest = {
         'version': 3,
@@ -292,7 +307,7 @@ def main():
         'stimulusNames': STIMULUS_NAMES,
         'clusterNames': cluster_names,
         'bounds': {'min': bounds_min, 'max': bounds_max},
-        'files': {k: name for k, (name, _) in files.items()},
+        'files': {k: name + '.gz' for k, (name, _) in files.items()},
         'note': (
             'Real WARP dataset (manuscript revision). Cells filtered to drop '
             'NaN coordinates. Coordinate axes reordered (z,x,y → x,y,z) and '
