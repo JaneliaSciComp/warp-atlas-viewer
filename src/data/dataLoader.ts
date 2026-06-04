@@ -177,50 +177,90 @@ export function validateBuffer(
 }
 
 /**
- * Stream a binary response, calling `onChunk(deltaBytes)` for each chunk
- * received, then assemble into an ArrayBuffer. If the assembled bytes
- * start with the gzip magic `1f 8b`, they're piped through
- * DecompressionStream before returning — so callers always see raw data.
+ * Stream a binary response and return the decoded bytes. `onChunk` is
+ * called incrementally with decoded byte deltas — never compressed
+ * deltas — so a progress bar that sums onChunk reaches the manifest's
+ * expectedBytes total regardless of whether the server gzipped.
  *
- * The magic-byte sniff (instead of trusting the URL's `.gz` suffix) is
- * deliberate: GitHub Pages and S3 serve `.gz` files opaquely, so the
- * browser hands us still-compressed bytes and we have to unpack them
- * here. Vite's dev server, by contrast, sets `Content-Encoding: gzip`
- * on `.gz` files so the browser auto-decompresses — in that case we get
- * raw bytes already and skip the second pass. Same code path on both.
+ * Why the magic-byte sniff: GitHub Pages and S3 serve `.gz` files
+ * opaquely (no Content-Encoding), so fetch hands us raw gzip bytes and
+ * we have to decompress in JS. Vite dev sets Content-Encoding: gzip on
+ * the same files, so the browser already decompressed and we'd
+ * double-decode without this check. Reading the first chunk and
+ * checking for `1f 8b` distinguishes the two without trusting either
+ * the URL suffix or browser-specific header visibility.
  */
 async function streamBin(
   response: Response,
   onChunk: (deltaBytes: number) => void,
 ): Promise<ArrayBuffer> {
-  let received: Uint8Array<ArrayBuffer>;
   if (!response.body) {
+    // No streaming reader — fall back to one-shot arrayBuffer, sniff,
+    // decompress if needed, then credit the full decoded size once.
     const buf = await response.arrayBuffer();
-    onChunk(buf.byteLength);
-    received = new Uint8Array(buf) as Uint8Array<ArrayBuffer>;
-  } else {
-    const reader = response.body.getReader();
-    const chunks: Uint8Array[] = [];
-    let total = 0;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-      total += value.length;
-      onChunk(value.length);
+    const u = new Uint8Array(buf);
+    const isGzipped = u.length >= 2 && u[0] === 0x1f && u[1] === 0x8b;
+    if (!isGzipped) {
+      onChunk(u.byteLength);
+      return buf;
     }
-    received = new Uint8Array(total) as Uint8Array<ArrayBuffer>;
-    let offset = 0;
-    for (const c of chunks) {
-      received.set(c, offset);
-      offset += c.length;
+    const ds = new DecompressionStream('gzip');
+    const decoded = await new Response(new Blob([u]).stream().pipeThrough(ds)).arrayBuffer();
+    onChunk(decoded.byteLength);
+    return decoded;
+  }
+  const reader = response.body.getReader();
+  // Peek the first non-empty chunk to detect gzip framing, then build a
+  // ReadableStream that re-emits the peeked chunk followed by the rest
+  // of the underlying reader. This way we can optionally interpose
+  // DecompressionStream without buffering the whole response first.
+  let firstChunk: Uint8Array | undefined;
+  for (;;) {
+    const r = await reader.read();
+    if (r.done) break;
+    if (r.value && r.value.length > 0) {
+      firstChunk = r.value;
+      break;
     }
   }
-  const isGzipped = received.length >= 2 && received[0] === 0x1f && received[1] === 0x8b;
-  if (!isGzipped) return received.buffer;
-  const ds = new DecompressionStream('gzip');
-  const src = new Blob([received]).stream();
-  return await new Response(src.pipeThrough(ds)).arrayBuffer();
+  const isGzipped =
+    !!firstChunk && firstChunk.length >= 2 && firstChunk[0] === 0x1f && firstChunk[1] === 0x8b;
+  let body: ReadableStream<Uint8Array> = new ReadableStream({
+    start(controller) {
+      if (firstChunk) controller.enqueue(firstChunk);
+    },
+    async pull(controller) {
+      const { done, value } = await reader.read();
+      if (done) controller.close();
+      else if (value && value.length > 0) controller.enqueue(value);
+    },
+    cancel(reason) {
+      return reader.cancel(reason);
+    },
+  });
+  if (isGzipped) {
+    body = body.pipeThrough(
+      new DecompressionStream('gzip') as unknown as ReadableWritablePair<Uint8Array, Uint8Array>,
+    );
+  }
+  // Read decoded chunks, crediting onChunk in decoded byte units.
+  const decodedReader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await decodedReader.read();
+    if (done) break;
+    chunks.push(value);
+    total += value.length;
+    onChunk(value.length);
+  }
+  const out = new Uint8Array(total) as Uint8Array<ArrayBuffer>;
+  let offset = 0;
+  for (const c of chunks) {
+    out.set(c, offset);
+    offset += c.length;
+  }
+  return out.buffer;
 }
 
 /** Decode the activityTrace buffer: the wire format is uint16 indices
@@ -257,8 +297,13 @@ async function loadFromManifest(
   ];
   if (m.files.regressors) fileKeys.push('regressors');
 
-  // Kick off all fetches in parallel; once headers arrive we can sum
-  // Content-Length to know the grand total.
+  // Total = sum of decoded (raw) file sizes from the manifest. Content-
+  // Length would report compressed bytes on prod and (depending on the
+  // server) either compressed or decoded on dev — using expectedBytes
+  // makes the progress bar denominator match the decoded byte stream
+  // streamBin emits, on any server.
+  const totalBytes = fileKeys.reduce((acc, k) => acc + expectedBytes(k, m), 0);
+  // Kick off all fetches in parallel.
   const responses = await Promise.all(
     fileKeys.map((k) =>
       fetch(`${PREPROCESSED_BASE}${m.files[k]}`, { cache: 'no-cache' })
@@ -267,10 +312,6 @@ async function loadFromManifest(
           return r;
         }),
     ),
-  );
-  const totalBytes = responses.reduce(
-    (acc, r) => acc + (parseInt(r.headers.get('content-length') ?? '0', 10) || 0),
-    0,
   );
 
   let received = 0;
