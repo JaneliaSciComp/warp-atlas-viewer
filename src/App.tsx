@@ -703,6 +703,9 @@ export default function App() {
                   onCanvasSizeChange={setBrainCanvasSize}
                   initialCamera={INITIAL_URL_STATE?.camera ?? null}
                   onCameraChange={handleCameraChange}
+                  onProjectionModeChange={(mode) =>
+                    setSettings((s) => ({ ...s, projectionMode: mode }))
+                  }
                 />
               </Suspense>
               <ColorLegend

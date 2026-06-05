@@ -2,7 +2,7 @@ import { useMemo, useRef, useEffect, useLayoutEffect, useState, useCallback } fr
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { TrackballControls } from '@react-three/drei';
 import * as THREE from 'three';
-import type { ColorMode, NeuronDataset, FilterState, SelectionState, SettingsState } from '../data/types';
+import type { ColorMode, NeuronDataset, FilterState, SelectionState, SettingsState, ProjectionMode } from '../data/types';
 import type { CameraState } from '../utils/urlState';
 import {
   allocColoring,
@@ -62,6 +62,10 @@ interface Props {
   initialCamera?: CameraState | null;
   /** Fired whenever the user moves/orbits/zooms the camera. */
   onCameraChange?: (cam: CameraState) => void;
+  /** Fired when the user picks a projection mode from the in-viewer
+   *  status pill. Wired to the same settings.projectionMode the
+   *  Settings tab drives, so the two controls stay in sync. */
+  onProjectionModeChange?: (mode: ProjectionMode) => void;
 }
 
 interface PickState {
@@ -892,8 +896,10 @@ export function BrainViewer({
   onCanvasSizeChange,
   initialCamera,
   onCameraChange,
+  onProjectionModeChange,
 }: Props) {
   const [hover, setHover] = useState<{ i: number; x: number; y: number } | null>(null);
+  const [projMenuOpen, setProjMenuOpen] = useState(false);
   const pickRef = useRef<PickState>({ pos: null, hovered: -1 });
   // Wrapping-div size — the R3F Canvas fills its parent so this is
   // also the rendered canvas size. Tracked unconditionally because the
@@ -1149,13 +1155,53 @@ export function BrainViewer({
           // Status pill: tells the viewer that what they're seeing is
           // not the normal per-cell render. Yellow tint reads as
           // "non-default state" without competing with the reset
-          // button's neutral grey. Tag-shaped, non-interactive — the
-          // mode is changed from the Settings tab.
-          <div
-            className="pointer-events-none font-mono text-[10px] bg-yellow-900/40 border border-yellow-700/60 text-yellow-200 px-1.5 py-0.5 rounded"
-            title="per-pixel projection through the point cloud — change in Settings"
-          >
-            projection: {activeProjectionMode}
+          // button's neutral grey. Click to switch projection mode
+          // (or turn it off) without leaving the 3D view — mirrors the
+          // Settings tab's projection control.
+          <div className="relative pointer-events-auto">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setProjMenuOpen((v) => !v);
+              }}
+              className="font-mono text-[10px] bg-yellow-900/40 border border-yellow-700/60 text-yellow-200 px-1.5 py-0.5 rounded hover:bg-yellow-900/60"
+              title="per-pixel projection through the point cloud — click to change"
+            >
+              projection: {activeProjectionMode} ▾
+            </button>
+            {projMenuOpen && (
+              <>
+                {/* Click-away backdrop. Sits under the menu but over the
+                    canvas so an outside click closes without selecting. */}
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setProjMenuOpen(false);
+                  }}
+                />
+                <div className="absolute top-full left-0 mt-1 z-20 flex flex-col bg-neutral-900/95 border border-neutral-700 rounded overflow-hidden min-w-[88px]">
+                  {(['off', 'min', 'mean', 'max', 'sum'] as const).map((m) => (
+                    <button
+                      key={m}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onProjectionModeChange?.(m);
+                        setProjMenuOpen(false);
+                      }}
+                      className={
+                        'font-mono text-[10px] text-left px-2 py-1 hover:bg-neutral-700 ' +
+                        (m === activeProjectionMode
+                          ? 'bg-yellow-900/50 text-yellow-200'
+                          : 'text-neutral-200')
+                      }
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
         {settings.debugMode && (
