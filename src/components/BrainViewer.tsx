@@ -20,8 +20,18 @@ import projectionCompositeVertSrc from '../shaders/projection_composite.vert.gls
 import projectionCompositeFragSrc from '../shaders/projection_composite.frag.glsl?raw';
 import projectionIdVertSrc from '../shaders/projection_id.vert.glsl?raw';
 import projectionIdFragSrc from '../shaders/projection_id.frag.glsl?raw';
+import projectionScalarChunkSrc from '../shaders/projection_scalar.glsl?raw';
+import projectionScalarColorChunkSrc from '../shaders/projection_scalar_color.glsl?raw';
 import { AmbientOcclusion, skipAmbientOcclusionUserData } from './AmbientOcclusion';
 import { coolwarm, plasma } from '../utils/colorMaps';
+
+// Three's ShaderMaterial preprocessor resolves #include <...> through
+// ShaderChunk. Register WARP-specific chunks once at module load so the
+// visible projection, ID-picking projection, and mean/sum composite all
+// share exactly the same scalar-to-palette mapping.
+const shaderChunks = THREE.ShaderChunk as unknown as Record<string, string>;
+shaderChunks.warp_projection_scalar = projectionScalarChunkSrc;
+shaderChunks.warp_projection_scalar_color = projectionScalarColorChunkSrc;
 
 interface Props {
   data: NeuronDataset;
