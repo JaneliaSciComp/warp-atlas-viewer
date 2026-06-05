@@ -33,6 +33,8 @@ const shaderChunks = THREE.ShaderChunk as unknown as Record<string, string>;
 shaderChunks.warp_projection_scalar = projectionScalarChunkSrc;
 shaderChunks.warp_projection_scalar_color = projectionScalarColorChunkSrc;
 
+const VIEWER_BACKGROUND = '#0a0a0a';
+
 interface Props {
   data: NeuronDataset;
   filter: FilterState;
@@ -324,6 +326,7 @@ function PointCloud({
         scalarHi: { value: projectionConfig.scalarHi },
         scalarLogDen: { value: projectionConfig.scalarLogDen },
         activeBrightness: { value: 0 },
+        background: { value: new THREE.Color(VIEWER_BACKGROUND) },
       },
     });
   }, [gl, projectionColorMap, projectionConfig]);
@@ -1055,7 +1058,7 @@ export function BrainViewer({
         gl={{ antialias: false, powerPreference: 'high-performance' }}
         dpr={[1, 2]}
       >
-        <color attach="background" args={['#0a0a0a']} />
+        <color attach="background" args={[VIEWER_BACKGROUND]} />
         <PointCloud
           data={data}
           filter={filter}
@@ -1552,7 +1555,7 @@ function AccumulationProjectionPass({
       depthWrite: false,
       uniforms: {
         src: { value: rt.texture },
-        background: { value: new THREE.Color('#0a0a0a') },
+        background: { value: new THREE.Color(VIEWER_BACKGROUND) },
         mode: { value: 0 },
         sumExposure: { value: 1 },
         colorMap: { value: projectionColorMap },

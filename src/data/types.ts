@@ -419,9 +419,11 @@ export interface SettingsState {
     /** Per-pixel scalar projection of the point cloud, viewed from the
      *  camera. When not 'off', scalar color schemes (gene/activity/
      *  stim/swim) reduce raw scalar values along the view ray and
-     *  recolor the reduced scalar with the active palette. Categorical
-     *  schemes ignore this setting. Ambient occlusion and the focused-
-     *  neuron ring marker are disabled while projection is active. */
+     *  recolor the reduced scalar. Signed stim/swim projections fade
+     *  near-zero/cancelled values to the background so the coolwarm
+     *  neutral midpoint does not dominate. Categorical schemes ignore
+     *  this setting. Ambient occlusion and the focused-neuron ring
+     *  marker are disabled while projection is active. */
     projectionMode: ProjectionMode;
     /** Minimum per-cell projection intensity included in the projection
      *  pass, 0..1. Raising this culls weak/noisy cells before max/min,

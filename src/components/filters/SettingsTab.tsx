@@ -409,10 +409,9 @@ export function SettingsTab({
                 </div>
                 <p className="text-neutral-400 leading-snug">
                     Reduces the scalar value behind the active color scheme
-                    along the view ray, then recolors the reduced scalar with
-                    the same palette. Available for Gene, Activity, Stim, and
-                    Swim; categorical schemes have no meaningful scalar
-                    projection.
+                    along the view ray, then recolors the reduced scalar.
+                    Available for Gene, Activity, Stim, and Swim; categorical
+                    schemes have no meaningful scalar projection.
                     <span className="text-neutral-200"> Min</span> — lowest
                     scalar along the ray.
                     <span className="text-neutral-200"> Mean</span> —
@@ -422,7 +421,10 @@ export function SettingsTab({
                     <span className="text-neutral-200"> Sum</span> —
                     exposure-scaled signed/integrated scalar. Stim and swim
                     use signed correlations, so Min highlights negative
-                    responses and Max highlights positive responses.
+                    responses and Max highlights positive responses. In
+                    stim/swim projection, near-zero or cancelled signed values
+                    fade to the dark background instead of the coolwarm white
+                    midpoint.
                 </p>
                 {!projectionSupported && (
                     <p className="text-neutral-500 text-[11px] leading-snug ml-3">

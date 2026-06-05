@@ -14,7 +14,6 @@
 precision highp float;
 
 uniform sampler2D src;
-uniform vec3 background;
 uniform int mode;
 uniform float sumExposure;
 #include <warp_projection_scalar>
