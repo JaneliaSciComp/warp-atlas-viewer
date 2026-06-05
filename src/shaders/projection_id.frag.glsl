@@ -18,7 +18,7 @@
 precision highp float;
 precision highp int;
 
-uniform int mode;            // 0 = max, 1 = min — same encoding as projection.frag
+uniform int mode;            // 0 = max, 1 = min, 4 = max-magnitude — same encoding as projection.frag
 uniform float intensityFloor;
 #include <warp_projection_scalar>
 
@@ -34,7 +34,12 @@ void main() {
   float r2 = dot(c, c);
   if (r2 > 0.25) discard;
   float order = scalarToT(vScalar);
-  gl_FragDepth = (mode == 0) ? (1.0 - order) : order;
+  if (mode == 4) {
+    float strength = scalarMode == 2 ? abs(order - 0.5) * 2.0 : order;
+    gl_FragDepth = 1.0 - strength;
+  } else {
+    gl_FragDepth = (mode == 0) ? (1.0 - order) : order;
+  }
   uint id = uint(vCellId) + 1u;
   fragColor = vec4(
     float(id & 0xFFu) / 255.0,

@@ -188,7 +188,7 @@ const STIM_MODES = new Set<StimMode>(['off', 'positive', 'negative', 'both']);
 const SWIM_MODES = new Set<SwimMode>(['off', 'positive', 'negative', 'both']);
 const GENE_MULTI_COLORS = new Set<GeneMultiColor>(['max', 'sum', 'richness']);
 const GENE_THRESHOLD_MODES = new Set<GeneThresholdMode>(['paper', 'global']);
-const PROJECTION_MODES = new Set<ProjectionMode>(['off', 'min', 'mean', 'max', 'sum']);
+const PROJECTION_MODES = new Set<ProjectionMode>(['off', 'min', 'mean', 'max', 'maxabs', 'sum']);
 
 function isFiniteNum(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v);

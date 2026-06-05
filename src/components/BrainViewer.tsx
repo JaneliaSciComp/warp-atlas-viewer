@@ -116,6 +116,20 @@ function effectiveProjectionMode(
   return supportsScalarProjection(colorMode) ? mode : 'off';
 }
 
+// Display labels for the in-viewer status pill / mode menu. The raw
+// enum value 'maxabs' reads poorly; everything else is its own label.
+const PROJECTION_MODE_LABELS: Record<ProjectionMode, string> = {
+  off: 'off',
+  min: 'min',
+  max: 'max',
+  maxabs: 'min/max',
+  mean: 'mean',
+  sum: 'sum',
+};
+// Order the pill menu winner-take-all first (min/max/min-max), then the
+// accumulation modes (mean/sum), with off on top.
+const PROJECTION_MODE_ORDER: ProjectionMode[] = ['off', 'min', 'max', 'maxabs', 'mean', 'sum'];
+
 function scalarProjectionConfig(
   data: NeuronDataset,
   filter: FilterState,
@@ -386,7 +400,8 @@ function PointCloud({
     );
   }, [gl, idRt, size.height, size.width]);
   useEffect(() => {
-    idMaterial.uniforms.mode.value = projectionMode === 'min' ? 1 : 0;
+    idMaterial.uniforms.mode.value =
+      projectionMode === 'min' ? 1 : projectionMode === 'maxabs' ? 4 : 0;
   }, [idMaterial, projectionMode]);
   useEffect(() => {
     const floor = Math.max(0, Math.min(1, settings.projectionIntensityFloor));
@@ -450,11 +465,11 @@ function PointCloud({
       m.depthWrite = false;
       m.depthTest = false;
     } else {
-      m.uniforms.mode.value = mode === 'min' ? 1 : 0;
-      // Signed stim/swim max/min projections use the same "fade weak
-      // correlations" idea as the normal point cloud: neutral coolwarm
-      // midpoint values render with low alpha instead of painting
-      // opaque white over the projection. Sequential gene/activity
+      m.uniforms.mode.value = mode === 'min' ? 1 : mode === 'maxabs' ? 4 : 0;
+      // Signed stim/swim winner-take-all projections (min/max/maxabs) use
+      // the same "fade weak correlations" idea as the normal point cloud:
+      // neutral coolwarm midpoint values render with low alpha instead of
+      // painting opaque white over the projection. Sequential gene/activity
       // projections still render opaque.
       m.blending = projectionConfig.scalarMode === 2 ? THREE.NormalBlending : THREE.NoBlending;
       m.transparent = projectionConfig.scalarMode === 2;
@@ -654,7 +669,7 @@ function PointCloud({
     // a shallow low-intensity one). Same depth-test reduction as the
     // visible projection pass, written into an RGBA8 offscreen with
     // cell index packed across RGB.
-    if (projMode === 'max' || projMode === 'min') {
+    if (projMode === 'max' || projMode === 'min' || projMode === 'maxabs') {
       const pos = pickRef.current.pos;
       if (!pos) {
         if (pickRef.current.hovered !== -1) {
@@ -1167,7 +1182,7 @@ export function BrainViewer({
               className="font-mono text-[10px] bg-yellow-900/40 border border-yellow-700/60 text-yellow-200 px-1.5 py-0.5 rounded hover:bg-yellow-900/60"
               title="per-pixel projection through the point cloud — click to change"
             >
-              projection: {activeProjectionMode} ▾
+              projection: {PROJECTION_MODE_LABELS[activeProjectionMode]} ▾
             </button>
             {projMenuOpen && (
               <>
@@ -1181,7 +1196,7 @@ export function BrainViewer({
                   }}
                 />
                 <div className="absolute top-full left-0 mt-1 z-20 flex flex-col bg-neutral-900/95 border border-neutral-700 rounded overflow-hidden min-w-[88px]">
-                  {(['off', 'min', 'mean', 'max', 'sum'] as const).map((m) => (
+                  {PROJECTION_MODE_ORDER.map((m) => (
                     <button
                       key={m}
                       onClick={(e) => {
@@ -1196,7 +1211,7 @@ export function BrainViewer({
                           : 'text-neutral-200')
                       }
                     >
-                      {m}
+                      {PROJECTION_MODE_LABELS[m]}
                     </button>
                   ))}
                 </div>

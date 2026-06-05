@@ -243,7 +243,7 @@ export type GeneThresholdMode = "paper" | "global";
  *  projections use signed correlations as the scalar. The projection
  *  threshold still uses normalized magnitude to cull weak cells and
  *  ghosts before scalar reduction. */
-export type ProjectionMode = "off" | "min" | "mean" | "max" | "sum";
+export type ProjectionMode = "off" | "min" | "mean" | "max" | "maxabs" | "sum";
 
 /** User-tunable rendering parameters that aren't filters per se —
  *  e.g. the calcium-imaging thresholds that anchor the Stim color

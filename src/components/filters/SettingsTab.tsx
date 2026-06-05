@@ -422,11 +422,15 @@ export function SettingsTab({
                     arithmetic mean scalar.
                     <span className="text-neutral-200"> Max</span> — highest
                     scalar along the ray.
+                    <span className="text-neutral-200"> Min/Max</span> — the
+                    value deviating most from neutral wins, keeping its sign.
                     <span className="text-neutral-200"> Sum</span> —
                     exposure-scaled signed/integrated scalar. Stim and swim
                     use signed correlations, so Min highlights negative
-                    responses and Max highlights positive responses. In
-                    stim/swim projection, near-zero or cancelled signed
+                    responses, Max highlights positive responses, and Min/Max
+                    surfaces the strongest response of either sign (best for
+                    seeing deep correlated cells of both polarities at once).
+                    In stim/swim projection, near-zero or cancelled signed
                     values use low opacity instead of painting the coolwarm
                     white midpoint opaquely.
                 </p>
@@ -457,8 +461,9 @@ export function SettingsTab({
                         options={[
                             { value: "off", label: "Off" },
                             { value: "min", label: "Min" },
-                            { value: "mean", label: "Mean" },
                             { value: "max", label: "Max" },
+                            { value: "maxabs", label: "Min/Max" },
+                            { value: "mean", label: "Mean" },
                             { value: "sum", label: "Sum" },
                         ]}
                     />
