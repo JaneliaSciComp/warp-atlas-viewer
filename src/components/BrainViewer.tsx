@@ -1675,17 +1675,17 @@ function buildScalarTooltipLine(
       } else {
         label = `selected-gene spot max (${sel.length})`;
       }
-      return `scalar ${label}: ${formatValue(scalar, 0)}`;
+      return `${label}: ${formatValue(scalar, 0)}`;
     }
     case 'activity':
-      return `scalar activity ΔF/F: ${formatValue(scalar, 3)}`;
+      return `activity ΔF/F: ${formatValue(scalar, 3)}`;
     case 'stim':
-      return `scalar stim r: ${formatValue(scalar, 3)}`;
+      return `stim r: ${formatValue(scalar, 3)}`;
     case 'swim':
-      return `scalar swim r: ${formatValue(scalar, 3)}`;
+      return `swim r: ${formatValue(scalar, 3)}`;
     case 'region':
     case 'fish':
     case 'highlight':
-      return 'scalar: n/a (categorical color)';
+      return 'n/a (categorical color)';
   }
 }
