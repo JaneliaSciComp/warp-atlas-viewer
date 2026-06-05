@@ -386,8 +386,11 @@ export interface SettingsState {
      *  |r| so cells near the neutral midpoint fade into the background
      *  instead of competing with the colored extremes (coolwarm's
      *  near-white midpoint blooms on a dark background at full opacity).
-     *  When false, every in-set cell renders at full alpha regardless
-     *  of correlation magnitude. */
+     *  In signed stim/swim projection, the same setting controls the
+     *  opacity of the projected reduced scalar. Other color/projection
+     *  schemes store the setting but do not use it. When false, every
+     *  in-set signed-correlation cell/projection renders at full alpha
+     *  regardless of correlation magnitude. */
     fadeWeakCorrelation: boolean;
     /** When true (default), right-mouse drag pans the viewport in screen
      *  space while the orbit target stays locked at the volume center —
@@ -419,8 +422,8 @@ export interface SettingsState {
     /** Per-pixel scalar projection of the point cloud, viewed from the
      *  camera. When not 'off', scalar color schemes (gene/activity/
      *  stim/swim) reduce raw scalar values along the view ray and
-     *  recolor the reduced scalar. Signed stim/swim projections fade
-     *  near-zero/cancelled values to the background so the coolwarm
+     *  recolor the reduced scalar. Signed stim/swim projections render
+     *  near-zero/cancelled values with low opacity so the coolwarm
      *  neutral midpoint does not dominate. Categorical schemes ignore
      *  this setting. Ambient occlusion and the focused-neuron ring
      *  marker are disabled while projection is active. */

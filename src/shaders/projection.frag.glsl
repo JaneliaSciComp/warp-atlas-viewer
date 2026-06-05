@@ -38,6 +38,6 @@ void main() {
   } else {
     float order = scalarToT(vScalar);
     gl_FragDepth = (mode == 0) ? (1.0 - order) : order;
-    fragColor = vec4(scalarColor(vScalar), 1.0);
+    fragColor = scalarRgba(vScalar);
   }
 }

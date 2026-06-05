@@ -326,7 +326,7 @@ function PointCloud({
         scalarHi: { value: projectionConfig.scalarHi },
         scalarLogDen: { value: projectionConfig.scalarLogDen },
         activeBrightness: { value: 0 },
-        background: { value: new THREE.Color(VIEWER_BACKGROUND) },
+        fadeWeakCorrelation: { value: 1 },
       },
     });
   }, [gl, projectionColorMap, projectionConfig]);
@@ -396,6 +396,7 @@ function PointCloud({
     projectionMaterial.uniforms.scalarHi.value = projectionConfig.scalarHi;
     projectionMaterial.uniforms.scalarLogDen.value = projectionConfig.scalarLogDen;
     projectionMaterial.uniforms.activeBrightness.value = settings.activeBrightness;
+    projectionMaterial.uniforms.fadeWeakCorrelation.value = settings.fadeWeakCorrelation ? 1 : 0;
     idMaterial.uniforms.scalarMode.value = projectionConfig.scalarMode;
     idMaterial.uniforms.scalarLo.value = projectionConfig.scalarLo;
     idMaterial.uniforms.scalarHi.value = projectionConfig.scalarHi;
@@ -406,6 +407,7 @@ function PointCloud({
     projectionConfig,
     projectionMaterial,
     settings.activeBrightness,
+    settings.fadeWeakCorrelation,
   ]);
   useEffect(
     () => () => {
@@ -445,13 +447,18 @@ function PointCloud({
       m.depthTest = false;
     } else {
       m.uniforms.mode.value = mode === 'min' ? 1 : 0;
-      m.blending = THREE.NoBlending;
-      m.transparent = false;
+      // Signed stim/swim max/min projections use the same "fade weak
+      // correlations" idea as the normal point cloud: neutral coolwarm
+      // midpoint values render with low alpha instead of painting
+      // opaque white over the projection. Sequential gene/activity
+      // projections still render opaque.
+      m.blending = projectionConfig.scalarMode === 2 ? THREE.NormalBlending : THREE.NoBlending;
+      m.transparent = projectionConfig.scalarMode === 2;
       m.depthWrite = true;
       m.depthTest = true;
     }
     m.needsUpdate = true;
-  }, [projectionMaterial, projectionMode]);
+  }, [projectionConfig.scalarMode, projectionMaterial, projectionMode]);
 
   // Canvas-size adaptation now lives inside applyColoring's auto-mode
   // formulas (basePointSize is derived from canvas height), so the
@@ -1117,6 +1124,7 @@ export function BrainViewer({
             projectionConfig={projectionConfig}
             projectionColorMap={projectionColorMap}
             activeBrightness={settings.activeBrightness}
+            fadeWeakCorrelation={settings.fadeWeakCorrelation}
           />
         )}
       </Canvas>
@@ -1529,12 +1537,14 @@ function AccumulationProjectionPass({
   projectionConfig,
   projectionColorMap,
   activeBrightness,
+  fadeWeakCorrelation,
 }: {
   mode: 'mean' | 'sum';
   sumExposure: number;
   projectionConfig: ScalarProjectionConfig;
   projectionColorMap: THREE.DataTexture;
   activeBrightness: number;
+  fadeWeakCorrelation: boolean;
 }) {
   const { gl, scene, camera, size } = useThree();
 
@@ -1564,6 +1574,7 @@ function AccumulationProjectionPass({
         scalarHi: { value: projectionConfig.scalarHi },
         scalarLogDen: { value: projectionConfig.scalarLogDen },
         activeBrightness: { value: 0 },
+        fadeWeakCorrelation: { value: 1 },
       },
     });
     const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), compositeMaterial);
@@ -1586,7 +1597,8 @@ function AccumulationProjectionPass({
     compositeMaterial.uniforms.scalarHi.value = projectionConfig.scalarHi;
     compositeMaterial.uniforms.scalarLogDen.value = projectionConfig.scalarLogDen;
     compositeMaterial.uniforms.activeBrightness.value = activeBrightness;
-  }, [activeBrightness, compositeMaterial, projectionColorMap, projectionConfig]);
+    compositeMaterial.uniforms.fadeWeakCorrelation.value = fadeWeakCorrelation ? 1 : 0;
+  }, [activeBrightness, compositeMaterial, fadeWeakCorrelation, projectionColorMap, projectionConfig]);
 
   useEffect(() => {
     return () => {

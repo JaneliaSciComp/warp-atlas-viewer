@@ -3,19 +3,23 @@
 
 uniform sampler2D colorMap;
 uniform float activeBrightness;
-uniform vec3 background;
+uniform float fadeWeakCorrelation;
 
-vec3 scalarColor(float x) {
+// Match the normal stim/swim fade floor: neutral signed values should
+// be visible enough to read as context, but transparent enough that the
+// coolwarm white midpoint does not dominate projection views.
+const float SIGNED_ALPHA_FLOOR = 0.12;
+
+float scalarAlphaFromT(float t) {
+  if (scalarMode == 2 && fadeWeakCorrelation > 0.5) {
+    float strength = abs(t - 0.5) * 2.0;
+    return SIGNED_ALPHA_FLOOR + (1.0 - SIGNED_ALPHA_FLOOR) * strength;
+  }
+  return 1.0;
+}
+
+vec4 scalarRgba(float x) {
   float t = scalarToT(x);
   vec3 rgb = texture2D(colorMap, vec2(t, 0.5)).rgb;
-  if (scalarMode == 2) {
-    // Signed stim/swim projections should not let the coolwarm neutral
-    // midpoint (white) dominate dense/cancelled rays. Preserve the
-    // signed scalar reduction, but display sign as hue and magnitude as
-    // visibility: zero/cancelled projected values fade to background.
-    float strength = abs(t - 0.5) * 2.0;
-    vec3 lifted = min(vec3(1.0), rgb + activeBrightness);
-    return mix(background, lifted, strength);
-  }
-  return min(vec3(1.0), rgb + activeBrightness);
+  return vec4(min(vec3(1.0), rgb + activeBrightness), scalarAlphaFromT(t));
 }

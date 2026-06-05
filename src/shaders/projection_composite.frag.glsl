@@ -14,6 +14,7 @@
 precision highp float;
 
 uniform sampler2D src;
+uniform vec3 background;
 uniform int mode;
 uniform float sumExposure;
 #include <warp_projection_scalar>
@@ -31,5 +32,6 @@ void main() {
   }
   float signedSum = acc.r - acc.g;
   float scalar = mode == 1 ? signedSum * sumExposure : signedSum / acc.a;
-  fragColor = vec4(scalarColor(scalar), 1.0);
+  vec4 rgba = scalarRgba(scalar);
+  fragColor = vec4(mix(background, rgba.rgb, rgba.a), 1.0);
 }

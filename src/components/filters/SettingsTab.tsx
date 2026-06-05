@@ -47,6 +47,10 @@ export function SettingsTab({
         : "off";
     const projectionActive =
         projectionSupported && settings.projectionMode !== "off";
+    const signedColorMode =
+        filter.colorMode === "stim" || filter.colorMode === "swim";
+    const signedProjectionActive =
+        projectionActive && signedColorMode;
     return (
         <div
             className={
@@ -422,9 +426,9 @@ export function SettingsTab({
                     exposure-scaled signed/integrated scalar. Stim and swim
                     use signed correlations, so Min highlights negative
                     responses and Max highlights positive responses. In
-                    stim/swim projection, near-zero or cancelled signed values
-                    fade to the dark background instead of the coolwarm white
-                    midpoint.
+                    stim/swim projection, near-zero or cancelled signed
+                    values use low opacity instead of painting the coolwarm
+                    white midpoint opaquely.
                 </p>
                 {!projectionSupported && (
                     <p className="text-neutral-500 text-[11px] leading-snug ml-3">
@@ -678,38 +682,49 @@ export function SettingsTab({
                     background and the colored extremes stand out. When off,
                     every in-set cell renders at full opacity (including the
                     bright midpoint of the divergent ramp, which can dominate
-                    visually).
+                    visually). This only affects Stim/Swim color modes; in
+                    signed Stim/Swim projection it also controls the opacity of
+                    the projected reduced scalar.
                 </p>
                 <label
-                    className={
-                        "flex items-center gap-2 text-xs cursor-pointer select-none ml-3 " +
-                        (projectionActive
-                            ? "text-neutral-500 cursor-not-allowed"
-                            : "text-neutral-300")
-                    }
+                    className="flex items-center gap-2 text-xs cursor-pointer select-none ml-3 text-neutral-300"
                     title={
-                        projectionActive
-                            ? "projection mode reads the per-cell magnitude directly, so fade-by-alpha doesn't apply"
-                            : "fade out cells with |r| near zero so the divergent ramp's neutral midpoint doesn't compete with the colored extremes"
+                        signedProjectionActive
+                            ? "also controls signed projection opacity: weak/cancelled projected correlations use low opacity when enabled"
+                            : signedColorMode
+                                ? "fade out cells with |r| near zero so the divergent ramp's neutral midpoint doesn't compete with the colored extremes"
+                                : "stored for Stim/Swim views; the current color mode has no signed correlation ramp"
                     }
                 >
                     <input
                         type="checkbox"
                         checked={settings.fadeWeakCorrelation}
-                        disabled={projectionActive}
                         onChange={(e) =>
                             update({ fadeWeakCorrelation: e.target.checked })
                         }
-                        className="accent-neutral-300 disabled:opacity-50"
+                        className="accent-neutral-300"
                     />
                     fade weak correlations
                 </label>
-                {projectionActive && (
+                {signedProjectionActive && (
                     <p className="text-neutral-500 text-[11px] leading-snug ml-3">
-                        Disabled while a projection mode is active —
-                        projection uses signed scalar values directly and
-                        culls weak cells below its own threshold, so alpha
-                        fade no longer changes the rendered image.
+                        Applies to signed projection too — when enabled,
+                        near-zero or cancelled projected correlations use low
+                        opacity instead of painting the coolwarm white midpoint
+                        opaquely.
+                    </p>
+                )}
+                {!signedProjectionActive && signedColorMode && (
+                    <p className="text-neutral-500 text-[11px] leading-snug ml-3">
+                        Currently active in normal Stim/Swim rendering. It
+                        will also apply if you enable a Stim/Swim projection.
+                    </p>
+                )}
+                {!signedColorMode && (
+                    <p className="text-neutral-500 text-[11px] leading-snug ml-3">
+                        No visual effect in the current color mode; it applies
+                        when viewing Stim or Swim correlations, including their
+                        projection modes.
                     </p>
                 )}
             </section>
