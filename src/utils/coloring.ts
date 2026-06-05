@@ -31,6 +31,12 @@ export interface ColoringResult {
    *  the 3D viewer's projection-mode render path; the t-SNE panel and
    *  the normal 3D pass do not consume this. */
   intensities: Float32Array; // length n
+  /** Raw scientific scalar represented by the active color scheme:
+   *  gene spot count/richness, activity ΔF/F, signed stim correlation,
+   *  or signed swim correlation. Categorical schemes store NaN. This is
+   *  kept separate from `intensities`, which is the normalized magnitude
+   *  used by the current projection renderer. */
+  scalarValues: Float32Array; // length n
 }
 
 export function allocColoring(n: number): ColoringResult {
@@ -39,6 +45,7 @@ export function allocColoring(n: number): ColoringResult {
     alphas: new Float32Array(n),
     sizes: new Float32Array(n),
     intensities: new Float32Array(n),
+    scalarValues: new Float32Array(n),
   };
 }
 
@@ -306,7 +313,7 @@ export function applyColoring(
   out: ColoringResult,
 ): ColoringStats {
   const { count, regionIds, fishIds, clusterIds, geneCounts, geneBinary, stimulusCorr, swimCorr, activityTrace, traceLength } = ds;
-  const { colors, alphas, sizes, intensities } = out;
+  const { colors, alphas, sizes, intensities, scalarValues } = out;
   const G = ds.geneNames.length;
   const S = ds.stimulusNames.length;
   // Activity scheme: clamp the URL-restored sample index into the
@@ -590,6 +597,9 @@ export function applyColoring(
     // Branches below overwrite it; ghosts and hidden cells leave it at
     // zero so the projection-mode renderer culls them via intensityFloor.
     let intensity = 0;
+    // Raw scalar displayed in the tooltip and, later, consumed by the
+    // scalar-projection path. Categorical schemes leave this as NaN.
+    let scalar = Number.NaN;
 
     if (hideUnassigned && regionIds[i] === 0) {
       colors[i * 3] = 0;
@@ -598,6 +608,7 @@ export function applyColoring(
       alphas[i] = 0;
       sizes[i] = size;
       intensities[i] = 0;
+      scalarValues[i] = Number.NaN;
       continue;
     }
 
@@ -713,6 +724,7 @@ export function applyColoring(
             // outline still reads through the plasma foreground.
             r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2];
             alpha = isolatedRegion >= 0 || isoAtlasRegion >= 0 ? LIFT_ALPHA : DIM_ALPHA;
+            scalar = raw;
           } else {
             const c = plasma(v);
             r = c[0]; g = c[1]; b = c[2];
@@ -720,6 +732,7 @@ export function applyColoring(
             // v is the plasma input (0..1) — exactly the magnitude
             // signal projection-mode wants.
             intensity = v;
+            scalar = raw;
           }
           break;
         }
@@ -741,6 +754,7 @@ export function applyColoring(
           // "no signal" so the visual vocabulary stays consistent.
           const dff = activityTrace[i * traceLength + activitySample];
           const v = Math.max(0, Math.min(1, (dff - ACTIVITY_LO) / activityRange));
+          scalar = dff;
           if (v <= 0) {
             r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2];
             alpha = isolatedRegion >= 0 || isoAtlasRegion >= 0 ? LIFT_ALPHA : DIM_ALPHA;
@@ -815,6 +829,7 @@ export function applyColoring(
           // alpha collapses to 1 with fade off, so projection would lose
           // its discriminator if it kept reading alpha.
           intensity = v;
+          scalar = rawA;
           break;
         }
         case 'swim': {
@@ -838,6 +853,7 @@ export function applyColoring(
           r = c[0]; g = c[1]; b = c[2];
           alpha = fadeWeak ? FADE_FLOOR + (1 - FADE_FLOOR) * v : 1.0;
           intensity = v;
+          scalar = rawS;
           break;
         }
       }
@@ -883,6 +899,7 @@ export function applyColoring(
     alphas[i] = alpha;
     sizes[i] = size;
     intensities[i] = intensity;
+    scalarValues[i] = scalar;
   }
 
   // Slice the in-set tail out of drawOrder as filterSelection so App's

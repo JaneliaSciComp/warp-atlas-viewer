@@ -862,7 +862,7 @@ export function BrainViewer({
     setHover({ i, x: pos.x, y: pos.y });
   }, []);
 
-  const tooltip = hover ? buildTooltip(data, hover.i) : null;
+  const tooltip = hover ? buildTooltip(data, filter, settings, coloring, hover.i) : null;
 
   return (
     <div
@@ -1423,11 +1423,19 @@ function AccumulationProjectionPass({
   return null;
 }
 
-function buildTooltip(data: NeuronDataset, i: number): string {
+function buildTooltip(
+  data: NeuronDataset,
+  filter: FilterState,
+  settings: SettingsState,
+  coloring: SharedColoring | null,
+  i: number,
+): string {
   const G = data.geneNames.length;
   const region = data.regionNames[data.regionIds[i]] ?? '?';
   const cluster = data.clusterIds[i];
   const fish = data.fishIds[i];
+  const scalar = coloring?.result.scalarValues[i] ?? Number.NaN;
+  const scalarLine = buildScalarTooltipLine(data, filter, settings, scalar);
   const tops: Array<{ name: string; v: number }> = [];
   for (let g = 0; g < G; g++) {
     const v = data.geneCounts[i * G + g];
@@ -1435,5 +1443,43 @@ function buildTooltip(data: NeuronDataset, i: number): string {
   }
   tops.sort((a, b) => b.v - a.v);
   const topStr = tops.slice(0, 3).map((t) => `${t.name}:${t.v.toFixed(0)}`).join(' ');
-  return `neuron ${i}\nfish ${fish + 1}  cluster ${cluster}\nregion ${region}\ntop ${topStr || '-'}`;
+  return `neuron ${i}\nfish ${fish + 1}  cluster ${cluster}\nregion ${region}\n${scalarLine}\ntop ${topStr || '-'}`;
+}
+
+function buildScalarTooltipLine(
+  data: NeuronDataset,
+  filter: FilterState,
+  settings: SettingsState,
+  scalar: number,
+): string {
+  const formatValue = (v: number, digits = 3) =>
+    Number.isFinite(v) ? v.toFixed(digits) : 'n/a';
+  switch (filter.colorMode) {
+    case 'gene': {
+      const sel = filter.selectedGenes;
+      let label: string;
+      if (filter.txMode !== 'gene' || sel.length === 0) {
+        label = 'gene richness';
+      } else if (sel.length === 1) {
+        label = `${data.geneNames[sel[0]] ?? 'gene'} spots`;
+      } else if (settings.geneMultiColor === 'richness') {
+        label = `selected-gene richness (${sel.length})`;
+      } else if (settings.geneMultiColor === 'sum') {
+        label = `selected-gene spot sum (${sel.length})`;
+      } else {
+        label = `selected-gene spot max (${sel.length})`;
+      }
+      return `scalar ${label}: ${formatValue(scalar, 0)}`;
+    }
+    case 'activity':
+      return `scalar activity ΔF/F: ${formatValue(scalar, 3)}`;
+    case 'stim':
+      return `scalar stim r: ${formatValue(scalar, 3)}`;
+    case 'swim':
+      return `scalar swim r: ${formatValue(scalar, 3)}`;
+    case 'region':
+    case 'fish':
+    case 'highlight':
+      return 'scalar: n/a (categorical color)';
+  }
 }
