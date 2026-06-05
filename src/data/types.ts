@@ -231,18 +231,19 @@ export type GeneThresholdMode = "paper" | "global";
 /** Projection mode for the 3D point cloud. 'off' renders cells as usual.
  *  The other modes render an off-screen reduction along the view ray and
  *  display that image, so deep cells aren't occluded by shallow ones:
- *    'max'  → per-pixel maximum intensity (MIP).
- *    'min'  → per-pixel minimum intensity (DRR-style darkfield).
- *    'mean' → intensity-weighted average color across all cells touching
- *             the pixel (additive sum / count).
- *    'sum'  → integrated signal: additive accumulation of color ×
- *             intensity with no divide, clamped to the display range.
+ *    'min'  → per-pixel minimum scalar.
+ *    'mean' → arithmetic mean scalar across all cells touching the pixel.
+ *    'max'  → per-pixel maximum scalar (MIP).
+ *    'sum'  → integrated scalar with exposure scaling (signed for
+ *             stim/swim).
  *             Pairs naturally with max
  *             for sparse-signal schemes (gene/activity) where mean
  *             washes out bright cells with the dim majority.
- *  "Intensity" is the per-cell scheme magnitude (gene/activity v,
- *  |r| for stim/swim, 1 for categorical, 0 for ghosts). */
-export type ProjectionMode = "off" | "max" | "min" | "mean" | "sum";
+ *  Projection is disabled for categorical color schemes. Stim/swim
+ *  projections use signed correlations as the scalar. The projection
+ *  threshold still uses normalized magnitude to cull weak cells and
+ *  ghosts before scalar reduction. */
+export type ProjectionMode = "off" | "min" | "mean" | "max" | "sum";
 
 /** User-tunable rendering parameters that aren't filters per se —
  *  e.g. the calcium-imaging thresholds that anchor the Stim color
@@ -415,22 +416,21 @@ export interface SettingsState {
      *  combined with any of them or used on its own in normal
      *  rendering. */
     scaleByDepth: boolean;
-    /** Per-pixel projection of the point cloud, viewed from the camera.
-     *  When not 'off', the 3D viewer renders into an off-screen target
-     *  and composites a per-pixel reduction (max/min/mean) of in-set
-     *  cell intensities. Lets deep cells punch through dense surface
-     *  layers (the same intuition as a max-intensity projection in
-     *  volume rendering). Ambient occlusion and the focused-neuron
-     *  ring marker are disabled while projection is active. */
+    /** Per-pixel scalar projection of the point cloud, viewed from the
+     *  camera. When not 'off', scalar color schemes (gene/activity/
+     *  stim/swim) reduce raw scalar values along the view ray and
+     *  recolor the reduced scalar with the active palette. Categorical
+     *  schemes ignore this setting. Ambient occlusion and the focused-
+     *  neuron ring marker are disabled while projection is active. */
     projectionMode: ProjectionMode;
     /** Minimum per-cell projection intensity included in the projection
      *  pass, 0..1. Raising this culls weak/noisy cells before max/min,
      *  mean, sum, and projection picking run. Default 0.05. */
     projectionIntensityFloor: number;
     /** Exposure multiplier applied to Sum projection's accumulated
-     *  color × intensity before clamping to display range. Lower values
-     *  reduce saturation in dense activity views; higher values boost
-     *  weak integrated signal. Default 1.0. */
+     *  scalar before display mapping. Lower values reduce saturation
+     *  in dense activity/gene views; higher values boost weak integrated
+     *  signal. Default 1.0. */
     projectionSumExposure: number;
     /** Developer toggle. When true, the 3D viewer renders a small
      *  diagnostic overlay (canvas size, in-set count, computed point

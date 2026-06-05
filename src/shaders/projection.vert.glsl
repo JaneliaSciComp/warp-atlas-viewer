@@ -1,9 +1,8 @@
-// Vertex shader for the projection-mode render path. Forwards the
-// per-cell scheme-aware intensity (gene/activity = normalized v,
-// stim/swim = |r| past the deadband regardless of fadeWeakCorrelation,
-// region/fish/highlight = 1 for in-set, 0 for ghosts). Sourcing this
-// independently of instAlpha is what lets stim with fade-off still
-// produce a magnitude-aware projection.
+// Vertex shader for the scalar projection render path. Forwards both
+// the raw scientific scalar (gene count/richness, activity ΔF/F,
+// signed stim/swim correlation) and its normalized magnitude used only
+// for thresholding. Categorical schemes are disabled before this
+// material is used.
 //
 // Sizing is controlled by the `flatPointSize` uniform, same as the
 // normal cell shader — projection has no opinion about size on its
@@ -20,8 +19,8 @@
 // still injects `in vec3 position;` and the standard uniforms when
 // the material has `glslVersion: THREE.GLSL3`.
 
-in vec3 instColor;
 in float instIntensity;
+in float instScalar;
 in float instSize;
 
 uniform float pixelRatio;
@@ -29,12 +28,12 @@ uniform float sizeScale;
 // Same contract as neuron.vert.glsl: 0 = depth-attenuated, 1 = flat.
 uniform float flatPointSize;
 
-out vec3 vColor;
 out float vIntensity;
+out float vScalar;
 
 void main() {
-  vColor = instColor;
   vIntensity = instIntensity;
+  vScalar = instScalar;
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mvPosition;
   float dist = -mvPosition.z;

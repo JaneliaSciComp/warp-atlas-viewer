@@ -58,6 +58,9 @@ test('cycles through projection modes without shader errors', async ({ page }) =
   await expect(page.getByText('10,000 cells pooled from 3 fish (mock)')).toBeVisible({
     timeout: 20_000,
   });
+  // Projection is intentionally disabled for categorical schemes; switch
+  // from the default Region coloring to a scalar scheme before cycling.
+  await page.getByLabel('scheme').selectOption({ label: 'Activity' });
   await page.getByRole('button', { name: 'Settings' }).click();
   await expect(page.getByText('Projection', { exact: true })).toBeVisible();
 
@@ -69,7 +72,7 @@ test('cycles through projection modes without shader errors', async ({ page }) =
   const projectionSection = page.locator('section').filter({
     has: page.getByText('Projection', { exact: true }),
   });
-  for (const label of ['Max', 'Min', 'Mean', 'Sum', 'Off']) {
+  for (const label of ['Min', 'Mean', 'Max', 'Sum', 'Off']) {
     await projectionSection.getByRole('button', { name: label, exact: true }).click();
     await page.waitForTimeout(200);
   }

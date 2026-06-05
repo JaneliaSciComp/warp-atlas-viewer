@@ -1,20 +1,9 @@
-// Fullscreen composite for the additive-blend projection modes.
+// Fullscreen composite for scalar mean/sum projection.
 //
-// Both `mean` and `sum` additively blend the same per-cell emission
-// into the off-screen target: (color × intensity, intensity). They
-// differ only in composite math:
-//
-//   mode = 0 (mean) → projection shader emits (color × intensity,
-//     intensity); composite divides RGB by A to recover the
-//     intensity-weighted mean color. Bounded to plasma/coolwarm
-//     gamut; insensitive to how many cells touched the pixel.
-//
-//   mode = 1 (sum)  → composite multiplies the raw per-channel
-//     accumulation by `sumExposure`, then clamps to [0, 1] without
-//     dividing. This keeps the integrated magnitude: a single
-//     half-strength cell appears half as bright at exposure 1, while
-//     many cells stacking along the ray saturate toward white as
-//     channels max out.
+// The projection pass additively accumulates signed scalar components
+// as (positiveSum, negativeSum, count, count). This pass reconstructs
+// either the arithmetic mean scalar or the exposure-scaled signed sum,
+// then maps that scalar through the active color map.
 //
 // Pixels that no cell ever touched (A ≈ 0) fall back to the
 // background color in both modes.
@@ -28,10 +17,36 @@ uniform sampler2D src;
 uniform vec3 background;
 uniform int mode;
 uniform float sumExposure;
+uniform sampler2D colorMap;
+// 0 = sequential linear, 1 = sequential log1p, 2 = signed/diverging.
+uniform int scalarMode;
+uniform float scalarLo;
+uniform float scalarHi;
+uniform float scalarLogDen;
+uniform float activeBrightness;
 
 in vec2 vUv;
 
 out vec4 fragColor;
+
+float scalarToT(float x) {
+  if (scalarMode == 2) {
+    float hi = max(scalarLo + 0.000001, scalarHi);
+    float mag = abs(x);
+    float v = mag <= scalarLo ? 0.0 : clamp((mag - scalarLo) / (hi - scalarLo), 0.0, 1.0);
+    float signedV = x < 0.0 ? -v : v;
+    return signedV * 0.5 + 0.5;
+  }
+  if (scalarMode == 1) {
+    return clamp(log(1.0 + max(0.0, x)) / max(0.000001, scalarLogDen), 0.0, 1.0);
+  }
+  return clamp((x - scalarLo) / max(0.000001, scalarHi - scalarLo), 0.0, 1.0);
+}
+
+vec3 scalarColor(float x) {
+  vec3 rgb = texture2D(colorMap, vec2(scalarToT(x), 0.5)).rgb;
+  return min(vec3(1.0), rgb + activeBrightness);
+}
 
 void main() {
   vec4 acc = texture2D(src, vUv);
@@ -39,11 +54,7 @@ void main() {
     fragColor = vec4(background, 1.0);
     return;
   }
-  vec3 rgb;
-  if (mode == 1) {
-    rgb = min(acc.rgb * sumExposure, vec3(1.0));
-  } else {
-    rgb = acc.rgb / acc.a;
-  }
-  fragColor = vec4(rgb, 1.0);
+  float signedSum = acc.r - acc.g;
+  float scalar = mode == 1 ? signedSum * sumExposure : signedSum / acc.a;
+  fragColor = vec4(scalarColor(scalar), 1.0);
 }

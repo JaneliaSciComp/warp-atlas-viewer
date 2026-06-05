@@ -20,19 +20,39 @@ precision highp int;
 
 uniform int mode;            // 0 = max, 1 = min — same encoding as projection.frag
 uniform float intensityFloor;
+// 0 = sequential linear, 1 = sequential log1p, 2 = signed/diverging.
+uniform int scalarMode;
+uniform float scalarLo;
+uniform float scalarHi;
+uniform float scalarLogDen;
 
 flat in int vCellId;
 in float vIntensity;
+in float vScalar;
 
 out vec4 fragColor;
 
+float scalarToT(float x) {
+  if (scalarMode == 2) {
+    float hi = max(scalarLo + 0.000001, scalarHi);
+    float mag = abs(x);
+    float v = mag <= scalarLo ? 0.0 : clamp((mag - scalarLo) / (hi - scalarLo), 0.0, 1.0);
+    float signedV = x < 0.0 ? -v : v;
+    return signedV * 0.5 + 0.5;
+  }
+  if (scalarMode == 1) {
+    return clamp(log(1.0 + max(0.0, x)) / max(0.000001, scalarLogDen), 0.0, 1.0);
+  }
+  return clamp((x - scalarLo) / max(0.000001, scalarHi - scalarLo), 0.0, 1.0);
+}
+
 void main() {
-  if (vIntensity < intensityFloor) discard;
+  if (vIntensity < intensityFloor || isnan(vScalar)) discard;
   vec2 c = gl_PointCoord - vec2(0.5);
   float r2 = dot(c, c);
   if (r2 > 0.25) discard;
-  float i = clamp(vIntensity, 0.0, 1.0);
-  gl_FragDepth = (mode == 0) ? (1.0 - i) : i;
+  float order = scalarToT(vScalar);
+  gl_FragDepth = (mode == 0) ? (1.0 - order) : order;
   uint id = uint(vCellId) + 1u;
   fragColor = vec4(
     float(id & 0xFFu) / 255.0,

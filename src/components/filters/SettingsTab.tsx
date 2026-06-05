@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { SettingsState } from "../../data/types";
+import type { FilterState, SettingsState } from "../../data/types";
 import { DEFAULT_SETTINGS } from "../../data/types";
 import { KindToggle } from "./shared";
 
@@ -10,9 +10,11 @@ import { KindToggle } from "./shared";
 const SHOW_DESC_KEY = "warp.settings.showDescriptions";
 
 export function SettingsTab({
+    filter,
     settings,
     setSettings,
 }: {
+    filter: FilterState;
     settings: SettingsState;
     setSettings: (s: SettingsState) => void;
 }) {
@@ -35,6 +37,16 @@ export function SettingsTab({
             );
         }
     }, [showDescriptions]);
+    const projectionSupported =
+        filter.colorMode === "gene" ||
+        filter.colorMode === "activity" ||
+        filter.colorMode === "stim" ||
+        filter.colorMode === "swim";
+    const displayedProjectionMode = projectionSupported
+        ? settings.projectionMode
+        : "off";
+    const projectionActive =
+        projectionSupported && settings.projectionMode !== "off";
     return (
         <div
             className={
@@ -166,10 +178,10 @@ export function SettingsTab({
                             min={0}
                             max={1}
                             step={0.05}
-                            disabled={settings.projectionMode !== "off"}
+                            disabled={projectionActive}
                             title={
-                                settings.projectionMode !== "off"
-                                    ? "ghost cells have intensity 0 and are culled by projection's threshold — visibility has no effect"
+                                projectionActive
+                                    ? "ghost cells are culled before projection reduction — visibility has no effect"
                                     : undefined
                             }
                             onChange={(v) =>
@@ -178,12 +190,12 @@ export function SettingsTab({
                                 })
                             }
                         />
-                        {settings.projectionMode !== "off" && (
+                        {projectionActive && (
                             <p className="text-neutral-500 text-[11px] leading-snug ml-3">
                                 Disabled while a projection mode is active —
-                                ghost cells are culled by projection's
-                                intensity threshold, so their alpha and size
-                                no longer affect the rendered image.
+                                ghost cells are culled before projection
+                                reduction, so their alpha and size no longer
+                                affect the rendered image.
                             </p>
                         )}
                     </>
@@ -285,12 +297,12 @@ export function SettingsTab({
                 <label
                     className={
                         "flex items-center gap-2 text-xs cursor-pointer select-none ml-3 " +
-                        (settings.projectionMode !== "off"
+                        (projectionActive
                             ? "text-neutral-500 cursor-not-allowed"
                             : "text-neutral-300")
                     }
                     title={
-                        settings.projectionMode !== "off"
+                        projectionActive
                             ? "projection mode renders without ambient occlusion"
                             : "enable screen-space ambient occlusion in the 3D viewer"
                     }
@@ -298,7 +310,7 @@ export function SettingsTab({
                     <input
                         type="checkbox"
                         checked={settings.ambientOcclusion}
-                        disabled={settings.projectionMode !== "off"}
+                        disabled={projectionActive}
                         onChange={(e) =>
                             update({ ambientOcclusion: e.target.checked })
                         }
@@ -306,13 +318,13 @@ export function SettingsTab({
                     />
                     ambient occlusion
                 </label>
-                {settings.projectionMode !== "off" && (
+                {projectionActive && (
                     <p className="text-neutral-500 text-[11px] leading-snug ml-3">
                         Disabled while a projection mode is active —
                         projection renders without ambient occlusion.
                     </p>
                 )}
-                {settings.ambientOcclusion && settings.projectionMode === "off" && (
+                {settings.ambientOcclusion && !projectionActive && (
                     <>
                         <NumberRow
                             label="occlusion strength"
@@ -349,12 +361,12 @@ export function SettingsTab({
                 <label
                     className={
                         "flex items-center gap-2 text-xs cursor-pointer select-none ml-3 " +
-                        (settings.projectionMode !== "off"
+                        (projectionActive
                             ? "text-neutral-500 cursor-not-allowed"
                             : "text-neutral-300")
                     }
                     title={
-                        settings.projectionMode !== "off"
+                        projectionActive
                             ? "projection mode ignores per-cell alpha, so the opaque-active override has no effect"
                             : "render active/in-filter cells at full opacity in both scatter views; ghost cells remain transparent"
                     }
@@ -362,7 +374,7 @@ export function SettingsTab({
                     <input
                         type="checkbox"
                         checked={settings.opaqueActiveCells}
-                        disabled={settings.projectionMode !== "off"}
+                        disabled={projectionActive}
                         onChange={(e) =>
                             update({ opaqueActiveCells: e.target.checked })
                         }
@@ -370,7 +382,7 @@ export function SettingsTab({
                     />
                     opaque active cells
                 </label>
-                {settings.projectionMode !== "off" && (
+                {projectionActive && (
                     <p className="text-neutral-500 text-[11px] leading-snug ml-3">
                         Disabled while a projection mode is active —
                         projection ignores per-cell alpha, so forcing
@@ -396,38 +408,56 @@ export function SettingsTab({
                     Projection
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Reduces the point cloud along the view ray to a single
-                    value per screen pixel, so deep cells aren't hidden by
-                    the dense surface layer.
-                    <span className="text-neutral-200"> Max</span> — at each
-                    pixel, show the cell with the highest activity / strongest
-                    expression along the ray (intensity-driven MIP).
-                    <span className="text-neutral-200"> Min</span> — the
-                    weakest in-set cell along the ray.
-                    <span className="text-neutral-200"> Mean</span> — the
-                    intensity-weighted average color of every cell touching
-                    the pixel.
-                    <span className="text-neutral-200"> Sum</span> — the
-                    integrated signal along the ray (adds color × intensity,
-                    then clamps to the display range). Pairs well with sparse-signal
-                    schemes like gene where mean dilutes bright cells with
-                    the dim majority. Ambient occlusion and the focused-neuron
-                    ring marker are disabled while projection is active.
+                    Reduces the scalar value behind the active color scheme
+                    along the view ray, then recolors the reduced scalar with
+                    the same palette. Available for Gene, Activity, Stim, and
+                    Swim; categorical schemes have no meaningful scalar
+                    projection.
+                    <span className="text-neutral-200"> Min</span> — lowest
+                    scalar along the ray.
+                    <span className="text-neutral-200"> Mean</span> —
+                    arithmetic mean scalar.
+                    <span className="text-neutral-200"> Max</span> — highest
+                    scalar along the ray.
+                    <span className="text-neutral-200"> Sum</span> —
+                    exposure-scaled signed/integrated scalar. Stim and swim
+                    use signed correlations, so Min highlights negative
+                    responses and Max highlights positive responses.
                 </p>
-                <div className="flex items-center gap-2">
+                {!projectionSupported && (
+                    <p className="text-neutral-500 text-[11px] leading-snug ml-3">
+                        Projection is disabled for the current categorical
+                        color scheme. Switch to Gene, Activity, Stim, or Swim
+                        to project scalar values.
+                    </p>
+                )}
+                <div
+                    className={
+                        "flex items-center gap-2 " +
+                        (!projectionSupported ? "opacity-50" : "")
+                    }
+                    title={
+                        projectionSupported
+                            ? undefined
+                            : "projection is only available for scalar color schemes"
+                    }
+                >
                     <KindToggle
-                        value={settings.projectionMode}
-                        onChange={(v) => update({ projectionMode: v })}
+                        value={displayedProjectionMode}
+                        disabled={!projectionSupported}
+                        onChange={(v) => {
+                            if (projectionSupported) update({ projectionMode: v });
+                        }}
                         options={[
                             { value: "off", label: "Off" },
-                            { value: "max", label: "Max" },
                             { value: "min", label: "Min" },
                             { value: "mean", label: "Mean" },
+                            { value: "max", label: "Max" },
                             { value: "sum", label: "Sum" },
                         ]}
                     />
                 </div>
-                {settings.projectionMode !== "off" && (
+                {projectionActive && (
                     <>
                         <NumberRow
                             label="projection threshold"
@@ -452,7 +482,7 @@ export function SettingsTab({
                         </p>
                     </>
                 )}
-                {settings.projectionMode === "sum" && (
+                {projectionSupported && settings.projectionMode === "sum" && (
                     <>
                         <NumberRow
                             label="sum exposure"
@@ -651,12 +681,12 @@ export function SettingsTab({
                 <label
                     className={
                         "flex items-center gap-2 text-xs cursor-pointer select-none ml-3 " +
-                        (settings.projectionMode !== "off"
+                        (projectionActive
                             ? "text-neutral-500 cursor-not-allowed"
                             : "text-neutral-300")
                     }
                     title={
-                        settings.projectionMode !== "off"
+                        projectionActive
                             ? "projection mode reads the per-cell magnitude directly, so fade-by-alpha doesn't apply"
                             : "fade out cells with |r| near zero so the divergent ramp's neutral midpoint doesn't compete with the colored extremes"
                     }
@@ -664,7 +694,7 @@ export function SettingsTab({
                     <input
                         type="checkbox"
                         checked={settings.fadeWeakCorrelation}
-                        disabled={settings.projectionMode !== "off"}
+                        disabled={projectionActive}
                         onChange={(e) =>
                             update({ fadeWeakCorrelation: e.target.checked })
                         }
@@ -672,12 +702,12 @@ export function SettingsTab({
                     />
                     fade weak correlations
                 </label>
-                {settings.projectionMode !== "off" && (
+                {projectionActive && (
                     <p className="text-neutral-500 text-[11px] leading-snug ml-3">
                         Disabled while a projection mode is active —
-                        projection reads the per-cell magnitude directly
-                        and culls weak cells below its own threshold, so
-                        alpha-fade no longer changes the rendered image.
+                        projection uses signed scalar values directly and
+                        culls weak cells below its own threshold, so alpha
+                        fade no longer changes the rendered image.
                     </p>
                 )}
             </section>

@@ -2,7 +2,7 @@ import { useMemo, useRef, useEffect, useLayoutEffect, useState, useCallback } fr
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { TrackballControls } from '@react-three/drei';
 import * as THREE from 'three';
-import type { NeuronDataset, FilterState, SelectionState, SettingsState } from '../data/types';
+import type { ColorMode, NeuronDataset, FilterState, SelectionState, SettingsState } from '../data/types';
 import type { CameraState } from '../utils/urlState';
 import {
   allocColoring,
@@ -21,6 +21,7 @@ import projectionCompositeFragSrc from '../shaders/projection_composite.frag.gls
 import projectionIdVertSrc from '../shaders/projection_id.vert.glsl?raw';
 import projectionIdFragSrc from '../shaders/projection_id.frag.glsl?raw';
 import { AmbientOcclusion, skipAmbientOcclusionUserData } from './AmbientOcclusion';
+import { coolwarm, plasma } from '../utils/colorMaps';
 
 interface Props {
   data: NeuronDataset;
@@ -67,6 +68,125 @@ interface ScreenPanState {
 
 const VOLUME_CENTER: [number, number, number] = [0, 0, 0];
 
+type ProjectionColorMapKind = 'plasma' | 'coolwarm';
+
+interface ScalarProjectionConfig {
+  supported: boolean;
+  /** 0 = sequential linear, 1 = sequential log1p, 2 = signed/diverging. */
+  scalarMode: 0 | 1 | 2;
+  scalarLo: number;
+  scalarHi: number;
+  scalarLogDen: number;
+  colorMapKind: ProjectionColorMapKind;
+}
+
+const DEFAULT_SCALAR_PROJECTION: ScalarProjectionConfig = {
+  supported: false,
+  scalarMode: 0,
+  scalarLo: 0,
+  scalarHi: 1,
+  scalarLogDen: Math.log(2),
+  colorMapKind: 'plasma',
+};
+
+function supportsScalarProjection(colorMode: ColorMode): boolean {
+  return colorMode === 'gene' || colorMode === 'activity' || colorMode === 'stim' || colorMode === 'swim';
+}
+
+function effectiveProjectionMode(
+  colorMode: ColorMode,
+  mode: SettingsState['projectionMode'],
+): SettingsState['projectionMode'] {
+  return supportsScalarProjection(colorMode) ? mode : 'off';
+}
+
+function scalarProjectionConfig(
+  data: NeuronDataset,
+  filter: FilterState,
+  settings: SettingsState,
+): ScalarProjectionConfig {
+  switch (filter.colorMode) {
+    case 'gene': {
+      const selected = filter.selectedGenes.length;
+      const richnessMax =
+        filter.txMode !== 'gene' || selected === 0
+          ? data.geneNames.length
+          : settings.geneMultiColor === 'richness'
+            ? selected
+            : settings.geneMaxSpots;
+      const hi = Math.max(1, richnessMax);
+      return {
+        supported: true,
+        scalarMode: filter.geneScale === 'linear' ? 0 : 1,
+        scalarLo: 0,
+        scalarHi: hi,
+        scalarLogDen: Math.log(1 + hi),
+        colorMapKind: 'plasma',
+      };
+    }
+    case 'activity': {
+      const lo = settings.activityLo;
+      const hi = Math.max(lo + 0.001, settings.activityHi);
+      return {
+        supported: true,
+        scalarMode: 0,
+        scalarLo: lo,
+        scalarHi: hi,
+        scalarLogDen: Math.log(2),
+        colorMapKind: 'plasma',
+      };
+    }
+    case 'stim': {
+      const lo = Math.max(0, settings.stimLo);
+      const hi = Math.max(lo + 0.001, settings.stimHi);
+      return {
+        supported: true,
+        scalarMode: 2,
+        scalarLo: lo,
+        scalarHi: hi,
+        scalarLogDen: Math.log(2),
+        colorMapKind: 'coolwarm',
+      };
+    }
+    case 'swim': {
+      const lo = Math.max(0, settings.swimLo);
+      const hi = Math.max(lo + 0.001, settings.swimHi);
+      return {
+        supported: true,
+        scalarMode: 2,
+        scalarLo: lo,
+        scalarHi: hi,
+        scalarLogDen: Math.log(2),
+        colorMapKind: 'coolwarm',
+      };
+    }
+    case 'highlight':
+    case 'region':
+    case 'fish':
+      return DEFAULT_SCALAR_PROJECTION;
+  }
+}
+
+function createProjectionColorMapTexture(kind: ProjectionColorMapKind): THREE.DataTexture {
+  const w = 256;
+  const bytes = new Uint8Array(w * 4);
+  for (let i = 0; i < w; i++) {
+    const t = i / (w - 1);
+    const rgb = kind === 'coolwarm' ? coolwarm(-1 + 2 * t) : plasma(t);
+    bytes[i * 4] = Math.round(rgb[0] * 255);
+    bytes[i * 4 + 1] = Math.round(rgb[1] * 255);
+    bytes[i * 4 + 2] = Math.round(rgb[2] * 255);
+    bytes[i * 4 + 3] = 255;
+  }
+  const tex = new THREE.DataTexture(bytes, w, 1, THREE.RGBAFormat);
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.wrapS = THREE.ClampToEdgeWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.needsUpdate = true;
+  return tex;
+}
+
 
 /** Inner R3F component: owns the Points object and shader updates.
  *  Filter / settings / selection are already baked into `coloring`;
@@ -77,6 +197,9 @@ function PointCloud({
   filter,
   settings,
   coloring,
+  projectionMode,
+  projectionConfig,
+  projectionColorMap,
   selection,
   focusedNeuron,
   pickRef,
@@ -86,6 +209,9 @@ function PointCloud({
   filter: FilterState;
   settings: SettingsState;
   coloring: SharedColoring | null;
+  projectionMode: SettingsState['projectionMode'];
+  projectionConfig: ScalarProjectionConfig;
+  projectionColorMap: THREE.DataTexture;
   selection: SelectionState;
   focusedNeuron: number | null;
   pickRef: React.MutableRefObject<PickState>;
@@ -116,6 +242,7 @@ function PointCloud({
     // alpha to 1 for all in-set cells. Only the projection vertex
     // shader reads this attribute.
     g.setAttribute('instIntensity', new THREE.BufferAttribute(buffers.intensities, 1));
+    g.setAttribute('instScalar', new THREE.BufferAttribute(buffers.scalarValues, 1));
     g.setAttribute('instCellId', new THREE.BufferAttribute(cellIds, 1));
     g.computeBoundingSphere();
     return g;
@@ -163,14 +290,13 @@ function PointCloud({
 
   // Projection material. One ShaderMaterial whose blending / depth-write
   // state is reconciled to the active projectionMode each frame.
-  //   max       → depth-test trick picks the highest-intensity cell.
-  //   min       → mirror of max with inverted depth encoding.
+  //   max       → depth-test trick picks the highest scalar cell.
+  //   min       → mirror of max with inverted scalar-depth encoding.
   //   mean/sum  → additive blending into an off-screen target; the
   //               AccumulationProjectionPass component below composites
-  //               it back, dividing by Σi for mean or clamping the raw
-  //               accumulated color for sum.
-  // Intensity floor culls effectively-invisible ghosts so the projection
-  // shows only cells the normal pass would have rendered.
+  //               raw scalar accumulations back through the active color map.
+  // Intensity floor is now a threshold/mask on top of scalar reduction:
+  // it culls weak values and ghosts before any scalar math runs.
   const projectionMaterial = useMemo(() => {
     return new THREE.ShaderMaterial({
       glslVersion: THREE.GLSL3,
@@ -182,9 +308,15 @@ function PointCloud({
         flatPointSize: { value: 0 },
         mode: { value: 0 },
         intensityFloor: { value: 0.05 },
+        colorMap: { value: projectionColorMap },
+        scalarMode: { value: projectionConfig.scalarMode },
+        scalarLo: { value: projectionConfig.scalarLo },
+        scalarHi: { value: projectionConfig.scalarHi },
+        scalarLogDen: { value: projectionConfig.scalarLogDen },
+        activeBrightness: { value: 0 },
       },
     });
-  }, [gl]);
+  }, [gl, projectionColorMap, projectionConfig]);
   // ID-pass machinery for projection-mode picking. Same depth-test
   // reduction as the visible max/min projection, but writes the
   // winning cell's packed index per pixel to an offscreen RGBA8
@@ -221,9 +353,13 @@ function PointCloud({
           flatPointSize: { value: 0 },
           mode: { value: 0 },
           intensityFloor: { value: 0.05 },
+          scalarMode: { value: projectionConfig.scalarMode },
+          scalarLo: { value: projectionConfig.scalarLo },
+          scalarHi: { value: projectionConfig.scalarHi },
+          scalarLogDen: { value: projectionConfig.scalarLogDen },
         },
       }),
-    [gl],
+    [gl, projectionConfig],
   );
   useEffect(() => {
     const pr = gl.getPixelRatio();
@@ -233,13 +369,31 @@ function PointCloud({
     );
   }, [gl, idRt, size.height, size.width]);
   useEffect(() => {
-    idMaterial.uniforms.mode.value = settings.projectionMode === 'min' ? 1 : 0;
-  }, [idMaterial, settings.projectionMode]);
+    idMaterial.uniforms.mode.value = projectionMode === 'min' ? 1 : 0;
+  }, [idMaterial, projectionMode]);
   useEffect(() => {
     const floor = Math.max(0, Math.min(1, settings.projectionIntensityFloor));
     projectionMaterial.uniforms.intensityFloor.value = floor;
     idMaterial.uniforms.intensityFloor.value = floor;
   }, [idMaterial, projectionMaterial, settings.projectionIntensityFloor]);
+  useEffect(() => {
+    projectionMaterial.uniforms.colorMap.value = projectionColorMap;
+    projectionMaterial.uniforms.scalarMode.value = projectionConfig.scalarMode;
+    projectionMaterial.uniforms.scalarLo.value = projectionConfig.scalarLo;
+    projectionMaterial.uniforms.scalarHi.value = projectionConfig.scalarHi;
+    projectionMaterial.uniforms.scalarLogDen.value = projectionConfig.scalarLogDen;
+    projectionMaterial.uniforms.activeBrightness.value = settings.activeBrightness;
+    idMaterial.uniforms.scalarMode.value = projectionConfig.scalarMode;
+    idMaterial.uniforms.scalarLo.value = projectionConfig.scalarLo;
+    idMaterial.uniforms.scalarHi.value = projectionConfig.scalarHi;
+    idMaterial.uniforms.scalarLogDen.value = projectionConfig.scalarLogDen;
+  }, [
+    idMaterial,
+    projectionColorMap,
+    projectionConfig,
+    projectionMaterial,
+    settings.activeBrightness,
+  ]);
   useEffect(
     () => () => {
       idRt.dispose();
@@ -254,13 +408,12 @@ function PointCloud({
   // shader program on every mode flip.
   useEffect(() => {
     const m = projectionMaterial;
-    const mode = settings.projectionMode;
+    const mode = projectionMode;
     if (mode === 'mean' || mode === 'sum') {
-      // Mean and sum both additively blend (color × intensity, intensity)
-      // into the off-screen target. The composite pass differentiates
-      // them: mean divides by accumulated intensity to recover a weighted
-      // average color, while sum leaves the accumulated signal undivided
-      // and clamps it to the display range.
+      // Mean and sum both additively blend signed scalar components and
+      // a sample count into the off-screen target. The composite pass
+      // differentiates them: mean divides by count, while sum leaves the
+      // accumulated scalar undivided (with user-controlled exposure).
       m.uniforms.mode.value = mode === 'sum' ? 3 : 2;
       // Use raw ONE/ONE additive blending. Three's built-in
       // AdditiveBlending uses SRC_ALPHA/ONE when the renderer is not
@@ -285,7 +438,7 @@ function PointCloud({
       m.depthTest = true;
     }
     m.needsUpdate = true;
-  }, [projectionMaterial, settings.projectionMode]);
+  }, [projectionMaterial, projectionMode]);
 
   // Canvas-size adaptation now lives inside applyColoring's auto-mode
   // formulas (basePointSize is derived from canvas height), so the
@@ -303,6 +456,7 @@ function PointCloud({
     buffers.alphas.set(coloring.result.alphas);
     buffers.sizes.set(coloring.result.sizes);
     buffers.intensities.set(coloring.result.intensities);
+    buffers.scalarValues.set(coloring.result.scalarValues);
     // Treat a t-SNE lasso selection as an additional filter for the 3D
     // viewer only: demote in-set cells outside the lasso to standard
     // ghost values. UmapPanel reads the shared (non-demoted) buffer so
@@ -334,6 +488,7 @@ function PointCloud({
     (geometry.attributes.instAlpha as THREE.BufferAttribute).needsUpdate = true;
     (geometry.attributes.instSize as THREE.BufferAttribute).needsUpdate = true;
     (geometry.attributes.instIntensity as THREE.BufferAttribute).needsUpdate = true;
+    (geometry.attributes.instScalar as THREE.BufferAttribute).needsUpdate = true;
     // drawOrder partitions cells so out-of-filter indices come first
     // and in-filter ones last. Setting it as the geometry's index
     // buffer makes Three.js draw them in that order — combined with
@@ -457,7 +612,7 @@ function PointCloud({
   const idPixelRef = useRef(new Uint8Array(4));
 
   useFrame(() => {
-    const projMode = settings.projectionMode;
+    const projMode = projectionMode;
     // Mean / sum projection: no single cell "wins" a pixel, so there's
     // no meaningful target for hover/click — disable picking entirely
     // and let the cursor pass through to camera controls.
@@ -666,7 +821,7 @@ function PointCloud({
     }
   });
 
-  const projectionOn = settings.projectionMode !== 'off';
+  const projectionOn = projectionMode !== 'off';
   return (
     <group rotation={[0, 0, Math.PI / 2]} scale={[1, -1, 1]}>
       {projectionOn ? (
@@ -862,6 +1017,17 @@ export function BrainViewer({
     setHover({ i, x: pos.x, y: pos.y });
   }, []);
 
+  const projectionConfig = useMemo(
+    () => scalarProjectionConfig(data, filter, settings),
+    [data, filter, settings],
+  );
+  const activeProjectionMode = effectiveProjectionMode(filter.colorMode, settings.projectionMode);
+  const projectionColorMap = useMemo(
+    () => createProjectionColorMapTexture(projectionConfig.colorMapKind),
+    [projectionConfig.colorMapKind],
+  );
+  useEffect(() => () => projectionColorMap.dispose(), [projectionColorMap]);
+
   const tooltip = hover ? buildTooltip(data, filter, settings, coloring, hover.i) : null;
 
   return (
@@ -885,6 +1051,9 @@ export function BrainViewer({
           filter={filter}
           settings={settings}
           coloring={coloring}
+          projectionMode={activeProjectionMode}
+          projectionConfig={projectionConfig}
+          projectionColorMap={projectionColorMap}
           selection={selection}
           focusedNeuron={focusedNeuron}
           pickRef={pickRef}
@@ -921,17 +1090,20 @@ export function BrainViewer({
           onAtDefaultChange={setAtDefault}
           lockTargetToCenter={settings.objectCentricRotation}
         />
-        {settings.ambientOcclusion && settings.projectionMode === 'off' && (
+        {settings.ambientOcclusion && activeProjectionMode === 'off' && (
           <AmbientOcclusion
             intensity={settings.ambientOcclusionIntensity}
             radius={settings.ambientOcclusionRadius}
             flatPointSize={!settings.scaleByDepth}
           />
         )}
-        {(settings.projectionMode === 'mean' || settings.projectionMode === 'sum') && (
+        {(activeProjectionMode === 'mean' || activeProjectionMode === 'sum') && (
           <AccumulationProjectionPass
-            mode={settings.projectionMode}
+            mode={activeProjectionMode}
             sumExposure={settings.projectionSumExposure}
+            projectionConfig={projectionConfig}
+            projectionColorMap={projectionColorMap}
+            activeBrightness={settings.activeBrightness}
           />
         )}
       </Canvas>
@@ -952,7 +1124,7 @@ export function BrainViewer({
             reset view
           </button>
         )}
-        {settings.projectionMode !== 'off' && (
+        {activeProjectionMode !== 'off' && (
           // Status pill: tells the viewer that what they're seeing is
           // not the normal per-cell render. Yellow tint reads as
           // "non-default state" without competing with the reset
@@ -962,7 +1134,7 @@ export function BrainViewer({
             className="pointer-events-none font-mono text-[10px] bg-yellow-900/40 border border-yellow-700/60 text-yellow-200 px-1.5 py-0.5 rounded"
             title="per-pixel projection through the point cloud — change in Settings"
           >
-            projection: {settings.projectionMode}
+            projection: {activeProjectionMode}
           </div>
         )}
         {settings.debugMode && (
@@ -1328,11 +1500,12 @@ function CameraSync({
  *  rendering) and runs a two-step pass per frame:
  *    1. Clear an off-screen RGBA target to (0, 0, 0, 0) and render the
  *       scene into it. The projection material's additive blending
- *       accumulates `vec4(color × intensity, intensity)` per touched
- *       pixel.
+ *       accumulates signed scalar components as
+ *       (positiveSum, negativeSum, count, count) per touched pixel.
  *    2. Render a fullscreen quad to the back buffer with the composite
- *       shader. The composite's `mode` uniform selects the divide-by-A
- *       (mean) or channel-clamp (sum) branch.
+ *       shader. The composite's `mode` uniform selects arithmetic mean
+ *       (signed sum / count) or exposure-scaled signed sum, then maps
+ *       the resulting scalar through the active color map.
  *  Only mounted when projectionMode is mean or sum; for max/min modes
  *  the GPU's depth test does the reduction in a single direct-to-
  *  backbuffer pass and no hijack is needed.
@@ -1340,9 +1513,15 @@ function CameraSync({
 function AccumulationProjectionPass({
   mode,
   sumExposure,
+  projectionConfig,
+  projectionColorMap,
+  activeBrightness,
 }: {
   mode: 'mean' | 'sum';
   sumExposure: number;
+  projectionConfig: ScalarProjectionConfig;
+  projectionColorMap: THREE.DataTexture;
+  activeBrightness: number;
 }) {
   const { gl, scene, camera, size } = useThree();
 
@@ -1366,6 +1545,12 @@ function AccumulationProjectionPass({
         background: { value: new THREE.Color('#0a0a0a') },
         mode: { value: 0 },
         sumExposure: { value: 1 },
+        colorMap: { value: projectionColorMap },
+        scalarMode: { value: projectionConfig.scalarMode },
+        scalarLo: { value: projectionConfig.scalarLo },
+        scalarHi: { value: projectionConfig.scalarHi },
+        scalarLogDen: { value: projectionConfig.scalarLogDen },
+        activeBrightness: { value: 0 },
       },
     });
     const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), compositeMaterial);
@@ -1373,7 +1558,7 @@ function AccumulationProjectionPass({
     fullscreenScene.add(quad);
     const fullscreenCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     return { rt, fullscreenScene, fullscreenCamera, compositeMaterial };
-  }, []);
+  }, [projectionColorMap, projectionConfig]);
 
   useEffect(() => {
     compositeMaterial.uniforms.mode.value = mode === 'sum' ? 1 : 0;
@@ -1381,6 +1566,14 @@ function AccumulationProjectionPass({
   useEffect(() => {
     compositeMaterial.uniforms.sumExposure.value = Math.max(0.01, Math.min(10, sumExposure));
   }, [compositeMaterial, sumExposure]);
+  useEffect(() => {
+    compositeMaterial.uniforms.colorMap.value = projectionColorMap;
+    compositeMaterial.uniforms.scalarMode.value = projectionConfig.scalarMode;
+    compositeMaterial.uniforms.scalarLo.value = projectionConfig.scalarLo;
+    compositeMaterial.uniforms.scalarHi.value = projectionConfig.scalarHi;
+    compositeMaterial.uniforms.scalarLogDen.value = projectionConfig.scalarLogDen;
+    compositeMaterial.uniforms.activeBrightness.value = activeBrightness;
+  }, [activeBrightness, compositeMaterial, projectionColorMap, projectionConfig]);
 
   useEffect(() => {
     return () => {

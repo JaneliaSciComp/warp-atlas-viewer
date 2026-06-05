@@ -26,10 +26,10 @@ export interface ColoringResult {
   /** Per-cell projection intensity in [0, 1] — the underlying scheme
    *  scalar, NOT the display alpha. Stim/swim use magnitude |r| past
    *  the deadband regardless of fadeWeakCorrelation; gene/activity
-   *  use the same v that drives the plasma ramp; highlight/region/fish
-   *  are categorical and carry 1.0 for in-set, 0 for ghosts. Read by
-   *  the 3D viewer's projection-mode render path; the t-SNE panel and
-   *  the normal 3D pass do not consume this. */
+   *  use the same v that drives the plasma ramp; categorical schemes
+   *  are not projectable but still carry 1.0 for in-set, 0 for ghosts.
+   *  Read by the 3D viewer as a projection threshold/mask; the t-SNE
+   *  panel and the normal 3D pass do not consume this. */
   intensities: Float32Array; // length n
   /** Raw scientific scalar represented by the active color scheme:
    *  gene spot count/richness, activity ΔF/F, signed stim correlation,
@@ -940,7 +940,7 @@ export function applySelectionAsFilterGhost(
   selection: SelectionState,
 ): void {
   if (selection.source !== 'umap' || selection.indices.length === 0) return;
-  const { colors, alphas, sizes, intensities } = out;
+  const { colors, alphas, sizes, intensities, scalarValues } = out;
   const selSet = new Set<number>(Array.from(selection.indices));
   const t = effectiveGhostIntensity;
   const ghostAlpha = DIM_ALPHA * t;
@@ -964,6 +964,7 @@ export function applySelectionAsFilterGhost(
       alphas[i] = ghostAlpha;
       sizes[i] = ghostSize;
       intensities[i] = 0;
+      scalarValues[i] = Number.NaN;
     }
   } else {
     for (let i = 0; i < count; i++) {
@@ -974,6 +975,7 @@ export function applySelectionAsFilterGhost(
       alphas[i] = ghostAlpha;
       sizes[i] = ghostSize;
       intensities[i] = 0;
+      scalarValues[i] = Number.NaN;
     }
   }
 }

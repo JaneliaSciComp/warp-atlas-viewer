@@ -142,7 +142,7 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
           </div>
         )}
         {tab === 'settings' && (
-          <SettingsTab settings={settings} setSettings={setSettings} />
+          <SettingsTab filter={filter} settings={settings} setSettings={setSettings} />
         )}
         {tab === 'about' && <AboutTab data={data} applyView={applyView} />}
       </div>
