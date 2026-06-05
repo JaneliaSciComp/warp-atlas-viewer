@@ -316,6 +316,7 @@ function validateSettings(raw: unknown): Partial<SettingsState> {
   if (typeof s.fadeWeakCorrelation === 'boolean') out.fadeWeakCorrelation = s.fadeWeakCorrelation;
   if (typeof s.objectCentricRotation === 'boolean') out.objectCentricRotation = s.objectCentricRotation;
   if (isFiniteNum(s.rotationMomentum)) out.rotationMomentum = clamp(s.rotationMomentum, 0, 1);
+  if (typeof s.scaleByDepth === 'boolean') out.scaleByDepth = s.scaleByDepth;
   if (isString(s.projectionMode, PROJECTION_MODES)) out.projectionMode = s.projectionMode;
   if (isFiniteNum(s.projectionIntensityFloor)) {
     out.projectionIntensityFloor = clamp(s.projectionIntensityFloor, 0, 1);

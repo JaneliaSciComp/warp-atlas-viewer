@@ -24,6 +24,7 @@ const pointCloudNormalVertexShader = /* glsl */ `
 
   uniform float pixelRatio;
   uniform float sizeScale;
+  uniform float flatPointSize;
 
   varying float vAlpha;
 
@@ -34,8 +35,9 @@ const pointCloudNormalVertexShader = /* glsl */ `
     gl_Position = projectionMatrix * mvPosition;
 
     float dist = -mvPosition.z;
-    float size = instSize * sizeScale * pixelRatio * (160.0 / max(dist, 40.0));
-    gl_PointSize = max(1.5, size);
+    float depthFactor = 160.0 / max(dist, 40.0);
+    float factor = mix(depthFactor, 0.4, flatPointSize);
+    gl_PointSize = max(1.5, instSize * sizeScale * pixelRatio * factor);
   }
 `;
 
@@ -76,6 +78,7 @@ function makePointCloudNormalMaterial(pixelRatio: number) {
       alphaMin: { value: AO_ALPHA_MIN },
       pixelRatio: { value: pixelRatio },
       sizeScale: { value: 1 },
+      flatPointSize: { value: 0 },
     },
   });
 }
@@ -148,9 +151,15 @@ class PointCloudSAOPass extends SAOPass {
 export function AmbientOcclusion({
   intensity,
   radius,
+  flatPointSize,
 }: {
   intensity: number;
   radius: number;
+  /** Mirror of settings.flatPointSizes; threaded down so the SAO
+   *  depth/normal pre-pass renders sprites at the same size as the
+   *  visible cell pass. Otherwise occlusion samples land at the
+   *  wrong scale and AO shows ghost-shaped halos. */
+  flatPointSize: boolean;
 }) {
   const { gl, scene, camera, size } = useThree();
 
@@ -189,6 +198,10 @@ export function AmbientOcclusion({
   useEffect(() => {
     saoPass.params.saoKernelRadius = radius;
   }, [radius, saoPass]);
+
+  useEffect(() => {
+    pointNormalMaterial.uniforms.flatPointSize.value = flatPointSize ? 1 : 0;
+  }, [flatPointSize, pointNormalMaterial]);
 
   useEffect(() => {
     const pixelRatio = gl.getPixelRatio();

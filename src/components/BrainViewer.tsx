@@ -139,6 +139,7 @@ function PointCloud({
       uniforms: {
         pixelRatio: { value: gl.getPixelRatio() },
         sizeScale: { value: 1 },
+        flatPointSize: { value: 0 },
         alphaMin: { value: ALPHA_PASS_SPLIT },
         alphaMax: { value: 1e6 },
       },
@@ -153,6 +154,7 @@ function PointCloud({
       uniforms: {
         pixelRatio: { value: gl.getPixelRatio() },
         sizeScale: { value: 1 },
+        flatPointSize: { value: 0 },
         alphaMin: { value: 0 },
         alphaMax: { value: ALPHA_PASS_SPLIT },
       },
@@ -177,6 +179,7 @@ function PointCloud({
       uniforms: {
         pixelRatio: { value: gl.getPixelRatio() },
         sizeScale: { value: 1 },
+        flatPointSize: { value: 0 },
         mode: { value: 0 },
         intensityFloor: { value: 0.05 },
       },
@@ -215,6 +218,7 @@ function PointCloud({
         uniforms: {
           pixelRatio: { value: gl.getPixelRatio() },
           sizeScale: { value: 1 },
+          flatPointSize: { value: 0 },
           mode: { value: 0 },
           intensityFloor: { value: 0.05 },
         },
@@ -367,11 +371,14 @@ function PointCloud({
       vertexShader: `
         uniform float pixelRatio;
         uniform float baseSize;
+        uniform float flatPointSize;
         void main() {
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
           gl_Position = projectionMatrix * mvPosition;
           float dist = -mvPosition.z;
-          float cellSize = baseSize * pixelRatio * (160.0 / max(dist, 40.0));
+          float depthFactor = 160.0 / max(dist, 40.0);
+          float factor = mix(depthFactor, 0.4, flatPointSize);
+          float cellSize = baseSize * pixelRatio * factor;
           // Same recipe as the t-SNE ring: at least a visible floor,
           // otherwise track the cell with a small buffer.
           gl_PointSize = max(14.0 * pixelRatio, cellSize + 6.0 * pixelRatio);
@@ -396,6 +403,7 @@ function PointCloud({
       uniforms: {
         pixelRatio: { value: gl.getPixelRatio() },
         baseSize: { value: initialPointSize },
+        flatPointSize: { value: 0 },
       },
     });
   }, [gl, initialPointSize]);
@@ -410,6 +418,28 @@ function PointCloud({
   useEffect(() => {
     markerMaterial.uniforms.baseSize.value = effectiveMarkerSize;
   }, [markerMaterial, effectiveMarkerSize]);
+
+  useEffect(() => {
+    // Single source of truth: settings.scaleByDepth fans out to every
+    // material that computes gl_PointSize. The shader-side uniform is
+    // `flatPointSize` (1 = flat, 0 = attenuated) — the inversion lives
+    // here so the user-facing setting reads positively ("scale by depth
+    // is on, by default"). AmbientOcclusion's internal material gets
+    // the same flag via a prop on the JSX element.
+    const v = settings.scaleByDepth ? 0 : 1;
+    opaqueMaterial.uniforms.flatPointSize.value = v;
+    transparentMaterial.uniforms.flatPointSize.value = v;
+    projectionMaterial.uniforms.flatPointSize.value = v;
+    idMaterial.uniforms.flatPointSize.value = v;
+    markerMaterial.uniforms.flatPointSize.value = v;
+  }, [
+    settings.scaleByDepth,
+    opaqueMaterial,
+    transparentMaterial,
+    projectionMaterial,
+    idMaterial,
+    markerMaterial,
+  ]);
 
   useEffect(() => {
     if (focusedNeuron == null || focusedNeuron < 0 || focusedNeuron >= data.count) {
@@ -895,6 +925,7 @@ export function BrainViewer({
           <AmbientOcclusion
             intensity={settings.ambientOcclusionIntensity}
             radius={settings.ambientOcclusionRadius}
+            flatPointSize={!settings.scaleByDepth}
           />
         )}
         {(settings.projectionMode === 'mean' || settings.projectionMode === 'sum') && (

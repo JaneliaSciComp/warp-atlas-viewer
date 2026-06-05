@@ -93,6 +93,16 @@ export function SettingsTab({
                     additionally enlarges active (in-set) cells as the
                     filter narrows — 50 cells → 2× their base size, all
                     cells → 1×. Ghost cells are unaffected.
+                    <span className="text-neutral-200"> Scale by depth</span>{" "}
+                    is on by default and shrinks cells the farther they
+                    sit from the camera (the familiar perspective look).
+                    Turn it off to render every cell at a constant
+                    on-screen size — the "see through the volume"
+                    convention used by max-intensity projection in
+                    volume rendering. Independent of the projection
+                    toggle, so it can be combined with normal rendering
+                    for a flat point-cloud look or layered onto any
+                    projection mode.
                 </p>
                 <label
                     className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
@@ -106,7 +116,7 @@ export function SettingsTab({
                         }
                         className="accent-neutral-300"
                     />
-                    auto
+                    auto point sizes
                 </label>
                 {settings.autoSizing ? (
                     <label
@@ -125,7 +135,22 @@ export function SettingsTab({
                         />
                         scale by filter
                     </label>
-                ) : (
+                ) : null}
+                <label
+                    className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
+                    title="shrink cells with distance from the camera; turn off to render every cell at a constant on-screen size (MIP convention)"
+                >
+                    <input
+                        type="checkbox"
+                        checked={settings.scaleByDepth}
+                        onChange={(e) =>
+                            update({ scaleByDepth: e.target.checked })
+                        }
+                        className="accent-neutral-300"
+                    />
+                    scale by depth
+                </label>
+                {!settings.autoSizing && (
                     <>
                         <NumberRow
                             label="3D point size (px)"

@@ -402,6 +402,19 @@ export interface SettingsState {
      *  original feel. Internally drives `staticMoving` (at 0) and
      *  `dynamicDampingFactor = max(0.05, 1 - rotationMomentum)`. */
     rotationMomentum: number;
+    /** When true (default), every 3D point sprite shrinks with distance
+     *  from the camera via the `160/dist` falloff — the familiar
+     *  perspective-shrunk look. When false, every shader (normal cell
+     *  render, projection visible pass, projection picker, focus-ring
+     *  marker, ambient-occlusion depth/normal pass) drops the falloff
+     *  and renders at a constant on-screen size, scaled by 0.4 to
+     *  compensate for the auto-sizing curve being tuned for the
+     *  attenuated case. Disabling this is the MIP-style "see through
+     *  the volume" convention — deep cells contribute equally to the
+     *  visible image. Independent of projectionMode, so it can be
+     *  combined with any of them or used on its own in normal
+     *  rendering. */
+    scaleByDepth: boolean;
     /** Per-pixel projection of the point cloud, viewed from the camera.
      *  When not 'off', the 3D viewer renders into an off-screen target
      *  and composites a per-pixel reduction (max/min/mean) of in-set
@@ -451,6 +464,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
     fadeWeakCorrelation: true,
     objectCentricRotation: true,
     rotationMomentum: 0.9,
+    scaleByDepth: true,
     projectionMode: "off",
     projectionIntensityFloor: 0.05,
     projectionSumExposure: 1.0,

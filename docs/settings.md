@@ -17,17 +17,18 @@ A **show descriptions** checkbox sits next to the reset button. When unchecked, 
 
 Controls how big the dots are and how visible out-of-filter cells (ghosts) are in the 3D brain view.
 
-- **auto** *(default on)* — derives point size and ghost visibility from the live 3D canvas height, so the viewer self-adapts as you resize the window or expand/collapse the bottom panel. Manual sliders are hidden while auto is on.
+- **auto point sizes** *(default on)* — derives point size and ghost visibility from the live 3D canvas height, so the viewer self-adapts as you resize the window or expand/collapse the bottom panel. Manual sliders are hidden while auto is on.
 - **scale by filter** *(default on, nested under auto)* — additionally enlarges *active* (in-set) cells as the filter narrows, so a small selected cluster reads louder than the surrounding population. Ghost cells are not boosted.
+- **scale by depth** *(default on)* — shrinks cells the farther they sit from the camera (the familiar perspective look). Turn it off to render every cell at a constant on-screen size — the "see through the volume" convention used by max-intensity projection. Independent of `auto point sizes` and of the projection mode, so any combination is valid.
 
 With auto **off**, the two sliders are exposed directly:
 
-- **point size (px)** — base size used for active cells. Range `1` – `40` px; default `10`.
-- **ghost visibility** (0..1) — `0` makes out-of-filter cells fully transparent and the click pickers skip them; `1` renders them at the standard dim alpha and keeps them fully pickable. Pickability flips off below the midpoint (slider < 0.5). Default `0.6`.
+- **3D point size (px)** — base size used for active cells. Range `1` – `40` px; default `10`.
+- **3D ghost visibility** (0..1) — `0` makes out-of-filter cells fully transparent and the click pickers skip them; `1` renders them at the standard dim alpha and keeps them fully pickable. Pickability flips off below the midpoint (slider < 0.5). Default `0.6`.
 
 The ghost setting also drives **render order**: out-of-filter cells render first and in-filter cells render last, so foreground (in-set) cells never get occluded by the dim background regardless of true 3D depth, even when ghosts are still visible.
 
-### How auto mode works
+### How auto point sizes works
 
 Auto mode treats the 3D canvas **height** as the input. Width is shown in the debug overlay, but it does not feed the point-size or ghost-visibility formulas because the brain fills the viewport vertically.
 
@@ -53,7 +54,7 @@ It is floored at `0.5`, rises through short-to-medium canvases, peaks around the
 
 ### How scale by filter works
 
-When **scale by filter** is on (only available with auto on), active in-set cells get an additional multiplier on top of auto's `basePointSize`:
+When **scale by filter** is on (only available with auto point sizes on), active in-set cells get an additional multiplier on top of auto's `basePointSize`:
 
 ```
 tFilter    = clamp(

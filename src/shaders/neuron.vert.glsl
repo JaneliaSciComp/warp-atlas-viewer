@@ -11,6 +11,11 @@ uniform float pixelRatio;
 // canvas grows so dots-per-area density stays roughly constant. 1.0
 // means no scaling.
 uniform float sizeScale;
+// 0 → normal depth-attenuated sizing (closer points larger).
+// 1 → flat: every cell renders at a constant on-screen size, scaled
+//     by 0.4 to roughly match the typical attenuated size at default
+//     zoom (so cells don't visibly grow when the toggle flips).
+uniform float flatPointSize;
 
 varying vec3 vColor;
 varying float vAlpha;
@@ -20,9 +25,8 @@ void main() {
   vAlpha = instAlpha;
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mvPosition;
-  // Slight depth attenuation: closer points larger. Min 1.5 to keep the
-  // far side of the brain readable.
   float dist = -mvPosition.z;
-  float size = instSize * sizeScale * pixelRatio * (160.0 / max(dist, 40.0));
-  gl_PointSize = max(1.5, size);
+  float depthFactor = 160.0 / max(dist, 40.0);
+  float factor = mix(depthFactor, 0.4, flatPointSize);
+  gl_PointSize = max(1.5, instSize * sizeScale * pixelRatio * factor);
 }
