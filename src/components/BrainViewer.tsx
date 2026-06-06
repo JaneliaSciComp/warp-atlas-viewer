@@ -1259,31 +1259,20 @@ export function BrainViewer({
         </div>
       )}
       <div className="absolute top-2 left-2 flex flex-col items-start gap-1.5 pointer-events-none">
-        {!atDefault && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              resetRef.current?.();
-            }}
-            className="pointer-events-auto font-mono text-[10px] bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-1.5 py-0.5 rounded hover:bg-neutral-800"
-          >
-            reset view
-          </button>
-        )}
-        {activeProjectionMode !== 'off' && (
-          // Status pill: tells the viewer that what they're seeing is
-          // not the normal per-cell render. Yellow tint reads as
-          // "non-default state" without competing with the reset
-          // button's neutral grey. Click to switch projection mode
-          // (or turn it off) without leaving the 3D view — mirrors the
-          // Settings tab's projection control.
+        {supportsScalarProjection(filter.colorMode) && (
+          // Status pill: a per-pixel projection through the point cloud
+          // is a non-default render, so it gets a persistent control at
+          // the top of the overlay. Click to switch projection mode (or
+          // turn it off) without leaving the 3D view — mirrors the
+          // Settings tab's projection control. Shares the reset button's
+          // neutral grey so the two read as one control group.
           <div className="relative pointer-events-auto">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 setProjMenuOpen((v) => !v);
               }}
-              className="font-mono text-[10px] bg-yellow-900/40 border border-yellow-700/60 text-yellow-200 px-1.5 py-0.5 rounded hover:bg-yellow-900/60"
+              className="font-mono text-[10px] bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-1.5 py-0.5 rounded hover:bg-neutral-800"
               title="per-pixel projection through the point cloud — click to change"
             >
               projection: {PROJECTION_MODE_LABELS[activeProjectionMode]} ▾
@@ -1311,7 +1300,7 @@ export function BrainViewer({
                       className={
                         'font-mono text-[10px] text-left px-2 py-1 hover:bg-neutral-700 ' +
                         (m === activeProjectionMode
-                          ? 'bg-yellow-900/50 text-yellow-200'
+                          ? 'bg-neutral-700 text-white'
                           : 'text-neutral-200')
                       }
                     >
@@ -1322,6 +1311,17 @@ export function BrainViewer({
               </>
             )}
           </div>
+        )}
+        {!atDefault && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              resetRef.current?.();
+            }}
+            className="pointer-events-auto font-mono text-[10px] bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-1.5 py-0.5 rounded hover:bg-neutral-800"
+          >
+            reset view
+          </button>
         )}
         {settings.debugMode && (
           <DebugOverlay
