@@ -19,7 +19,7 @@ Controls how big the dots are and how visible out-of-filter cells (ghosts) are i
 
 - **auto point sizes** *(default on)* — derives point size and ghost visibility from the live 3D canvas height, so the viewer self-adapts as you resize the window or expand/collapse the bottom panel. Manual sliders are hidden while auto is on.
 - **scale by filter** *(default on, nested under auto)* — additionally enlarges *active* (in-set) cells as the filter narrows, so a small selected cluster reads louder than the surrounding population. Ghost cells are not boosted.
-- **scale by depth** *(default on)* — shrinks cells the farther they sit from the camera (the familiar perspective look). Turn it off to render every cell at a constant on-screen size — the "see through the volume" convention used by max-intensity projection. Independent of `auto point sizes` and of the projection mode, so any combination is valid.
+- **scale by depth** *(default on)* — shrinks cells the farther they sit from the camera (the familiar perspective look). Turn it off to drop that per-cell perspective falloff so every cell contributes equally regardless of depth — the "see through the volume" convention used by max-intensity projection. Flat-mode dots are matched to the perspective size at the default zoom, so flipping the toggle doesn't change density, and they scale gently with camera zoom so on-screen density stays roughly constant as you zoom in and out. Independent of `auto point sizes` and of the projection mode, so any combination is valid.
 
 With auto **off**, the two sliders are exposed directly:
 

@@ -435,9 +435,11 @@ export interface SettingsState {
      *  perspective-shrunk look. When false, every shader (normal cell
      *  render, projection visible pass, projection picker, focus-ring
      *  marker, ambient-occlusion depth/normal pass) drops the falloff
-     *  and renders at a constant on-screen size, scaled by 0.4 to
-     *  compensate for the auto-sizing curve being tuned for the
-     *  attenuated case. Disabling this is the MIP-style "see through
+     *  and renders every cell at the same size — matched to the
+     *  perspective size at the default zoom (see `flatSizeFactor` in
+     *  utils/zoomSizing) so toggling does not change density, and scaled
+     *  with camera zoom (see `zoomSizeScale`) so on-screen coverage stays
+     *  roughly constant. Disabling this is the MIP-style "see through
      *  the volume" convention — deep cells contribute equally to the
      *  visible image. Independent of projectionMode, so it can be
      *  combined with any of them or used on its own in normal
