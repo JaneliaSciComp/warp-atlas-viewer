@@ -26,6 +26,7 @@ import projectionScalarChunkSrc from '../shaders/projection_scalar.glsl?raw';
 import projectionScalarColorChunkSrc from '../shaders/projection_scalar_color.glsl?raw';
 import { AmbientOcclusion, skipAmbientOcclusionUserData } from './AmbientOcclusion';
 import { coolwarm, plasma } from '../utils/colorMaps';
+import { zoomSizeScale } from '../utils/zoomSizing';
 
 // Three's ShaderMaterial preprocessor resolves #include <...> through
 // ShaderChunk. Register WARP-specific chunks once at module load so the
@@ -85,6 +86,7 @@ interface ScreenPanState {
 }
 
 const VOLUME_CENTER: [number, number, number] = [0, 0, 0];
+const VOLUME_CENTER_VEC = new THREE.Vector3(...VOLUME_CENTER);
 
 type ProjectionColorMapKind = 'plasma' | 'coolwarm';
 
@@ -266,6 +268,7 @@ function PointCloud({
   focusedNeuron,
   pickRef,
   onHoverChange,
+  defaultCamDistance,
 }: {
   data: NeuronDataset;
   filter: FilterState;
@@ -278,8 +281,15 @@ function PointCloud({
   focusedNeuron: number | null;
   pickRef: React.MutableRefObject<PickState>;
   onHoverChange: (i: number) => void;
+  /** Camera-to-target distance at the default zoom (span * 0.95). The basis
+   *  for the flat-mode zoom-size correction below. */
+  defaultCamDistance: number;
 }) {
   const { gl, scene, camera, size } = useThree();
+  // drei's makeDefault publishes the TrackballControls instance here. Used
+  // to read the live orbit target for the zoom-size correction; may be null
+  // for the first frame or two before the controls mount.
+  const controls = useThree((s) => s.controls) as { target: THREE.Vector3 } | null;
   // The ghost/context underlay. Hidden during the ID-buffer picking render
   // so hover/click resolve to the projection cell on top, not a context
   // dot behind it.
@@ -647,6 +657,7 @@ function PointCloud({
       vertexShader: `
         uniform float pixelRatio;
         uniform float baseSize;
+        uniform float sizeScale;
         uniform float flatPointSize;
         void main() {
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
@@ -654,7 +665,7 @@ function PointCloud({
           float dist = -mvPosition.z;
           float depthFactor = 160.0 / max(dist, 40.0);
           float factor = mix(depthFactor, 0.4, flatPointSize);
-          float cellSize = baseSize * pixelRatio * factor;
+          float cellSize = baseSize * sizeScale * pixelRatio * factor;
           // Same recipe as the t-SNE ring: at least a visible floor,
           // otherwise track the cell with a small buffer.
           gl_PointSize = max(14.0 * pixelRatio, cellSize + 6.0 * pixelRatio);
@@ -679,6 +690,7 @@ function PointCloud({
       uniforms: {
         pixelRatio: { value: gl.getPixelRatio() },
         baseSize: { value: initialPointSize },
+        sizeScale: { value: 1 },
         flatPointSize: { value: 0 },
       },
     });
@@ -718,6 +730,24 @@ function PointCloud({
     idMaterial,
     markerMaterial,
   ]);
+
+  // Flat-mode zoom-size correction. Auto sizing is calibrated for the volume
+  // filling the viewport at the default zoom; in flat mode it otherwise stays
+  // fixed on screen while the volume grows/shrinks with zoom. Drive sizeScale
+  // from the live camera distance each frame (cheap uniform write — no
+  // coloring recompute) so flat-mode coverage stays roughly constant. Depth
+  // mode keeps sizeScale = 1; its per-point 1/dist term already handles zoom.
+  useFrame(() => {
+    const flat = !settings.scaleByDepth;
+    const target = controls?.target ?? VOLUME_CENTER_VEC;
+    const s = zoomSizeScale(camera, target, defaultCamDistance, flat);
+    opaqueMaterial.uniforms.sizeScale.value = s;
+    transparentMaterial.uniforms.sizeScale.value = s;
+    projectionMaterial.uniforms.sizeScale.value = s;
+    contextMaterial.uniforms.sizeScale.value = s;
+    idMaterial.uniforms.sizeScale.value = s;
+    markerMaterial.uniforms.sizeScale.value = s;
+  });
 
   useEffect(() => {
     if (focusedNeuron == null || focusedNeuron < 0 || focusedNeuron >= data.count) {
@@ -1202,6 +1232,7 @@ export function BrainViewer({
           focusedNeuron={focusedNeuron}
           pickRef={pickRef}
           onHoverChange={handleHoverChange}
+          defaultCamDistance={defaultCamPosition[2]}
         />
         <TrackballControls
           makeDefault
@@ -1239,6 +1270,7 @@ export function BrainViewer({
             intensity={settings.ambientOcclusionIntensity}
             radius={settings.ambientOcclusionRadius}
             flatPointSize={!settings.scaleByDepth}
+            defaultCamDistance={defaultCamPosition[2]}
           />
         )}
         {activeProjectionMode !== 'off' && (

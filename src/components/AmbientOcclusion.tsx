@@ -4,6 +4,11 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { SAOPass } from 'three/addons/postprocessing/SAOPass.js';
+import { zoomSizeScale } from '../utils/zoomSizing';
+
+// AO is only active with the orbit target at the volume center; native pan
+// (which can move it) is irrelevant here, so the center is a fine fallback.
+const AO_TARGET = new THREE.Vector3(0, 0, 0);
 
 const AO_ALPHA_MIN = 0.5;
 const AO_SKIP_FLAG = 'skipAmbientOcclusion';
@@ -152,6 +157,7 @@ export function AmbientOcclusion({
   intensity,
   radius,
   flatPointSize,
+  defaultCamDistance,
 }: {
   intensity: number;
   radius: number;
@@ -160,6 +166,10 @@ export function AmbientOcclusion({
    *  visible cell pass. Otherwise occlusion samples land at the
    *  wrong scale and AO shows ghost-shaped halos. */
   flatPointSize: boolean;
+  /** Camera-to-target distance at the default zoom. Feeds the same flat-mode
+   *  zoom-size correction the visible cell pass applies, so the pre-pass keeps
+   *  matching sprite sizes as the user zooms. */
+  defaultCamDistance: number;
 }) {
   const { gl, scene, camera, size } = useThree();
 
@@ -208,8 +218,8 @@ export function AmbientOcclusion({
     composer.setPixelRatio(pixelRatio);
     composer.setSize(size.width, size.height);
     pointNormalMaterial.uniforms.pixelRatio.value = pixelRatio;
-    // sizeScale stays at its default 1.0 — canvas-area adaptation is
-    // baked into basePointSize by applyColoring.
+    // sizeScale is driven per-frame in the useFrame below (flat-mode zoom
+    // correction). Canvas-area adaptation stays baked into basePointSize.
   }, [composer, gl, pointNormalMaterial, size.height, size.width]);
 
   useEffect(() => {
@@ -221,6 +231,12 @@ export function AmbientOcclusion({
 
   useFrame((_, delta) => {
     pointNormalMaterial.uniforms.pixelRatio.value = gl.getPixelRatio();
+    pointNormalMaterial.uniforms.sizeScale.value = zoomSizeScale(
+      camera,
+      AO_TARGET,
+      defaultCamDistance,
+      flatPointSize,
+    );
     saoPass.saoMaterial.uniforms.cameraInverseProjectionMatrix.value.copy(
       camera.projectionMatrixInverse,
     );
