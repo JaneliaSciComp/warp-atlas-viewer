@@ -5,8 +5,11 @@
 //
 //   mode = 0  → max scalar projection. Highest scalar wins the pixel.
 //   mode = 1  → min scalar projection. Lowest scalar wins the pixel.
-//   mode = 2  → mean scalar projection. Emit (+scalar, -scalar, count)
-//               into the additive target; composite divides by count.
+//   mode = 2  → mean scalar projection. Emit (+scalar, -scalar, denom)
+//               into the additive target; composite divides by denom.
+//               Signed stim/swim with weak-correlation fade uses signal
+//               strength as the denominator weight so transparent weak
+//               cells cannot numerically swamp stronger signal.
 //   mode = 3  → sum scalar projection. Same additive emission, but the
 //               composite leaves the signed sum undivided.
 //   mode = 4  → max-magnitude ("min/max") projection. For signed
@@ -39,11 +42,35 @@ void main() {
   vec2 c = gl_PointCoord - vec2(0.5);
   float r2 = dot(c, c);
   if (r2 > 0.25) discard;
+  float edge = smoothstep(0.25, 0.18, r2);
 
   if (mode == 2 || mode == 3) {
+    if (mode == 2 && signedFadeActive()) {
+      // For signed mean projections, transparency has to participate in
+      // the reduction itself. A full arithmetic count lets many
+      // near-zero/transparent correlations pull the mean to the neutral
+      // midpoint and then hide stronger cells. Weight by signed signal
+      // strength (and sprite edge coverage) so weak transparent samples
+      // do not dominate the reduced scalar.
+      float t = scalarToT(vScalar);
+      float weight = scalarStrengthFromT(t) * edge;
+      if (weight <= 0.000001) discard;
+      float weightedScalar = vScalar * weight;
+      fragColor = vec4(max(weightedScalar, 0.0), max(-weightedScalar, 0.0), weight, weight);
+      return;
+    }
     fragColor = vec4(max(vScalar, 0.0), max(-vScalar, 0.0), 1.0, 1.0);
   } else {
     float order = scalarToT(vScalar);
+    if (signedFadeActive() && scalarStrengthFromT(order) <= intensityFloor) discard;
+    vec4 rgba = scalarRgbaFromT(order);
+    if (signedFadeActive()) {
+      // Signed projections may be partially transparent. Let the point
+      // edge fade without leaving almost-transparent fragments in the
+      // scalar-depth buffer where they could occlude useful signal.
+      rgba.a *= edge;
+      if (rgba.a < 0.02) discard;
+    }
     if (mode == 4) {
       // Largest deviation from neutral wins. For signed schemes the
       // neutral midpoint is t = 0.5, so strength is symmetric around it;
@@ -54,6 +81,6 @@ void main() {
     } else {
       gl_FragDepth = (mode == 0) ? (1.0 - order) : order;
     }
-    fragColor = scalarRgba(vScalar);
+    fragColor = rgba;
   }
 }

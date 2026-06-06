@@ -433,9 +433,10 @@ export interface SettingsState {
      *  setting. Ambient occlusion and the focused-neuron ring marker are
      *  disabled while projection is active. */
     projectionMode: ProjectionMode;
-    /** Minimum per-cell projection intensity included in the projection
-     *  pass, 0..1. Raising this culls weak/noisy cells before max/min,
-     *  mean, sum, and projection picking run. Default 0.05. */
+    /** Minimum projection intensity included in the projection pass,
+     *  0..1. Raising this culls weak/noisy cells before max/min, mean,
+     *  sum, and projection picking run; signed mean/sum also use it to
+     *  suppress reduced near-zero/cancelled output. Default 0.05. */
     projectionIntensityFloor: number;
     /** Exposure multiplier applied to Sum projection's accumulated
      *  scalar before display mapping. Lower values reduce saturation

@@ -1201,6 +1201,7 @@ export function BrainViewer({
           <ProjectionRenderPass
             mode={activeProjectionMode}
             sumExposure={settings.projectionSumExposure}
+            intensityFloor={settings.projectionIntensityFloor}
             projectionConfig={projectionConfig}
             projectionColorMap={projectionColorMap}
             activeBrightness={settings.activeBrightness}
@@ -1653,14 +1654,17 @@ function CameraSync({
  *
  *  Accumulation (mean/sum): step 2 renders the projection into an off-screen
  *  RGBA float target whose additive blending sums signed scalar components
- *  as (positiveSum, negativeSum, count, count); step 3 alpha-blends a
- *  fullscreen composite quad over the ghost context, reconstructing the mean
- *  (signed sum / count) or exposure-scaled signed sum and emitting
- *  transparency where the signal is weak.
+ *  as (positiveSum, negativeSum, denominator, denominator). For signed
+ *  stim/swim mean with weak-correlation fade, the denominator is signal
+ *  strength instead of raw count, so transparent near-zero samples do not
+ *  hide stronger signal. Step 3 alpha-blends a fullscreen composite quad
+ *  over the ghost context, reconstructing the mean or exposure-scaled
+ *  signed sum and emitting transparency where the reduced signal is weak.
  */
 function ProjectionRenderPass({
   mode,
   sumExposure,
+  intensityFloor,
   projectionConfig,
   projectionColorMap,
   activeBrightness,
@@ -1668,6 +1672,7 @@ function ProjectionRenderPass({
 }: {
   mode: Exclude<ProjectionMode, 'off'>;
   sumExposure: number;
+  intensityFloor: number;
   projectionConfig: ScalarProjectionConfig;
   projectionColorMap: THREE.DataTexture;
   activeBrightness: number;
@@ -1698,6 +1703,7 @@ function ProjectionRenderPass({
         src: { value: rt.texture },
         mode: { value: 0 },
         sumExposure: { value: 1 },
+        intensityFloor: { value: 0.05 },
         colorMap: { value: projectionColorMap },
         scalarMode: { value: projectionConfig.scalarMode },
         scalarLo: { value: projectionConfig.scalarLo },
@@ -1720,6 +1726,9 @@ function ProjectionRenderPass({
   useEffect(() => {
     compositeMaterial.uniforms.sumExposure.value = Math.max(0.01, Math.min(10, sumExposure));
   }, [compositeMaterial, sumExposure]);
+  useEffect(() => {
+    compositeMaterial.uniforms.intensityFloor.value = Math.max(0, Math.min(1, intensityFloor));
+  }, [compositeMaterial, intensityFloor]);
   useEffect(() => {
     compositeMaterial.uniforms.colorMap.value = projectionColorMap;
     compositeMaterial.uniforms.scalarMode.value = projectionConfig.scalarMode;

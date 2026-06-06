@@ -408,7 +408,9 @@ export function SettingsTab({
                     <span className="text-neutral-200"> Min</span> — lowest
                     scalar along the ray.
                     <span className="text-neutral-200"> Mean</span> —
-                    arithmetic mean scalar.
+                    arithmetic mean scalar; in signed Stim/Swim with weak
+                    correlations faded, the mean is weighted by signed-signal
+                    strength so transparent near-zero samples do not dominate.
                     <span className="text-neutral-200"> Max</span> — highest
                     scalar along the ray.
                     <span className="text-neutral-200"> Min/Max</span> — the
@@ -465,7 +467,7 @@ export function SettingsTab({
                             min={0}
                             max={1}
                             step={0.01}
-                            title="minimum per-cell projection intensity included; raise to hide weak/noisy signal"
+                            title="minimum projection intensity included; for signed mean/sum this also hides reduced near-zero/cancelled signal"
                             onChange={(v) =>
                                 update({
                                     projectionIntensityFloor: Math.max(
