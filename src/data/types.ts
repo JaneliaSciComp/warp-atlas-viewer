@@ -262,8 +262,27 @@ export interface SettingsState {
     stimLo: number;
     /** Above this correlation magnitude, the Stim scheme's divergent
      *  palette is saturated. Default 0.30 — roughly the 99th percentile of the
-     *  cycle-wide stimulus-correlation distribution. */
+     *  cycle-wide stimulus-correlation distribution. When
+     *  `stimSplitSaturation` is on, this anchors the *positive* (red) side
+     *  only and `stimHiNeg` anchors the negative (blue) side. */
     stimHi: number;
+    /** When true, the Stim color/projection ramp uses independent
+     *  saturation anchors per sign: `stimHiPos` for positive correlations,
+     *  `stimHiNeg` for negative. The stim-correlation distribution is
+     *  skewed positive (far more strong +r than −r cells), so a single
+     *  symmetric anchor forces a trade-off where one sign washes out.
+     *  Off (default) keeps a single symmetric anchor (`stimHi`). */
+    stimSplitSaturation: boolean;
+    /** Positive-side saturation magnitude for the Stim scheme, used only
+     *  when `stimSplitSaturation` is on (the unified `stimHi` is used when
+     *  off). Cells with r ≥ +stimHiPos clamp to the red endpoint. Default
+     *  0.40 — wider than the unified anchor to suit the heavy +r tail. */
+    stimHiPos: number;
+    /** Negative-side saturation magnitude for the Stim scheme, used only
+     *  when `stimSplitSaturation` is on. Cells with r ≤ −stimHiNeg clamp to
+     *  the blue endpoint. Default 0.20 — tighter to surface the sparse −r
+     *  tail. */
+    stimHiNeg: number;
     /** Upper anchor for the Gene scheme's plasma palette (raw FISH spot
      *  count). Cells expressing more than this saturate at the bright
      *  end. Different probes / datasets have different practical
@@ -457,6 +476,9 @@ export interface SettingsState {
 export const DEFAULT_SETTINGS: SettingsState = {
     stimLo: 0.13,
     stimHi: 0.3,
+    stimSplitSaturation: false,
+    stimHiPos: 0.4,
+    stimHiNeg: 0.2,
     geneMaxSpots: 1000,
     geneThresholdMode: "paper",
     geneThresholdGlobal: 25,

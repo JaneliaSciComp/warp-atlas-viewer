@@ -337,7 +337,17 @@ export function applyColoring(
   // tolerate stimHi <= stimLo by clamping the divisor to something
   // small but positive so the ramp still maps without dividing by zero.
   const stimLo = Math.max(0, settings.stimLo);
-  const stimHi = Math.max(stimLo + 0.001, settings.stimHi);
+  // Saturation anchors. With split saturation off both signs share the
+  // unified stimHi (symmetric ramp); on, each side uses its own endpoint
+  // so the positive-skewed distribution doesn't force one sign to wash
+  // out (see SettingsState.stimSplitSaturation).
+  const stimHi = Math.max(
+    stimLo + 0.001,
+    settings.stimSplitSaturation ? settings.stimHiPos : settings.stimHi,
+  );
+  const stimHiNeg = settings.stimSplitSaturation
+    ? Math.max(stimLo + 0.001, settings.stimHiNeg)
+    : stimHi;
   // Swim coloring anchors: symmetric around 0. Below |r| = swimLo the
   // cell maps to the neutral midpoint of the divergent ramp; above
   // |r| = swimHi it saturates at the corresponding end. Clamp the divisor
@@ -443,7 +453,10 @@ export function applyColoring(
   // enabled, the same floor becomes both the filter criterion and the
   // neutral deadband.
   const stimColorLo = stimActive ? stimLo : 0;
-  const stimColorRange = Math.max(0.001, stimHi - stimColorLo);
+  // Per-sign spans between the deadband and each saturation anchor. Equal
+  // when split saturation is off.
+  const stimColorRangePos = Math.max(0.001, stimHi - stimColorLo);
+  const stimColorRangeNeg = Math.max(0.001, stimHiNeg - stimColorLo);
   // Sign-aware predicate (encoded as ints to keep the hot loop branchless):
   //   0 = positive (r >= +lo), 1 = negative (r <= -lo), 2 = both (|r| >= lo)
   const stimModeCode = stimMode === 'negative' ? 1 : stimMode === 'both' ? 2 : 0;
@@ -774,9 +787,10 @@ export function applyColoring(
         }
         case 'stim': {
           // Divergent coolwarm ramp over signed stim correlation,
-          // anchored symmetrically at ±stimColorLo (0 in no-filter
-          // mode, settings.stimLo when a sign-band is armed) and
-          // ±stimHi (saturation). With one stimulus selected we paint by
+          // anchored at ±stimColorLo (0 in no-filter mode,
+          // settings.stimLo when a sign-band is armed) and at +stimHi /
+          // −stimHiNeg (saturation; the two saturation anchors are equal
+          // unless split saturation is on). With one stimulus selected we paint by
           // its signed r. With multiple stimuli (or "all stims") the rep
           // we pick tracks the filter direction WHEN the filter is active.
           // With the filter inactive (no stims, or mode 'off') the
@@ -825,7 +839,8 @@ export function applyColoring(
           if (mag <= stimColorLo) {
             v = 0;
           } else {
-            v = Math.min(1, (mag - stimColorLo) / stimColorRange);
+            const range = rawA >= 0 ? stimColorRangePos : stimColorRangeNeg;
+            v = Math.min(1, (mag - stimColorLo) / range);
           }
           const signed = rawA >= 0 ? v : -v;
           const c = coolwarm(signed);

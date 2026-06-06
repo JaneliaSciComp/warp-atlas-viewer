@@ -632,14 +632,49 @@ export function SettingsTab({
                     step={0.05}
                     onChange={(v) => update({ stimLo: Math.max(0, v) })}
                 />
-                <NumberRow
-                    label="saturation (|r| ≥)"
-                    value={settings.stimHi}
-                    min={settings.stimLo + 0.01}
-                    max={1}
-                    step={0.05}
-                    onChange={(v) => update({ stimHi: v })}
-                />
+                <label
+                    className="flex items-center gap-2 pl-3 text-xs cursor-pointer select-none text-neutral-300"
+                    title="give the positive (red) and negative (blue) sides independent saturation anchors — the stim-correlation distribution is skewed positive, so a single symmetric anchor makes one sign wash out"
+                >
+                    <input
+                        type="checkbox"
+                        checked={settings.stimSplitSaturation}
+                        onChange={(e) =>
+                            update({ stimSplitSaturation: e.target.checked })
+                        }
+                        className="accent-neutral-300"
+                    />
+                    split +/− saturation
+                </label>
+                {settings.stimSplitSaturation ? (
+                    <>
+                        <NumberRow
+                            label="saturation + (r ≥)"
+                            value={settings.stimHiPos}
+                            min={settings.stimLo + 0.01}
+                            max={1}
+                            step={0.05}
+                            onChange={(v) => update({ stimHiPos: v })}
+                        />
+                        <NumberRow
+                            label="saturation − (r ≤ −)"
+                            value={settings.stimHiNeg}
+                            min={settings.stimLo + 0.01}
+                            max={1}
+                            step={0.05}
+                            onChange={(v) => update({ stimHiNeg: v })}
+                        />
+                    </>
+                ) : (
+                    <NumberRow
+                        label="saturation (|r| ≥)"
+                        value={settings.stimHi}
+                        min={settings.stimLo + 0.01}
+                        max={1}
+                        step={0.05}
+                        onChange={(v) => update({ stimHi: v })}
+                    />
+                )}
             </section>
 
             <section className="flex flex-col gap-2">

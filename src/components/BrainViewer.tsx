@@ -94,6 +94,10 @@ interface ScalarProjectionConfig {
   scalarMode: 0 | 1 | 2;
   scalarLo: number;
   scalarHi: number;
+  /** Negative-side endpoint magnitude for signed mode; equals scalarHi
+   *  except when Stim split saturation is enabled. Ignored by sequential
+   *  modes. */
+  scalarHiNeg: number;
   scalarLogDen: number;
   colorMapKind: ProjectionColorMapKind;
 }
@@ -103,6 +107,7 @@ const DEFAULT_SCALAR_PROJECTION: ScalarProjectionConfig = {
   scalarMode: 0,
   scalarLo: 0,
   scalarHi: 1,
+  scalarHiNeg: 1,
   scalarLogDen: Math.log(2),
   colorMapKind: 'plasma',
 };
@@ -158,6 +163,7 @@ function scalarProjectionConfig(
         scalarMode: filter.geneScale === 'linear' ? 0 : 1,
         scalarLo: 0,
         scalarHi: hi,
+        scalarHiNeg: hi,
         scalarLogDen: Math.log(1 + hi),
         colorMapKind: 'plasma',
       };
@@ -170,6 +176,7 @@ function scalarProjectionConfig(
         scalarMode: 0,
         scalarLo: lo,
         scalarHi: hi,
+        scalarHiNeg: hi,
         scalarLogDen: Math.log(2),
         colorMapKind: 'plasma',
       };
@@ -182,12 +189,22 @@ function scalarProjectionConfig(
       // not collapse to the same contributor set as "± either".
       const stimFilterActive = filter.selectedStimuli.length > 0 && filter.stimMode !== 'off';
       const lo = stimFilterActive ? Math.max(0, settings.stimLo) : 0;
-      const hi = Math.max(lo + 0.001, settings.stimHi);
+      // Split saturation: each side gets its own endpoint so the
+      // positive-skewed correlation distribution doesn't wash out one
+      // sign. Off → symmetric (both use stimHi). Mirrors applyColoring.
+      const hi = Math.max(
+        lo + 0.001,
+        settings.stimSplitSaturation ? settings.stimHiPos : settings.stimHi,
+      );
+      const hiNeg = settings.stimSplitSaturation
+        ? Math.max(lo + 0.001, settings.stimHiNeg)
+        : hi;
       return {
         supported: true,
         scalarMode: 2,
         scalarLo: lo,
         scalarHi: hi,
+        scalarHiNeg: hiNeg,
         scalarLogDen: Math.log(2),
         colorMapKind: 'coolwarm',
       };
@@ -200,6 +217,7 @@ function scalarProjectionConfig(
         scalarMode: 2,
         scalarLo: lo,
         scalarHi: hi,
+        scalarHiNeg: hi,
         scalarLogDen: Math.log(2),
         colorMapKind: 'coolwarm',
       };
@@ -382,6 +400,7 @@ function PointCloud({
         scalarMode: { value: projectionConfig.scalarMode },
         scalarLo: { value: projectionConfig.scalarLo },
         scalarHi: { value: projectionConfig.scalarHi },
+        scalarHiNeg: { value: projectionConfig.scalarHiNeg },
         scalarLogDen: { value: projectionConfig.scalarLogDen },
         activeBrightness: { value: 0 },
         fadeWeakCorrelation: { value: 1 },
@@ -427,6 +446,7 @@ function PointCloud({
           scalarMode: { value: projectionConfig.scalarMode },
           scalarLo: { value: projectionConfig.scalarLo },
           scalarHi: { value: projectionConfig.scalarHi },
+          scalarHiNeg: { value: projectionConfig.scalarHiNeg },
           scalarLogDen: { value: projectionConfig.scalarLogDen },
         },
       }),
@@ -453,12 +473,14 @@ function PointCloud({
     projectionMaterial.uniforms.scalarMode.value = projectionConfig.scalarMode;
     projectionMaterial.uniforms.scalarLo.value = projectionConfig.scalarLo;
     projectionMaterial.uniforms.scalarHi.value = projectionConfig.scalarHi;
+    projectionMaterial.uniforms.scalarHiNeg.value = projectionConfig.scalarHiNeg;
     projectionMaterial.uniforms.scalarLogDen.value = projectionConfig.scalarLogDen;
     projectionMaterial.uniforms.activeBrightness.value = settings.activeBrightness;
     projectionMaterial.uniforms.fadeWeakCorrelation.value = settings.fadeWeakCorrelation ? 1 : 0;
     idMaterial.uniforms.scalarMode.value = projectionConfig.scalarMode;
     idMaterial.uniforms.scalarLo.value = projectionConfig.scalarLo;
     idMaterial.uniforms.scalarHi.value = projectionConfig.scalarHi;
+    idMaterial.uniforms.scalarHiNeg.value = projectionConfig.scalarHiNeg;
     idMaterial.uniforms.scalarLogDen.value = projectionConfig.scalarLogDen;
   }, [
     idMaterial,
@@ -1732,6 +1754,7 @@ function ProjectionRenderPass({
         scalarMode: { value: projectionConfig.scalarMode },
         scalarLo: { value: projectionConfig.scalarLo },
         scalarHi: { value: projectionConfig.scalarHi },
+        scalarHiNeg: { value: projectionConfig.scalarHiNeg },
         scalarLogDen: { value: projectionConfig.scalarLogDen },
         activeBrightness: { value: 0 },
         fadeWeakCorrelation: { value: 1 },
@@ -1760,6 +1783,7 @@ function ProjectionRenderPass({
     compositeMaterial.uniforms.scalarMode.value = projectionConfig.scalarMode;
     compositeMaterial.uniforms.scalarLo.value = projectionConfig.scalarLo;
     compositeMaterial.uniforms.scalarHi.value = projectionConfig.scalarHi;
+    compositeMaterial.uniforms.scalarHiNeg.value = projectionConfig.scalarHiNeg;
     compositeMaterial.uniforms.scalarLogDen.value = projectionConfig.scalarLogDen;
     compositeMaterial.uniforms.activeBrightness.value = activeBrightness;
     compositeMaterial.uniforms.fadeWeakCorrelation.value = fadeWeakCorrelation ? 1 : 0;

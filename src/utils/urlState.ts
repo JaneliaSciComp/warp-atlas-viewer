@@ -283,6 +283,9 @@ function validateSettings(raw: unknown): Partial<SettingsState> {
   // represented by FilterState.stimMode.
   if (isFiniteNum(s.stimLo)) out.stimLo = clamp(s.stimLo, 0, 1);
   if (isFiniteNum(s.stimHi)) out.stimHi = clamp(s.stimHi, 0, 1);
+  if (typeof s.stimSplitSaturation === 'boolean') out.stimSplitSaturation = s.stimSplitSaturation;
+  if (isFiniteNum(s.stimHiPos)) out.stimHiPos = clamp(s.stimHiPos, 0, 1);
+  if (isFiniteNum(s.stimHiNeg)) out.stimHiNeg = clamp(s.stimHiNeg, 0, 1);
   if (isFiniteNum(s.geneMaxSpots) && s.geneMaxSpots > 0) {
     out.geneMaxSpots = clamp(s.geneMaxSpots, 1, 100000);
   }

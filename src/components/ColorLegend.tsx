@@ -157,9 +157,13 @@ export function chooseVisibleTicks(
   return visible.sort((a, b) => a.leftPct - b.leftPct);
 }
 
-export function signedCorrelationTicks(lo: number, hi: number): GradientTickSpec[] {
+export function signedCorrelationTicks(
+  lo: number,
+  hi: number,
+  hiNeg: number = hi,
+): GradientTickSpec[] {
   const ticks: GradientTickSpec[] = [
-    { value: -hi, priority: 100 },
+    { value: -hiNeg, priority: 100 },
     { value: hi, priority: 100 },
     { value: 0, priority: 90 },
   ];
@@ -432,7 +436,8 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
       />
     );
   }
-  // stim correlation — divergent coolwarm ramp from -stimHi to +stimHi.
+  // stim correlation — divergent coolwarm ramp from -stimHiNeg to +stimHi
+  // (the two saturation anchors are equal unless split saturation is on).
   // Sign reads as colour (blue → red), magnitude as intensity. Mirrors
   // the swim legend so the two signed-correlation maps share visual
   // vocabulary. The title describes the *representative r* the
@@ -464,10 +469,21 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
         ? `Stim: ${stimRepPhrase} across all`
         : `Stim: ${stimRepPhrase} across ${sel.length}`;
   const lo = stimFilterActive ? Math.max(0, settings.stimLo) : 0;
-  const hi = Math.max(lo + 0.001, settings.stimHi);
-  const range = Math.max(0.001, 2 * hi); // -hi → +hi
-  const ticks = signedCorrelationTicks(lo, hi);
-  const tickPos = (t: number) => ((t + hi) / range) * 100;
+  const hi = Math.max(
+    lo + 0.001,
+    settings.stimSplitSaturation ? settings.stimHiPos : settings.stimHi,
+  );
+  // Negative-side anchor; equals hi unless split saturation is on. The
+  // coolwarm gradient bar stays visually symmetric (white at 50%), so r=0
+  // sits at the center and each half is scaled to its own anchor — a
+  // negative r maps within [−hiNeg, 0] → [0%, 50%], a positive r within
+  // [0, +hi] → [50%, 100%]. This matches the per-sign rendering ramp.
+  const hiNeg = settings.stimSplitSaturation
+    ? Math.max(lo + 0.001, settings.stimHiNeg)
+    : hi;
+  const ticks = signedCorrelationTicks(lo, hi, hiNeg);
+  const tickPos = (t: number) =>
+    t < 0 ? 50 + (t / hiNeg) * 50 : 50 + (t / hi) * 50;
   return (
     <GradientLegend
       title={stimTitle}

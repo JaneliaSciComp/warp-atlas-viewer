@@ -453,4 +453,37 @@ describe('applyColoring stats', () => {
     expect(eitherOut.scalarValues[3]).toBeNaN();
     expect(eitherOut.intensities[3]).toBe(0);
   });
+
+  it('Stim split saturation gives each sign an independent intensity ramp', () => {
+    // Cell 0 = +0.25 (stim0), cell 1 = −0.25 (stim0): equal magnitude,
+    // opposite sign. No-filter mode (deadband 0) so the only thing
+    // shaping intensity is the per-sign saturation anchor.
+    const ds: NeuronDataset = {
+      ...TEST_DATA,
+      stimulusCorr: new Float32Array([0.25, 0, -0.25, 0, 0, 0, 0, 0]),
+    };
+    const filter = { ...BASE_FILTER, colorMode: 'stim' as const, selectedStimuli: [0], stimMode: 'off' as const };
+
+    // Split off: one symmetric anchor → equal magnitude reads equal intensity.
+    const symOut = allocColoring(ds.count);
+    applyColoring(ds, filter, { ...DEFAULT_SETTINGS, stimHi: 0.5 }, emptySelection, CH, symOut);
+    expect(symOut.intensities[0]).toBeCloseTo(0.5);
+    expect(symOut.intensities[1]).toBeCloseTo(0.5);
+
+    // Split on: positive anchored at 0.5, negative at 0.25 → the negative
+    // cell saturates (v=1) while the positive cell is only half-way.
+    const splitOut = allocColoring(ds.count);
+    applyColoring(
+      ds,
+      filter,
+      { ...DEFAULT_SETTINGS, stimSplitSaturation: true, stimHiPos: 0.5, stimHiNeg: 0.25 },
+      emptySelection,
+      CH,
+      splitOut,
+    );
+    expect(splitOut.scalarValues[0]).toBeCloseTo(0.25);
+    expect(splitOut.scalarValues[1]).toBeCloseTo(-0.25);
+    expect(splitOut.intensities[0]).toBeCloseTo(0.5);
+    expect(splitOut.intensities[1]).toBeCloseTo(1.0);
+  });
 });
