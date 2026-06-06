@@ -14,6 +14,7 @@ import {
 import type { SharedColoring } from '../hooks/useColoring';
 import vertSrc from '../shaders/neuron.vert.glsl?raw';
 import fragSrc from '../shaders/neuron.frag.glsl?raw';
+import contextFragSrc from '../shaders/neuron_context.frag.glsl?raw';
 import projectionVertSrc from '../shaders/projection.vert.glsl?raw';
 import projectionFragSrc from '../shaders/projection.frag.glsl?raw';
 import projectionCompositeVertSrc from '../shaders/projection_composite.vert.glsl?raw';
@@ -129,6 +130,12 @@ const PROJECTION_MODE_LABELS: Record<ProjectionMode, string> = {
 // Order the pill menu winner-take-all first (min/max/min-max), then the
 // accumulation modes (mean/sum), with off on top.
 const PROJECTION_MODE_ORDER: ProjectionMode[] = ['off', 'min', 'max', 'maxabs', 'mean', 'sum'];
+
+// Scene-object names so the accumulation render pass (a sibling of
+// PointCloud in the same scene) can find the projection overlay and its
+// dim context underlay without prop-threading refs across components.
+const PROJECTION_POINTS_NAME = 'projectionPoints';
+const PROJECTION_CONTEXT_NAME = 'projectionContext';
 
 function scalarProjectionConfig(
   data: NeuronDataset,
@@ -248,6 +255,10 @@ function PointCloud({
   onHoverChange: (i: number) => void;
 }) {
   const { gl, scene, camera, size } = useThree();
+  // The dim context underlay. Hidden during the ID-buffer picking render
+  // so hover/click resolve to the projection cell on top, not a context
+  // dot behind it.
+  const contextPointsRef = useRef<THREE.Points>(null);
 
   const buffers = useMemo(() => allocColoring(data.count), [data]);
 
@@ -314,6 +325,29 @@ function PointCloud({
         flatPointSize: { value: 0 },
         alphaMin: { value: 0 },
         alphaMax: { value: ALPHA_PASS_SPLIT },
+      },
+    });
+  }, [gl]);
+
+  // Dim anatomical-context material. In projection mode this draws every
+  // renderable cell as a faint grey disc BEHIND the projection overlay,
+  // so the transparent (weak-signal) parts of the projection reveal the
+  // brain's shape/density instead of flat background. depthWrite/Test off
+  // → it's a pure soft underlay that never fights the projection's own
+  // per-pixel depth reduction.
+  const contextMaterial = useMemo(() => {
+    return new THREE.ShaderMaterial({
+      vertexShader: vertSrc,
+      fragmentShader: contextFragSrc,
+      transparent: true,
+      depthWrite: false,
+      depthTest: false,
+      uniforms: {
+        pixelRatio: { value: gl.getPixelRatio() },
+        sizeScale: { value: 1 },
+        flatPointSize: { value: 0 },
+        contextColor: { value: new THREE.Color(0.34, 0.34, 0.37) },
+        contextAlpha: { value: 0.16 },
       },
     });
   }, [gl]);
@@ -624,6 +658,7 @@ function PointCloud({
     opaqueMaterial.uniforms.flatPointSize.value = v;
     transparentMaterial.uniforms.flatPointSize.value = v;
     projectionMaterial.uniforms.flatPointSize.value = v;
+    contextMaterial.uniforms.flatPointSize.value = v;
     idMaterial.uniforms.flatPointSize.value = v;
     markerMaterial.uniforms.flatPointSize.value = v;
   }, [
@@ -631,6 +666,7 @@ function PointCloud({
     opaqueMaterial,
     transparentMaterial,
     projectionMaterial,
+    contextMaterial,
     idMaterial,
     markerMaterial,
   ]);
@@ -683,7 +719,13 @@ function PointCloud({
       const prevTarget = gl.getRenderTarget();
       const prevClearColor = gl.getClearColor(new THREE.Color());
       const prevClearAlpha = gl.getClearAlpha();
+      const ctx = contextPointsRef.current;
+      const prevCtxVisible = ctx ? ctx.visible : true;
       try {
+        // Exclude the dim context underlay so its cells (which share the
+        // geometry, hence the same scalar attributes) don't win ID pixels
+        // over the projection cells the user actually sees.
+        if (ctx) ctx.visible = false;
         scene.overrideMaterial = idMaterial;
         // The viewer scene has an opaque background color for the normal
         // backbuffer render. Suppress it for the ID target so empty pixels
@@ -694,6 +736,7 @@ function PointCloud({
         gl.clear(true, true, false);
         gl.render(scene, camera);
       } finally {
+        if (ctx) ctx.visible = prevCtxVisible;
         scene.overrideMaterial = prevOverride;
         scene.background = prevBackground;
         gl.setRenderTarget(prevTarget);
@@ -864,17 +907,32 @@ function PointCloud({
   return (
     <group rotation={[0, 0, Math.PI / 2]} scale={[1, -1, 1]}>
       {projectionOn ? (
-        // Single projection pass replaces both the opaque + transparent
-        // normal passes. For max/min this draws directly into the back
-        // buffer; for mean/sum the AccumulationProjectionPass component below takes
-        // over the render and routes this geometry through an off-screen
-        // target instead.
-        <points
-          geometry={geometry}
-          material={projectionMaterial}
-          renderOrder={0}
-          userData={skipAmbientOcclusionUserData}
-        />
+        // Projection mode replaces the normal opaque + transparent passes
+        // with a dim context underlay plus the projection overlay. The
+        // context (faint grey brain, renderOrder -1) draws first; the
+        // projection composites over it, transparent where the signal is
+        // weak so the brain shows through. For max/min/maxabs this draws
+        // directly into the back buffer; for mean/sum the
+        // AccumulationProjectionPass component takes over the render and
+        // routes the projection geometry through an off-screen target,
+        // compositing it over the same context.
+        <>
+          <points
+            ref={contextPointsRef}
+            name={PROJECTION_CONTEXT_NAME}
+            geometry={geometry}
+            material={contextMaterial}
+            renderOrder={-1}
+            userData={skipAmbientOcclusionUserData}
+          />
+          <points
+            name={PROJECTION_POINTS_NAME}
+            geometry={geometry}
+            material={projectionMaterial}
+            renderOrder={0}
+            userData={skipAmbientOcclusionUserData}
+          />
+        </>
       ) : (
         <>
           {/* Opaque pass first so its depth values are in place before the
@@ -1138,8 +1196,8 @@ export function BrainViewer({
             flatPointSize={!settings.scaleByDepth}
           />
         )}
-        {(activeProjectionMode === 'mean' || activeProjectionMode === 'sum') && (
-          <AccumulationProjectionPass
+        {activeProjectionMode !== 'off' && (
+          <ProjectionRenderPass
             mode={activeProjectionMode}
             sumExposure={settings.projectionSumExposure}
             projectionConfig={projectionConfig}
@@ -1577,22 +1635,28 @@ function CameraSync({
   return null;
 }
 
-/** Accumulation-projection render hijack used by both mean and sum.
- *  Takes over the render loop at priority 1 (so r3f stops auto-
- *  rendering) and runs a two-step pass per frame:
- *    1. Clear an off-screen RGBA target to (0, 0, 0, 0) and render the
- *       scene into it. The projection material's additive blending
- *       accumulates signed scalar components as
- *       (positiveSum, negativeSum, count, count) per touched pixel.
- *    2. Render a fullscreen quad to the back buffer with the composite
- *       shader. The composite's `mode` uniform selects arithmetic mean
- *       (signed sum / count) or exposure-scaled signed sum, then maps
- *       the resulting scalar through the active color map.
- *  Only mounted when projectionMode is mean or sum; for max/min modes
- *  the GPU's depth test does the reduction in a single direct-to-
- *  backbuffer pass and no hijack is needed.
+/** Projection render hijack for every active projection mode. Takes over
+ *  the render loop at priority 1 (so r3f stops auto-rendering) so it can
+ *  draw the dim context brain first and then composite the projection on
+ *  top in an explicit, queue-independent order — weak/empty regions stay
+ *  transparent and reveal the context.
+ *
+ *  Step 1 (all modes): render the context brain to the back buffer
+ *  (projection hidden); autoClear also resets the depth buffer.
+ *
+ *  Winner-take-all (min/max/maxabs): step 2 renders the projection points
+ *  straight over the context with autoClear off — the GPU depth test (keyed
+ *  on the scalar, not real distance) does the per-pixel reduction, and the
+ *  per-cell alpha blends transparently over the context.
+ *
+ *  Accumulation (mean/sum): step 2 renders the projection into an off-screen
+ *  RGBA float target whose additive blending sums signed scalar components
+ *  as (positiveSum, negativeSum, count, count); step 3 alpha-blends a
+ *  fullscreen composite quad over the context, reconstructing the mean
+ *  (signed sum / count) or exposure-scaled signed sum and emitting
+ *  transparency where the signal is weak.
  */
-function AccumulationProjectionPass({
+function ProjectionRenderPass({
   mode,
   sumExposure,
   projectionConfig,
@@ -1600,7 +1664,7 @@ function AccumulationProjectionPass({
   activeBrightness,
   fadeWeakCorrelation,
 }: {
-  mode: 'mean' | 'sum';
+  mode: Exclude<ProjectionMode, 'off'>;
   sumExposure: number;
   projectionConfig: ScalarProjectionConfig;
   projectionColorMap: THREE.DataTexture;
@@ -1622,11 +1686,14 @@ function AccumulationProjectionPass({
       glslVersion: THREE.GLSL3,
       vertexShader: projectionCompositeVertSrc,
       fragmentShader: projectionCompositeFragSrc,
+      // Alpha-blended over the dim context brain already in the back
+      // buffer; weak/untouched pixels carry low alpha and reveal it.
+      transparent: true,
+      blending: THREE.NormalBlending,
       depthTest: false,
       depthWrite: false,
       uniforms: {
         src: { value: rt.texture },
-        background: { value: new THREE.Color(VIEWER_BACKGROUND) },
         mode: { value: 0 },
         sumExposure: { value: 1 },
         colorMap: { value: projectionColorMap },
@@ -1675,28 +1742,67 @@ function AccumulationProjectionPass({
     rt.setSize(Math.max(1, Math.floor(size.width * pr)), Math.max(1, Math.floor(size.height * pr)));
   }, [gl, rt, size.height, size.width]);
 
+  const winnerTakeAll = mode === 'min' || mode === 'max' || mode === 'maxabs';
+
   useFrame(() => {
+    const ctx = scene.getObjectByName(PROJECTION_CONTEXT_NAME);
+    const proj = scene.getObjectByName(PROJECTION_POINTS_NAME);
     const prevTarget = gl.getRenderTarget();
     const prevBackground = scene.background;
     const prevClearColor = gl.getClearColor(new THREE.Color());
     const prevClearAlpha = gl.getClearAlpha();
+    const prevAutoClear = gl.autoClear;
+    const prevCtxVisible = ctx ? ctx.visible : true;
+    const prevProjVisible = proj ? proj.visible : true;
     try {
-      gl.setRenderTarget(rt);
-      gl.setClearColor(0x000000, 0);
-      gl.clear(true, true, true);
-      // The main scene's background is intentionally opaque. If left in
-      // place while rendering the accumulation target, Three clears the
-      // float texture to that background with alpha=1, which makes every
-      // pixel look "touched" and corrupts mean/sum compositing. Keep the
-      // accumulation buffer transparent except where point sprites draw.
-      scene.background = null;
+      // 1. Dim context brain → back buffer. Keep the scene's opaque
+      //    background and let autoClear paint it (and reset depth), then
+      //    the context points draw over it. Projection hidden so only the
+      //    context lands here.
+      gl.autoClear = true;
+      if (ctx) ctx.visible = true;
+      if (proj) proj.visible = false;
+      gl.setRenderTarget(null);
       gl.render(scene, camera);
+      if (winnerTakeAll) {
+        // 2. Projection over the context, straight to the back buffer.
+        //    autoClear off preserves the context color; the depth buffer
+        //    was just cleared in step 1, so the scalar-keyed depth test
+        //    still does a clean per-pixel reduction among projection cells.
+        //    Null the background so Three doesn't repaint it over the
+        //    context this pass.
+        if (ctx) ctx.visible = false;
+        if (proj) proj.visible = true;
+        scene.background = null;
+        gl.autoClear = false;
+        gl.render(scene, camera);
+      } else {
+        // 2. Projection accumulation → off-screen float target. Null the
+        //    background (otherwise Three clears the float texture to it with
+        //    alpha=1, making every pixel look "touched" and corrupting the
+        //    mean/sum compositing) and render the projection points only.
+        if (ctx) ctx.visible = false;
+        if (proj) proj.visible = true;
+        scene.background = null;
+        gl.setRenderTarget(rt);
+        gl.setClearColor(0x000000, 0);
+        gl.clear(true, true, true);
+        gl.render(scene, camera);
+        // 3. Composite the reduced scalar over the context brain. autoClear
+        //    off so the context survives; the composite is alpha-blended and
+        //    transparent where the signal is weak, revealing the context.
+        gl.setRenderTarget(null);
+        gl.autoClear = false;
+        gl.render(fullscreenScene, fullscreenCamera);
+      }
     } finally {
       scene.background = prevBackground;
       gl.setRenderTarget(prevTarget);
       gl.setClearColor(prevClearColor, prevClearAlpha);
+      gl.autoClear = prevAutoClear;
+      if (ctx) ctx.visible = prevCtxVisible;
+      if (proj) proj.visible = prevProjVisible;
     }
-    gl.render(fullscreenScene, fullscreenCamera);
   }, 1);
 
   return null;

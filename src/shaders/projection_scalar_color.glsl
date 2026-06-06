@@ -5,10 +5,12 @@ uniform sampler2D colorMap;
 uniform float activeBrightness;
 uniform float fadeWeakCorrelation;
 
-// Match the normal stim/swim fade floor: neutral signed values should
-// be visible enough to read as context, but transparent enough that the
-// coolwarm white midpoint does not dominate projection views.
-const float SIGNED_ALPHA_FLOOR = 0.12;
+// Neutral signed values fade all the way to transparent. The dim
+// context brain rendered behind the projection supplies the "weak cells
+// still readable" role the old non-zero floor used to play — so here we
+// let the coolwarm midpoint drop to zero alpha and reveal that context
+// instead of painting an opaque grey wash over it.
+const float SIGNED_ALPHA_FLOOR = 0.0;
 
 float scalarAlphaFromT(float t) {
   if (scalarMode == 2 && fadeWeakCorrelation > 0.5) {
