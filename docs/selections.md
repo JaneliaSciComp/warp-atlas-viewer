@@ -31,6 +31,8 @@ Click any cell:
 - in the **3D viewer** to focus it,
 - in the **t-SNE** to focus the same cell.
 
+Projection modes in the 3D viewer still support click-focus. **Min**, **Max**, and **Min/Max** focus the cell that wins the projected pixel; **Mean** and **Sum** focus a contributing cell under the cursor.
+
 The Detail panel switches to single-cell mode. The focused cell is marked with a white ring in both views; its color is not altered (the active color scheme is meaningful, so selection doesn't shift it).
 
 To clear the focus:

@@ -144,6 +144,7 @@ const PROJECTION_MODE_ORDER: ProjectionMode[] = ['off', 'min', 'max', 'maxabs', 
 // ghost/context underlay without prop-threading refs across components.
 const PROJECTION_POINTS_NAME = 'projectionPoints';
 const PROJECTION_CONTEXT_NAME = 'projectionContext';
+const FOCUS_MARKER_NAME = 'focusMarker';
 
 function scalarProjectionConfig(
   data: NeuronDataset,
@@ -649,6 +650,7 @@ function PointCloud({
     g.setDrawRange(0, 0);
     return g;
   }, []);
+  const markerPointsRef = useRef<THREE.Points>(null);
 
   // The marker material is created once per renderer. Subsequent
   // pointSize changes flow through the effect below by mutating
@@ -795,16 +797,9 @@ function PointCloud({
 
   useFrame(() => {
     const projMode = projectionMode;
-    // Mean / sum projection: no single cell "wins" a pixel, so there's
-    // no meaningful target for hover/click — disable picking entirely
-    // and let the cursor pass through to camera controls.
-    if (projMode === 'mean' || projMode === 'sum') {
-      if (pickRef.current.hovered !== -1) {
-        pickRef.current.hovered = -1;
-        onHoverChange(-1);
-      }
-      return;
-    }
+    // Mean / sum projection has no single per-pixel winner. It still
+    // needs click focus, so those modes fall through to the geometric
+    // picker below, restricted to cells that contribute to projection.
     // Max / min projection: pick via an ID-buffer readback so the
     // selected cell matches the pixel actually drawn on screen
     // (rather than the geometrically-nearest cell center, which can
@@ -828,11 +823,14 @@ function PointCloud({
       const prevClearAlpha = gl.getClearAlpha();
       const ctx = contextPointsRef.current;
       const prevCtxVisible = ctx ? ctx.visible : true;
+      const marker = markerPointsRef.current;
+      const prevMarkerVisible = marker ? marker.visible : true;
       try {
         // Exclude the ghost/context underlay so its cells (which share the
         // geometry, hence the same scalar attributes) don't win ID pixels
         // over the projection cells the user actually sees.
         if (ctx) ctx.visible = false;
+        if (marker) marker.visible = false;
         scene.overrideMaterial = idMaterial;
         // The viewer scene has an opaque background color for the normal
         // backbuffer render. Suppress it for the ID target so empty pixels
@@ -844,6 +842,7 @@ function PointCloud({
         gl.render(scene, camera);
       } finally {
         if (ctx) ctx.visible = prevCtxVisible;
+        if (marker) marker.visible = prevMarkerVisible;
         scene.overrideMaterial = prevOverride;
         scene.background = prevBackground;
         gl.setRenderTarget(prevTarget);
@@ -926,6 +925,8 @@ function PointCloud({
     // marks it as in-set.
     const alphas = buffers.alphas;
     const pointSizes = buffers.sizes;
+    const projectionFallbackPicking = projMode === 'mean' || projMode === 'sum';
+    const projectionFloor = Math.max(0, Math.min(1, settings.projectionIntensityFloor));
     const defaultPointSize = coloring?.effectivePointSize ?? settings.pointSize;
     const pixelRatio = gl.getPixelRatio();
     let bestDiskI = -1;
@@ -939,6 +940,10 @@ function PointCloud({
     for (let i = 0; i < data.count; i++) {
       if (!cellIsRenderable(data, filter, i)) continue;
       if (alphas && alphas[i] < 0.02) continue;
+      if (projectionFallbackPicking) {
+        if (!Number.isFinite(buffers.scalarValues[i])) continue;
+        if (buffers.intensities[i] < projectionFloor) continue;
+      }
       const ox = positions[i * 3];
       const x = positions[i * 3 + 1];
       const y = ox;
@@ -1036,6 +1041,14 @@ function PointCloud({
             renderOrder={0}
             userData={skipAmbientOcclusionUserData}
           />
+          <points
+            ref={markerPointsRef}
+            name={FOCUS_MARKER_NAME}
+            geometry={markerGeometry}
+            material={markerMaterial}
+            renderOrder={2}
+            userData={skipAmbientOcclusionUserData}
+          />
         </>
       ) : (
         <>
@@ -1051,6 +1064,8 @@ function PointCloud({
             userData={skipAmbientOcclusionUserData}
           />
           <points
+            ref={markerPointsRef}
+            name={FOCUS_MARKER_NAME}
             geometry={markerGeometry}
             material={markerMaterial}
             renderOrder={2}
@@ -1874,6 +1889,7 @@ function ProjectionRenderPass({
   useFrame(() => {
     const ctx = scene.getObjectByName(PROJECTION_CONTEXT_NAME);
     const proj = scene.getObjectByName(PROJECTION_POINTS_NAME);
+    const marker = scene.getObjectByName(FOCUS_MARKER_NAME);
     const prevTarget = gl.getRenderTarget();
     const prevBackground = scene.background;
     const prevClearColor = gl.getClearColor(new THREE.Color());
@@ -1881,6 +1897,7 @@ function ProjectionRenderPass({
     const prevAutoClear = gl.autoClear;
     const prevCtxVisible = ctx ? ctx.visible : true;
     const prevProjVisible = proj ? proj.visible : true;
+    const prevMarkerVisible = marker ? marker.visible : true;
     try {
       // 1. Ghost-only context pass → back buffer. Keep the scene's opaque
       //    background and let autoClear paint it (and reset depth), then
@@ -1889,6 +1906,7 @@ function ProjectionRenderPass({
       gl.autoClear = true;
       if (ctx) ctx.visible = true;
       if (proj) proj.visible = false;
+      if (marker) marker.visible = false;
       gl.setRenderTarget(null);
       gl.render(scene, camera);
       if (depthMip) {
@@ -1900,6 +1918,7 @@ function ProjectionRenderPass({
         //    context this pass.
         if (ctx) ctx.visible = false;
         if (proj) proj.visible = true;
+        if (marker) marker.visible = false;
         scene.background = null;
         gl.autoClear = false;
         gl.render(scene, camera);
@@ -1910,6 +1929,7 @@ function ProjectionRenderPass({
         //    mean/sum compositing) and render the projection points only.
         if (ctx) ctx.visible = false;
         if (proj) proj.visible = true;
+        if (marker) marker.visible = false;
         scene.background = null;
         gl.setRenderTarget(rt);
         gl.setClearColor(0x000000, 0);
@@ -1922,6 +1942,17 @@ function ProjectionRenderPass({
         gl.autoClear = false;
         gl.render(fullscreenScene, fullscreenCamera);
       }
+      if (marker && prevMarkerVisible) {
+        // 4. Focus marker overlay. Keep it out of the projection reduction
+        // targets above, then draw it last over the final projected image.
+        if (ctx) ctx.visible = false;
+        if (proj) proj.visible = false;
+        marker.visible = true;
+        scene.background = null;
+        gl.setRenderTarget(null);
+        gl.autoClear = false;
+        gl.render(scene, camera);
+      }
     } finally {
       scene.background = prevBackground;
       gl.setRenderTarget(prevTarget);
@@ -1929,6 +1960,7 @@ function ProjectionRenderPass({
       gl.autoClear = prevAutoClear;
       if (ctx) ctx.visible = prevCtxVisible;
       if (proj) proj.visible = prevProjVisible;
+      if (marker) marker.visible = prevMarkerVisible;
     }
   }, 1);
 
