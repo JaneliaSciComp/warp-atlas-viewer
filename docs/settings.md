@@ -241,7 +241,7 @@ Tune these to match the practical dynamic range of the dataset's calcium traces.
 
 ## Debug {#debug-overlay}
 
-A developer toggle. When **debug overlay** is on, the 3D viewer renders a small monospace readout in the top-left corner with the inputs and outputs of the auto / scale-by-filter math: canvas dimensions, total + in-set cell counts, the toggle states, the slider inputs, the `tFilter` lerp parameter, `inSetBoost`, and the resulting `basePointSize`, `effectivePointSize`, and `effectiveGhostIntensity`. Useful for tuning the formulas or sanity-checking the rendered values against expectations.
+A developer toggle. When **debug overlay** is on, the 3D viewer renders a small monospace readout in the top-left corner with the rendered frame rate (`fps`) plus the inputs and outputs of the auto / scale-by-filter math: canvas dimensions, total + in-set cell counts, the toggle states, the slider inputs, the `tFilter` lerp parameter, `inSetBoost`, and the resulting `basePointSize`, `effectivePointSize`, and `effectiveGhostIntensity`. Useful for tuning the formulas or sanity-checking the rendered values against expectations.
 
 Off by default; persisted in the URL hash like every other setting.
 

@@ -1098,6 +1098,9 @@ export function BrainViewer({
   // auto-mode point-size / ghost-visibility formulas depend on it.
   const containerRef = useRef<HTMLDivElement>(null);
   const [canvasSize, setCanvasSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  // Rendered frame rate, sampled inside the Canvas by FpsMeter (only while
+  // the debug overlay is open) and surfaced in the overlay below.
+  const [fps, setFps] = useState(0);
   useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -1264,6 +1267,7 @@ export function BrainViewer({
         dpr={[1, 2]}
       >
         <color attach="background" args={[VIEWER_BACKGROUND]} />
+        {settings.debugMode && <FpsMeter onSample={setFps} />}
         <PointCloud
           data={data}
           filter={filter}
@@ -1402,6 +1406,7 @@ export function BrainViewer({
         {settings.debugMode && (
           <DebugOverlay
             canvasSize={canvasSize}
+            fps={fps}
             settings={settings}
             coloring={coloring}
             totalCells={data.count}
@@ -1412,13 +1417,34 @@ export function BrainViewer({
   );
 }
 
+/** Samples the render frame rate from inside the Canvas and reports a
+ *  value about twice a second. Mounted only while the debug overlay is
+ *  open, so it adds no per-frame work in normal use. */
+function FpsMeter({ onSample }: { onSample: (fps: number) => void }) {
+  const frames = useRef(0);
+  const last = useRef(performance.now());
+  useFrame(() => {
+    frames.current += 1;
+    const now = performance.now();
+    const elapsed = now - last.current;
+    if (elapsed >= 500) {
+      onSample((frames.current * 1000) / elapsed);
+      frames.current = 0;
+      last.current = now;
+    }
+  });
+  return null;
+}
+
 function DebugOverlay({
   canvasSize,
+  fps,
   settings,
   coloring,
   totalCells,
 }: {
   canvasSize: { w: number; h: number };
+  fps: number;
   settings: SettingsState;
   coloring: SharedColoring | null;
   totalCells: number;
@@ -1453,6 +1479,7 @@ function DebugOverlay({
   return (
     <div className="pointer-events-auto font-mono text-[10px] bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-2 py-1.5 rounded min-w-[220px] leading-tight">
       <div className="text-neutral-500 uppercase tracking-wider text-[9px] mb-1">debug</div>
+      {row('fps', fps > 0 ? fx(fps, 0) : '—')}
       {row('canvas', `${canvasSize.w}×${canvasSize.h}`)}
       {row('cells (total)', totalCells.toLocaleString())}
       {row('cells (in set)', inSetCount.toLocaleString())}
