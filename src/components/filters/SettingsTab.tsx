@@ -98,6 +98,9 @@ export function SettingsTab({
                 <p className="text-neutral-400 leading-snug">
                     Base point size for the 3D brain scatter and the
                     visibility of cells outside the active filters (ghosts).
+                    The same ghost visibility is used as projection-mode
+                    context; ghosts stay visual only and do not contribute to
+                    scalar projection reductions.
                     <span className="text-neutral-200"> Auto</span> derives
                     both from the 3D canvas height: very short views use
                     small dots (~2–3 px) with moderate ghost visibility
@@ -182,26 +185,12 @@ export function SettingsTab({
                             min={0}
                             max={1}
                             step={0.05}
-                            disabled={projectionActive}
-                            title={
-                                projectionActive
-                                    ? "ghost cells are culled before projection reduction — visibility has no effect"
-                                    : undefined
-                            }
                             onChange={(v) =>
                                 update({
                                     ghostIntensity: Math.max(0, Math.min(1, v)),
                                 })
                             }
                         />
-                        {projectionActive && (
-                            <p className="text-neutral-500 text-[11px] leading-snug ml-3">
-                                Disabled while a projection mode is active —
-                                ghost cells are culled before projection
-                                reduction, so their alpha and size no longer
-                                affect the rendered image.
-                            </p>
-                        )}
                     </>
                 )}
             </section>

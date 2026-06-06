@@ -5,11 +5,10 @@ uniform sampler2D colorMap;
 uniform float activeBrightness;
 uniform float fadeWeakCorrelation;
 
-// Neutral signed values fade all the way to transparent. The dim
-// context brain rendered behind the projection supplies the "weak cells
-// still readable" role the old non-zero floor used to play — so here we
-// let the coolwarm midpoint drop to zero alpha and reveal that context
-// instead of painting an opaque grey wash over it.
+// Neutral signed values fade all the way to transparent. The ghost-only
+// context pass rendered behind the projection supplies visual context, so
+// here we let the coolwarm midpoint drop to zero alpha and reveal that
+// context instead of painting an opaque wash.
 const float SIGNED_ALPHA_FLOOR = 0.0;
 
 float scalarAlphaFromT(float t) {

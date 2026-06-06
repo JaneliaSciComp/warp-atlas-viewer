@@ -358,7 +358,10 @@ export interface SettingsState {
     /** Visibility of out-of-filter cells (ghosts), 0..1, used when
      *  `autoSizing` is off. When auto is on the renderer derives a
      *  ghost-visibility value from the canvas height via a negative-
-     *  exponential curve instead, so this slider is hidden.
+     *  exponential curve instead, so this slider is hidden. The same
+     *  ghost visibility controls normal 3D rendering and the transparent
+     *  ghost/context underlay in projection modes; ghosts remain visual
+     *  context only and do not contribute to scalar projection reductions.
      *  0 → cells are invisible (alpha 0) and the click pickers skip
      *      them entirely.
      *  1 → cells render at the standard dim alpha (matches the
@@ -424,9 +427,11 @@ export interface SettingsState {
      *  stim/swim) reduce raw scalar values along the view ray and
      *  recolor the reduced scalar. Signed stim/swim projections render
      *  near-zero/cancelled values with low opacity so the coolwarm
-     *  neutral midpoint does not dominate. Categorical schemes ignore
-     *  this setting. Ambient occlusion and the focused-neuron ring
-     *  marker are disabled while projection is active. */
+     *  neutral midpoint does not dominate. Projection modes draw the
+     *  existing 3D ghosts as visual context underneath, but ghosts do
+     *  not enter the scalar reduction. Categorical schemes ignore this
+     *  setting. Ambient occlusion and the focused-neuron ring marker are
+     *  disabled while projection is active. */
     projectionMode: ProjectionMode;
     /** Minimum per-cell projection intensity included in the projection
      *  pass, 0..1. Raising this culls weak/noisy cells before max/min,

@@ -25,11 +25,12 @@ uniform float intensityFloor;
 flat in int vCellId;
 in float vIntensity;
 in float vScalar;
+in float vProjectable;
 
 out vec4 fragColor;
 
 void main() {
-  if (vIntensity < intensityFloor || isnan(vScalar)) discard;
+  if (vProjectable < 0.5 || vIntensity < intensityFloor || isnan(vScalar)) discard;
   vec2 c = gl_PointCoord - vec2(0.5);
   float r2 = dot(c, c);
   if (r2 > 0.25) discard;

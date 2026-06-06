@@ -9,6 +9,7 @@
 in float instCellId;
 in float instIntensity;
 in float instScalar;
+in float instProjectable;
 in float instSize;
 
 uniform float pixelRatio;
@@ -21,11 +22,13 @@ uniform float flatPointSize;
 flat out int vCellId;
 out float vIntensity;
 out float vScalar;
+out float vProjectable;
 
 void main() {
   vCellId = int(instCellId + 0.5);
   vIntensity = instIntensity;
   vScalar = instScalar;
+  vProjectable = instProjectable;
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mvPosition;
   float dist = -mvPosition.z;

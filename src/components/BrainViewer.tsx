@@ -14,7 +14,8 @@ import {
 import type { SharedColoring } from '../hooks/useColoring';
 import vertSrc from '../shaders/neuron.vert.glsl?raw';
 import fragSrc from '../shaders/neuron.frag.glsl?raw';
-import contextFragSrc from '../shaders/neuron_context.frag.glsl?raw';
+import ghostContextVertSrc from '../shaders/neuron_ghost_context.vert.glsl?raw';
+import ghostContextFragSrc from '../shaders/neuron_ghost_context.frag.glsl?raw';
 import projectionVertSrc from '../shaders/projection.vert.glsl?raw';
 import projectionFragSrc from '../shaders/projection.frag.glsl?raw';
 import projectionCompositeVertSrc from '../shaders/projection_composite.vert.glsl?raw';
@@ -131,9 +132,9 @@ const PROJECTION_MODE_LABELS: Record<ProjectionMode, string> = {
 // accumulation modes (mean/sum), with off on top.
 const PROJECTION_MODE_ORDER: ProjectionMode[] = ['off', 'min', 'max', 'maxabs', 'mean', 'sum'];
 
-// Scene-object names so the accumulation render pass (a sibling of
+// Scene-object names so the projection render pass (a sibling of
 // PointCloud in the same scene) can find the projection overlay and its
-// dim context underlay without prop-threading refs across components.
+// ghost/context underlay without prop-threading refs across components.
 const PROJECTION_POINTS_NAME = 'projectionPoints';
 const PROJECTION_CONTEXT_NAME = 'projectionContext';
 
@@ -255,12 +256,13 @@ function PointCloud({
   onHoverChange: (i: number) => void;
 }) {
   const { gl, scene, camera, size } = useThree();
-  // The dim context underlay. Hidden during the ID-buffer picking render
+  // The ghost/context underlay. Hidden during the ID-buffer picking render
   // so hover/click resolve to the projection cell on top, not a context
   // dot behind it.
   const contextPointsRef = useRef<THREE.Points>(null);
 
   const buffers = useMemo(() => allocColoring(data.count), [data]);
+  const projectableMask = useMemo(() => new Float32Array(data.count), [data]);
 
   // Static per-cell index attribute (0..count-1). Used by the
   // projection-mode ID pass to encode the winning cell per pixel.
@@ -284,10 +286,11 @@ function PointCloud({
     // shader reads this attribute.
     g.setAttribute('instIntensity', new THREE.BufferAttribute(buffers.intensities, 1));
     g.setAttribute('instScalar', new THREE.BufferAttribute(buffers.scalarValues, 1));
+    g.setAttribute('instProjectable', new THREE.BufferAttribute(projectableMask, 1));
     g.setAttribute('instCellId', new THREE.BufferAttribute(cellIds, 1));
     g.computeBoundingSphere();
     return g;
-  }, [data, buffers, cellIds]);
+  }, [data, buffers, projectableMask, cellIds]);
 
   // Two-pass rendering. Opaque-ish cells (α ≥ 0.5: region/fish/highlight
   // colors at 0.85+, signal-saturated gene/stim/swim cells at 1.0) write
@@ -329,16 +332,15 @@ function PointCloud({
     });
   }, [gl]);
 
-  // Dim anatomical-context material. In projection mode this draws every
-  // renderable cell as a faint grey disc BEHIND the projection overlay,
-  // so the transparent (weak-signal) parts of the projection reveal the
-  // brain's shape/density instead of flat background. depthWrite/Test off
-  // → it's a pure soft underlay that never fights the projection's own
-  // per-pixel depth reduction.
+  // Projection ghost/context material. It uses the same per-cell color,
+  // alpha, size, ghost visibility, and auto-sizing buffers as normal
+  // rendering, but masks on an explicit projectable flag so active
+  // low-alpha cells (e.g. weak stim/swim correlations) are not drawn as
+  // "ghosts".
   const contextMaterial = useMemo(() => {
     return new THREE.ShaderMaterial({
-      vertexShader: vertSrc,
-      fragmentShader: contextFragSrc,
+      vertexShader: ghostContextVertSrc,
+      fragmentShader: ghostContextFragSrc,
       transparent: true,
       depthWrite: false,
       depthTest: false,
@@ -346,8 +348,6 @@ function PointCloud({
         pixelRatio: { value: gl.getPixelRatio() },
         sizeScale: { value: 1 },
         flatPointSize: { value: 0 },
-        contextColor: { value: new THREE.Color(0.34, 0.34, 0.37) },
-        contextAlpha: { value: 0.16 },
       },
     });
   }, [gl]);
@@ -557,11 +557,15 @@ function PointCloud({
       buffers.colors[i * 3 + 2] = Math.min(1, buffers.colors[i * 3 + 2] * 1.2 + 0.25);
       buffers.alphas[i] = 1.0;
     }
+    for (let i = 0; i < data.count; i++) {
+      projectableMask[i] = Number.isFinite(buffers.scalarValues[i]) ? 1 : 0;
+    }
     (geometry.attributes.instColor as THREE.BufferAttribute).needsUpdate = true;
     (geometry.attributes.instAlpha as THREE.BufferAttribute).needsUpdate = true;
     (geometry.attributes.instSize as THREE.BufferAttribute).needsUpdate = true;
     (geometry.attributes.instIntensity as THREE.BufferAttribute).needsUpdate = true;
     (geometry.attributes.instScalar as THREE.BufferAttribute).needsUpdate = true;
+    (geometry.attributes.instProjectable as THREE.BufferAttribute).needsUpdate = true;
     // drawOrder partitions cells so out-of-filter indices come first
     // and in-filter ones last. Setting it as the geometry's index
     // buffer makes Three.js draw them in that order — combined with
@@ -575,7 +579,7 @@ function PointCloud({
     } else if (geometry.index) {
       geometry.setIndex(null);
     }
-  }, [data, filter, settings, coloring, selection, focusedNeuron, buffers, geometry]);
+  }, [data, filter, settings, coloring, selection, focusedNeuron, buffers, projectableMask, geometry]);
 
   // Focused-neuron ring marker. Mirrors the t-SNE white outline: a
   // hollow circle that grows with the cell up close and floors at a
@@ -722,7 +726,7 @@ function PointCloud({
       const ctx = contextPointsRef.current;
       const prevCtxVisible = ctx ? ctx.visible : true;
       try {
-        // Exclude the dim context underlay so its cells (which share the
+        // Exclude the ghost/context underlay so its cells (which share the
         // geometry, hence the same scalar attributes) don't win ID pixels
         // over the projection cells the user actually sees.
         if (ctx) ctx.visible = false;
@@ -907,15 +911,12 @@ function PointCloud({
   return (
     <group rotation={[0, 0, Math.PI / 2]} scale={[1, -1, 1]}>
       {projectionOn ? (
-        // Projection mode replaces the normal opaque + transparent passes
-        // with a dim context underlay plus the projection overlay. The
-        // context (faint grey brain, renderOrder -1) draws first; the
-        // projection composites over it, transparent where the signal is
-        // weak so the brain shows through. For max/min/maxabs this draws
-        // directly into the back buffer; for mean/sum the
-        // AccumulationProjectionPass component takes over the render and
-        // routes the projection geometry through an off-screen target,
-        // compositing it over the same context.
+        // Projection mode replaces the normal opaque + transparent
+        // foreground with an existing-buffer ghost pass plus the
+        // projection overlay. The underlay uses the same instColor,
+        // instAlpha, instSize, ghost visibility, and auto-sizing logic as
+        // normal rendering, but masks to actual non-projectable ghosts, so
+        // low-alpha active signal cells do not become context.
         <>
           <points
             ref={contextPointsRef}
@@ -1637,22 +1638,23 @@ function CameraSync({
 
 /** Projection render hijack for every active projection mode. Takes over
  *  the render loop at priority 1 (so r3f stops auto-rendering) so it can
- *  draw the dim context brain first and then composite the projection on
- *  top in an explicit, queue-independent order — weak/empty regions stay
- *  transparent and reveal the context.
+ *  draw a ghost-only context pass first and then composite the projection
+ *  on top in an explicit, queue-independent order — weak/empty regions
+ *  stay transparent and reveal the same ghost buffers used by normal 3D
+ *  rendering.
  *
- *  Step 1 (all modes): render the context brain to the back buffer
- *  (projection hidden); autoClear also resets the depth buffer.
+ *  Step 1 (all modes): render the ghost/context underlay to the back
+ *  buffer (projection hidden); autoClear also resets the depth buffer.
  *
  *  Winner-take-all (min/max/maxabs): step 2 renders the projection points
- *  straight over the context with autoClear off — the GPU depth test (keyed
- *  on the scalar, not real distance) does the per-pixel reduction, and the
- *  per-cell alpha blends transparently over the context.
+ *  straight over the ghost context with autoClear off — the GPU depth test
+ *  (keyed on the scalar, not real distance) does the per-pixel reduction,
+ *  and the per-cell alpha blends transparently over the underlay.
  *
  *  Accumulation (mean/sum): step 2 renders the projection into an off-screen
  *  RGBA float target whose additive blending sums signed scalar components
  *  as (positiveSum, negativeSum, count, count); step 3 alpha-blends a
- *  fullscreen composite quad over the context, reconstructing the mean
+ *  fullscreen composite quad over the ghost context, reconstructing the mean
  *  (signed sum / count) or exposure-scaled signed sum and emitting
  *  transparency where the signal is weak.
  */
@@ -1686,8 +1688,8 @@ function ProjectionRenderPass({
       glslVersion: THREE.GLSL3,
       vertexShader: projectionCompositeVertSrc,
       fragmentShader: projectionCompositeFragSrc,
-      // Alpha-blended over the dim context brain already in the back
-      // buffer; weak/untouched pixels carry low alpha and reveal it.
+      // Alpha-blended over the ghost/context underlay already in the
+      // back buffer; weak/untouched pixels carry low alpha and reveal it.
       transparent: true,
       blending: THREE.NormalBlending,
       depthTest: false,
@@ -1755,17 +1757,17 @@ function ProjectionRenderPass({
     const prevCtxVisible = ctx ? ctx.visible : true;
     const prevProjVisible = proj ? proj.visible : true;
     try {
-      // 1. Dim context brain → back buffer. Keep the scene's opaque
+      // 1. Ghost-only context pass → back buffer. Keep the scene's opaque
       //    background and let autoClear paint it (and reset depth), then
-      //    the context points draw over it. Projection hidden so only the
-      //    context lands here.
+      //    ghost/context points draw over it. Projection hidden so only the
+      //    visual context lands here.
       gl.autoClear = true;
       if (ctx) ctx.visible = true;
       if (proj) proj.visible = false;
       gl.setRenderTarget(null);
       gl.render(scene, camera);
       if (winnerTakeAll) {
-        // 2. Projection over the context, straight to the back buffer.
+        // 2. Projection over the ghost context, straight to the back buffer.
         //    autoClear off preserves the context color; the depth buffer
         //    was just cleared in step 1, so the scalar-keyed depth test
         //    still does a clean per-pixel reduction among projection cells.
@@ -1788,9 +1790,9 @@ function ProjectionRenderPass({
         gl.setClearColor(0x000000, 0);
         gl.clear(true, true, true);
         gl.render(scene, camera);
-        // 3. Composite the reduced scalar over the context brain. autoClear
-        //    off so the context survives; the composite is alpha-blended and
-        //    transparent where the signal is weak, revealing the context.
+        // 3. Composite the reduced scalar over the ghost context. autoClear
+        //    off so the underlay survives; the composite is alpha-blended
+        //    and transparent where the signal is weak, revealing context.
         gl.setRenderTarget(null);
         gl.autoClear = false;
         gl.render(fullscreenScene, fullscreenCamera);
