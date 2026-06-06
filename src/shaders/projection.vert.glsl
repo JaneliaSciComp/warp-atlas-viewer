@@ -28,6 +28,7 @@ uniform float pixelRatio;
 uniform float sizeScale;
 // Same contract as neuron.vert.glsl: 0 = depth-attenuated, 1 = flat.
 uniform float flatPointSize;
+uniform float flatSizeFactor;
 
 out float vIntensity;
 out float vScalar;
@@ -41,6 +42,6 @@ void main() {
   gl_Position = projectionMatrix * mvPosition;
   float dist = -mvPosition.z;
   float depthFactor = 160.0 / max(dist, 40.0);
-  float factor = mix(depthFactor, 0.4, flatPointSize);
+  float factor = mix(depthFactor, flatSizeFactor, flatPointSize);
   gl_PointSize = max(1.5, instSize * sizeScale * pixelRatio * factor);
 }

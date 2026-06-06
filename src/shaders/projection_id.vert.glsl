@@ -18,6 +18,7 @@ uniform float sizeScale;
 // picker's disk size diverges from the visible disk, hover/click
 // resolves to a different cell than the one drawn on screen.
 uniform float flatPointSize;
+uniform float flatSizeFactor;
 
 flat out int vCellId;
 out float vIntensity;
@@ -33,6 +34,6 @@ void main() {
   gl_Position = projectionMatrix * mvPosition;
   float dist = -mvPosition.z;
   float depthFactor = 160.0 / max(dist, 40.0);
-  float factor = mix(depthFactor, 0.4, flatPointSize);
+  float factor = mix(depthFactor, flatSizeFactor, flatPointSize);
   gl_PointSize = max(1.5, instSize * sizeScale * pixelRatio * factor);
 }

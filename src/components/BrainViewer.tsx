@@ -26,7 +26,7 @@ import projectionScalarChunkSrc from '../shaders/projection_scalar.glsl?raw';
 import projectionScalarColorChunkSrc from '../shaders/projection_scalar_color.glsl?raw';
 import { AmbientOcclusion, skipAmbientOcclusionUserData } from './AmbientOcclusion';
 import { coolwarm, plasma } from '../utils/colorMaps';
-import { zoomSizeScale } from '../utils/zoomSizing';
+import { zoomSizeScale, flatSizeFactor } from '../utils/zoomSizing';
 
 // Three's ShaderMaterial preprocessor resolves #include <...> through
 // ShaderChunk. Register WARP-specific chunks once at module load so the
@@ -345,6 +345,7 @@ function PointCloud({
         pixelRatio: { value: gl.getPixelRatio() },
         sizeScale: { value: 1 },
         flatPointSize: { value: 0 },
+        flatSizeFactor: { value: 0.4 },
         alphaMin: { value: ALPHA_PASS_SPLIT },
         alphaMax: { value: 1e6 },
       },
@@ -360,6 +361,7 @@ function PointCloud({
         pixelRatio: { value: gl.getPixelRatio() },
         sizeScale: { value: 1 },
         flatPointSize: { value: 0 },
+        flatSizeFactor: { value: 0.4 },
         alphaMin: { value: 0 },
         alphaMax: { value: ALPHA_PASS_SPLIT },
       },
@@ -382,6 +384,7 @@ function PointCloud({
         pixelRatio: { value: gl.getPixelRatio() },
         sizeScale: { value: 1 },
         flatPointSize: { value: 0 },
+        flatSizeFactor: { value: 0.4 },
       },
     });
   }, [gl]);
@@ -404,6 +407,7 @@ function PointCloud({
         pixelRatio: { value: gl.getPixelRatio() },
         sizeScale: { value: 1 },
         flatPointSize: { value: 0 },
+        flatSizeFactor: { value: 0.4 },
         mode: { value: 0 },
         intensityFloor: { value: 0.05 },
         colorMap: { value: projectionColorMap },
@@ -451,6 +455,7 @@ function PointCloud({
           pixelRatio: { value: gl.getPixelRatio() },
           sizeScale: { value: 1 },
           flatPointSize: { value: 0 },
+          flatSizeFactor: { value: 0.4 },
           mode: { value: 0 },
           intensityFloor: { value: 0.05 },
           scalarMode: { value: projectionConfig.scalarMode },
@@ -659,12 +664,13 @@ function PointCloud({
         uniform float baseSize;
         uniform float sizeScale;
         uniform float flatPointSize;
+        uniform float flatSizeFactor;
         void main() {
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
           gl_Position = projectionMatrix * mvPosition;
           float dist = -mvPosition.z;
           float depthFactor = 160.0 / max(dist, 40.0);
-          float factor = mix(depthFactor, 0.4, flatPointSize);
+          float factor = mix(depthFactor, flatSizeFactor, flatPointSize);
           float cellSize = baseSize * sizeScale * pixelRatio * factor;
           // Same recipe as the t-SNE ring: at least a visible floor,
           // otherwise track the cell with a small buffer.
@@ -692,6 +698,7 @@ function PointCloud({
         baseSize: { value: initialPointSize },
         sizeScale: { value: 1 },
         flatPointSize: { value: 0 },
+        flatSizeFactor: { value: 0.4 },
       },
     });
   }, [gl, initialPointSize]);
@@ -723,6 +730,28 @@ function PointCloud({
     markerMaterial.uniforms.flatPointSize.value = v;
   }, [
     settings.scaleByDepth,
+    opaqueMaterial,
+    transparentMaterial,
+    projectionMaterial,
+    contextMaterial,
+    idMaterial,
+    markerMaterial,
+  ]);
+
+  // Flat-mode constant size factor. Match depth mode's attenuation at the
+  // default zoom so toggling scale-by-depth doesn't shift density. Depends
+  // only on the dataset (via defaultCamDistance), so a plain effect — not the
+  // per-frame loop below — keeps it current.
+  useEffect(() => {
+    const f = flatSizeFactor(defaultCamDistance);
+    opaqueMaterial.uniforms.flatSizeFactor.value = f;
+    transparentMaterial.uniforms.flatSizeFactor.value = f;
+    projectionMaterial.uniforms.flatSizeFactor.value = f;
+    contextMaterial.uniforms.flatSizeFactor.value = f;
+    idMaterial.uniforms.flatSizeFactor.value = f;
+    markerMaterial.uniforms.flatSizeFactor.value = f;
+  }, [
+    defaultCamDistance,
     opaqueMaterial,
     transparentMaterial,
     projectionMaterial,

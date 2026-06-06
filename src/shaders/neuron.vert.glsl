@@ -12,10 +12,12 @@ uniform float pixelRatio;
 // means no scaling.
 uniform float sizeScale;
 // 0 → normal depth-attenuated sizing (closer points larger).
-// 1 → flat: every cell renders at a constant on-screen size, scaled
-//     by 0.4 to roughly match the typical attenuated size at default
-//     zoom (so cells don't visibly grow when the toggle flips).
+// 1 → flat: every cell renders at a constant on-screen size.
 uniform float flatPointSize;
+// Flat-mode size factor. Set to depth mode's attenuation at the default
+// zoom (160 / defaultCamDistance) so flipping the toggle doesn't change
+// density for any dataset. See utils/zoomSizing.
+uniform float flatSizeFactor;
 
 varying vec3 vColor;
 varying float vAlpha;
@@ -27,6 +29,6 @@ void main() {
   gl_Position = projectionMatrix * mvPosition;
   float dist = -mvPosition.z;
   float depthFactor = 160.0 / max(dist, 40.0);
-  float factor = mix(depthFactor, 0.4, flatPointSize);
+  float factor = mix(depthFactor, flatSizeFactor, flatPointSize);
   gl_PointSize = max(1.5, instSize * sizeScale * pixelRatio * factor);
 }

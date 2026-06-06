@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { SAOPass } from 'three/addons/postprocessing/SAOPass.js';
-import { zoomSizeScale } from '../utils/zoomSizing';
+import { zoomSizeScale, flatSizeFactor } from '../utils/zoomSizing';
 
 // AO is only active with the orbit target at the volume center; native pan
 // (which can move it) is irrelevant here, so the center is a fine fallback.
@@ -30,6 +30,7 @@ const pointCloudNormalVertexShader = /* glsl */ `
   uniform float pixelRatio;
   uniform float sizeScale;
   uniform float flatPointSize;
+  uniform float flatSizeFactor;
 
   varying float vAlpha;
 
@@ -41,7 +42,7 @@ const pointCloudNormalVertexShader = /* glsl */ `
 
     float dist = -mvPosition.z;
     float depthFactor = 160.0 / max(dist, 40.0);
-    float factor = mix(depthFactor, 0.4, flatPointSize);
+    float factor = mix(depthFactor, flatSizeFactor, flatPointSize);
     gl_PointSize = max(1.5, instSize * sizeScale * pixelRatio * factor);
   }
 `;
@@ -84,6 +85,7 @@ function makePointCloudNormalMaterial(pixelRatio: number) {
       pixelRatio: { value: pixelRatio },
       sizeScale: { value: 1 },
       flatPointSize: { value: 0 },
+      flatSizeFactor: { value: 0.4 },
     },
   });
 }
@@ -212,6 +214,10 @@ export function AmbientOcclusion({
   useEffect(() => {
     pointNormalMaterial.uniforms.flatPointSize.value = flatPointSize ? 1 : 0;
   }, [flatPointSize, pointNormalMaterial]);
+
+  useEffect(() => {
+    pointNormalMaterial.uniforms.flatSizeFactor.value = flatSizeFactor(defaultCamDistance);
+  }, [defaultCamDistance, pointNormalMaterial]);
 
   useEffect(() => {
     const pixelRatio = gl.getPixelRatio();

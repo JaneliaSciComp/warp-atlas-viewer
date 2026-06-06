@@ -11,6 +11,7 @@ attribute float instProjectable;
 uniform float pixelRatio;
 uniform float sizeScale;
 uniform float flatPointSize;
+uniform float flatSizeFactor;
 
 varying vec3 vColor;
 varying float vAlpha;
@@ -24,6 +25,6 @@ void main() {
   gl_Position = projectionMatrix * mvPosition;
   float dist = -mvPosition.z;
   float depthFactor = 160.0 / max(dist, 40.0);
-  float factor = mix(depthFactor, 0.4, flatPointSize);
+  float factor = mix(depthFactor, flatSizeFactor, flatPointSize);
   gl_PointSize = max(1.5, instSize * sizeScale * pixelRatio * factor);
 }
