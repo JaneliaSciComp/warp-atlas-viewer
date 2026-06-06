@@ -298,6 +298,8 @@ function PointCloud({
 
   const buffers = useMemo(() => allocColoring(data.count), [data]);
   const projectableMask = useMemo(() => new Float32Array(data.count), [data]);
+  const activityValues = useMemo(() => new Float32Array(data.count), [data]);
+  const activityActiveMask = useMemo(() => new Float32Array(data.count), [data]);
 
   // Static per-cell index attribute (0..count-1). Used by the
   // projection-mode ID pass to encode the winning cell per pixel.
@@ -322,10 +324,12 @@ function PointCloud({
     g.setAttribute('instIntensity', new THREE.BufferAttribute(buffers.intensities, 1));
     g.setAttribute('instScalar', new THREE.BufferAttribute(buffers.scalarValues, 1));
     g.setAttribute('instProjectable', new THREE.BufferAttribute(projectableMask, 1));
+    g.setAttribute('instActivity', new THREE.BufferAttribute(activityValues, 1));
+    g.setAttribute('instActivityActive', new THREE.BufferAttribute(activityActiveMask, 1));
     g.setAttribute('instCellId', new THREE.BufferAttribute(cellIds, 1));
     g.computeBoundingSphere();
     return g;
-  }, [data, buffers, projectableMask, cellIds]);
+  }, [data, buffers, projectableMask, activityValues, activityActiveMask, cellIds]);
 
   // Two-pass rendering. Opaque-ish cells (α ≥ 0.5: region/fish/highlight
   // colors at 0.85+, signal-saturated gene/stim/swim cells at 1.0) write
@@ -349,6 +353,12 @@ function PointCloud({
         flatSizeFactor: { value: 0.4 },
         alphaMin: { value: ALPHA_PASS_SPLIT },
         alphaMax: { value: 1e6 },
+        activityMode: { value: 0 },
+        activityLo: { value: 0 },
+        activityHi: { value: 1.5 },
+        activityNoSignalAlpha: { value: 0.22 },
+        activityActiveBrightness: { value: 0 },
+        activityOpaqueActiveCells: { value: 0 },
       },
     });
   }, [gl]);
@@ -365,6 +375,12 @@ function PointCloud({
         flatSizeFactor: { value: 0.4 },
         alphaMin: { value: 0 },
         alphaMax: { value: ALPHA_PASS_SPLIT },
+        activityMode: { value: 0 },
+        activityLo: { value: 0 },
+        activityHi: { value: 1.5 },
+        activityNoSignalAlpha: { value: 0.22 },
+        activityActiveBrightness: { value: 0 },
+        activityOpaqueActiveCells: { value: 0 },
       },
     });
   }, [gl]);
@@ -579,8 +595,22 @@ function PointCloud({
   // around for shader-source compatibility but no longer drive it
   // from JS.
 
+  const lastStaticUploadRef = useRef<{
+    focusedNeuron: number | null;
+    selection: SelectionState;
+    coloringRevision: number;
+  } | null>(null);
+
   useEffect(() => {
     if (!coloring) return;
+    const activityShaderMode =
+      filter.colorMode === 'activity' && projectionMode === 'off';
+    const skipStaticUpload =
+      activityShaderMode &&
+      lastStaticUploadRef.current?.focusedNeuron === focusedNeuron &&
+      lastStaticUploadRef.current?.selection === selection &&
+      lastStaticUploadRef.current?.coloringRevision === coloring.revision;
+    if (skipStaticUpload) return;
     // Copy the shared base coloring into our own buffers so the
     // focused-neuron stamp and selection-as-filter ghost pass below
     // don't corrupt what other consumers (UmapPanel) read from the
@@ -588,8 +618,12 @@ function PointCloud({
     buffers.colors.set(coloring.result.colors);
     buffers.alphas.set(coloring.result.alphas);
     buffers.sizes.set(coloring.result.sizes);
-    buffers.intensities.set(coloring.result.intensities);
-    buffers.scalarValues.set(coloring.result.scalarValues);
+    const projectionAttributesNeeded = projectionMode !== 'off';
+    const scalarAttributesNeeded = projectionAttributesNeeded || activityShaderMode;
+    if (scalarAttributesNeeded) {
+      buffers.intensities.set(coloring.result.intensities);
+      buffers.scalarValues.set(coloring.result.scalarValues);
+    }
     // Treat a t-SNE lasso selection as an additional filter for the 3D
     // viewer only: demote in-set cells outside the lasso to standard
     // ghost values. UmapPanel reads the shared (non-demoted) buffer so
@@ -617,15 +651,23 @@ function PointCloud({
       buffers.colors[i * 3 + 2] = Math.min(1, buffers.colors[i * 3 + 2] * 1.2 + 0.25);
       buffers.alphas[i] = 1.0;
     }
-    for (let i = 0; i < data.count; i++) {
-      projectableMask[i] = Number.isFinite(buffers.scalarValues[i]) ? 1 : 0;
-    }
     (geometry.attributes.instColor as THREE.BufferAttribute).needsUpdate = true;
     (geometry.attributes.instAlpha as THREE.BufferAttribute).needsUpdate = true;
     (geometry.attributes.instSize as THREE.BufferAttribute).needsUpdate = true;
-    (geometry.attributes.instIntensity as THREE.BufferAttribute).needsUpdate = true;
-    (geometry.attributes.instScalar as THREE.BufferAttribute).needsUpdate = true;
-    (geometry.attributes.instProjectable as THREE.BufferAttribute).needsUpdate = true;
+    if (activityShaderMode) {
+      for (let i = 0; i < data.count; i++) {
+        activityActiveMask[i] = Number.isFinite(buffers.scalarValues[i]) ? 1 : 0;
+      }
+      (geometry.attributes.instActivityActive as THREE.BufferAttribute).needsUpdate = true;
+    }
+    if (projectionAttributesNeeded) {
+      for (let i = 0; i < data.count; i++) {
+        projectableMask[i] = Number.isFinite(buffers.scalarValues[i]) ? 1 : 0;
+      }
+      (geometry.attributes.instIntensity as THREE.BufferAttribute).needsUpdate = true;
+      (geometry.attributes.instScalar as THREE.BufferAttribute).needsUpdate = true;
+      (geometry.attributes.instProjectable as THREE.BufferAttribute).needsUpdate = true;
+    }
     // drawOrder partitions cells so out-of-filter indices come first
     // and in-filter ones last. Setting it as the geometry's index
     // buffer makes Three.js draw them in that order — combined with
@@ -639,7 +681,64 @@ function PointCloud({
     } else if (geometry.index) {
       geometry.setIndex(null);
     }
-  }, [data, filter, settings, coloring, selection, focusedNeuron, buffers, projectableMask, geometry]);
+    lastStaticUploadRef.current = {
+      focusedNeuron,
+      selection,
+      coloringRevision: coloring.revision,
+    };
+  }, [data, filter, settings, coloring, selection, focusedNeuron, buffers, projectableMask, activityActiveMask, geometry, projectionMode]);
+
+  useEffect(() => {
+    const activityShaderMode =
+      filter.colorMode === 'activity' && projectionMode === 'off';
+    const mode = activityShaderMode ? 1 : 0;
+    const lo = settings.activityLo;
+    const hi = Math.max(lo + 0.001, settings.activityHi);
+    const noSignalAlpha =
+      (filter.anatomyAtlas === 'mapzebrain'
+        ? filter.isolatedAtlasRegion
+        : filter.isolatedRegion) >= 0
+        ? 0.5
+        : 0.22;
+    for (const material of [opaqueMaterial, transparentMaterial]) {
+      material.uniforms.activityMode.value = mode;
+      material.uniforms.activityLo.value = lo;
+      material.uniforms.activityHi.value = hi;
+      material.uniforms.activityNoSignalAlpha.value = noSignalAlpha;
+      material.uniforms.activityActiveBrightness.value = settings.activeBrightness;
+      material.uniforms.activityOpaqueActiveCells.value = settings.opaqueActiveCells ? 1 : 0;
+    }
+  }, [
+    filter.anatomyAtlas,
+    filter.colorMode,
+    filter.isolatedAtlasRegion,
+    filter.isolatedRegion,
+    opaqueMaterial,
+    projectionMode,
+    settings.activeBrightness,
+    settings.activityHi,
+    settings.activityLo,
+    settings.opaqueActiveCells,
+    transparentMaterial,
+  ]);
+
+  useEffect(() => {
+    if (filter.colorMode !== 'activity' || projectionMode !== 'off') return;
+    const sample = Math.max(0, Math.min(data.traceLength - 1, filter.activitySample | 0));
+    const trace = data.activityTrace;
+    const T = data.traceLength;
+    for (let i = 0; i < data.count; i++) {
+      activityValues[i] = trace[i * T + sample];
+    }
+    (geometry.attributes.instActivity as THREE.BufferAttribute).needsUpdate = true;
+  }, [
+    activityValues,
+    data,
+    filter.activitySample,
+    filter.colorMode,
+    geometry,
+    projectionMode,
+  ]);
 
   // Focused-neuron ring marker. Mirrors the t-SNE white outline: a
   // hollow circle that grows with the cell up close and floors at a

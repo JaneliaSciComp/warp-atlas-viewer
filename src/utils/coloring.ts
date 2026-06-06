@@ -936,6 +936,73 @@ export function applyColoring(
   };
 }
 
+/** Fast path for Activity playback. It assumes the filter intersection,
+ *  selection, sizing, and draw order are unchanged from the last full
+ *  `applyColoring` pass, and updates only the per-cell Activity colors /
+ *  alpha / projection scalar for the already-active cells. */
+export function repaintActivitySample(
+  ds: NeuronDataset,
+  filter: FilterState,
+  settings: SettingsState,
+  selection: SelectionState,
+  filterSelection: Uint32Array | null,
+  out: ColoringResult,
+): void {
+  const { count, activityTrace, traceLength } = ds;
+  const { colors, alphas, intensities, scalarValues } = out;
+  const sample = Math.max(0, Math.min(traceLength - 1, filter.activitySample | 0));
+  const lo = settings.activityLo;
+  const hi = Math.max(lo + 0.001, settings.activityHi);
+  const range = Math.max(0.001, hi - lo);
+  const liftNoSignal =
+    (filter.anatomyAtlas === 'mapzebrain'
+      ? filter.isolatedAtlasRegion
+      : filter.isolatedRegion) >= 0;
+  const brightness = settings.activeBrightness;
+  const opaque = settings.opaqueActiveCells;
+  const selSet = selection.indices.length > 0 ? new Set<number>(Array.from(selection.indices)) : null;
+  const dimUnselected = selSet && (selection.source === '3d' || selection.source === 'umap');
+  const paint = (i: number) => {
+    const dff = activityTrace[i * traceLength + sample];
+    const v = Math.max(0, Math.min(1, (dff - lo) / range));
+    let r: number;
+    let g: number;
+    let b: number;
+    let alpha: number;
+    if (v <= 0) {
+      r = DIM_RGB[0];
+      g = DIM_RGB[1];
+      b = DIM_RGB[2];
+      alpha = liftNoSignal ? LIFT_ALPHA : DIM_ALPHA;
+      intensities[i] = 0;
+    } else {
+      const c = plasma(v);
+      r = c[0];
+      g = c[1];
+      b = c[2];
+      alpha = 1.0;
+      intensities[i] = v;
+    }
+    if (opaque && alpha > 0) alpha = 1.0;
+    if (brightness > 0) {
+      r = Math.min(1, r + brightness);
+      g = Math.min(1, g + brightness);
+      b = Math.min(1, b + brightness);
+    }
+    if (dimUnselected && !selSet.has(i)) alpha = Math.min(alpha, 0.18);
+    colors[i * 3] = r;
+    colors[i * 3 + 1] = g;
+    colors[i * 3 + 2] = b;
+    alphas[i] = alpha;
+    scalarValues[i] = dff;
+  };
+  if (filterSelection) {
+    for (let k = 0; k < filterSelection.length; k++) paint(filterSelection[k]);
+  } else {
+    for (let i = 0; i < count; i++) paint(i);
+  }
+}
+
 /**
  * Demote in-set cells that aren't in the t-SNE lasso selection to the
  * standard ghost recipe (DIM_RGB color, dim alpha, smaller size). The

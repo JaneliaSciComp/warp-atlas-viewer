@@ -114,6 +114,13 @@ export default function App() {
   const [brainCanvasSize, setBrainCanvasSize] = useState<{ w: number; h: number }>(
     { w: 1512, h: 478 },
   );
+  // Activity playback state — lifted from ActivityTimeRow so a tab
+  // switch (or any other unmount of that row) doesn't reset it. The
+  // interval engine below runs in App for the same reason.
+  const [activityPlaying, setActivityPlaying] = useState(false);
+  const [activitySpeed, setActivitySpeed] = useState(
+    INITIAL_URL_STATE?.activitySpeed ?? 10,
+  );
   // Shared per-cell coloring (colors / alphas / sizes) — computed once
   // per filter/settings/selection/canvas-size change and passed to both
   // BrainViewer and UmapPanel so neither has to repeat the 274k-cell
@@ -124,6 +131,9 @@ export default function App() {
     settings,
     selection,
     brainCanvasSize.h,
+    activityPlaying &&
+      filter.colorMode === 'activity' &&
+      settings.projectionMode === 'off',
   );
   // The detail panel floats over the right edge of the viewer and can be
   // hidden when not in use to give the brain viewer / t-SNE the full width.
@@ -222,13 +232,6 @@ export default function App() {
     selectionRestoredRef.current = true;
   }, [data, setIndices]);
 
-  // Activity playback state — lifted from ActivityTimeRow so a tab
-  // switch (or any other unmount of that row) doesn't reset it. The
-  // interval engine below runs in App for the same reason.
-  const [activityPlaying, setActivityPlaying] = useState(false);
-  const [activitySpeed, setActivitySpeed] = useState(
-    INITIAL_URL_STATE?.activitySpeed ?? 10,
-  );
   // Mirror of activityPlaying as a ref so the URL writer's setTimeout
   // can sample the latest value without re-creating the debounce dep
   // chain on every play/pause toggle.
@@ -784,6 +787,9 @@ export default function App() {
                   settings={settings}
                   selection={selection}
                   coloring={coloring}
+                  pauseForActivityPlayback={
+                    activityPlaying && filter.colorMode === 'activity'
+                  }
                   focusedNeuron={focusedNeuron}
                   onFocus={setFocusedNeuron}
                   onSelect={handleUmapSelect}

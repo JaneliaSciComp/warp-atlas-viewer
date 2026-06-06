@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FilterState, NeuronDataset, SelectionState, SettingsState } from '../data/types';
-import { allocColoring, applyColoring, type ColoringResult } from '../utils/coloring';
+import {
+  allocColoring,
+  applyColoring,
+  repaintActivitySample,
+  type ColoringResult,
+} from '../utils/coloring';
 
 export interface SharedColoring {
   /** Per-cell color/alpha/size buffers — the "base" coloring shared
@@ -38,6 +43,8 @@ export interface SharedColoring {
   effectivePointSize: number;
   /** Ghost intensity used by the last paint pass. */
   effectiveGhostIntensity: number;
+  /** True when the last published change only advanced Activity time. */
+  activitySampleOnly: boolean;
 }
 
 /** Shared per-cell coloring keyed on (data, filter, settings,
@@ -55,6 +62,7 @@ export function useColoring(
   settings: SettingsState,
   selection: SelectionState,
   canvasHeight: number,
+  deferActivitySampleOnly = false,
 ): SharedColoring | null {
   // One buffer reused across all updates; reallocated only when the
   // dataset changes (different `count`).
@@ -79,18 +87,61 @@ export function useColoring(
     effectivePointSize: 10,
     effectiveGhostIntensity: 0.6,
   });
+  const prevInputsRef = useRef<{
+    data: NeuronDataset;
+    result: ColoringResult;
+    filter: FilterState;
+    settings: SettingsState;
+    selection: SelectionState;
+    canvasHeight: number;
+  } | null>(null);
+  const activitySampleOnlyRef = useRef(false);
   useEffect(() => {
     if (!data || !result) return;
-    statsRef.current = applyColoring(
+    const prev = prevInputsRef.current;
+    const activitySampleOnly =
+      prev !== null &&
+      prev.data === data &&
+      prev.result === result &&
+      prev.settings === settings &&
+      prev.selection === selection &&
+      prev.canvasHeight === canvasHeight &&
+      filter.colorMode === 'activity' &&
+      prev.filter.colorMode === 'activity' &&
+      sameFilterExceptActivitySample(prev.filter, filter);
+    activitySampleOnlyRef.current = activitySampleOnly;
+    prevInputsRef.current = {
       data,
+      result,
       filter,
       settings,
       selection,
       canvasHeight,
-      result,
-    );
+    };
+    if (activitySampleOnly && deferActivitySampleOnly) {
+      return;
+    }
+    if (activitySampleOnly) {
+      repaintActivitySample(
+        data,
+        filter,
+        settings,
+        selection,
+        statsRef.current.filterSelection,
+        result,
+      );
+    } else {
+      statsRef.current = applyColoring(
+        data,
+        filter,
+        settings,
+        selection,
+        canvasHeight,
+        result,
+      );
+    }
     setRevision((r) => r + 1);
-  }, [data, filter, settings, selection, canvasHeight, result]);
+  }, [data, filter, settings, selection, canvasHeight, result, deferActivitySampleOnly]);
   // Memoize the wrapper so its identity tracks (result, revision) — not
   // App's render cadence. Without this, consumers that put `coloring`
   // in an effect dep list see a new object every parent render and
@@ -107,8 +158,30 @@ export function useColoring(
             basePointSize: statsRef.current.basePointSize,
             effectivePointSize: statsRef.current.effectivePointSize,
             effectiveGhostIntensity: statsRef.current.effectiveGhostIntensity,
+            activitySampleOnly: activitySampleOnlyRef.current,
           }
         : null,
     [result, revision],
+  );
+}
+
+function sameFilterExceptActivitySample(a: FilterState, b: FilterState): boolean {
+  return (
+    a.colorMode === b.colorMode &&
+    a.geneScale === b.geneScale &&
+    a.showUnassignedRegion === b.showUnassignedRegion &&
+    a.regionPalette === b.regionPalette &&
+    a.anatomyAtlas === b.anatomyAtlas &&
+    a.isolatedRegion === b.isolatedRegion &&
+    a.isolatedAtlasRegion === b.isolatedAtlasRegion &&
+    a.isolatedFish === b.isolatedFish &&
+    a.txMode === b.txMode &&
+    a.selectedGenes === b.selectedGenes &&
+    a.geneLogic === b.geneLogic &&
+    a.selectedCluster === b.selectedCluster &&
+    a.selectedStimuli === b.selectedStimuli &&
+    a.stimLogic === b.stimLogic &&
+    a.stimMode === b.stimMode &&
+    a.swimMode === b.swimMode
   );
 }
