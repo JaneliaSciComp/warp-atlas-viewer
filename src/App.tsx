@@ -670,7 +670,11 @@ export default function App() {
           </p>
         </div>
         <div className="flex items-center gap-4">
-          <ExportButton data={data} effectiveSelection={effectiveSelection} />
+          <ExportButton
+            data={data}
+            effectiveSelection={effectiveSelection}
+            focusedNeuron={focusedNeuron}
+          />
           <LinksMenu />
           <a
             href="https://www.janelia.org"

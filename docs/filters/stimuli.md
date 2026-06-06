@@ -46,7 +46,7 @@ The `stimLo` and `stimHi` anchors live in [Settings → Stim correlation cutoffs
 - the **filter floor** (cells must clear `±stimLo` per the active mode),
 - the **deadband** in the [Stim correlation color scheme](./colors#stim-correlation) — within `[-stimLo, +stimLo]` cells map to the neutral midpoint of the divergent coolwarm ramp.
 
-`stimHi` sets where the divergent ramp saturates and doesn't affect the filter.
+`stimHi` sets where the divergent ramp saturates and doesn't affect the filter. If **split +/− saturation** is enabled in Settings, the positive and negative sides use separate saturation anchors (`stimHiPos` and `stimHiNeg`) so sparse negative correlations can be surfaced without compressing the stronger positive tail.
 
 ::: warning Display threshold, not statistical significance
 The responsive floor is an interactive viewer threshold. It is useful for screening cells, but it is not a p-value, confidence interval, or substitute for the statistical criteria used in the manuscript.

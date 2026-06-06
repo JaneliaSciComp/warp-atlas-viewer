@@ -1,6 +1,6 @@
 ---
 title: Settings
-description: Threshold cutoffs, ramp anchors, point density, rendering, and the gene-expression threshold mode.
+description: Threshold cutoffs, ramp anchors, point density, rendering, projection, and the gene-expression threshold mode.
 ---
 
 # Settings
@@ -120,17 +120,53 @@ When enabled, two numeric controls become active:
 
 These settings are intended as visual depth cues for the 3D view. They are persisted in the URL hash so shared links reproduce the same rendering style.
 
+Ambient occlusion is disabled while a [Projection](#projection) mode is active because projection renders through its own off-screen reduction path.
+
 ### Opaque active cells
 
 **Opaque active cells** makes active / in-filter foreground cells render at full opacity in both the 3D viewer and the t-SNE panel while leaving ghost/background cells dimmed. This can make the active population easier to read when it would otherwise be partially transparent. It is off by default.
 
 Any user selection still dims non-selected cells on top of this setting, so selection emphasis remains visible.
 
+This control is disabled while a [Projection](#projection) mode is active because projection ignores per-cell alpha overrides.
+
 ### Active brightness
 
 **Active brightness** additively lifts the color of every in-set cell by `b` in both the 3D and t-SNE views: `c' = min(1, c + b)`, applied per RGB channel. Useful when the active palette reads too dark against the dark background. Range `0` – `0.4`, step `0.01`; the default is `0.1`. Ghost cells (out-of-filter or out-of-selection) are not lifted, so their `DIM_RGB` stays as designed.
 
 The color legend is rebuilt with the same lift so the swatches (Region, Specimen) and gradients (Gene, Activity, Stim, Swim) stay visually in sync with what the scatter renders.
+
+## Projection
+
+Projection renders the 3D point cloud as a per-pixel scalar reduction along the current view ray, then recolors the reduced scalar. It is available only for scalar color schemes — **Gene expression**, **Activity**, **Stim correlation**, and **Swim correlation** — because categorical schemes do not have a meaningful scalar to reduce.
+
+The same control appears in two places:
+
+- **Settings → Projection**, with the full set of projection parameters.
+- A small **projection:** pill in the 3D viewer's top-left overlay, for quick mode changes without leaving the view.
+
+Modes:
+
+- **Off** *(default)* — normal 3D point rendering.
+- **Min** — lowest scalar along the ray. For signed Stim/Swim views, this highlights negative correlations.
+- **Max** — highest scalar along the ray. For signed Stim/Swim views, this highlights positive correlations.
+- **Min/Max** — the value that deviates most from neutral wins, preserving its sign; useful for seeing strong positive and negative correlations at once.
+- **Mean** — arithmetic mean scalar. In signed Stim/Swim views with weak correlations faded, near-zero samples are down-weighted so they do not dominate the mean.
+- **Sum** — exposure-scaled integrated scalar; useful for dense or cumulative signal.
+
+Projection uses the same active color scheme and honors **active brightness**, **fade weak correlations**, **projection threshold**, and, for **Sum**, **sum exposure**. Ghost cells remain visible as context underneath the projection but do not contribute to the scalar reduction.
+
+### Projection threshold
+
+**projection threshold** culls cells whose scheme-aware normalized intensity is below the threshold before the reduction runs. Range `0` – `1`, step `0.01`; default `0.05`.
+
+Lower values include weaker signal; higher values reduce haze/noise. For signed mean/sum projections, the threshold also suppresses near-zero or cancelled projected output.
+
+### Sum exposure
+
+When the mode is **Sum**, **sum exposure** multiplies the accumulated scalar before display clamping. Range `0.05` – `5`, step `0.05`; default `1.0`.
+
+Lower values preserve detail in dense projections; higher values boost faint integrated signal.
 
 ## Gene plasma ceiling
 
@@ -154,7 +190,7 @@ This setting has no effect with a single gene selected.
 
 Defines what counts as "expressing" a gene, for the [gene filter](/filters/transcriptomics#what-counts-as-expressing-a-gene) and for the [Richness multi-gene coloring](#multi-gene-coloring) above:
 
-- **Paper** *(default)* — uses the paper's per-gene spot-count cutoffs (typically 25 spots, adjusted per gene/fish via the Maximum-Deviation approach). Backed by `BinaryGenes_All` from the manifest; the per-gene threshold appears in each gene-row tooltip.
+- **Paper** *(default)* — uses the paper's per-gene spot-count cutoffs (typically 25 spots, adjusted per gene/fish via the Maximum-Deviation approach). Backed by `BinaryGenes_All` from the manifest; individual per-gene thresholds are not exposed in the viewer UI.
 - **Global** — applies a single user-set spot-count threshold uniformly across all genes via `geneCounts >= threshold`. The companion **global threshold (spots)** numeric input sets the cutoff; range `1` – `500`, default `25`. Set to `1` for "any detected".
 
 ::: warning Subtypes are precomputed
@@ -163,14 +199,17 @@ Switching to Global threshold currently only affects the *gene filter* and the *
 
 ## Stim correlation cutoffs
 
-Two anchors for the signed per-cell Pearson r between calcium activity and the stimulus regressor:
+Anchors for the signed per-cell Pearson r between calcium activity and the stimulus regressor:
 
 - **responsive floor (|r| ≥)** — the magnitude floor for the stim filter (cells must clear `±stimLo` per the active mode on the [Visual Stimuli card](/filters/stimuli#mode-dropdown)) and the **deadband** boundary for the divergent [Stim correlation color ramp](/filters/colors#stim-correlation).
 - **saturation (|r| ≥)** — magnitude at which the divergent ramp reaches its endpoints. Does not affect the filter.
+- **split +/− saturation** — when enabled, exposes separate positive and negative saturation anchors. This is useful because the stimulus-correlation distribution is skewed positive; a single symmetric anchor can make one sign wash out.
 
 Defaults are floor `0.13` and saturation `0.30`. The floor matches the manuscript's full-vector responsive threshold (Methods: "Selecting positively and negatively correlated neurons"); the saturation is near the 99th percentile of the cycle-wide correlation distribution.
 
-The sliders constrain the floor to stay below saturation and saturation to stay above the floor; both values are bounded by the valid correlation range (`0` – `1`).
+In **no filter** mode on the Visual Stimuli card, Stim coloring and projection map continuously from zero rather than using `stimLo` as a gate. Once a sign-band mode is active, `stimLo` becomes both the filter criterion and the neutral deadband.
+
+The sliders constrain the floor to stay below saturation and saturation to stay above the floor; all values are bounded by the valid correlation range (`0` – `1`).
 
 ## Swim correlation cutoffs
 
@@ -185,11 +224,11 @@ The sliders constrain the floor to stay below saturation and saturation to stay 
 
 ## Fade weak correlations
 
-When **on** *(default)*, the [Stim](/filters/colors#stim-correlation) and [Swim](/filters/colors#swim-correlation) divergent color ramps scale alpha by `|r|` so cells near the neutral midpoint fade into the dark background instead of competing with the colored extremes. A floor at `0.12` keeps midpoint cells faintly visible.
+When **on** *(default)*, the [Stim](/filters/colors#stim-correlation) and [Swim](/filters/colors#swim-correlation) divergent color ramps scale alpha by correlation strength so cells near the neutral midpoint fade into the dark background instead of competing with the colored extremes. A floor at `0.12` keeps midpoint cells faintly visible.
 
 When **off**, every in-set cell renders at full opacity, including the bright midpoint of the divergent ramp, which can dominate visually on a dark background.
 
-This setting interacts with the `visibleCount` reported in the [Filters tab](/filters/overview#visible-cell-readout): a cell counts as visible when its final alpha is ≥ 0.5, so cells faded out by this setting drop out of the count as well as out of the visual.
+In signed Stim/Swim projection modes, the same setting controls the opacity of the projected reduced scalar: weak or cancelled projected correlations use low opacity when the setting is enabled.
 
 ## Activity ΔF/F anchors {#activity-f-f-anchors}
 
@@ -208,7 +247,7 @@ Off by default; persisted in the URL hash like every other setting.
 
 ## What Settings does not control
 
-The Settings tab governs thresholds, palette anchors, point density, rendering style, and 3D camera-control behavior. The following are intentionally excluded:
+The Settings tab governs thresholds, palette anchors, point density, projection, rendering style, and 3D camera-control behavior. The following are intentionally excluded:
 
 - the active color scheme (use the [Colors card](/filters/colors)),
 - Activity time and playback speed (use the [Colors card's Activity controls](/filters/colors#activity)),

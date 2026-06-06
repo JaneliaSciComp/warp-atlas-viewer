@@ -421,7 +421,7 @@ export function SettingsTab({
                     responses, Max highlights positive responses, and Min/Max
                     surfaces the strongest response of either sign (best for
                     seeing deep correlated cells of both polarities at once).
-                    Signed Min/Max/Min-Max are reduced order-independently
+                    Signed Min/Max reductions are reduced order-independently
                     rather than by depth, so transparent near-neutral cells
                     cannot hide stronger signal behind them.
                     In stim/swim projection, near-zero or cancelled signed
@@ -571,8 +571,9 @@ export function SettingsTab({
                     the richness multi-gene coloring.
                     <span className="text-neutral-200"> Paper</span> uses the
                     paper's per-gene cutoffs (typically 25 spots, adjusted per
-                    gene/fish via the Maximum-Deviation approach). The per-gene
-                    threshold is shown in each gene-row tooltip.
+                    gene/fish via the Maximum-Deviation approach) and reads the
+                    binary expression calls from the preprocessed manifest; the
+                    individual per-gene thresholds are not exposed in the viewer.
                     <span className="text-neutral-200"> Global</span> applies a
                     single user-set spot count to every gene — useful for
                     sweeping looser/stricter cutoffs uniformly. Set to 1 for
@@ -623,6 +624,10 @@ export function SettingsTab({
                     continuously from zero instead of using this floor as a
                     gate. Cells past saturation clamp to the divergent ramp
                     endpoints.
+                    <span className="text-neutral-200"> Split +/− saturation</span>{" "}
+                    gives positive and negative correlations independent
+                    saturation anchors, useful because the stimulus correlation
+                    distribution is skewed positive.
                 </p>
                 <NumberRow
                     label="responsive floor (|r| ≥)"

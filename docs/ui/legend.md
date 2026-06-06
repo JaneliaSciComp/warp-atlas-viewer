@@ -12,7 +12,7 @@ The legend in the top-right of the 3D viewer adapts to the active **Colors** sch
 | **Simple** | No legend is displayed; all visible cells use the same highlight color. |
 | **Region** | 17 colored swatches in paper anatomical order (Pal → InfMO → Unassigned), each labeled with its abbreviation. |
 | **Gene expression** | A plasma ramp with numeric anchors. With no gene pinned, anchors are gene-richness counts; with one gene, FISH spot counts; with multiple genes, values reflect the **Settings → Multi-gene coloring** selection (max / sum / richness). |
-| **Stim correlation** | A signed coolwarm ramp with anchors at `−stimHi`, `−stimLo`, `0`, `+stimLo`, `+stimHi`. The title shows the active stim (e.g. *"Stim: motion forward"*) for a single selection, or *"max \|r\| across N"* / *"max \|r\| across all"* for multi / no selection. |
+| **Stim correlation** | A signed coolwarm ramp. With an active stimulus sign-band filter it marks `−stimLo`, `0`, and `+stimLo`, then saturates at `stimHi` (or separate `stimHiNeg` / `stimHiPos` when split saturation is on). In `no filter` mode the ramp maps continuously from zero. The title shows the active stim (e.g. *"Stim: motion forward"*) for a single selection, or the representative value used across multiple/all stimuli (*"max \|r\|"*, *"max r+"*, or *"min r−"*). |
 | **Swim correlation** | A signed coolwarm ramp annotated with `−swimHi`, `−swimLo`, `0`, `+swimLo`, `+swimHi`. The deadband around 0 is the unresponsive region. |
 | **Activity** | A plasma ramp annotated with ΔF/F anchors (floor and ceiling, from Settings). Cells below the floor are dim; cells above the ceiling saturate. |
 | **Specimen** | Three swatches, one per source specimen. |
@@ -34,7 +34,7 @@ The Stim correlation and Swim correlation schemes use the same coolwarm divergen
 
 When [Settings → Fade weak correlations](/settings#fade-weak-correlations) is on, alpha is scaled by `|r|` so cells near the midpoint fade into the dark background and the colored extremes stand out. The legend gradient mirrors this: its midpoint is partially transparent, matching what's on screen. Turning the setting off renders both the gradient and the cells at full opacity.
 
-Anchors `±stimLo` / `±stimHi` and `±swimLo` / `±swimHi` are configurable in [Settings](/settings#stim-correlation-cutoffs).
+Anchors `±stimLo` / `stimHi` (optionally split into `stimHiNeg` and `stimHiPos`) and `±swimLo` / `±swimHi` are configurable in [Settings](/settings#stim-correlation-cutoffs).
 
 ## Categorical palettes
 
