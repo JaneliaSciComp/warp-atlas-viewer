@@ -72,10 +72,20 @@ test('cycles through projection modes without shader errors', async ({ page }) =
   const projectionSection = page.locator('section').filter({
     has: page.getByText('Projection', { exact: true }),
   });
-  for (const label of ['Min', 'Mean', 'Max', 'Min/Max', 'Sum', 'Off']) {
-    await projectionSection.getByRole('button', { name: label, exact: true }).click();
-    await page.waitForTimeout(200);
-  }
+  const cycleProjectionModes = async () => {
+    for (const label of ['Min', 'Mean', 'Max', 'Min/Max', 'Sum', 'Off']) {
+      await projectionSection.getByRole('button', { name: label, exact: true }).click();
+      await page.waitForTimeout(200);
+    }
+  };
+  await cycleProjectionModes();
+
+  // Also exercise the signed stim/swim projection path. It uses different
+  // blending/composite behavior from sequential Activity/Gene projections.
+  await page.getByRole('button', { name: 'Filters' }).click();
+  await page.getByLabel('scheme').selectOption({ label: 'Stim correlation' });
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await cycleProjectionModes();
 
   expect(pageErrors).toEqual([]);
   expect(consoleErrors).toEqual([]);

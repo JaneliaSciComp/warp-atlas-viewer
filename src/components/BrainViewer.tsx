@@ -500,15 +500,31 @@ function PointCloud({
       m.depthTest = false;
     } else {
       m.uniforms.mode.value = mode === 'min' ? 1 : mode === 'maxabs' ? 4 : 0;
-      // Signed stim/swim winner-take-all projections (min/max/maxabs) use
-      // the same "fade weak correlations" idea as the normal point cloud:
-      // neutral coolwarm midpoint values render with low alpha instead of
-      // painting opaque white over the projection. Sequential gene/activity
-      // projections still render opaque.
-      m.blending = projectionConfig.scalarMode === 2 ? THREE.NormalBlending : THREE.NoBlending;
-      m.transparent = projectionConfig.scalarMode === 2;
-      m.depthWrite = true;
-      m.depthTest = true;
+      if (projectionConfig.scalarMode === 2) {
+        // Signed stim/swim max/min/min-max: order-independent MAX-blend
+        // accumulation into the off-screen target. Max stores max(t), Min
+        // stores max(1-t), and Min/Max stores sign-split magnitude, so the
+        // composite can recover the true signed winner without depth-culling
+        // stronger signal behind a near-neutral transparent point.
+        m.blending = THREE.CustomBlending;
+        m.blendEquation = THREE.MaxEquation;
+        m.blendSrc = THREE.OneFactor;
+        m.blendDst = THREE.OneFactor;
+        m.blendEquationAlpha = THREE.MaxEquation;
+        m.blendSrcAlpha = THREE.OneFactor;
+        m.blendDstAlpha = THREE.OneFactor;
+        m.transparent = true;
+        m.depthWrite = false;
+        m.depthTest = false;
+      } else {
+        // Sequential gene/activity: opaque depth-test MIP straight to the
+        // back buffer. No negative half and no transparency, so the
+        // scalar-depth winner does not create transparent occlusion holes.
+        m.blending = THREE.NoBlending;
+        m.transparent = false;
+        m.depthWrite = true;
+        m.depthTest = true;
+      }
     }
     m.needsUpdate = true;
   }, [projectionConfig.scalarMode, projectionMaterial, projectionMode]);
@@ -1647,19 +1663,21 @@ function CameraSync({
  *  Step 1 (all modes): render the ghost/context underlay to the back
  *  buffer (projection hidden); autoClear also resets the depth buffer.
  *
- *  Winner-take-all (min/max/maxabs): step 2 renders the projection points
- *  straight over the ghost context with autoClear off — the GPU depth test
- *  (keyed on the scalar, not real distance) does the per-pixel reduction,
- *  and the per-cell alpha blends transparently over the underlay.
+ *  Sequential depth-MIP (gene/activity min/max/maxabs): step 2 renders the
+ *  projection points straight over the ghost context with autoClear off —
+ *  the GPU depth test (keyed on the scalar, not real distance) does the
+ *  per-pixel reduction. These schemes are opaque with no negative half, so
+ *  scalar-depth winner-take-all has no transparent-occlusion problem.
  *
- *  Accumulation (mean/sum): step 2 renders the projection into an off-screen
- *  RGBA float target whose additive blending sums signed scalar components
- *  as (positiveSum, negativeSum, denominator, denominator). For signed
- *  stim/swim mean with weak-correlation fade, the denominator is signal
- *  strength instead of raw count, so transparent near-zero samples do not
- *  hide stronger signal. Step 3 alpha-blends a fullscreen composite quad
- *  over the ghost context, reconstructing the mean or exposure-scaled
- *  signed sum and emitting transparency where the reduced signal is weak.
+ *  Accumulation (mean/sum, AND signed min/max/minmax): step 2 renders the
+ *  projection into an off-screen RGBA float target. Mean/sum use additive
+ *  blending to accumulate (positiveSum, negativeSum, denominator,
+ *  denominator); for signed stim/swim mean with weak-correlation fade, the
+ *  denominator is signal strength instead of raw count. Signed winner modes
+ *  use MAX blending with invertible scalar keys. Step 3 alpha-blends a
+ *  fullscreen composite quad over the ghost context, reconstructing the
+ *  reduced scalar or signed winner and emitting transparency where the
+ *  signal is weak.
  */
 function ProjectionRenderPass({
   mode,
@@ -1721,7 +1739,9 @@ function ProjectionRenderPass({
   }, [projectionColorMap, projectionConfig]);
 
   useEffect(() => {
-    compositeMaterial.uniforms.mode.value = mode === 'sum' ? 1 : 0;
+    // Composite reduction selector: 0 mean, 1 sum, 2 max, 3 min, 4 min/max.
+    compositeMaterial.uniforms.mode.value =
+      mode === 'sum' ? 1 : mode === 'max' ? 2 : mode === 'min' ? 3 : mode === 'maxabs' ? 4 : 0;
   }, [compositeMaterial, mode]);
   useEffect(() => {
     compositeMaterial.uniforms.sumExposure.value = Math.max(0.01, Math.min(10, sumExposure));
@@ -1753,7 +1773,12 @@ function ProjectionRenderPass({
     rt.setSize(Math.max(1, Math.floor(size.width * pr)), Math.max(1, Math.floor(size.height * pr)));
   }, [gl, rt, size.height, size.width]);
 
-  const winnerTakeAll = mode === 'min' || mode === 'max' || mode === 'maxabs';
+  // Sequential gene/activity max/min/min-max render as an opaque depth-test
+  // MIP straight to the back buffer. Everything else (mean/sum, plus signed
+  // max/min/min-max) accumulates into the off-screen target and composites.
+  const depthMip =
+    (mode === 'min' || mode === 'max' || mode === 'maxabs') &&
+    projectionConfig.scalarMode !== 2;
 
   useFrame(() => {
     const ctx = scene.getObjectByName(PROJECTION_CONTEXT_NAME);
@@ -1775,12 +1800,12 @@ function ProjectionRenderPass({
       if (proj) proj.visible = false;
       gl.setRenderTarget(null);
       gl.render(scene, camera);
-      if (winnerTakeAll) {
-        // 2. Projection over the ghost context, straight to the back buffer.
-        //    autoClear off preserves the context color; the depth buffer
-        //    was just cleared in step 1, so the scalar-keyed depth test
-        //    still does a clean per-pixel reduction among projection cells.
-        //    Null the background so Three doesn't repaint it over the
+      if (depthMip) {
+        // 2. Sequential MIP over the ghost context, straight to the back
+        //    buffer. autoClear off preserves the context color; the depth
+        //    buffer was just cleared in step 1, so the scalar-keyed depth
+        //    test still does a clean per-pixel reduction among projection
+        //    cells. Null the background so Three doesn't repaint it over the
         //    context this pass.
         if (ctx) ctx.visible = false;
         if (proj) proj.visible = true;

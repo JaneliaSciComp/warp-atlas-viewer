@@ -427,9 +427,11 @@ export interface SettingsState {
      *  stim/swim) reduce raw scalar values along the view ray and
      *  recolor the reduced scalar. Signed stim/swim projections render
      *  near-zero/cancelled values with low opacity so the coolwarm
-     *  neutral midpoint does not dominate. Projection modes draw the
-     *  existing 3D ghosts as visual context underneath, but ghosts do
-     *  not enter the scalar reduction. Categorical schemes ignore this
+     *  neutral midpoint does not dominate. Signed min/max/min-max are
+     *  reduced order-independently instead of with depth, so transparent
+     *  near-neutral cells cannot occlude stronger signal. Projection modes
+     *  draw the existing 3D ghosts as visual context underneath, but ghosts
+     *  do not enter the scalar reduction. Categorical schemes ignore this
      *  setting. Ambient occlusion and the focused-neuron ring marker are
      *  disabled while projection is active. */
     projectionMode: ProjectionMode;

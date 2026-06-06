@@ -19,6 +19,12 @@
 //               Sequential schemes have no negative half, so this
 //               degenerates to "highest scalar wins" like mode 0.
 //
+// Signed winner modes (stim/swim max, min, min/max) are not rendered with
+// depth-test winner-take-all. They emit an order-independent MAX-blend key
+// into the accumulation target, then the composite pass reconstructs the
+// winning ramp position. That keeps true scalar min/max semantics without
+// letting a transparent near-neutral point depth-cull stronger signal.
+//
 // GLSL ES 3.00 (Three.js sets `glslVersion: THREE.GLSL3` on the host
 // material). In GLSL3 ShaderMaterial mode Three does NOT auto-define
 // gl_FragColor, so we declare our own out vec4. gl_FragDepth is core
@@ -62,15 +68,29 @@ void main() {
     fragColor = vec4(max(vScalar, 0.0), max(-vScalar, 0.0), 1.0, 1.0);
   } else {
     float order = scalarToT(vScalar);
-    if (signedFadeActive() && scalarStrengthFromT(order) <= intensityFloor) discard;
-    vec4 rgba = scalarRgbaFromT(order);
-    if (signedFadeActive()) {
-      // Signed projections may be partially transparent. Let the point
-      // edge fade without leaving almost-transparent fragments in the
-      // scalar-depth buffer where they could occlude useful signal.
-      rgba.a *= edge;
-      if (rgba.a < 0.02) discard;
+    if (scalarMode == 2) {
+      // Signed max/min/min-max use MAX blending into the off-screen target
+      // rather than scalar-keyed depth. Channels carry mode-specific keys:
+      //   max    → r = max(t)
+      //   min    → r = max(1 - t), reconstructed as t = 1 - r
+      //   minmax → r/g = strongest positive/negative magnitudes
+      // Alpha is a touched-pixel flag for max/min and harmless for minmax.
+      float strength = scalarStrengthFromT(order);
+      if (strength <= intensityFloor) discard;
+      if (mode == 1) {
+        fragColor = vec4(1.0 - order, 0.0, 0.0, 1.0);
+      } else if (mode == 4) {
+        float posMag = order > 0.5 ? strength : 0.0;
+        float negMag = order < 0.5 ? strength : 0.0;
+        fragColor = vec4(posMag, negMag, 0.0, 1.0);
+      } else {
+        fragColor = vec4(order, 0.0, 0.0, 1.0);
+      }
+      return;
     }
+
+    // Sequential max/min/min-max: opaque depth-test MIP. maxabs has no
+    // negative half here, so it shares max's "highest scalar wins" key.
     if (mode == 4) {
       // Largest deviation from neutral wins. For signed schemes the
       // neutral midpoint is t = 0.5, so strength is symmetric around it;
@@ -81,6 +101,6 @@ void main() {
     } else {
       gl_FragDepth = (mode == 0) ? (1.0 - order) : order;
     }
-    fragColor = rgba;
+    fragColor = scalarRgbaFromT(order);
   }
 }

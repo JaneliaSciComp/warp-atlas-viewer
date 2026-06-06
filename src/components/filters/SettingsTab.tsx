@@ -421,6 +421,9 @@ export function SettingsTab({
                     responses, Max highlights positive responses, and Min/Max
                     surfaces the strongest response of either sign (best for
                     seeing deep correlated cells of both polarities at once).
+                    Signed Min/Max/Min-Max are reduced order-independently
+                    rather than by depth, so transparent near-neutral cells
+                    cannot hide stronger signal behind them.
                     In stim/swim projection, near-zero or cancelled signed
                     values use low opacity instead of painting the coolwarm
                     white midpoint opaquely.
