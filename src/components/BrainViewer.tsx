@@ -5,8 +5,6 @@ import * as THREE from 'three';
 import type { NeuronDataset, FilterState, SelectionState, SettingsState, ProjectionMode } from '../data/types';
 import type { CameraState } from '../utils/urlState';
 import type { SharedColoring } from '../hooks/useColoring';
-import projectionScalarChunkSrc from '../shaders/projection_scalar.glsl?raw';
-import projectionScalarColorChunkSrc from '../shaders/projection_scalar_color.glsl?raw';
 import { AmbientOcclusion } from './AmbientOcclusion';
 import {
   createProjectionColorMapTexture,
@@ -21,14 +19,6 @@ import { DebugOverlay, FpsMeter } from './brain/debugOverlay';
 import { CameraSync, ScreenSpacePan, type ScreenPanState } from './brain/cameraControls';
 import { ProjectionRenderPass } from './brain/ProjectionRenderPass';
 import { PointCloud, type PickState } from './brain/PointCloud';
-
-// Three's ShaderMaterial preprocessor resolves #include <...> through
-// ShaderChunk. Register WARP-specific chunks once at module load so the
-// visible projection, ID-picking projection, and mean/sum composite all
-// share exactly the same scalar-to-palette mapping.
-const shaderChunks = THREE.ShaderChunk as unknown as Record<string, string>;
-shaderChunks.warp_projection_scalar = projectionScalarChunkSrc;
-shaderChunks.warp_projection_scalar_color = projectionScalarColorChunkSrc;
 
 const VIEWER_BACKGROUND = '#0a0a0a';
 

@@ -26,6 +26,9 @@ import {
   PROJECTION_CONTEXT_NAME,
   PROJECTION_POINTS_NAME,
 } from './sceneObjectNames';
+import { registerProjectionShaderChunks } from './registerProjectionShaderChunks';
+
+registerProjectionShaderChunks();
 
 export interface PickState {
   /** Mouse position in canvas pixel coords, or null if mouse outside. */

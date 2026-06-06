@@ -10,6 +10,9 @@ import {
   PROJECTION_CONTEXT_NAME,
   PROJECTION_POINTS_NAME,
 } from './sceneObjectNames';
+import { registerProjectionShaderChunks } from './registerProjectionShaderChunks';
+
+registerProjectionShaderChunks();
 
 /** Projection render hijack for every active projection mode. Takes over
  *  the render loop at priority 1 (so r3f stops auto-rendering) so it can
