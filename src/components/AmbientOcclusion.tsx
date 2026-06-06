@@ -35,6 +35,13 @@ const pointCloudNormalVertexShader = /* glsl */ `
   varying float vAlpha;
 
   void main() {
+    // Reads the static instAlpha attribute, NOT the per-sample alpha the
+    // main cell shader derives from instActivity during Activity playback.
+    // While playback is deferred (see BrainViewer's activity fast path) the
+    // static buffers aren't refreshed per sample, so this pre-pass's
+    // participating-point set is pinned to the playback-start sample. AO is
+    // off by default and the drift is subtle; if it matters, thread the
+    // activityMode/instActivity uniforms through here too.
     vAlpha = instAlpha;
 
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);

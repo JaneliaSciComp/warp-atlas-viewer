@@ -43,8 +43,6 @@ export interface SharedColoring {
   effectivePointSize: number;
   /** Ghost intensity used by the last paint pass. */
   effectiveGhostIntensity: number;
-  /** True when the last published change only advanced Activity time. */
-  activitySampleOnly: boolean;
 }
 
 /** Shared per-cell coloring keyed on (data, filter, settings,
@@ -95,7 +93,6 @@ export function useColoring(
     selection: SelectionState;
     canvasHeight: number;
   } | null>(null);
-  const activitySampleOnlyRef = useRef(false);
   useEffect(() => {
     if (!data || !result) return;
     const prev = prevInputsRef.current;
@@ -109,7 +106,6 @@ export function useColoring(
       filter.colorMode === 'activity' &&
       prev.filter.colorMode === 'activity' &&
       sameFilterExceptActivitySample(prev.filter, filter);
-    activitySampleOnlyRef.current = activitySampleOnly;
     prevInputsRef.current = {
       data,
       result,
@@ -158,7 +154,6 @@ export function useColoring(
             basePointSize: statsRef.current.basePointSize,
             effectivePointSize: statsRef.current.effectivePointSize,
             effectiveGhostIntensity: statsRef.current.effectiveGhostIntensity,
-            activitySampleOnly: activitySampleOnlyRef.current,
           }
         : null,
     [result, revision],

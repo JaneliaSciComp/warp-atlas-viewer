@@ -644,6 +644,10 @@ function PointCloud({
     // for it: full alpha, brightened, so it stays visible inside a
     // dimmed group. The ring marker (below) handles the actual focus
     // indicator — we don't bump the cell size.
+    // Note: in activityShaderMode the shader recomputes color/alpha from
+    // instActivity for active cells, so this stamp is overridden there —
+    // the ring still marks focus, but a focused no-signal cell shows at the
+    // dim no-signal alpha rather than being lifted to 1.0.
     if (focusedNeuron != null && focusedNeuron >= 0 && focusedNeuron < data.count) {
       const i = focusedNeuron;
       buffers.colors[i * 3] = Math.min(1, buffers.colors[i * 3] * 1.2 + 0.25);
