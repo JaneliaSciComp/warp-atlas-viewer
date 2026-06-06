@@ -251,10 +251,12 @@ export type ProjectionMode = "off" | "min" | "mean" | "max" | "maxabs" | "sum";
  *  (separate from FilterState) so "reset filters" doesn't clobber it
  *  and the Settings tab has a clean home for its controls. */
 export interface SettingsState {
-    /** Below this correlation magnitude, cells are "non-responsive" and
-     *  map to the neutral midpoint in the Stim scheme; the Activity filter
-     *  also requires a cell to exceed this floor for at least one selected
-     *  stimulus in the enabled sign band. Default
+    /** Stimulus correlation responsive floor. When a visual-stimulus
+     *  sign-band filter is enabled, cells below this magnitude are
+     *  "non-responsive", map to the neutral midpoint in the Stim scheme,
+     *  and are rejected by the stimulus filter. In no-filter mode, the
+     *  Stim color/projection scalar maps continuously from zero instead
+     *  of using this as a gate. Default
      *  0.13 — the paper's full-vector responsive threshold (the 90th
      *  percentile per-stimulus, averaged, rounded). */
     stimLo: number;

@@ -616,10 +616,13 @@ export function SettingsTab({
                 </div>
                 <p className="text-neutral-400 leading-snug">
                     Pearson r magnitude thresholds for stimulus correlation.
-                    Cells inside the floor are treated as non-responsive
-                    (neutral in the Stim color scheme; rejected by the Activity
-                    filter when a sign band is enabled). Cells past saturation
-                    clamp to the divergent ramp endpoints.
+                    When a visual-stimulus sign band is enabled, cells inside
+                    the floor are treated as non-responsive (neutral in the
+                    Stim color scheme and rejected by the stimulus filter). In
+                    no-filter mode the Stim color/projection scalar maps
+                    continuously from zero instead of using this floor as a
+                    gate. Cells past saturation clamp to the divergent ramp
+                    endpoints.
                 </p>
                 <NumberRow
                     label="responsive floor (|r| ≥)"

@@ -176,6 +176,11 @@ describe('cellPasses', () => {
     expect(passes(f)).toEqual([0, 2]);
   });
 
+  it('does not constrain cells when selected stimuli are in no-filter mode', () => {
+    const f = { ...BASE_FILTER, selectedStimuli: [0], stimMode: 'off' as const };
+    expect(passes(f)).toEqual([0, 1, 2, 3]);
+  });
+
   it('combines stimuli with AND', () => {
     const f = {
       ...BASE_FILTER,
@@ -390,16 +395,14 @@ describe('applyColoring stats', () => {
     expect(out.alphas[2]).toBeGreaterThan(0.5);
     // Float32 storage rounds 0.18 to ~0.180000007, so allow a tiny tolerance.
     expect(out.alphas[3]).toBeLessThanOrEqual(0.1801);
-    // Only cell 2 clears the visible-alpha threshold; 0/1 are hidden,
-    // 3 is dimmed by the selection.
-    expect(stats.visibleCount).toBe(1);
-    // filterSelection still reflects the filter intersection (both
-    // renderable cells), independent of the user selection.
+    // "Cells visible" reflects the filter intersection (both renderable
+    // cells), independent of the user selection / alpha dimming.
+    expect(stats.visibleCount).toBe(2);
     expect(stats.filterSelection).toBeInstanceOf(Uint32Array);
     expect(Array.from(stats.filterSelection ?? []).sort((a, b) => a - b)).toEqual([2, 3]);
   });
 
-  it('applies opaqueActiveCells in shared coloring and visibleCount', () => {
+  it('applies opaqueActiveCells in shared coloring without changing the filter count', () => {
     const out = allocColoring(TEST_DATA.count);
     const stats = applyColoring(
       TEST_DATA,
@@ -412,5 +415,42 @@ describe('applyColoring stats', () => {
 
     expect(Array.from(out.alphas)).toEqual([1, 1, 1, 1]);
     expect(stats.visibleCount).toBe(4);
+  });
+
+  it('maps no-filter Stim coloring continuously from zero instead of like ± either', () => {
+    const ds: NeuronDataset = {
+      ...TEST_DATA,
+      // Cell 3 has weak-but-nonzero stim0 correlation below the default
+      // responsive floor. No-filter should still expose it as a scalar;
+      // ± either should reject it from the active set.
+      stimulusCorr: new Float32Array([0.5, 0.0, 0.0, 0.5, 0.5, 0.5, 0.05, 0.0]),
+    };
+    const noFilterOut = allocColoring(ds.count);
+    const noFilterStats = applyColoring(
+      ds,
+      { ...BASE_FILTER, colorMode: 'stim', selectedStimuli: [0], stimMode: 'off' },
+      DEFAULT_SETTINGS,
+      emptySelection,
+      CH,
+      noFilterOut,
+    );
+    expect(noFilterStats.filterSelection).toBeNull();
+    expect(noFilterStats.visibleCount).toBe(ds.count);
+    expect(noFilterOut.scalarValues[3]).toBeCloseTo(0.05);
+    expect(noFilterOut.intensities[3]).toBeGreaterThan(0);
+
+    const eitherOut = allocColoring(ds.count);
+    const eitherStats = applyColoring(
+      ds,
+      { ...BASE_FILTER, colorMode: 'stim', selectedStimuli: [0], stimMode: 'both' },
+      DEFAULT_SETTINGS,
+      emptySelection,
+      CH,
+      eitherOut,
+    );
+    expect(Array.from(eitherStats.filterSelection ?? []).sort((a, b) => a - b)).toEqual([0, 2]);
+    expect(eitherStats.visibleCount).toBe(2);
+    expect(eitherOut.scalarValues[3]).toBeNaN();
+    expect(eitherOut.intensities[3]).toBe(0);
   });
 });

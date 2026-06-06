@@ -158,13 +158,15 @@ export function chooseVisibleTicks(
 }
 
 export function signedCorrelationTicks(lo: number, hi: number): GradientTickSpec[] {
-  return [
+  const ticks: GradientTickSpec[] = [
     { value: -hi, priority: 100 },
     { value: hi, priority: 100 },
     { value: 0, priority: 90 },
-    { value: -lo, priority: 50 },
-    { value: lo, priority: 50 },
   ];
+  if (lo > 0) {
+    ticks.push({ value: -lo, priority: 50 }, { value: lo, priority: 50 });
+  }
+  return ticks;
 }
 
 export function formatCorrelationTick(t: number) {
@@ -461,7 +463,7 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
       : sel.length === 0 || sel.length === S
         ? `Stim: ${stimRepPhrase} across all`
         : `Stim: ${stimRepPhrase} across ${sel.length}`;
-  const lo = Math.max(0, settings.stimLo);
+  const lo = stimFilterActive ? Math.max(0, settings.stimLo) : 0;
   const hi = Math.max(lo + 0.001, settings.stimHi);
   const range = Math.max(0.001, 2 * hi); // -hi → +hi
   const ticks = signedCorrelationTicks(lo, hi);

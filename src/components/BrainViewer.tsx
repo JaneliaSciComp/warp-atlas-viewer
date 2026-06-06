@@ -175,7 +175,13 @@ function scalarProjectionConfig(
       };
     }
     case 'stim': {
-      const lo = Math.max(0, settings.stimLo);
+      // In Visual Stimuli "no filter" mode, selected stimuli scope the
+      // signed scalar but should not apply the responsive floor as a gate.
+      // Use the floor only when a sign-band filter is armed; otherwise map
+      // correlations continuously from zero so no-filter projection does
+      // not collapse to the same contributor set as "± either".
+      const stimFilterActive = filter.selectedStimuli.length > 0 && filter.stimMode !== 'off';
+      const lo = stimFilterActive ? Math.max(0, settings.stimLo) : 0;
       const hi = Math.max(lo + 0.001, settings.stimHi);
       return {
         supported: true,

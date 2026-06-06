@@ -50,9 +50,10 @@ export function allocColoring(n: number): ColoringResult {
 }
 
 export interface ColoringStats {
-  /** Number of cells whose final alpha clears the visibility threshold
-   *  (≥ 0.5). Drives the "cells visible" readout — reflects both filter
-   *  membership and fade-by-magnitude / ghost slider attenuation. */
+  /** Number of renderable cells in the active filter intersection. Drives
+   *  the "cells visible" readout, so visual styling controls (fade weak
+   *  correlations, ghost visibility, active selection dimming, opacity
+   *  overrides) do not change the count unless they are actual filters. */
   visibleCount: number;
   /** Indices of cells in the filter intersection — populated only when
    *  at least one filter dimension is active. Empty means the active
@@ -337,7 +338,6 @@ export function applyColoring(
   // small but positive so the ramp still maps without dividing by zero.
   const stimLo = Math.max(0, settings.stimLo);
   const stimHi = Math.max(stimLo + 0.001, settings.stimHi);
-  const stimRange = Math.max(0.001, stimHi - stimLo);
   // Swim coloring anchors: symmetric around 0. Below |r| = swimLo the
   // cell maps to the neutral midpoint of the divergent ramp; above
   // |r| = swimHi it saturates at the corresponding end. Clamp the divisor
@@ -435,6 +435,15 @@ export function applyColoring(
   const stimLoFilter = stimLo;
   const stimMode = filter.stimMode;
   const stimActive = stimSelLen > 0 && stimMode !== 'off';
+  // Visual Stimuli "no filter" should not silently behave like the
+  // "± either" sign-band. When the sign-band filter is dormant, selected
+  // stimuli still scope the Stim color/projection scalar, but the
+  // responsive floor is not used as a color/projection deadband; raw
+  // correlations map continuously away from zero. Once a sign-band is
+  // enabled, the same floor becomes both the filter criterion and the
+  // neutral deadband.
+  const stimColorLo = stimActive ? stimLo : 0;
+  const stimColorRange = Math.max(0.001, stimHi - stimColorLo);
   // Sign-aware predicate (encoded as ints to keep the hot loop branchless):
   //   0 = positive (r >= +lo), 1 = negative (r <= -lo), 2 = both (|r| >= lo)
   const stimModeCode = stimMode === 'negative' ? 1 : stimMode === 'both' ? 2 : 0;
@@ -452,12 +461,6 @@ export function applyColoring(
     swimFilterActive ||
     hideUnassigned;
   const fadeWeak = settings.fadeWeakCorrelation;
-  // visibleCount is the count of cells the user actually sees on
-  // screen, not the count of cells passing the filter. We bump it
-  // for cells whose final alpha is above this threshold — that way
-  // fade-by-magnitude (which knocks low-|r| cells down to alpha ~0.12)
-  // is reflected in the counter even when no filter is active.
-  const VISIBLE_ALPHA_THRESHOLD = 0.5;
   // Single-pass bucket fill into a draw-order buffer:
   //   out-of-set indices fill from the front (outCursor ↑)
   //   in-set     indices fill from the back  (inCursor  ↓)
@@ -587,9 +590,12 @@ export function applyColoring(
     : 1.0;
   const effectivePointSize = baseSize * inSetBoost;
   const effectiveGhostIntensity = baseGhostIntensity;
+  // The UI count is a filter/readout count, not an alpha/style count.
+  // Compute it from pass 1 before selection dimming, fade-weak opacity,
+  // ghost visibility, or opaque-active overrides can affect display alpha.
+  const visibleCount = inSetCount;
 
   // ── Pass 2: paint ─────────────────────────────────────────────────
-  let visibleCount = 0;
   for (let i = 0; i < count; i++) {
     const inSet = inSetArr[i] === 1;
     let r = 0, g = 0, b = 0, alpha = 0.85, size = effectivePointSize;
@@ -768,14 +774,14 @@ export function applyColoring(
         }
         case 'stim': {
           // Divergent coolwarm ramp over signed stim correlation,
-          // anchored symmetrically at ±stimLo (neutral deadband) and
-          // ±stimHi (saturation). With one stimulus selected we paint
-          // by its signed r. With multiple stimuli (or "all stims")
-          // the rep we pick tracks the filter direction WHEN the
-          // filter is active. With the filter inactive (no stims, or
-          // mode 'off') the coloring falls back to max-|r| so the
-          // map doesn't keep biasing toward a direction the user
-          // can no longer see in the UI.
+          // anchored symmetrically at ±stimColorLo (0 in no-filter
+          // mode, settings.stimLo when a sign-band is armed) and
+          // ±stimHi (saturation). With one stimulus selected we paint by
+          // its signed r. With multiple stimuli (or "all stims") the rep
+          // we pick tracks the filter direction WHEN the filter is active.
+          // With the filter inactive (no stims, or mode 'off') the
+          // coloring falls back to max-|r| so the map doesn't keep biasing
+          // toward a direction the user can no longer see in the UI.
           let rawA: number;
           if (!useStimMax) {
             rawA = stimulusCorr[i * S + stimSel[0]];
@@ -816,10 +822,10 @@ export function applyColoring(
           }
           const mag = Math.abs(rawA);
           let v: number;
-          if (mag <= stimLo) {
+          if (mag <= stimColorLo) {
             v = 0;
           } else {
-            v = Math.min(1, (mag - stimLo) / stimRange);
+            v = Math.min(1, (mag - stimColorLo) / stimColorRange);
           }
           const signed = rawA >= 0 ? v : -v;
           const c = coolwarm(signed);
@@ -862,8 +868,7 @@ export function applyColoring(
     // Optional shared opacity override: make foreground/in-filter cells
     // fully opaque while leaving ghosts/out-of-filter cells dimmed. This
     // lives in shared coloring (rather than BrainViewer) so the 3D and
-    // t-SNE scatters show the same alpha policy and visibleCount stays
-    // aligned with both.
+    // t-SNE scatters show the same alpha policy.
     if (settings.opaqueActiveCells && inSet && alpha > 0) {
       alpha = 1.0;
     }
@@ -890,8 +895,6 @@ export function applyColoring(
     if (selSet && isUserSelection && !selSet.has(i)) {
       alpha = Math.min(alpha, 0.18);
     }
-
-    if (alpha >= VISIBLE_ALPHA_THRESHOLD) visibleCount++;
 
     colors[i * 3] = r;
     colors[i * 3 + 1] = g;
