@@ -3,6 +3,7 @@ import type { FilterState, SelectionState, SettingsState } from './data/types';
 import { DEFAULT_SETTINGS } from './data/types';
 import { useColoring } from './hooks/useColoring';
 import { useNeuronData } from './hooks/useNeuronData';
+import { useSanitizedDatasetState } from './hooks/useSanitizedDatasetState';
 import { useSelection } from './hooks/useSelection';
 import { useUniqueFishIds } from './hooks/useUniqueFishIds';
 import { FilterControls } from './components/FilterControls';
@@ -121,18 +122,39 @@ export default function App() {
   const [activitySpeed, setActivitySpeed] = useState(
     INITIAL_URL_STATE?.activitySpeed ?? 10,
   );
+  // Single-neuron focus is independent of the group selection so a
+  // t-SNE drag can persist while the user clicks through individual
+  // neurons. Click on a neuron → focus it (DetailPanel shows just that
+  // cell). Click on empty space → unfocus (DetailPanel reverts to the
+  // group). The t-SNE clear-selection button drops the lasso only;
+  // focus is cleared separately by clicking empty space.
+  const [focusedNeuron, setFocusedNeuron] = useState<number | null>(
+    INITIAL_URL_STATE?.focusedNeuron ?? null,
+  );
+  // Reconcile URL-derived filter / focus with the loaded dataset
+  // synchronously: the raw state above is restored before `data` exists,
+  // so it can carry indices that are out of range for the dataset that
+  // actually loaded. Every read below uses the sanitized values so no
+  // render feeds an out-of-range index into coloring, picking, or export.
+  // The raw state is committed back once (see the restore effect) so the
+  // editable filter and the URL converge on the clamped values.
+  const { effectiveFilter, effectiveFocusedNeuron } = useSanitizedDatasetState(
+    data,
+    filter,
+    focusedNeuron,
+  );
   // Shared per-cell coloring (colors / alphas / sizes) — computed once
   // per filter/settings/selection/canvas-size change and passed to both
   // BrainViewer and UmapPanel so neither has to repeat the 274k-cell
   // applyColoring pass on every interaction.
   const coloring = useColoring(
     data,
-    filter,
+    effectiveFilter,
     settings,
     selection,
     brainCanvasSize.h,
     activityPlaying &&
-      filter.colorMode === 'activity' &&
+      effectiveFilter.colorMode === 'activity' &&
       settings.projectionMode === 'off',
   );
   // The detail panel floats over the right edge of the viewer and can be
@@ -170,15 +192,6 @@ export default function App() {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  // Single-neuron focus is independent of the group selection so a
-  // t-SNE drag can persist while the user clicks through individual
-  // neurons. Click on a neuron → focus it (DetailPanel shows just that
-  // cell). Click on empty space → unfocus (DetailPanel reverts to the
-  // group). The t-SNE clear-selection button drops the lasso only;
-  // focus is cleared separately by clicking empty space.
-  const [focusedNeuron, setFocusedNeuron] = useState<number | null>(
-    INITIAL_URL_STATE?.focusedNeuron ?? null,
-  );
 
   // Camera + t-SNE viewport are read continuously during interaction.
   // We keep them in refs (not React state) so they don't trigger
@@ -195,11 +208,11 @@ export default function App() {
 
   // Restore lasso selection from URL once data is loaded: re-run
   // point-in-polygon over the persisted vertices to derive indices.
-  // Also sanitize URL-restored filter/settings/focusedNeuron against the
-  // actual dataset arity — schema validation in decodeHash blocks
-  // type-level garbage, but a URL generated against a different dataset
-  // could still carry out-of-range gene/cluster/stim/cell indices that
-  // would NaN typed-array reads downstream.
+  // Reads of filter/focusedNeuron are already clamped synchronously by
+  // useSanitizedDatasetState above; the setFilter/setFocusedNeuron calls
+  // here only commit that clamp back into the editable React state so the
+  // filter cards and the URL writer converge on the in-range values and
+  // never spread a stale out-of-range index forward.
   const selectionRestoredRef = useRef(false);
   useEffect(() => {
     if (selectionRestoredRef.current) return;
@@ -268,12 +281,15 @@ export default function App() {
   // Snapshot state into refs so flushUrlWrite (which is called from
   // event listeners and so must NOT depend on render-cycle closures)
   // always reads the latest values.
-  const filterRef = useRef(filter);
-  filterRef.current = filter;
+  // Persist the sanitized values, not the raw ones, so a hash written
+  // before the restore effect commits the clamp can't carry an
+  // out-of-range index forward into the next share link.
+  const filterRef = useRef(effectiveFilter);
+  filterRef.current = effectiveFilter;
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
-  const focusedNeuronRef = useRef(focusedNeuron);
-  focusedNeuronRef.current = focusedNeuron;
+  const focusedNeuronRef = useRef(effectiveFocusedNeuron);
+  focusedNeuronRef.current = effectiveFocusedNeuron;
   const detailOpenRef = useRef(detailOpen);
   detailOpenRef.current = detailOpen;
   const bottomOpenRef = useRef(bottomOpen);
@@ -374,9 +390,9 @@ export default function App() {
   useEffect(() => {
     scheduleUrlWrite();
   }, [
-    filter,
+    effectiveFilter,
     settings,
-    focusedNeuron,
+    effectiveFocusedNeuron,
     detailOpen,
     bottomOpen,
     bottomHeight,
@@ -676,7 +692,7 @@ export default function App() {
           <ExportButton
             data={data}
             effectiveSelection={effectiveSelection}
-            focusedNeuron={focusedNeuron}
+            focusedNeuron={effectiveFocusedNeuron}
           />
           <LinksMenu />
           <a
@@ -701,11 +717,11 @@ export default function App() {
               <Suspense fallback={<LoadingPane label="Loading 3D viewer…" />}>
                 <BrainViewer
                   data={data}
-                  filter={filter}
+                  filter={effectiveFilter}
                   settings={settings}
                   coloring={coloring}
                   selection={selection}
-                  focusedNeuron={focusedNeuron}
+                  focusedNeuron={effectiveFocusedNeuron}
                   onFocus={setFocusedNeuron}
                   onCanvasSizeChange={setBrainCanvasSize}
                   initialCamera={INITIAL_URL_STATE?.camera ?? null}
@@ -717,7 +733,7 @@ export default function App() {
               </Suspense>
               <ColorLegend
                 data={data}
-                filter={filter}
+                filter={effectiveFilter}
                 settings={settings}
                 uniqueFishIds={uniqueFishIds}
               />
@@ -764,7 +780,7 @@ export default function App() {
               <div className="flex flex-col bg-neutral-800 min-h-0 min-w-0 overflow-hidden">
                 <FilterControls
                   data={data}
-                  filter={filter}
+                  filter={effectiveFilter}
                   setFilter={setFilter}
                   settings={settings}
                   setSettings={setSettings}
@@ -783,14 +799,14 @@ export default function App() {
               <Suspense fallback={<LoadingPane label="Loading t-SNE panel…" />}>
                 <UmapPanel
                   data={data}
-                  filter={filter}
+                  filter={effectiveFilter}
                   settings={settings}
                   selection={selection}
                   coloring={coloring}
                   pauseForActivityPlayback={
-                    activityPlaying && filter.colorMode === 'activity'
+                    activityPlaying && effectiveFilter.colorMode === 'activity'
                   }
-                  focusedNeuron={focusedNeuron}
+                  focusedNeuron={effectiveFocusedNeuron}
                   onFocus={setFocusedNeuron}
                   onSelect={handleUmapSelect}
                   initialViewport={INITIAL_URL_STATE?.umap ?? null}
@@ -820,10 +836,10 @@ export default function App() {
             <Suspense fallback={<LoadingPane label="Loading details…" />}>
               <DetailPanel
                 data={data}
-                filter={filter}
+                filter={effectiveFilter}
                 settings={settings}
                 selection={effectiveSelection}
-                focusedNeuron={focusedNeuron}
+                focusedNeuron={effectiveFocusedNeuron}
               />
             </Suspense>
           </aside>

@@ -7,9 +7,16 @@ import {
   roundCamera,
   roundLasso,
   roundViewport,
+  sanitizeFilterAgainstDataset,
+  sanitizeFocusedNeuron,
   viewportIsDefault,
 } from './urlState';
-import { DEFAULT_SETTINGS, type FilterState, type SettingsState } from '../data/types';
+import {
+  DEFAULT_SETTINGS,
+  type FilterState,
+  type NeuronDataset,
+  type SettingsState,
+} from '../data/types';
 
 const INITIAL_FILTER: FilterState = {
   colorMode: 'region',
@@ -297,5 +304,128 @@ describe('viewportIsDefault', () => {
     expect(viewportIsDefault({ zoom: 1.001, panX: 0, panY: 0 })).toBe(false);
     expect(viewportIsDefault({ zoom: 1, panX: 0.5, panY: 0 })).toBe(false);
     expect(viewportIsDefault({ zoom: 1, panX: 0, panY: -2 })).toBe(false);
+  });
+});
+
+// Minimal dataset with distinct arities per field so a single
+// out-of-range value can't accidentally pass against a different axis.
+// Only the metadata the sanitizers read is populated.
+function makeDataset(overrides: Partial<NeuronDataset> = {}): NeuronDataset {
+  return {
+    count: 100,
+    geneNames: ['gA', 'gB', 'gC'], // G = 3 → valid gene ids 0..2
+    clusterNames: ['c0', 'c1'], // C = 2 → valid cluster ids 0..1
+    regionNames: ['r0', 'r1', 'r2', 'r3'], // R = 4 → valid region ids 0..3
+    atlasRegionNames: ['a0', 'a1'], // AR = 2 → valid atlas region ids 0..1
+    stimulusNames: ['s0', 's1', 's2'], // S = 3 → valid stimulus ids 0..2
+    traceLength: 50, // T = 50 → valid activity samples 0..49
+    fishIds: new Uint8Array([59, 63, 71]), // fish set {59, 63, 71}
+    ...overrides,
+  } as NeuronDataset;
+}
+
+describe('sanitizeFilterAgainstDataset', () => {
+  const data = makeDataset();
+
+  it('passes an in-range filter through unchanged', () => {
+    const f: FilterState = {
+      ...INITIAL_FILTER,
+      isolatedRegion: 3,
+      isolatedAtlasRegion: 1,
+      isolatedFish: 63,
+      selectedGenes: [0, 2],
+      selectedCluster: 1,
+      selectedStimuli: [1, 2],
+      activitySample: 49,
+    };
+    expect(sanitizeFilterAgainstDataset(f, data)).toEqual(f);
+  });
+
+  it('drops out-of-range genes and keeps in-range ones', () => {
+    const out = sanitizeFilterAgainstDataset(
+      { ...INITIAL_FILTER, selectedGenes: [-1, 0, 2, 3, 999] },
+      data,
+    );
+    expect(out.selectedGenes).toEqual([0, 2]);
+  });
+
+  it('drops out-of-range stimuli and keeps in-range ones', () => {
+    const out = sanitizeFilterAgainstDataset(
+      { ...INITIAL_FILTER, selectedStimuli: [0, 3, 7] },
+      data,
+    );
+    expect(out.selectedStimuli).toEqual([0]);
+  });
+
+  it('clears an out-of-range manuscript region to -1 but keeps a valid one', () => {
+    expect(
+      sanitizeFilterAgainstDataset({ ...INITIAL_FILTER, isolatedRegion: 4 }, data).isolatedRegion,
+    ).toBe(-1);
+    expect(
+      sanitizeFilterAgainstDataset({ ...INITIAL_FILTER, isolatedRegion: 3 }, data).isolatedRegion,
+    ).toBe(3);
+  });
+
+  it('clears an out-of-range atlas region to -1 but keeps a valid one', () => {
+    expect(
+      sanitizeFilterAgainstDataset({ ...INITIAL_FILTER, isolatedAtlasRegion: 2 }, data)
+        .isolatedAtlasRegion,
+    ).toBe(-1);
+    expect(
+      sanitizeFilterAgainstDataset({ ...INITIAL_FILTER, isolatedAtlasRegion: 1 }, data)
+        .isolatedAtlasRegion,
+    ).toBe(1);
+  });
+
+  it('resets an unknown isolated fish to -1 but keeps a present one', () => {
+    expect(
+      sanitizeFilterAgainstDataset({ ...INITIAL_FILTER, isolatedFish: 42 }, data).isolatedFish,
+    ).toBe(-1);
+    expect(
+      sanitizeFilterAgainstDataset({ ...INITIAL_FILTER, isolatedFish: 71 }, data).isolatedFish,
+    ).toBe(71);
+    expect(
+      sanitizeFilterAgainstDataset({ ...INITIAL_FILTER, isolatedFish: -1 }, data).isolatedFish,
+    ).toBe(-1);
+  });
+
+  it('falls back to cluster 0 when the cluster index is out of range', () => {
+    expect(
+      sanitizeFilterAgainstDataset({ ...INITIAL_FILTER, selectedCluster: 5 }, data).selectedCluster,
+    ).toBe(0);
+    expect(
+      sanitizeFilterAgainstDataset({ ...INITIAL_FILTER, selectedCluster: 1 }, data).selectedCluster,
+    ).toBe(1);
+  });
+
+  it('resets an activity sample at or past the trace length to 0', () => {
+    expect(
+      sanitizeFilterAgainstDataset({ ...INITIAL_FILTER, activitySample: 50 }, data).activitySample,
+    ).toBe(0);
+    expect(
+      sanitizeFilterAgainstDataset({ ...INITIAL_FILTER, activitySample: 49 }, data).activitySample,
+    ).toBe(49);
+  });
+});
+
+describe('sanitizeFocusedNeuron', () => {
+  const data = makeDataset({ count: 100 });
+
+  it('passes null through', () => {
+    expect(sanitizeFocusedNeuron(null, data)).toBeNull();
+  });
+
+  it('keeps an in-range index', () => {
+    expect(sanitizeFocusedNeuron(0, data)).toBe(0);
+    expect(sanitizeFocusedNeuron(99, data)).toBe(99);
+  });
+
+  it('drops an index at or past the cell count', () => {
+    expect(sanitizeFocusedNeuron(100, data)).toBeNull();
+    expect(sanitizeFocusedNeuron(500, data)).toBeNull();
+  });
+
+  it('drops a negative index', () => {
+    expect(sanitizeFocusedNeuron(-1, data)).toBeNull();
   });
 });
