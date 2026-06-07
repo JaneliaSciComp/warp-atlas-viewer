@@ -8,18 +8,19 @@ import {
   estimateCsvBytes,
 } from '../utils/exportCsv';
 
-/** Header button + modal dialog for exporting the current effective set
- *  of cells to CSV. The "effective set" is the same population the
- *  Detail panel describes: user selection (lasso / click) if any, else
+/** Header button + modal dialog for exporting the cells currently
+ *  described by the Detail panel: focused cell first, then lasso, then
  *  the filter intersection, else every cell. The mean ΔF/F trace is
  *  opt-in via the dialog — see docs/export.md for rationale and the
  *  column list. */
 export function ExportButton({
   data,
   effectiveSelection,
+  focusedNeuron,
 }: {
   data: NeuronDataset;
   effectiveSelection: SelectionState;
+  focusedNeuron: number | null;
 }) {
   const [open, setOpen] = useState(false);
   const [includeTrace, setIncludeTrace] = useState(false);
@@ -28,6 +29,13 @@ export function ExportButton({
   // `source === 'all'` means "every cell"; we encode that as a null
   // indices argument to buildCsv to avoid allocating a 0..N-1 buffer.
   const { indices, rowCount, scopeLabel } = useMemo(() => {
+    if (focusedNeuron != null && focusedNeuron >= 0 && focusedNeuron < data.count) {
+      return {
+        indices: new Uint32Array([focusedNeuron]),
+        rowCount: 1,
+        scopeLabel: 'the focused cell currently shown in the Detail panel',
+      };
+    }
     const src = effectiveSelection.source;
     if (src === 'all') {
       return {
@@ -42,8 +50,8 @@ export function ExportButton({
         rowCount: effectiveSelection.indices.length,
         scopeLabel:
           src === 'umap'
-            ? 'the cells in the current t-SNE lasso, intersected with the active filters'
-            : 'the cells in the current 3D viewer selection, intersected with the active filters',
+            ? 'the cells in the current t-SNE lasso'
+            : 'the cells in the current 3D viewer selection',
       };
     }
     // 'filter' or null (no selection, no filter)
@@ -52,7 +60,7 @@ export function ExportButton({
       rowCount: effectiveSelection.indices.length,
       scopeLabel: 'every cell passing the currently active filter cards',
     };
-  }, [data, effectiveSelection]);
+  }, [data, effectiveSelection, focusedNeuron]);
 
   const sizeBytes = useMemo(
     () => (open ? estimateCsvBytes(data, rowCount, { includeActivityTrace: includeTrace }) : 0),
@@ -159,7 +167,7 @@ export function ExportButton({
                   trace (<code className="font-mono">dff_t0</code> …
                   {' '}<code className="font-mono">dff_t{data.traceLength - 1}</code>).
                   <span className="text-neutral-500">
-                    {' '}Roughly doubles file size and adds {data.traceLength}{' '}
+                    {' '}Substantially increases file size and adds {data.traceLength}{' '}
                     columns.
                   </span>
                 </span>

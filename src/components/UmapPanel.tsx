@@ -18,6 +18,9 @@ interface Props {
    *  already) computed once in App and consumed read-only here — no
    *  in-place mutation. See `useColoring`. */
   coloring: SharedColoring | null;
+  /** Activity playback drives rapid 3D recolors. While true, keep the
+   *  cached t-SNE image fixed instead of repainting it every sample. */
+  pauseForActivityPlayback?: boolean;
   /** Single-neuron focus, mirrored from the 3D viewer. Click in
    *  t-SNE → focus; click empty space → unfocus. The lasso selection
    *  is independent and survives focus changes. */
@@ -48,6 +51,7 @@ export function UmapPanel({
   settings,
   selection,
   coloring,
+  pauseForActivityPlayback = false,
   focusedNeuron,
   onFocus,
   onSelect,
@@ -58,6 +62,14 @@ export function UmapPanel({
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 400, h: 200 });
   const [viewport, setViewport] = useState<Viewport>(initialViewport ?? INITIAL_VIEWPORT);
+  const frozenColoringRef = useRef<SharedColoring | null>(null);
+  if (!pauseForActivityPlayback) {
+    frozenColoringRef.current = null;
+  } else if (!frozenColoringRef.current && coloring) {
+    frozenColoringRef.current = coloring;
+  }
+  const renderColoring =
+    pauseForActivityPlayback ? (frozenColoringRef.current ?? coloring) : coloring;
   const measureContainerSize = useCallback(() => {
     const el = containerRef.current;
     if (!el) return null;
@@ -172,7 +184,7 @@ export function UmapPanel({
   // are ~5-10× faster for the small (~1.5 px) dots typical of a
   // zoomed-out view.
   useEffect(() => {
-    if (!coloring) return;
+    if (!renderColoring) return;
     const off = offscreenRef.current;
     if (!off) return;
     const dpr = window.devicePixelRatio || 1;
@@ -233,23 +245,23 @@ export function UmapPanel({
     const xmin = umapBounds.xmin;
     const ymax = umapBounds.ymax;
 
-    const colors = coloring.result.colors;
-    const alphas = coloring.result.alphas;
+    const colors = renderColoring.result.colors;
+    const alphas = renderColoring.result.alphas;
     const umap = data.umap;
     const count = data.count;
     // drawOrder (when present) places out-of-filter indices first and
     // in-filter ones last. Stamping in that order makes in-set cells
     // composite over the dim ghost haze. Falls back to natural index
     // order when no filter is active.
-    const order = coloring.drawOrder;
+    const order = renderColoring.drawOrder;
     // Re-derive ghost alpha for t-SNE from settings.umapGhostIntensity,
     // independent of whatever 3D ghost intensity was baked in. The
     // partition boundary is at `inCursor`: indices in drawOrder[0..inCursor)
     // are ghosts, [inCursor..count) are in-set. We compute a per-cell
     // scale that maps the baked ghost alpha back to its base (DIM/LIFT)
     // and re-applies the t-SNE setting in one multiply.
-    const inCursor = order ? count - (coloring.filterSelection?.length ?? 0) : 0;
-    const bakedGhost = coloring.effectiveGhostIntensity || 1;
+    const inCursor = order ? count - (renderColoring.filterSelection?.length ?? 0) : 0;
+    const bakedGhost = renderColoring.effectiveGhostIntensity || 1;
     const ghostScale = settings.umapGhostIntensity / bakedGhost;
 
     for (let k = 0; k < count; k++) {
@@ -315,7 +327,7 @@ export function UmapPanel({
         ctx.stroke();
       }
     }
-  }, [data, settings.umapPointSize, settings.umapGhostIntensity, coloring, focusedNeuron, size, viewport, project, umapBounds]);
+  }, [data, settings.umapPointSize, settings.umapGhostIntensity, renderColoring, focusedNeuron, size, viewport, project, umapBounds]);
 
   // Effect B — composite the cached scatter onto the visible canvas
   // and overlay the in-progress lasso. Cheap (drawImage + a polyline),
@@ -352,7 +364,7 @@ export function UmapPanel({
       ctx.stroke();
       ctx.setLineDash([]);
     }
-  }, [size, drag, coloring, focusedNeuron, viewport]);
+  }, [size, drag, renderColoring, focusedNeuron, viewport]);
 
   // Wheel: zoom anchored at the cursor so the data point under the mouse
   // stays put. Native non-passive listener (React's onWheel is passive in
@@ -562,6 +574,9 @@ export function UmapPanel({
             >
               reset view
             </button>
+          )}
+          {pauseForActivityPlayback && (
+            <span className="text-neutral-500">paused during playback</span>
           )}
         </div>
       </div>

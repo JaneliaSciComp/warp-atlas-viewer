@@ -14,7 +14,7 @@ Four filter cards (**Transcriptomics × Visual Stimuli × Swim × Anatomy**) com
   - *Simple*: single-color highlight (everything visible is colored yellow).
   - *Region*: categorical palette over 16 focal anatomical regions.
   - *Gene expression*: plasma ramp over FISH spot counts. With no gene pinned the ramp shows **gene richness** (how many of the 41 panel genes each cell expresses). Pin a single gene to see its spot-count map; pin multiple to drive *max / sum / richness* (chosen in Settings). Toggle log ↔ linear scale.
-  - *Stim correlation*: divergent coolwarm ramp (blue → neutral → red) over the **signed** Pearson r against the selected visual stimulus regressor, anchored symmetrically at ±stimLo / ±stimHi. With no stim picked, max-|r| across all 8 stimuli (signed); with one picked, that stim's r; with several, the representative r depends on the Visual Stimuli mode (`+ correlated` → max-positive, `- anti-correlated` → min-negative, `± either` / `no filter` → max-|r|).
+  - *Stim correlation*: divergent coolwarm ramp (blue → neutral → red) over the **signed** Pearson r against the selected visual stimulus regressor, anchored at ±stimLo / stimHi with optional split +/− saturation. With no stim picked, max-|r| across all 8 stimuli (signed); with one picked, that stim's r; with several, the representative r depends on the Visual Stimuli mode (`+ correlated` → max-positive, `- anti-correlated` → min-negative, `± either` / `no filter` → max-|r|).
   - *Swim correlation*: divergent ramp (blue → white → red) over signed Pearson r vs estimated swim power, anchored symmetrically at ±swimLo / ±swimHi.
   - *Activity*: plasma ramp over the mean ΔF/F trace at a scrubbable time point; an inline play button steps through the 134 s representative cycle.
   - *Specimen*: categorical palette over the 3 source fish.
@@ -31,7 +31,9 @@ Selections are independent of filters:
 
 URL hash mirrors the full app state so any view you arrive at is shareable by copying the URL.
 
-A **Help** tab in the bottom panel includes one-click presets that reproduce specific findings from the paper.
+The **Settings** tab includes scalar projection modes for Gene, Activity, Stim, and Swim views, plus point-density, rendering, threshold, and camera controls.
+
+An **About** tab in the bottom panel includes one-click presets that reproduce specific findings from the paper.
 
 ## Tech stack
 
@@ -246,8 +248,9 @@ src/
       ColorsCard.tsx                Colors card + activity-time playback row
       TranscriptomicsCard.tsx       gene multi-select + subtype dropdown
       ActivityCard.tsx              stimulus icons + OR/AND logic
+      SwimCard.tsx                  swim-correlation toggles
       AnatomyCard.tsx               region + specimen dropdowns
-      SettingsTab.tsx               tunable cutoffs, ramps, point size, etc.
+      SettingsTab.tsx               tunable cutoffs, ramps, projection, point size, etc.
       AboutTab.tsx                  intro + docs link + paper-finding presets
       shared.tsx                    Card / Select / KindToggle / ResetButton
   shaders/

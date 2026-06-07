@@ -8,7 +8,7 @@ description: The seven color schemes and their semantics.
 The Colors card determines how visible cells are painted. There are seven schemes; each maps a per-cell quantity onto a categorical palette, a plasma ramp, or (for stim and swim) a divergent ramp.
 
 ::: tip Colors is not a filter
-The Colors card never removes cells from the view. To restrict the visible set, use the other three filter cards. See [How filters combine](./overview).
+The Colors card never removes cells from the view. To restrict the visible set, use the other four filter cards. See [How filters combine](./overview).
 :::
 
 ## Simple
@@ -60,7 +60,7 @@ The colored value depends on the Visual Stimuli selection and the active mode:
 
 This keeps the coloring consistent with the filter: with `+ correlated` on, cells passing the filter never get painted blue by a different selected stim's larger-magnitude negative correlation.
 
-The ramp anchors symmetrically at **`±stimLo`** (deadband boundary; cells within `[-stimLo, +stimLo]` map to the neutral midpoint) and **`±stimHi`** (saturation). Both live in [Settings → Stim correlation cutoffs](/settings#stim-correlation-cutoffs); defaults are `0.13` and `0.30`.
+When the Visual Stimuli mode is **no filter**, the ramp maps continuously from zero so selected stimuli scope the color without hiding weak correlations behind a deadband. Once a sign-band mode is active, the ramp uses **`±stimLo`** as the deadband boundary and **`stimHi`** as the saturation anchor. [Settings → Stim correlation cutoffs](/settings#stim-correlation-cutoffs) also offers **split +/− saturation**, which gives positive and negative correlations independent saturation anchors. Defaults are `stimLo = 0.13` and unified `stimHi = 0.30`.
 
 ::: tip Fading weak correlations
 With **Settings → Fade weak correlations** on (default), the Stim and Swim color modes scale alpha by `|r|` so cells near the neutral midpoint fade into the dark background instead of competing with the colored extremes. Turn it off for unmodulated full-opacity coloring. See [Settings → Fade weak correlations](/settings#fade-weak-correlations).
@@ -111,7 +111,7 @@ A **palette** toggle appears under the Colors card when this scheme is active:
 A **show unassigned** checkbox appears under the Colors card when this scheme is active (default on). Unchecking it hides every cell in the *Unassigned* bucket entirely: they render at alpha 0 and never reach the framebuffer or write depth, so the view reduces to just the 16 paper-canonical focal regions. The setting is part of the filter state and round-trips through the URL hash.
 
 ::: tip Region granularity
-The viewer exposes the 16 focal groupings carried in the dataset (rather than the finer ~112-region reference atlas). See [Preprocessing → Region names](/preprocess#anatomy-mapping).
+The Region color scheme uses the 16 focal groupings carried in the dataset. The finer 112-region mapZebrain atlas is available in the [Anatomy filter](/filters/anatomy#region--mapzebrain-atlas), but it does not drive a color scheme. See [Preprocessing → Region names](/preprocess#anatomy-mapping).
 :::
 
 ## Specimen

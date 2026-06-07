@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { SettingsState } from "../../data/types";
+import type { FilterState, SettingsState } from "../../data/types";
 import { DEFAULT_SETTINGS } from "../../data/types";
 import { KindToggle } from "./shared";
 
@@ -10,9 +10,11 @@ import { KindToggle } from "./shared";
 const SHOW_DESC_KEY = "warp.settings.showDescriptions";
 
 export function SettingsTab({
+    filter,
     settings,
     setSettings,
 }: {
+    filter: FilterState;
     settings: SettingsState;
     setSettings: (s: SettingsState) => void;
 }) {
@@ -35,6 +37,20 @@ export function SettingsTab({
             );
         }
     }, [showDescriptions]);
+    const projectionSupported =
+        filter.colorMode === "gene" ||
+        filter.colorMode === "activity" ||
+        filter.colorMode === "stim" ||
+        filter.colorMode === "swim";
+    const displayedProjectionMode = projectionSupported
+        ? settings.projectionMode
+        : "off";
+    const projectionActive =
+        projectionSupported && settings.projectionMode !== "off";
+    const signedColorMode =
+        filter.colorMode === "stim" || filter.colorMode === "swim";
+    const signedProjectionActive =
+        projectionActive && signedColorMode;
     return (
         <div
             className={
@@ -63,7 +79,7 @@ export function SettingsTab({
                 </button>
                 <label
                     className="flex items-center gap-1.5 text-[11px] text-neutral-400 cursor-pointer select-none"
-                    title="hide the descriptive paragraph in each section"
+                    title="toggle section descriptions"
                 >
                     <input
                         type="checkbox"
@@ -80,23 +96,15 @@ export function SettingsTab({
                     3D point density
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Base point size for the 3D brain scatter and the
-                    visibility of cells outside the active filters (ghosts).
-                    <span className="text-neutral-200"> Auto</span> derives
-                    both from the 3D canvas height: very short views use
-                    small dots (~2–3 px) with moderate ghost visibility
-                    (~0.5); around 600 px tall dots are ~9 px; taller views
-                    continue growing (about 17 px at 1500 px tall) while
-                    ghosts peak near 0.8–0.85 and then taper back on very
-                    tall views.
-                    <span className="text-neutral-200"> Scale by filter</span>{" "}
-                    additionally enlarges active (in-set) cells as the
-                    filter narrows — 50 cells → 2× their base size, all
-                    cells → 1×. Ghost cells are unaffected.
+                    Controls dot size and ghost visibility in the 3D view.
+                    Auto derives both from the 3D view height, hiding the
+                    manual sliders. Scale by filter enlarges active dots as
+                    fewer cells pass filters; scale by depth applies
+                    perspective.
                 </p>
                 <label
                     className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
-                    title="let the viewer choose point size and ghost visibility automatically"
+                    title="derive point size and ghost visibility from 3D view height"
                 >
                     <input
                         type="checkbox"
@@ -106,12 +114,12 @@ export function SettingsTab({
                         }
                         className="accent-neutral-300"
                     />
-                    auto
+                    auto point sizes
                 </label>
                 {settings.autoSizing ? (
                     <label
                         className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-6"
-                        title="on top of auto, vary point size and ghost visibility by the filter-passing cell count"
+                        title="enlarge active dots as fewer cells pass filters"
                     >
                         <input
                             type="checkbox"
@@ -125,10 +133,25 @@ export function SettingsTab({
                         />
                         scale by filter
                     </label>
-                ) : (
+                ) : null}
+                <label
+                    className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
+                    title="shrink points with camera distance"
+                >
+                    <input
+                        type="checkbox"
+                        checked={settings.scaleByDepth}
+                        onChange={(e) =>
+                            update({ scaleByDepth: e.target.checked })
+                        }
+                        className="accent-neutral-300"
+                    />
+                    scale by depth
+                </label>
+                {!settings.autoSizing && (
                     <>
                         <NumberRow
-                            label="point size (px)"
+                            label="3D point size (px)"
                             value={settings.pointSize}
                             min={1}
                             max={40}
@@ -136,7 +159,7 @@ export function SettingsTab({
                             onChange={(v) => update({ pointSize: v })}
                         />
                         <NumberRow
-                            label="ghost visibility"
+                            label="3D ghost visibility"
                             value={settings.ghostIntensity}
                             min={0}
                             max={1}
@@ -156,22 +179,12 @@ export function SettingsTab({
                     3D camera controls
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    <span className="text-neutral-200">Object-centric rotation</span>{" "}
-                    keeps the orbit pivot pinned at the volume's center —
-                    right-drag pans in screen space without moving that
-                    pivot, so rotation always spins around the volume. Turn
-                    off to use trackball-style pan: right-drag moves the
-                    orbit target, and rotation then pivots around the new
-                    target.
-                    <span className="text-neutral-200"> Momentum</span>{" "}
-                    controls how long rotation and pan continue to drift
-                    after the mouse is released. 0 stops motion the moment
-                    you let go; the default (0.9) matches the original
-                    feel.
+                    Object-centric rotation orbits the brain center. Momentum
+                    adds drift after drag.
                 </p>
                 <label
                     className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
-                    title="rotation always pivots around the volume center; right-drag pans in screen space"
+                    title="rotate around the brain center"
                 >
                     <input
                         type="checkbox"
@@ -202,11 +215,11 @@ export function SettingsTab({
                     t-SNE point density
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Base point size for the t-SNE scatter and visibility of
-                    out-of-filter cells (ghosts).
+                    Controls dot size and out-of-filter ghost visibility for
+                    the t-SNE plot.
                 </p>
                 <NumberRow
-                    label="point size (px)"
+                    label="t-SNE point size (px)"
                     value={settings.umapPointSize}
                     min={2}
                     max={40}
@@ -214,7 +227,7 @@ export function SettingsTab({
                     onChange={(v) => update({ umapPointSize: v })}
                 />
                 <NumberRow
-                    label="ghost visibility"
+                    label="t-SNE ghost visibility"
                     value={settings.umapGhostIntensity}
                     min={0}
                     max={1}
@@ -232,80 +245,95 @@ export function SettingsTab({
                     Rendering
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Rendering controls for the scatter views. Ambient
-                    occlusion affects only the 3D brain view and adds local
-                    contact shadows so folds and dense boundaries are easier
-                    to read. Opaque active cells disables foreground
-                    transparency in both scatter views while leaving
-                    ghost/background cells dimmed.
-                    <span className="text-neutral-200"> Active brightness</span>{" "}
-                    additively lifts the color of every in-set cell in both
-                    views (and the color legend) — useful when the active
-                    palette reads too dark against the dark background.
+                    Ambient occlusion adds shadows. Opaque active cells makes
+                    cells passing filters opaque. Active brightness brightens
+                    those cells.
                 </p>
+                {projectionActive && (
+                    <p className="text-neutral-500 text-[11px] leading-snug ml-3">
+                        Ambient occlusion and opaque active cells are disabled
+                        during projection.
+                    </p>
+                )}
                 <label
-                    className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
-                    title="enable screen-space ambient occlusion in the 3D viewer"
+                    className={
+                        "flex items-center gap-2 text-xs cursor-pointer select-none ml-3 " +
+                        (projectionActive
+                            ? "text-neutral-500 cursor-not-allowed"
+                            : "text-neutral-300")
+                    }
+                    title={
+                        projectionActive
+                            ? "disabled while projection is active"
+                            : "enable ambient occlusion in the 3D viewer"
+                    }
                 >
                     <input
                         type="checkbox"
                         checked={settings.ambientOcclusion}
+                        disabled={projectionActive}
                         onChange={(e) =>
                             update({ ambientOcclusion: e.target.checked })
                         }
-                        className="accent-neutral-300"
+                        className="accent-neutral-300 disabled:opacity-50"
                     />
                     ambient occlusion
                 </label>
-                <div
-                    className={
-                        settings.ambientOcclusion
-                            ? "opacity-100"
-                            : "opacity-40 pointer-events-none"
-                    }
-                >
-                    <NumberRow
-                        label="occlusion strength"
-                        value={settings.ambientOcclusionIntensity}
-                        min={0}
-                        max={0.4}
-                        step={0.005}
-                        onChange={(v) =>
-                            update({
-                                ambientOcclusionIntensity: Math.max(
-                                    0,
-                                    Math.min(0.4, v),
-                                ),
-                            })
-                        }
-                    />
-                    <NumberRow
-                        label="shadow radius (px)"
-                        value={settings.ambientOcclusionRadius}
-                        min={1}
-                        max={72}
-                        step={1}
-                        onChange={(v) =>
-                            update({
-                                ambientOcclusionRadius: Math.max(
-                                    1,
-                                    Math.min(72, Math.round(v)),
-                                ),
-                            })
-                        }
-                    />
-                </div>
+                {settings.ambientOcclusion && !projectionActive && (
+                    <>
+                        <NumberRow
+                            label="occlusion strength"
+                            value={settings.ambientOcclusionIntensity}
+                            min={0}
+                            max={0.4}
+                            step={0.005}
+                            onChange={(v) =>
+                                update({
+                                    ambientOcclusionIntensity: Math.max(
+                                        0,
+                                        Math.min(0.4, v),
+                                    ),
+                                })
+                            }
+                        />
+                        <NumberRow
+                            label="shadow radius (px)"
+                            value={settings.ambientOcclusionRadius}
+                            min={1}
+                            max={72}
+                            step={1}
+                            onChange={(v) =>
+                                update({
+                                    ambientOcclusionRadius: Math.max(
+                                        1,
+                                        Math.min(72, Math.round(v)),
+                                    ),
+                                })
+                            }
+                        />
+                    </>
+                )}
                 <label
-                    className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
-                    title="render active/in-filter cells at full opacity in both scatter views; ghost cells remain transparent"
+                    className={
+                        "flex items-center gap-2 text-xs cursor-pointer select-none ml-3 " +
+                        (projectionActive
+                            ? "text-neutral-500 cursor-not-allowed"
+                            : "text-neutral-300")
+                    }
+                    title={
+                        projectionActive
+                            ? "disabled while projection is active"
+                            : "render active cells at full opacity"
+                    }
                 >
                     <input
                         type="checkbox"
                         checked={settings.opaqueActiveCells}
+                        disabled={projectionActive}
                         onChange={(e) =>
                             update({ opaqueActiveCells: e.target.checked })
                         }
-                        className="accent-neutral-300"
+                        className="accent-neutral-300 disabled:opacity-50"
                     />
                     opaque active cells
                 </label>
@@ -325,12 +353,100 @@ export function SettingsTab({
 
             <section className="flex flex-col gap-2">
                 <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+                    Projection
+                </div>
+                <p className="text-neutral-400 leading-snug">
+                    Projects color values through the 3D point cloud.
+                    Available for Gene, Activity, Stim, and Swim. Min and Max
+                    use extremes; Min/Max uses the value farthest from zero;
+                    Mean averages; Sum accumulates.
+                </p>
+                {!projectionSupported && (
+                    <p className="text-neutral-500 text-[11px] leading-snug ml-3">
+                        Projection requires Gene, Activity, Stim, or Swim.
+                    </p>
+                )}
+                <div
+                    className={
+                        "flex items-center gap-2 " +
+                        (!projectionSupported ? "opacity-50" : "")
+                    }
+                    title={
+                        projectionSupported
+                            ? undefined
+                            : "requires Gene, Activity, Stim, or Swim"
+                    }
+                >
+                    <KindToggle
+                        value={displayedProjectionMode}
+                        disabled={!projectionSupported}
+                        onChange={(v) => {
+                            if (projectionSupported) update({ projectionMode: v });
+                        }}
+                        options={[
+                            { value: "off", label: "Off" },
+                            { value: "min", label: "Min" },
+                            { value: "max", label: "Max" },
+                            { value: "maxabs", label: "Min/Max" },
+                            { value: "mean", label: "Mean" },
+                            { value: "sum", label: "Sum" },
+                        ]}
+                    />
+                </div>
+                {projectionActive && (
+                    <>
+                        <NumberRow
+                            label="projection threshold"
+                            value={settings.projectionIntensityFloor}
+                            min={0}
+                            max={1}
+                            step={0.01}
+                            title="drop signal below this value"
+                            onChange={(v) =>
+                                update({
+                                    projectionIntensityFloor: Math.max(
+                                        0,
+                                        Math.min(1, v),
+                                    ),
+                                })
+                            }
+                        />
+                        <p className="text-neutral-500 text-[11px] leading-snug ml-3">
+                            Drops signal below this value before projection.
+                        </p>
+                    </>
+                )}
+                {projectionSupported && settings.projectionMode === "sum" && (
+                    <>
+                        <NumberRow
+                            label="sum exposure"
+                            value={settings.projectionSumExposure}
+                            min={0.05}
+                            max={5}
+                            step={0.05}
+                            title="scale Sum before clamping"
+                            onChange={(v) =>
+                                update({
+                                    projectionSumExposure: Math.max(
+                                        0.05,
+                                        Math.min(5, v),
+                                    ),
+                                })
+                            }
+                        />
+                        <p className="text-neutral-500 text-[11px] leading-snug ml-3">
+                            Scales Sum before clamping.
+                        </p>
+                    </>
+                )}
+            </section>
+
+            <section className="flex flex-col gap-2">
+                <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
                     Gene plasma ceiling
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Upper anchor for the Gene scheme's plasma palette (raw FISH
-                    spot count). Cells above this value saturate. Tune to match
-                    the practical ceiling of the dataset's probe panel.
+                    Sets the Gene color scale ceiling.
                 </p>
                 <NumberRow
                     label="max spot count"
@@ -347,16 +463,8 @@ export function SettingsTab({
                     Multi-gene coloring
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    What the Gene color scheme paints when 2+ genes are
-                    selected.
-                    <span className="text-neutral-200"> Max</span> — the
-                    strongest-expressing of the selected genes per cell.
-                    <span className="text-neutral-200"> Sum</span> — total spot
-                    count across the selected genes; emphasises co-expression
-                    strength.
-                    <span className="text-neutral-200"> Richness</span> — how
-                    many of the selected genes the cell expresses (using the
-                    same predicate as the gene filter).
+                    For 2+ genes: Max = max gene value; Sum = total spots;
+                    Richness = genes expressed.
                 </p>
                 <div className="flex items-center gap-2">
                     <KindToggle
@@ -376,16 +484,8 @@ export function SettingsTab({
                     Gene expression threshold
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    How "expresses a gene" is decided for the gene filter and
-                    the richness multi-gene coloring.
-                    <span className="text-neutral-200"> Paper</span> uses the
-                    paper's per-gene cutoffs (typically 25 spots, adjusted per
-                    gene/fish via the Maximum-Deviation approach). The per-gene
-                    threshold is shown in each gene-row tooltip.
-                    <span className="text-neutral-200"> Global</span> applies a
-                    single user-set spot count to every gene — useful for
-                    sweeping looser/stricter cutoffs uniformly. Set to 1 for
-                    "any detected".
+                    Sets how gene expression is called. Paper uses bundled
+                    calls; Global uses one spot-count cutoff.
                 </p>
                 <div className="flex items-center gap-2">
                     <KindToggle
@@ -424,11 +524,8 @@ export function SettingsTab({
                     Stim correlation cutoffs
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Pearson r magnitude thresholds for stimulus correlation.
-                    Cells inside the floor are treated as non-responsive
-                    (neutral in the Stim color scheme; rejected by the Activity
-                    filter when a sign band is enabled). Cells past saturation
-                    clamp to the divergent ramp endpoints.
+                    Floor sets the Stim threshold. Saturation sets the color
+                    scale. Split +/− separates saturation by sign.
                 </p>
                 <NumberRow
                     label="responsive floor (|r| ≥)"
@@ -438,14 +535,49 @@ export function SettingsTab({
                     step={0.05}
                     onChange={(v) => update({ stimLo: Math.max(0, v) })}
                 />
-                <NumberRow
-                    label="saturation (|r| ≥)"
-                    value={settings.stimHi}
-                    min={settings.stimLo + 0.01}
-                    max={1}
-                    step={0.05}
-                    onChange={(v) => update({ stimHi: v })}
-                />
+                <label
+                    className="flex items-center gap-2 pl-3 text-xs cursor-pointer select-none text-neutral-300"
+                    title="separate saturation by sign"
+                >
+                    <input
+                        type="checkbox"
+                        checked={settings.stimSplitSaturation}
+                        onChange={(e) =>
+                            update({ stimSplitSaturation: e.target.checked })
+                        }
+                        className="accent-neutral-300"
+                    />
+                    split +/− saturation
+                </label>
+                {settings.stimSplitSaturation ? (
+                    <>
+                        <NumberRow
+                            label="saturation + (r ≥)"
+                            value={settings.stimHiPos}
+                            min={settings.stimLo + 0.01}
+                            max={1}
+                            step={0.05}
+                            onChange={(v) => update({ stimHiPos: v })}
+                        />
+                        <NumberRow
+                            label="saturation − (r ≤ −)"
+                            value={settings.stimHiNeg}
+                            min={settings.stimLo + 0.01}
+                            max={1}
+                            step={0.05}
+                            onChange={(v) => update({ stimHiNeg: v })}
+                        />
+                    </>
+                ) : (
+                    <NumberRow
+                        label="saturation (|r| ≥)"
+                        value={settings.stimHi}
+                        min={settings.stimLo + 0.01}
+                        max={1}
+                        step={0.05}
+                        onChange={(v) => update({ stimHi: v })}
+                    />
+                )}
             </section>
 
             <section className="flex flex-col gap-2">
@@ -453,14 +585,8 @@ export function SettingsTab({
                     Swim correlation cutoffs
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Magnitude thresholds for the signed swim-power correlation.
-                    The <span className="text-neutral-200">floor</span> sets the
-                    dead-band around zero — cells with |r| below it are treated
-                    as unresponsive (neutral midpoint of the swim color ramp;
-                    rejected by the swim filter). The{" "}
-                    <span className="text-neutral-200">saturation</span> sets
-                    the |r| at which the divergent ramp reaches its endpoints.
-                    Defaults are tuned to WARP's tighter swim distribution.
+                    Floor sets the Swim threshold. Saturation sets the color
+                    scale.
                 </p>
                 <NumberRow
                     label="responsive floor (|r| ≥)"
@@ -485,16 +611,18 @@ export function SettingsTab({
                     Fade weak correlations
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    When on, the stim + swim color ramps scale alpha by |r|, so
-                    cells near the neutral midpoint fade into the dark
-                    background and the colored extremes stand out. When off,
-                    every in-set cell renders at full opacity (including the
-                    bright midpoint of the divergent ramp, which can dominate
-                    visually).
+                    Fades weak Stim/Swim correlations. Also affects Stim/Swim
+                    projection opacity.
                 </p>
                 <label
-                    className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
-                    title="fade out cells with |r| near zero so the divergent ramp's neutral midpoint doesn't compete with the colored extremes"
+                    className="flex items-center gap-2 text-xs cursor-pointer select-none ml-3 text-neutral-300"
+                    title={
+                        signedProjectionActive
+                            ? "also controls projection opacity"
+                            : signedColorMode
+                                ? "fade weak correlations"
+                                : "applies to Stim/Swim color modes"
+                    }
                 >
                     <input
                         type="checkbox"
@@ -506,6 +634,21 @@ export function SettingsTab({
                     />
                     fade weak correlations
                 </label>
+                {signedProjectionActive && (
+                    <p className="text-neutral-500 text-[11px] leading-snug ml-3">
+                        Applies to this projection.
+                    </p>
+                )}
+                {!signedProjectionActive && signedColorMode && (
+                    <p className="text-neutral-500 text-[11px] leading-snug ml-3">
+                        Applies to this Stim/Swim view.
+                    </p>
+                )}
+                {!signedColorMode && (
+                    <p className="text-neutral-500 text-[11px] leading-snug ml-3">
+                        No effect until the color mode is Stim or Swim.
+                    </p>
+                )}
             </section>
 
             <section className="flex flex-col gap-2">
@@ -513,11 +656,7 @@ export function SettingsTab({
                     Activity ΔF/F anchors
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Lower / upper anchors of the Activity color scheme's plasma
-                    ramp. Cells with trace values at or below the floor map to
-                    the dark end; values at or above the ceiling saturate at the
-                    bright end. Tune to match the practical dynamic range of the
-                    dataset's calcium traces.
+                    Sets the Activity color scale floor and ceiling.
                 </p>
                 <NumberRow
                     label="floor (ΔF/F)"
@@ -542,11 +681,7 @@ export function SettingsTab({
                     Debug
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Developer overlay. When on, the 3D viewer shows a small
-                    readout in the top-left corner with the canvas size,
-                    in-set cell count, and the inputs / outputs of the auto
-                    + scale-by-filter math so the rendered point size and
-                    ghost visibility are inspectable while tuning.
+                    Shows a small diagnostic overlay on the 3D viewer.
                 </p>
                 <label
                     className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
@@ -574,6 +709,8 @@ function NumberRow({
     max,
     step,
     onChange,
+    disabled,
+    title,
 }: {
     label: string;
     value: number;
@@ -581,9 +718,17 @@ function NumberRow({
     max: number;
     step: number;
     onChange: (v: number) => void;
+    disabled?: boolean;
+    title?: string;
 }) {
     return (
-        <label className="flex items-center justify-between gap-3 pl-3">
+        <label
+            className={
+                "flex items-center justify-between gap-3 pl-3 " +
+                (disabled ? "opacity-50 cursor-not-allowed" : "")
+            }
+            title={title}
+        >
             <span className="text-neutral-300">{label}</span>
             <span className="flex items-center gap-2">
                 <input
@@ -592,6 +737,7 @@ function NumberRow({
                     max={max}
                     step={step}
                     value={value}
+                    disabled={disabled}
                     onChange={(e) => onChange(parseFloat(e.target.value))}
                     className="w-32 accent-yellow-300"
                 />
@@ -601,6 +747,7 @@ function NumberRow({
                     max={max}
                     step={step}
                     value={value}
+                    disabled={disabled}
                     onChange={(e) => {
                         const v = parseFloat(e.target.value);
                         if (Number.isFinite(v)) onChange(v);

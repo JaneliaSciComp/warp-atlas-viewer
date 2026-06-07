@@ -17,6 +17,7 @@ The largest panel on screen. Every visible cell is rendered as a point in [mapZe
 | **Click a cell** | Focus the cell; the [Detail panel](/ui/detail) switches to display only it. |
 | **Click empty space** | Clear the focus. |
 | **Right-drag** | Pan. By default this shifts the volume in screen space while keeping the orbit target centered; with object-centric rotation off, it uses native trackball pan and moves the orbit target. |
+| **projection:** pill | Appears for scalar color schemes; changes the 3D [projection mode](/settings#projection) without opening the Settings tab. |
 
 ::: tip Pan / orbit trade-off
 The default [Settings → 3D camera controls](/settings#3d-camera-controls) keep rotation object-centric: right-drag moves the volume within the viewport, but rotation still pivots around the volume center. Turn object-centric rotation off when you want trackball-style pan, where right-drag moves the orbit target and later rotations pivot around that new target.
@@ -37,6 +38,7 @@ The active **Colors** scheme determines per-cell color. See [Colors](/filters/co
 ## Rendering notes
 
 - The point cloud is drawn in a single GPU pass, so render cost is largely independent of the filter combination.
+- Projection modes add off-screen reduction/compositing passes so deep scalar signal can be seen through the point cloud. They are available for Gene, Activity, Stim, and Swim color schemes.
 - Filtered-out cells are drawn dim and transparent rather than skipped, preserving the silhouette of the full brain as context. The amount of dim is controlled by the ghost visibility in [Settings → 3D point density](/settings#3d-point-density).
 - Point size and ghost visibility self-tune to the live canvas height in auto mode — shorter views use smaller dots with moderate ghost visibility, while taller views grow dots and peak ghost visibility near typical full-height layouts. Optionally, **scale by filter** can also enlarge active cells (up to 2× their auto size) when the filter narrows to a small group. Both knobs live in [Settings → 3D point density](/settings#3d-point-density); turning auto off exposes the manual sliders.
 

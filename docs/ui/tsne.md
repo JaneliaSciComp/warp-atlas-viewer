@@ -25,7 +25,7 @@ The 2D scatter plot at the bottom-right of the screen. Every point corresponds t
 
 ## Linked behavior
 
-- A lasso in the t-SNE is treated as an **additional filter in the 3D viewer**: cells outside the lasso fade to the standard ghost recipe so the selected subset reads as the foreground population. In the t-SNE itself, non-selected cells soft-dim (alpha ≤ 0.18) so the rest of the population stays visible for re-lassoing. Selected cells are not re-tinted — they render at the active color scheme exactly, so the legend always describes what you see. If the palette reads too dark for emphasis, raise the **active brightness** in Settings.
+- A lasso in the t-SNE is treated as an **additional filter in the 3D viewer**: cells outside the lasso fade to the standard ghost recipe so the selected subset reads as the foreground population. In the t-SNE itself, non-selected cells soft-dim to the t-SNE ghost visibility (**Settings → t-SNE point density**, default `0.25`) so the rest of the population stays visible for re-lassoing. Selected cells are not re-tinted — they render at the active color scheme exactly, so the legend always describes what you see. If the palette reads too dark for emphasis, raise the **active brightness** in Settings.
 - The t-SNE panel itself does **not** apply this 3D-side demotion to its own scatter: non-selected cells stay softly dimmed so the rest of the population is still visible and you can re-lasso a different subset without first clearing.
 - A click-focused cell in either panel is highlighted in both with a white ring.
 - Focus and lasso are independent: clicking a cell does not discard an existing lasso, and drawing a lasso does not clear focus. The Detail panel gives focus precedence until focus is cleared.

@@ -44,22 +44,29 @@ export function KindToggle<T extends string>({
   value,
   onChange,
   options,
+  disabled = false,
 }: {
   value: T;
   onChange: (v: T) => void;
   options: Array<{ value: T; label: string }>;
+  disabled?: boolean;
 }) {
   return (
     <div className="flex border border-neutral-700 rounded overflow-hidden text-xs">
       {options.map((o) => (
         <button
           key={o.value}
+          disabled={disabled}
           onClick={() => onChange(o.value)}
           className={
             'px-2 py-1 font-mono ' +
-            (value === o.value
-              ? 'bg-neutral-100 text-neutral-900'
-              : 'bg-neutral-900 text-neutral-300 hover:bg-neutral-700')
+            (disabled
+              ? value === o.value
+                ? 'bg-neutral-800 text-neutral-300 cursor-not-allowed'
+                : 'bg-neutral-900 text-neutral-600 cursor-not-allowed'
+              : value === o.value
+                ? 'bg-neutral-100 text-neutral-900'
+                : 'bg-neutral-900 text-neutral-300 hover:bg-neutral-700')
           }
         >
           {o.label}

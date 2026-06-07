@@ -61,7 +61,7 @@ On each render the viewer:
 
 1. Walks the cell array once, computing per-cell visibility (from the active filter cards), color (RGBA), and size.
 2. Uploads the resulting buffers to the GPU.
-3. Draws the full point cloud in a single GPU draw call using a custom shader.
+3. Draws the full point cloud in a single GPU draw call using a custom shader. When a 3D projection mode is active, the viewer adds off-screen reduction/compositing passes for the projected scalar image.
 
 Changing a color scheme or filter re-runs this single pass; the viewer does not maintain a separate "filtered subset" structure.
 

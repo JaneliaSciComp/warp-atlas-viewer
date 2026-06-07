@@ -40,4 +40,18 @@ describe('chooseVisibleTicks', () => {
       '0.35',
     ]);
   });
+
+  it('labels each endpoint with its own anchor under split saturation', () => {
+    // hi (positive) = 0.6, hiNeg (negative) = 0.3. With the gradient bar
+    // kept symmetric, 0 sits at 50% and each half scales to its anchor.
+    const hi = 0.6;
+    const hiNeg = 0.3;
+    const tickPos = (t: number) => (t < 0 ? 50 + (t / hiNeg) * 50 : 50 + (t / hi) * 50);
+    const labels = chooseVisibleTicks(
+      signedCorrelationTicks(0, hi, hiNeg),
+      tickPos,
+      formatCorrelationTick,
+    ).map((tick) => tick.label);
+    expect(labels).toEqual(['-0.30', '0', '0.60']);
+  });
 });

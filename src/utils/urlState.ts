@@ -23,6 +23,7 @@ import type {
   GeneScale,
   GeneThresholdMode,
   NeuronDataset,
+  ProjectionMode,
   RegionPalette,
   SettingsState,
   StimLogic,
@@ -187,6 +188,7 @@ const STIM_MODES = new Set<StimMode>(['off', 'positive', 'negative', 'both']);
 const SWIM_MODES = new Set<SwimMode>(['off', 'positive', 'negative', 'both']);
 const GENE_MULTI_COLORS = new Set<GeneMultiColor>(['max', 'sum', 'richness']);
 const GENE_THRESHOLD_MODES = new Set<GeneThresholdMode>(['paper', 'global']);
+const PROJECTION_MODES = new Set<ProjectionMode>(['off', 'min', 'mean', 'max', 'maxabs', 'sum']);
 
 function isFiniteNum(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v);
@@ -281,6 +283,9 @@ function validateSettings(raw: unknown): Partial<SettingsState> {
   // represented by FilterState.stimMode.
   if (isFiniteNum(s.stimLo)) out.stimLo = clamp(s.stimLo, 0, 1);
   if (isFiniteNum(s.stimHi)) out.stimHi = clamp(s.stimHi, 0, 1);
+  if (typeof s.stimSplitSaturation === 'boolean') out.stimSplitSaturation = s.stimSplitSaturation;
+  if (isFiniteNum(s.stimHiPos)) out.stimHiPos = clamp(s.stimHiPos, 0, 1);
+  if (isFiniteNum(s.stimHiNeg)) out.stimHiNeg = clamp(s.stimHiNeg, 0, 1);
   if (isFiniteNum(s.geneMaxSpots) && s.geneMaxSpots > 0) {
     out.geneMaxSpots = clamp(s.geneMaxSpots, 1, 100000);
   }
@@ -314,6 +319,14 @@ function validateSettings(raw: unknown): Partial<SettingsState> {
   if (typeof s.fadeWeakCorrelation === 'boolean') out.fadeWeakCorrelation = s.fadeWeakCorrelation;
   if (typeof s.objectCentricRotation === 'boolean') out.objectCentricRotation = s.objectCentricRotation;
   if (isFiniteNum(s.rotationMomentum)) out.rotationMomentum = clamp(s.rotationMomentum, 0, 1);
+  if (typeof s.scaleByDepth === 'boolean') out.scaleByDepth = s.scaleByDepth;
+  if (isString(s.projectionMode, PROJECTION_MODES)) out.projectionMode = s.projectionMode;
+  if (isFiniteNum(s.projectionIntensityFloor)) {
+    out.projectionIntensityFloor = clamp(s.projectionIntensityFloor, 0, 1);
+  }
+  if (isFiniteNum(s.projectionSumExposure)) {
+    out.projectionSumExposure = clamp(s.projectionSumExposure, 0.01, 10);
+  }
   return out;
 }
 

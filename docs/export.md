@@ -7,13 +7,14 @@ description: Download the cells you're currently looking at as a CSV file.
 
 The viewer's header includes an **Export** button next to *Links*. It opens a dialog that summarises what's about to be saved and triggers a CSV download.
 
-## Scope: the "effective set"
+## Scope: the Detail-panel population
 
-The export matches what the [Detail panel](/ui/detail) and the visible-cell readout in the [Filters tab](/filters/overview) describe (the *effective set*) by this precedence:
+The export matches what the [Detail panel](/ui/detail) is currently describing, by this precedence:
 
-1. If you have an active **selection** (a 3D viewer click-group or a t-SNE lasso), the export covers exactly those cells, intersected with the active filters.
-2. Otherwise the export covers every cell that passes the currently active filter cards.
-3. With no filter and no selection, every cell in the dataset is exported.
+1. If a **focused cell** is active (click a cell in the 3D viewer or t-SNE), the export covers that one cell.
+2. Otherwise, if a **t-SNE lasso** is active, the export covers the lassoed cells.
+3. Otherwise the export covers every cell that passes the currently active filter cards.
+4. With no filter and no selection, every cell in the dataset is exported.
 
 The dialog tells you which case applies in plain English and reports the row count before you commit.
 
@@ -40,7 +41,7 @@ Header row is included. Values containing commas, quotes, or newlines are escape
 
 The dialog has an opt-in checkbox **Include the 268-sample mean ΔF/F activity trace**. When ticked, the export appends 268 columns at the end of each row (`dff_t0`, `dff_t1`, …, `dff_t267`), one per trace sample, at the [published 2 Hz sample rate](/preprocess#trace-sample-rate) — divide the index by 2 for the sample's time in seconds.
 
-It's default-off because traces roughly **triple the file size** and add 268 columns that most spreadsheet-driven analyses don't want. Leave it on when you intend to recompute correlations or fit your own models against the raw trace.
+It's default-off because traces substantially increase file size and add 268 columns that most spreadsheet-driven analyses don't want. Leave it on when you intend to recompute correlations or fit your own models against the raw trace.
 
 ## What's never included
 
@@ -55,5 +56,5 @@ It's default-off because traces roughly **triple the file size** and add 268 col
 ## Tips
 
 - A typical filtered export (a few thousand to a few tens of thousands of cells) opens in any spreadsheet or notebook environment.
-- Worst case is the full population with no filter (~274k cells × ~60 columns ≈ 150 MB; with traces enabled ~450 MB). The dialog shows an estimated size before you commit — narrow the filter first if that's larger than you intended.
+- Worst case is the full population with no filter (~274k cells × ~60 base columns, plus 268 optional trace columns). The dialog shows an estimated size before you commit — narrow the filter first if that's larger than you intended.
 - Floating-point precision is fixed (2 decimals for coordinates, 3 for correlations and ΔF/F) — enough headroom for downstream analysis without bloating the file.

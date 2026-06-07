@@ -23,6 +23,20 @@ export interface ColoringResult {
   colors: Float32Array; // length n*3
   alphas: Float32Array; // length n
   sizes: Float32Array; // length n
+  /** Per-cell projection intensity in [0, 1] — the underlying scheme
+   *  scalar, NOT the display alpha. Stim/swim use magnitude |r| past
+   *  the deadband regardless of fadeWeakCorrelation; gene/activity
+   *  use the same v that drives the plasma ramp; categorical schemes
+   *  are not projectable but still carry 1.0 for in-set, 0 for ghosts.
+   *  Read by the 3D viewer as a projection threshold/mask; the t-SNE
+   *  panel and the normal 3D pass do not consume this. */
+  intensities: Float32Array; // length n
+  /** Raw scientific scalar represented by the active color scheme:
+   *  gene spot count/richness, activity ΔF/F, signed stim correlation,
+   *  or signed swim correlation. Categorical schemes store NaN. This is
+   *  kept separate from `intensities`, which is the normalized magnitude
+   *  used by the current projection renderer. */
+  scalarValues: Float32Array; // length n
 }
 
 export function allocColoring(n: number): ColoringResult {
@@ -30,13 +44,16 @@ export function allocColoring(n: number): ColoringResult {
     colors: new Float32Array(n * 3),
     alphas: new Float32Array(n),
     sizes: new Float32Array(n),
+    intensities: new Float32Array(n),
+    scalarValues: new Float32Array(n),
   };
 }
 
 export interface ColoringStats {
-  /** Number of cells whose final alpha clears the visibility threshold
-   *  (≥ 0.5). Drives the "cells visible" readout — reflects both filter
-   *  membership and fade-by-magnitude / ghost slider attenuation. */
+  /** Number of renderable cells in the active filter intersection. Drives
+   *  the "cells visible" readout, so visual styling controls (fade weak
+   *  correlations, ghost visibility, active selection dimming, opacity
+   *  overrides) do not change the count unless they are actual filters. */
   visibleCount: number;
   /** Indices of cells in the filter intersection — populated only when
    *  at least one filter dimension is active. Empty means the active
@@ -297,7 +314,7 @@ export function applyColoring(
   out: ColoringResult,
 ): ColoringStats {
   const { count, regionIds, fishIds, clusterIds, geneCounts, geneBinary, stimulusCorr, swimCorr, activityTrace, traceLength } = ds;
-  const { colors, alphas, sizes } = out;
+  const { colors, alphas, sizes, intensities, scalarValues } = out;
   const G = ds.geneNames.length;
   const S = ds.stimulusNames.length;
   // Activity scheme: clamp the URL-restored sample index into the
@@ -320,8 +337,17 @@ export function applyColoring(
   // tolerate stimHi <= stimLo by clamping the divisor to something
   // small but positive so the ramp still maps without dividing by zero.
   const stimLo = Math.max(0, settings.stimLo);
-  const stimHi = Math.max(stimLo + 0.001, settings.stimHi);
-  const stimRange = Math.max(0.001, stimHi - stimLo);
+  // Saturation anchors. With split saturation off both signs share the
+  // unified stimHi (symmetric ramp); on, each side uses its own endpoint
+  // so the positive-skewed distribution doesn't force one sign to wash
+  // out (see SettingsState.stimSplitSaturation).
+  const stimHi = Math.max(
+    stimLo + 0.001,
+    settings.stimSplitSaturation ? settings.stimHiPos : settings.stimHi,
+  );
+  const stimHiNeg = settings.stimSplitSaturation
+    ? Math.max(stimLo + 0.001, settings.stimHiNeg)
+    : stimHi;
   // Swim coloring anchors: symmetric around 0. Below |r| = swimLo the
   // cell maps to the neutral midpoint of the divergent ramp; above
   // |r| = swimHi it saturates at the corresponding end. Clamp the divisor
@@ -419,6 +445,18 @@ export function applyColoring(
   const stimLoFilter = stimLo;
   const stimMode = filter.stimMode;
   const stimActive = stimSelLen > 0 && stimMode !== 'off';
+  // Visual Stimuli "no filter" should not silently behave like the
+  // "± either" sign-band. When the sign-band filter is dormant, selected
+  // stimuli still scope the Stim color/projection scalar, but the
+  // responsive floor is not used as a color/projection deadband; raw
+  // correlations map continuously away from zero. Once a sign-band is
+  // enabled, the same floor becomes both the filter criterion and the
+  // neutral deadband.
+  const stimColorLo = stimActive ? stimLo : 0;
+  // Per-sign spans between the deadband and each saturation anchor. Equal
+  // when split saturation is off.
+  const stimColorRangePos = Math.max(0.001, stimHi - stimColorLo);
+  const stimColorRangeNeg = Math.max(0.001, stimHiNeg - stimColorLo);
   // Sign-aware predicate (encoded as ints to keep the hot loop branchless):
   //   0 = positive (r >= +lo), 1 = negative (r <= -lo), 2 = both (|r| >= lo)
   const stimModeCode = stimMode === 'negative' ? 1 : stimMode === 'both' ? 2 : 0;
@@ -436,12 +474,6 @@ export function applyColoring(
     swimFilterActive ||
     hideUnassigned;
   const fadeWeak = settings.fadeWeakCorrelation;
-  // visibleCount is the count of cells the user actually sees on
-  // screen, not the count of cells passing the filter. We bump it
-  // for cells whose final alpha is above this threshold — that way
-  // fade-by-magnitude (which knocks low-|r| cells down to alpha ~0.12)
-  // is reflected in the counter even when no filter is active.
-  const VISIBLE_ALPHA_THRESHOLD = 0.5;
   // Single-pass bucket fill into a draw-order buffer:
   //   out-of-set indices fill from the front (outCursor ↑)
   //   in-set     indices fill from the back  (inCursor  ↓)
@@ -571,12 +603,22 @@ export function applyColoring(
     : 1.0;
   const effectivePointSize = baseSize * inSetBoost;
   const effectiveGhostIntensity = baseGhostIntensity;
+  // The UI count is a filter/readout count, not an alpha/style count.
+  // Compute it from pass 1 before selection dimming, fade-weak opacity,
+  // ghost visibility, or opaque-active overrides can affect display alpha.
+  const visibleCount = inSetCount;
 
   // ── Pass 2: paint ─────────────────────────────────────────────────
-  let visibleCount = 0;
   for (let i = 0; i < count; i++) {
     const inSet = inSetArr[i] === 1;
     let r = 0, g = 0, b = 0, alpha = 0.85, size = effectivePointSize;
+    // Per-cell projection intensity (scheme-aware magnitude in [0, 1]).
+    // Branches below overwrite it; ghosts and hidden cells leave it at
+    // zero so the projection-mode renderer culls them via intensityFloor.
+    let intensity = 0;
+    // Raw scalar displayed in the tooltip and, later, consumed by the
+    // scalar-projection path. Categorical schemes leave this as NaN.
+    let scalar = Number.NaN;
 
     if (hideUnassigned && regionIds[i] === 0) {
       colors[i * 3] = 0;
@@ -584,6 +626,8 @@ export function applyColoring(
       colors[i * 3 + 2] = 0;
       alphas[i] = 0;
       sizes[i] = size;
+      intensities[i] = 0;
+      scalarValues[i] = Number.NaN;
       continue;
     }
 
@@ -616,11 +660,16 @@ export function applyColoring(
         case 'region': {
           const c = regionColor(regionIds[i], filter.regionPalette);
           r = c[0]; g = c[1]; b = c[2];
+          // Categorical scheme: no magnitude. In-set cells get full
+          // intensity so projection renders any of them; ghosts have
+          // already been left at 0 by the default above.
+          intensity = 1;
           break;
         }
         case 'fish': {
           const c = fishColor(ds.fishIds[i]);
           r = c[0]; g = c[1]; b = c[2];
+          intensity = 1;
           break;
         }
         case 'gene': {
@@ -694,10 +743,15 @@ export function applyColoring(
             // outline still reads through the plasma foreground.
             r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2];
             alpha = isolatedRegion >= 0 || isoAtlasRegion >= 0 ? LIFT_ALPHA : DIM_ALPHA;
+            scalar = raw;
           } else {
             const c = plasma(v);
             r = c[0]; g = c[1]; b = c[2];
             alpha = 1.0;
+            // v is the plasma input (0..1) — exactly the magnitude
+            // signal projection-mode wants.
+            intensity = v;
+            scalar = raw;
           }
           break;
         }
@@ -709,6 +763,7 @@ export function applyColoring(
           // visual encoding overlaid.
           r = 0.94; g = 0.97; b = 0.13;
           alpha = 1.0;
+          intensity = 1;
           break;
         }
         case 'activity': {
@@ -718,6 +773,7 @@ export function applyColoring(
           // "no signal" so the visual vocabulary stays consistent.
           const dff = activityTrace[i * traceLength + activitySample];
           const v = Math.max(0, Math.min(1, (dff - ACTIVITY_LO) / activityRange));
+          scalar = dff;
           if (v <= 0) {
             r = DIM_RGB[0]; g = DIM_RGB[1]; b = DIM_RGB[2];
             alpha = isolatedRegion >= 0 || isoAtlasRegion >= 0 ? LIFT_ALPHA : DIM_ALPHA;
@@ -725,19 +781,21 @@ export function applyColoring(
             const c = plasma(v);
             r = c[0]; g = c[1]; b = c[2];
             alpha = 1.0;
+            intensity = v;
           }
           break;
         }
         case 'stim': {
           // Divergent coolwarm ramp over signed stim correlation,
-          // anchored symmetrically at ±stimLo (neutral deadband) and
-          // ±stimHi (saturation). With one stimulus selected we paint
-          // by its signed r. With multiple stimuli (or "all stims")
-          // the rep we pick tracks the filter direction WHEN the
-          // filter is active. With the filter inactive (no stims, or
-          // mode 'off') the coloring falls back to max-|r| so the
-          // map doesn't keep biasing toward a direction the user
-          // can no longer see in the UI.
+          // anchored at ±stimColorLo (0 in no-filter mode,
+          // settings.stimLo when a sign-band is armed) and at +stimHi /
+          // −stimHiNeg (saturation; the two saturation anchors are equal
+          // unless split saturation is on). With one stimulus selected we paint by
+          // its signed r. With multiple stimuli (or "all stims") the rep
+          // we pick tracks the filter direction WHEN the filter is active.
+          // With the filter inactive (no stims, or mode 'off') the
+          // coloring falls back to max-|r| so the map doesn't keep biasing
+          // toward a direction the user can no longer see in the UI.
           let rawA: number;
           if (!useStimMax) {
             rawA = stimulusCorr[i * S + stimSel[0]];
@@ -778,15 +836,21 @@ export function applyColoring(
           }
           const mag = Math.abs(rawA);
           let v: number;
-          if (mag <= stimLo) {
+          if (mag <= stimColorLo) {
             v = 0;
           } else {
-            v = Math.min(1, (mag - stimLo) / stimRange);
+            const range = rawA >= 0 ? stimColorRangePos : stimColorRangeNeg;
+            v = Math.min(1, (mag - stimColorLo) / range);
           }
           const signed = rawA >= 0 ? v : -v;
           const c = coolwarm(signed);
           r = c[0]; g = c[1]; b = c[2];
           alpha = fadeWeak ? FADE_FLOOR + (1 - FADE_FLOOR) * v : 1.0;
+          // |r|-magnitude projection signal independent of fadeWeak:
+          // alpha collapses to 1 with fade off, so projection would lose
+          // its discriminator if it kept reading alpha.
+          intensity = v;
+          scalar = rawA;
           break;
         }
         case 'swim': {
@@ -809,6 +873,8 @@ export function applyColoring(
           const c = coolwarm(signed);
           r = c[0]; g = c[1]; b = c[2];
           alpha = fadeWeak ? FADE_FLOOR + (1 - FADE_FLOOR) * v : 1.0;
+          intensity = v;
+          scalar = rawS;
           break;
         }
       }
@@ -817,8 +883,7 @@ export function applyColoring(
     // Optional shared opacity override: make foreground/in-filter cells
     // fully opaque while leaving ghosts/out-of-filter cells dimmed. This
     // lives in shared coloring (rather than BrainViewer) so the 3D and
-    // t-SNE scatters show the same alpha policy and visibleCount stays
-    // aligned with both.
+    // t-SNE scatters show the same alpha policy.
     if (settings.opaqueActiveCells && inSet && alpha > 0) {
       alpha = 1.0;
     }
@@ -846,13 +911,13 @@ export function applyColoring(
       alpha = Math.min(alpha, 0.18);
     }
 
-    if (alpha >= VISIBLE_ALPHA_THRESHOLD) visibleCount++;
-
     colors[i * 3] = r;
     colors[i * 3 + 1] = g;
     colors[i * 3 + 2] = b;
     alphas[i] = alpha;
     sizes[i] = size;
+    intensities[i] = intensity;
+    scalarValues[i] = scalar;
   }
 
   // Slice the in-set tail out of drawOrder as filterSelection so App's
@@ -869,6 +934,73 @@ export function applyColoring(
     effectivePointSize,
     effectiveGhostIntensity,
   };
+}
+
+/** Fast path for Activity playback. It assumes the filter intersection,
+ *  selection, sizing, and draw order are unchanged from the last full
+ *  `applyColoring` pass, and updates only the per-cell Activity colors /
+ *  alpha / projection scalar for the already-active cells. */
+export function repaintActivitySample(
+  ds: NeuronDataset,
+  filter: FilterState,
+  settings: SettingsState,
+  selection: SelectionState,
+  filterSelection: Uint32Array | null,
+  out: ColoringResult,
+): void {
+  const { count, activityTrace, traceLength } = ds;
+  const { colors, alphas, intensities, scalarValues } = out;
+  const sample = Math.max(0, Math.min(traceLength - 1, filter.activitySample | 0));
+  const lo = settings.activityLo;
+  const hi = Math.max(lo + 0.001, settings.activityHi);
+  const range = Math.max(0.001, hi - lo);
+  const liftNoSignal =
+    (filter.anatomyAtlas === 'mapzebrain'
+      ? filter.isolatedAtlasRegion
+      : filter.isolatedRegion) >= 0;
+  const brightness = settings.activeBrightness;
+  const opaque = settings.opaqueActiveCells;
+  const selSet = selection.indices.length > 0 ? new Set<number>(Array.from(selection.indices)) : null;
+  const dimUnselected = selSet && (selection.source === '3d' || selection.source === 'umap');
+  const paint = (i: number) => {
+    const dff = activityTrace[i * traceLength + sample];
+    const v = Math.max(0, Math.min(1, (dff - lo) / range));
+    let r: number;
+    let g: number;
+    let b: number;
+    let alpha: number;
+    if (v <= 0) {
+      r = DIM_RGB[0];
+      g = DIM_RGB[1];
+      b = DIM_RGB[2];
+      alpha = liftNoSignal ? LIFT_ALPHA : DIM_ALPHA;
+      intensities[i] = 0;
+    } else {
+      const c = plasma(v);
+      r = c[0];
+      g = c[1];
+      b = c[2];
+      alpha = 1.0;
+      intensities[i] = v;
+    }
+    if (opaque && alpha > 0) alpha = 1.0;
+    if (brightness > 0) {
+      r = Math.min(1, r + brightness);
+      g = Math.min(1, g + brightness);
+      b = Math.min(1, b + brightness);
+    }
+    if (dimUnselected && !selSet.has(i)) alpha = Math.min(alpha, 0.18);
+    colors[i * 3] = r;
+    colors[i * 3 + 1] = g;
+    colors[i * 3 + 2] = b;
+    alphas[i] = alpha;
+    scalarValues[i] = dff;
+  };
+  if (filterSelection) {
+    for (let k = 0; k < filterSelection.length; k++) paint(filterSelection[k]);
+  } else {
+    for (let i = 0; i < count; i++) paint(i);
+  }
 }
 
 /**
@@ -893,7 +1025,7 @@ export function applySelectionAsFilterGhost(
   selection: SelectionState,
 ): void {
   if (selection.source !== 'umap' || selection.indices.length === 0) return;
-  const { colors, alphas, sizes } = out;
+  const { colors, alphas, sizes, intensities, scalarValues } = out;
   const selSet = new Set<number>(Array.from(selection.indices));
   const t = effectiveGhostIntensity;
   const ghostAlpha = DIM_ALPHA * t;
@@ -916,6 +1048,8 @@ export function applySelectionAsFilterGhost(
       colors[i * 3 + 2] = b0;
       alphas[i] = ghostAlpha;
       sizes[i] = ghostSize;
+      intensities[i] = 0;
+      scalarValues[i] = Number.NaN;
     }
   } else {
     for (let i = 0; i < count; i++) {
@@ -925,6 +1059,8 @@ export function applySelectionAsFilterGhost(
       colors[i * 3 + 2] = b0;
       alphas[i] = ghostAlpha;
       sizes[i] = ghostSize;
+      intensities[i] = 0;
+      scalarValues[i] = Number.NaN;
     }
   }
 }

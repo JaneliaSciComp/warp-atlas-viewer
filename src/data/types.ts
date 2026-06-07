@@ -228,6 +228,22 @@ export type StimMode = "off" | "positive" | "negative" | "both";
 export type GeneLogic = "or" | "and";
 export type GeneMultiColor = "max" | "sum" | "richness";
 export type GeneThresholdMode = "paper" | "global";
+/** Projection mode for the 3D point cloud. 'off' renders cells as usual.
+ *  The other modes render an off-screen reduction along the view ray and
+ *  display that image, so deep cells aren't occluded by shallow ones:
+ *    'min'  → per-pixel minimum scalar.
+ *    'mean' → arithmetic mean scalar across all cells touching the pixel.
+ *    'max'  → per-pixel maximum scalar (MIP).
+ *    'sum'  → integrated scalar with exposure scaling (signed for
+ *             stim/swim).
+ *             Pairs naturally with max
+ *             for sparse-signal schemes (gene/activity) where mean
+ *             washes out bright cells with the dim majority.
+ *  Projection is disabled for categorical color schemes. Stim/swim
+ *  projections use signed correlations as the scalar. The projection
+ *  threshold still uses normalized magnitude to cull weak cells and
+ *  ghosts before scalar reduction. */
+export type ProjectionMode = "off" | "min" | "mean" | "max" | "maxabs" | "sum";
 
 /** User-tunable rendering parameters that aren't filters per se —
  *  e.g. the calcium-imaging thresholds that anchor the Stim color
@@ -235,17 +251,38 @@ export type GeneThresholdMode = "paper" | "global";
  *  (separate from FilterState) so "reset filters" doesn't clobber it
  *  and the Settings tab has a clean home for its controls. */
 export interface SettingsState {
-    /** Below this correlation magnitude, cells are "non-responsive" and
-     *  map to the neutral midpoint in the Stim scheme; the Activity filter
-     *  also requires a cell to exceed this floor for at least one selected
-     *  stimulus in the enabled sign band. Default
+    /** Stimulus correlation responsive floor. When a visual-stimulus
+     *  sign-band filter is enabled, cells below this magnitude are
+     *  "non-responsive", map to the neutral midpoint in the Stim scheme,
+     *  and are rejected by the stimulus filter. In no-filter mode, the
+     *  Stim color/projection scalar maps continuously from zero instead
+     *  of using this as a gate. Default
      *  0.13 — the paper's full-vector responsive threshold (the 90th
      *  percentile per-stimulus, averaged, rounded). */
     stimLo: number;
     /** Above this correlation magnitude, the Stim scheme's divergent
      *  palette is saturated. Default 0.30 — roughly the 99th percentile of the
-     *  cycle-wide stimulus-correlation distribution. */
+     *  cycle-wide stimulus-correlation distribution. When
+     *  `stimSplitSaturation` is on, this anchors the *positive* (red) side
+     *  only and `stimHiNeg` anchors the negative (blue) side. */
     stimHi: number;
+    /** When true, the Stim color/projection ramp uses independent
+     *  saturation anchors per sign: `stimHiPos` for positive correlations,
+     *  `stimHiNeg` for negative. The stim-correlation distribution is
+     *  skewed positive (far more strong +r than −r cells), so a single
+     *  symmetric anchor forces a trade-off where one sign washes out.
+     *  Off (default) keeps a single symmetric anchor (`stimHi`). */
+    stimSplitSaturation: boolean;
+    /** Positive-side saturation magnitude for the Stim scheme, used only
+     *  when `stimSplitSaturation` is on (the unified `stimHi` is used when
+     *  off). Cells with r ≥ +stimHiPos clamp to the red endpoint. Default
+     *  0.40 — wider than the unified anchor to suit the heavy +r tail. */
+    stimHiPos: number;
+    /** Negative-side saturation magnitude for the Stim scheme, used only
+     *  when `stimSplitSaturation` is on. Cells with r ≤ −stimHiNeg clamp to
+     *  the blue endpoint. Default 0.20 — tighter to surface the sparse −r
+     *  tail. */
+    stimHiNeg: number;
     /** Upper anchor for the Gene scheme's plasma palette (raw FISH spot
      *  count). Cells expressing more than this saturate at the bright
      *  end. Different probes / datasets have different practical
@@ -342,7 +379,10 @@ export interface SettingsState {
     /** Visibility of out-of-filter cells (ghosts), 0..1, used when
      *  `autoSizing` is off. When auto is on the renderer derives a
      *  ghost-visibility value from the canvas height via a negative-
-     *  exponential curve instead, so this slider is hidden.
+     *  exponential curve instead, so this slider is hidden. The same
+     *  ghost visibility controls normal 3D rendering and the transparent
+     *  ghost/context underlay in projection modes; ghosts remain visual
+     *  context only and do not contribute to scalar projection reductions.
      *  0 → cells are invisible (alpha 0) and the click pickers skip
      *      them entirely.
      *  1 → cells render at the standard dim alpha (matches the
@@ -370,8 +410,11 @@ export interface SettingsState {
      *  |r| so cells near the neutral midpoint fade into the background
      *  instead of competing with the colored extremes (coolwarm's
      *  near-white midpoint blooms on a dark background at full opacity).
-     *  When false, every in-set cell renders at full alpha regardless
-     *  of correlation magnitude. */
+     *  In signed stim/swim projection, the same setting controls the
+     *  opacity of the projected reduced scalar. Other color/projection
+     *  schemes store the setting but do not use it. When false, every
+     *  in-set signed-correlation cell/projection renders at full alpha
+     *  regardless of correlation magnitude. */
     fadeWeakCorrelation: boolean;
     /** When true (default), right-mouse drag pans the viewport in screen
      *  space while the orbit target stays locked at the volume center —
@@ -387,6 +430,44 @@ export interface SettingsState {
      *  original feel. Internally drives `staticMoving` (at 0) and
      *  `dynamicDampingFactor = max(0.05, 1 - rotationMomentum)`. */
     rotationMomentum: number;
+    /** When true (default), every 3D point sprite shrinks with distance
+     *  from the camera via the `160/dist` falloff — the familiar
+     *  perspective-shrunk look. When false, every shader (normal cell
+     *  render, projection visible pass, projection picker, focus-ring
+     *  marker, ambient-occlusion depth/normal pass) drops the falloff
+     *  and renders every cell at the same size — matched to the
+     *  perspective size at the default zoom (see `flatSizeFactor` in
+     *  utils/zoomSizing) so toggling does not change density, and scaled
+     *  with camera zoom (see `zoomSizeScale`) so on-screen coverage stays
+     *  roughly constant. Disabling this is the MIP-style "see through
+     *  the volume" convention — deep cells contribute equally to the
+     *  visible image. Independent of projectionMode, so it can be
+     *  combined with any of them or used on its own in normal
+     *  rendering. */
+    scaleByDepth: boolean;
+    /** Per-pixel scalar projection of the point cloud, viewed from the
+     *  camera. When not 'off', scalar color schemes (gene/activity/
+     *  stim/swim) reduce raw scalar values along the view ray and
+     *  recolor the reduced scalar. Signed stim/swim projections render
+     *  near-zero/cancelled values with low opacity so the coolwarm
+     *  neutral midpoint does not dominate. Signed min/max/min-max are
+     *  reduced order-independently instead of with depth, so transparent
+     *  near-neutral cells cannot occlude stronger signal. Projection modes
+     *  draw the existing 3D ghosts as visual context underneath, but ghosts
+     *  do not enter the scalar reduction. Categorical schemes ignore this
+     *  setting. Ambient occlusion and the focused-neuron ring marker are
+     *  disabled while projection is active. */
+    projectionMode: ProjectionMode;
+    /** Minimum projection intensity included in the projection pass,
+     *  0..1. Raising this culls weak/noisy cells before max/min, mean,
+     *  sum, and projection picking run; signed mean/sum also use it to
+     *  suppress reduced near-zero/cancelled output. Default 0.05. */
+    projectionIntensityFloor: number;
+    /** Exposure multiplier applied to Sum projection's accumulated
+     *  scalar before display mapping. Lower values reduce saturation
+     *  in dense activity/gene views; higher values boost weak integrated
+     *  signal. Default 1.0. */
+    projectionSumExposure: number;
     /** Developer toggle. When true, the 3D viewer renders a small
      *  diagnostic overlay (canvas size, in-set count, computed point
      *  size + ghost visibility, etc.) so the auto / scale-by-filter
@@ -397,6 +478,9 @@ export interface SettingsState {
 export const DEFAULT_SETTINGS: SettingsState = {
     stimLo: 0.13,
     stimHi: 0.3,
+    stimSplitSaturation: false,
+    stimHiPos: 0.4,
+    stimHiNeg: 0.2,
     geneMaxSpots: 1000,
     geneThresholdMode: "paper",
     geneThresholdGlobal: 25,
@@ -419,6 +503,10 @@ export const DEFAULT_SETTINGS: SettingsState = {
     fadeWeakCorrelation: true,
     objectCentricRotation: true,
     rotationMomentum: 0.9,
+    scaleByDepth: true,
+    projectionMode: "off",
+    projectionIntensityFloor: 0.05,
+    projectionSumExposure: 1.0,
     debugMode: false,
 };
 
