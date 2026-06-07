@@ -165,6 +165,21 @@ export function validateManifest(m: ManifestV3): void {
   if (hi <= lo) {
     throw new Error(`manifest.activityTraceQuant.hi (${hi}) must be > lo (${lo})`);
   }
+  const files = m.files as unknown;
+  if (!files || typeof files !== 'object' || Array.isArray(files)) {
+    throw new Error('manifest.files must be an object');
+  }
+  const fileRecord = files as Record<string, unknown>;
+  const nonEmptyString = (v: unknown): v is string =>
+    typeof v === 'string' && v.trim().length > 0;
+  for (const key of BINARY_FILE_KEYS) {
+    if (!nonEmptyString(fileRecord[key])) {
+      throw new Error(`manifest.files.${key} must be a non-empty string`);
+    }
+  }
+  if (fileRecord.regressors !== undefined && !nonEmptyString(fileRecord.regressors)) {
+    throw new Error('manifest.files.regressors must be a non-empty string when present');
+  }
 }
 
 /** Expected byte length for each binary file, derived from manifest

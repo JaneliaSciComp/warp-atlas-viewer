@@ -83,6 +83,35 @@ describe('validateManifest', () => {
       validateManifest(validManifest({ activityTraceQuant: { lo: 2, hi: 1 } })),
     ).toThrow(/activityTraceQuant\.hi/);
   });
+
+  it('rejects a missing or non-object files block', () => {
+    expect(() =>
+      validateManifest(validManifest({ files: undefined as unknown as ManifestV3['files'] })),
+    ).toThrow(/manifest\.files/);
+    expect(() =>
+      validateManifest(validManifest({ files: [] as unknown as ManifestV3['files'] })),
+    ).toThrow(/manifest\.files/);
+  });
+
+  it('rejects missing, empty, or non-string required file names', () => {
+    const missing = validManifest();
+    delete (missing.files as Partial<ManifestV3['files']>).fishIds;
+    expect(() => validateManifest(missing)).toThrow(/manifest\.files\.fishIds/);
+
+    const empty = validManifest();
+    empty.files.positions = '';
+    expect(() => validateManifest(empty)).toThrow(/manifest\.files\.positions/);
+
+    const nonString = validManifest();
+    (nonString.files as unknown as Record<string, unknown>).umap = 42;
+    expect(() => validateManifest(nonString)).toThrow(/manifest\.files\.umap/);
+  });
+
+  it('rejects an invalid optional regressors file name when present', () => {
+    const m = validManifest();
+    m.files.regressors = '   ';
+    expect(() => validateManifest(m)).toThrow(/manifest\.files\.regressors/);
+  });
 });
 
 describe('expectedBytes', () => {
