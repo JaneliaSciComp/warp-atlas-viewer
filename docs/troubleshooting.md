@@ -25,9 +25,9 @@ If a recipient reports that the lasso is missing, redraw it with fewer vertices 
 
 ## Cells appear too small or too large
 
-Adjust **Settings → 3D point density**. With **auto** mode on *(default)* the point size is derived from the live 3D canvas height: short views use small dots, around 600 px tall is roughly 9 px, and taller views continue to grow (about 17 px at 1500 px tall). Turn **auto** off to set the size by hand (range 1 – 40 px); high-DPI displays generally benefit from a larger value. Enable **scale by filter** (nested under auto) to additionally enlarge active cells when the filter narrows, up to 2× the auto base size at ~50 in-set cells. A focused cell is marked with a separate white ring instead of being resized.
+Adjust **Settings → 3D point density**. With **auto** mode on *(default)* the point size is derived from the live 3D canvas height: short views use small points, around 600 px tall is roughly 9 px, and taller views continue to grow (about 17 px at 1500 px tall). Turn **auto** off to set the size by hand (range 1 – 40 px); high-DPI displays generally benefit from a larger value. Enable **scale by filter** (nested under auto) to additionally enlarge active cells when the filter narrows, up to 2× the auto base size at ~50 in-set cells. A focused cell is marked with a separate white ring instead of being resized.
 
-For the t-SNE panel, use **Settings → t-SNE point density**. It has its own size and ghost-visibility sliders since its dot field is much denser and there is no perspective falloff.
+For the t-SNE panel, use **Settings → t-SNE point density**. It has its own size and ghost-visibility sliders since its point field is much denser and there is no perspective falloff.
 
 ## Camera orientation feels lost after panning
 

@@ -40,7 +40,7 @@ The active **Colors** scheme determines per-cell color. See [Colors](/filters/co
 - The point cloud is drawn in a single GPU pass, so render cost is largely independent of the filter combination.
 - Projection modes add off-screen reduction/compositing passes so deep scalar signal can be seen through the point cloud. They are available for Gene, Activity, Stim, and Swim color schemes.
 - Filtered-out cells are drawn dim and transparent rather than skipped, preserving the silhouette of the full brain as context. The amount of dim is controlled by the ghost visibility in [Settings → 3D point density](/settings#3d-point-density).
-- Point size and ghost visibility self-tune to the live canvas height in auto mode — shorter views use smaller dots with moderate ghost visibility, while taller views grow dots and peak ghost visibility near typical full-height layouts. Optionally, **scale by filter** can also enlarge active cells (up to 2× their auto size) when the filter narrows to a small group. Both knobs live in [Settings → 3D point density](/settings#3d-point-density); turning auto off exposes the manual sliders.
+- Point size and ghost visibility self-tune to the live canvas height in auto mode — shorter views use smaller points with moderate ghost visibility, while taller views grow points and peak ghost visibility near typical full-height layouts. Optionally, **scale by filter** can also enlarge active cells (up to 2× their auto size) when the filter narrows to a small group. Both knobs live in [Settings → 3D point density](/settings#3d-point-density); turning auto off exposes the manual sliders.
 
 ## See also
 
