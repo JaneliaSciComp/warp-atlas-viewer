@@ -105,13 +105,13 @@ export function SettingsTab({
                     3D point density
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Controls dot size and ghost (out-of-filter cell)
+                    Controls point size and ghost (out-of-filter cell)
                     visibility in the 3D view.{" "}
-                    <Ctl>Auto point sizes</Ctl> derives both from the 3D view
+                    <Ctl>Auto point sizes</Ctl> derives both from the viewport
                     height, hiding the manual sliders.{" "}
-                    <Ctl>Scale by filter</Ctl> enlarges dots when fewer cells
+                    <Ctl>Scale by filter</Ctl> enlarges points when fewer cells
                     are visible; <Ctl>scale by depth</Ctl> applies perspective,
-                    making closer dots larger and farther ones smaller.
+                    making closer points larger and farther ones smaller.
                 </p>
                 <label
                     className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
@@ -191,8 +191,9 @@ export function SettingsTab({
                 </div>
                 <p className="text-neutral-400 leading-snug">
                     <Ctl>Object-centric rotation</Ctl> orbits around the
-                    brain's center. <Ctl>Momentum</Ctl> keeps the view drifting
-                    after you release a drag.
+                    brain's center. <Ctl>Momentum</Ctl> applies inertia, so
+                    rotation, pan, and zoom continue briefly after the drag
+                    ends.
                 </p>
                 <label
                     className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
@@ -227,7 +228,7 @@ export function SettingsTab({
                     t-SNE point density
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Controls dot size and ghost (out-of-filter cell)
+                    Controls point size and ghost (out-of-filter cell)
                     visibility for the t-SNE plot.
                 </p>
                 <NumberRow
@@ -257,11 +258,12 @@ export function SettingsTab({
                     Rendering
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    <Ctl>Ambient occlusion</Ctl> shades crowded areas to add a
-                    sense of depth. <Ctl>Opaque active cells</Ctl> draws the
-                    cells that pass your filters at full opacity instead of
-                    slightly see-through; <Ctl>active brightness</Ctl> makes
-                    those same cells brighter.
+                    <Ctl>Ambient occlusion</Ctl> darkens regions of dense
+                    point overlap to convey depth. <Ctl>Opaque active cells</Ctl>{" "}
+                    renders the cells that pass the filters at full opacity
+                    rather than the default partial transparency;{" "}
+                    <Ctl>active brightness</Ctl> applies an additive brightness
+                    lift to those cells.
                 </p>
                 {projectionActive && (
                     <p className="text-neutral-500 text-[11px] leading-snug ml-3">
@@ -370,12 +372,13 @@ export function SettingsTab({
                     Projection
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Combines color values along the line of sight into one
-                    value per screen pixel — a see-through view. Works with
-                    Gene, Activity, Stim, and Swim. <Ctl>Min</Ctl> and{" "}
-                    <Ctl>Max</Ctl> take the lowest or highest;{" "}
-                    <Ctl>Min/Max</Ctl> keeps whichever is farthest from zero;{" "}
-                    <Ctl>Mean</Ctl> averages; <Ctl>Sum</Ctl> adds them up.
+                    Reduces the scalar color values along each view ray to a
+                    single value per pixel — a volumetric, see-through
+                    projection. Works with Gene, Activity, Stim, and Swim.{" "}
+                    <Ctl>Min</Ctl> and <Ctl>Max</Ctl> take the lowest or
+                    highest value; <Ctl>Min/Max</Ctl> keeps whichever is
+                    farthest from zero; <Ctl>Mean</Ctl> averages;{" "}
+                    <Ctl>Sum</Ctl> accumulates.
                 </p>
                 {!projectionSupported && (
                     <p className="text-neutral-500 text-[11px] leading-snug ml-3">
@@ -462,8 +465,8 @@ export function SettingsTab({
                     Gene plasma ceiling
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Sets the spot count that maps to the top of the Gene
-                    color scale.
+                    Sets the spot count that maps to the ceiling of the Gene
+                    plasma color scale.
                 </p>
                 <NumberRow
                     label="max spot count"
@@ -481,8 +484,8 @@ export function SettingsTab({
                 </div>
                 <p className="text-neutral-400 leading-snug">
                     When two or more genes are pinned: <Ctl>Max</Ctl> uses the
-                    strongest single gene; <Ctl>Sum</Ctl> adds up all their
-                    spots; <Ctl>Richness</Ctl> counts how many are expressed.
+                    highest single-gene value; <Ctl>Sum</Ctl> totals their spot
+                    counts; <Ctl>Richness</Ctl> counts how many are expressed.
                 </p>
                 <div className="flex items-center gap-2">
                     <KindToggle
@@ -633,9 +636,9 @@ export function SettingsTab({
                     Fade weak correlations
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Dims cells with weak Stim/Swim correlations so the strong
-                    ones stand out. Also controls opacity in Stim/Swim
-                    projections.
+                    Scales cell opacity by |r| in the Stim/Swim color modes,
+                    fading weakly correlated cells toward the background. Also
+                    governs opacity in signed Stim/Swim projections.
                 </p>
                 <label
                     className="flex items-center gap-2 text-xs cursor-pointer select-none ml-3 text-neutral-300"
@@ -679,7 +682,7 @@ export function SettingsTab({
                     Activity ΔF/F anchors
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Sets the bottom and top of the Activity (ΔF/F) color
+                    Sets the floor and ceiling of the Activity (ΔF/F) color
                     scale.
                 </p>
                 <NumberRow
