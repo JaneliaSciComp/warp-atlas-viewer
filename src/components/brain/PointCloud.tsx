@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useRef, type MutableRefObject } from 'react';
+import { useEffect, useRef, type MutableRefObject } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { NeuronDataset, FilterState, SelectionState, SettingsState } from '../../data/types';
 import {
-  allocColoring,
   applySelectionAsFilterGhost,
 } from '../../utils/coloring';
 import type { SharedColoring } from '../../hooks/useColoring';
@@ -19,6 +18,7 @@ import { registerProjectionShaderChunks } from './registerProjectionShaderChunks
 import { usePointCloudMaterials } from './usePointCloudMaterials';
 import { usePointCloudPicking, type PickState } from './usePointCloudPicking';
 import { useFocusMarker } from './useFocusMarker';
+import { usePointCloudGeometry } from './usePointCloudGeometry';
 
 export type { PickState };
 
@@ -70,40 +70,13 @@ export function PointCloud({
   // dot behind it.
   const contextPointsRef = useRef<THREE.Points>(null);
 
-  const buffers = useMemo(() => allocColoring(data.count), [data]);
-  const projectableMask = useMemo(() => new Float32Array(data.count), [data]);
-  const activityValues = useMemo(() => new Float32Array(data.count), [data]);
-  const activityActiveMask = useMemo(() => new Float32Array(data.count), [data]);
-
-  // Static per-cell index attribute (0..count-1). Used by the
-  // projection-mode ID pass to encode the winning cell per pixel.
-  // Values never change after dataset load so we don't track
-  // needsUpdate after the initial upload.
-  const cellIds = useMemo(() => {
-    const arr = new Float32Array(data.count);
-    for (let i = 0; i < data.count; i++) arr[i] = i;
-    return arr;
-  }, [data]);
-
-  const geometry = useMemo(() => {
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(data.positions, 3));
-    g.setAttribute('instColor', new THREE.BufferAttribute(buffers.colors, 3));
-    g.setAttribute('instAlpha', new THREE.BufferAttribute(buffers.alphas, 1));
-    g.setAttribute('instSize', new THREE.BufferAttribute(buffers.sizes, 1));
-    // Projection-mode intensity (scheme-aware magnitude). Separate from
-    // alpha so projection works even when fadeWeakCorrelation collapses
-    // alpha to 1 for all in-set cells. Only the projection vertex
-    // shader reads this attribute.
-    g.setAttribute('instIntensity', new THREE.BufferAttribute(buffers.intensities, 1));
-    g.setAttribute('instScalar', new THREE.BufferAttribute(buffers.scalarValues, 1));
-    g.setAttribute('instProjectable', new THREE.BufferAttribute(projectableMask, 1));
-    g.setAttribute('instActivity', new THREE.BufferAttribute(activityValues, 1));
-    g.setAttribute('instActivityActive', new THREE.BufferAttribute(activityActiveMask, 1));
-    g.setAttribute('instCellId', new THREE.BufferAttribute(cellIds, 1));
-    g.computeBoundingSphere();
-    return g;
-  }, [data, buffers, projectableMask, activityValues, activityActiveMask, cellIds]);
+  const {
+    buffers,
+    projectableMask,
+    activityValues,
+    activityActiveMask,
+    geometry,
+  } = usePointCloudGeometry(data);
 
   const {
     opaqueMaterial,
