@@ -22,6 +22,7 @@ export function FpsMeter({ onSample }: { onSample: (fps: number) => void }) {
   return null;
 }
 
+/** Shows a compact diagnostic readout for sizing, filtering, and frame-rate state. */
 export function DebugOverlay({
   canvasSize,
   fps,

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import type { NeuronDataset } from '../../data/types';
 import { allocColoring } from '../../utils/coloring';
 
+/** Allocates the mutable point-cloud buffers and corresponding Three.js geometry. */
 export function usePointCloudGeometry(data: NeuronDataset) {
   const buffers = useMemo(() => allocColoring(data.count), [data]);
   const projectableMask = useMemo(() => new Float32Array(data.count), [data]);

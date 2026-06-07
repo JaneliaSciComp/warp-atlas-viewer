@@ -58,6 +58,7 @@ interface Props {
 const VOLUME_CENTER: [number, number, number] = [0, 0, 0];
 const VOLUME_CENTER_VEC = new THREE.Vector3(...VOLUME_CENTER);
 
+/** Renders the 3D brain viewer shell, including canvas controls, overlays, and projection UI. */
 export function BrainViewer({
   data,
   filter,

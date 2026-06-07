@@ -7,6 +7,7 @@ interface TrackballControlsLike {
   target: THREE.Vector3;
 }
 
+/** Synchronizes point-size uniforms across all point-cloud materials. */
 export function usePointSizeUniforms({
   scaleByDepth,
   defaultCamDistance,

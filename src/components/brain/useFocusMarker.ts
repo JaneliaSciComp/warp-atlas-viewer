@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import type { NeuronDataset } from '../../data/types';
 
+/** Creates and updates the white focus-ring marker for the selected neuron. */
 export function useFocusMarker({
   data,
   focusedNeuron,

@@ -29,6 +29,7 @@ interface PointCloudMaterials {
   idMaterial: THREE.ShaderMaterial;
 }
 
+/** Creates and keeps the point-cloud shader materials in sync with projection settings. */
 export function usePointCloudMaterials({
   gl,
   size,

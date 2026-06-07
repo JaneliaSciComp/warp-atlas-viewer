@@ -1,6 +1,7 @@
 import type { FilterState, NeuronDataset, SettingsState } from '../../data/types';
 import type { SharedColoring } from '../../hooks/useColoring';
 
+/** Builds the hover tooltip text for a single neuron. */
 export function buildTooltip(
   data: NeuronDataset,
   filter: FilterState,
@@ -24,6 +25,7 @@ export function buildTooltip(
   return `neuron ${i}\nfish ${fish + 1}  cluster ${cluster}\nregion ${region}\n${scalarLine}\ntop ${topStr || '-'}`;
 }
 
+/** Formats the active scalar value line shown inside a neuron tooltip. */
 function buildScalarTooltipLine(
   data: NeuronDataset,
   filter: FilterState,

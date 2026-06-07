@@ -37,6 +37,7 @@ interface UsePointCloudPickingParams {
   size: { width: number; height: number };
 }
 
+/** Updates hover picking for normal rendering and projection modes. */
 export function usePointCloudPicking({
   data,
   filter,

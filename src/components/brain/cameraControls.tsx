@@ -10,6 +10,7 @@ export interface ScreenPanState {
   y: number;
 }
 
+/** Returns true for camera types that support Three.js view offsets. */
 function supportsViewOffset(
   camera: THREE.Camera,
 ): camera is THREE.PerspectiveCamera | THREE.OrthographicCamera {

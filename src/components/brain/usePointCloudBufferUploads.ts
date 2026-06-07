@@ -4,6 +4,7 @@ import type { FilterState, NeuronDataset, SelectionState, SettingsState } from '
 import { applySelectionAsFilterGhost, type ColoringResult } from '../../utils/coloring';
 import type { SharedColoring } from '../../hooks/useColoring';
 
+/** Uploads shared coloring buffers into the local Three.js geometry attributes. */
 export function usePointCloudBufferUploads({
   data,
   filter,

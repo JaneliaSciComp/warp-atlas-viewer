@@ -28,10 +28,12 @@ const DEFAULT_SCALAR_PROJECTION: ScalarProjectionConfig = {
   colorMapKind: 'plasma',
 };
 
+/** Returns whether a color mode has a scalar value that can be projected through the volume. */
 export function supportsScalarProjection(colorMode: ColorMode): boolean {
   return colorMode === 'gene' || colorMode === 'activity' || colorMode === 'stim' || colorMode === 'swim';
 }
 
+/** Disables projection automatically for categorical color modes. */
 export function effectiveProjectionMode(
   colorMode: ColorMode,
   mode: SettingsState['projectionMode'],
@@ -54,6 +56,7 @@ export const PROJECTION_MODE_LABELS: Record<ProjectionMode, string> = {
 // accumulation modes (mean/sum), with off on top.
 export const PROJECTION_MODE_ORDER: ProjectionMode[] = ['off', 'min', 'max', 'maxabs', 'mean', 'sum'];
 
+/** Builds the shader scalar/color-map configuration for the active color mode. */
 export function scalarProjectionConfig(
   data: NeuronDataset,
   filter: FilterState,
@@ -140,6 +143,7 @@ export function scalarProjectionConfig(
   }
 }
 
+/** Creates a 1D texture containing the projection color ramp. */
 export function createProjectionColorMapTexture(kind: ProjectionColorMapKind): THREE.DataTexture {
   const w = 256;
   const bytes = new Uint8Array(w * 4);
