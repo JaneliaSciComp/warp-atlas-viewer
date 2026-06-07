@@ -22,14 +22,35 @@ jobs:
       - name: Typecheck, lint, unit test, and app build
         run: npm run check
 
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
       - name: Build docs
         run: npm run docs:build
+
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
 
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
       - name: Run smoke tests
         run: npm run test:smoke
-
-      - name: Build release bundle
-        run: npm run bundle
