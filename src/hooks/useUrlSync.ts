@@ -138,6 +138,10 @@ export function useUrlSync(state: UrlSyncState, config: UrlSyncConfig): UrlSyncH
     const { defaultFilter, bottomHeightDefault, detailWidthDefault } = configRef.current;
     const filterDiff = diffFilter(filterRef.current, defaultFilter);
     const settingsDiff = diffSettings(settingsRef.current, DEFAULT_SETTINGS);
+    // screenshotMode is an ephemeral presentation toggle — never persist
+    // it, so a share link doesn't land the recipient in a chrome-hidden
+    // state they can't easily escape.
+    delete settingsDiff.screenshotMode;
     const cam = cameraRef.current ? roundCamera(cameraRef.current) : undefined;
     const umap = umapRef.current && !viewportIsDefault(umapRef.current)
       ? roundViewport(umapRef.current)

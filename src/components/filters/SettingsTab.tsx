@@ -58,8 +58,7 @@ export function SettingsTab({
         projectionSupported && settings.projectionMode !== "off";
     const signedColorMode =
         filter.colorMode === "stim" || filter.colorMode === "swim";
-    const signedProjectionActive =
-        projectionActive && signedColorMode;
+    const signedProjectionActive = projectionActive && signedColorMode;
     return (
         <div
             className={
@@ -98,6 +97,26 @@ export function SettingsTab({
                     />
                     show descriptions
                 </label>
+                {/* Only shown while screenshot mode is on, as an
+                    always-visible escape that doesn't require scrolling
+                    to the Screenshot section. Unchecking clears the mode,
+                    so this control then disappears. */}
+                {settings.screenshotMode && (
+                    <label
+                        className="flex items-center gap-1.5 text-[11px] text-neutral-400 cursor-pointer select-none"
+                        title="screenshot mode is on — uncheck to restore the hidden UI chrome"
+                    >
+                        <input
+                            type="checkbox"
+                            checked={settings.screenshotMode}
+                            onChange={(e) =>
+                                update({ screenshotMode: e.target.checked })
+                            }
+                            className="accent-neutral-300"
+                        />
+                        screenshot mode
+                    </label>
+                )}
             </div>
 
             <section className="flex flex-col gap-2">
@@ -106,12 +125,12 @@ export function SettingsTab({
                 </div>
                 <p className="text-neutral-400 leading-snug">
                     Controls point size and ghost (out-of-filter cell)
-                    visibility in the 3D view.{" "}
-                    <Ctl>Auto point sizes</Ctl> derives both from the viewport
-                    height, hiding the manual sliders.{" "}
-                    <Ctl>Scale by filter</Ctl> enlarges points when fewer cells
-                    are visible; <Ctl>scale by depth</Ctl> applies perspective,
-                    making closer points larger and farther ones smaller.
+                    visibility in the 3D view. <Ctl>Auto point sizes</Ctl>{" "}
+                    derives both from the viewport height, hiding the manual
+                    sliders. <Ctl>Scale by filter</Ctl> enlarges points when
+                    fewer cells are visible; <Ctl>scale by depth</Ctl> applies
+                    perspective, making closer points larger and farther ones
+                    smaller.
                 </p>
                 <label
                     className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
@@ -190,10 +209,9 @@ export function SettingsTab({
                     3D camera controls
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    <Ctl>Object-centric rotation</Ctl> orbits around the
-                    brain's center. <Ctl>Momentum</Ctl> applies inertia, so
-                    rotation, pan, and zoom continue briefly after the drag
-                    ends.
+                    <Ctl>Object-centric rotation</Ctl> orbits around the brain's
+                    center. <Ctl>Momentum</Ctl> applies inertia, so rotation,
+                    pan, and zoom continue briefly after the drag ends.
                 </p>
                 <label
                     className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
@@ -258,8 +276,8 @@ export function SettingsTab({
                     Rendering
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    <Ctl>Ambient occlusion</Ctl> darkens regions of dense
-                    point overlap to convey depth. <Ctl>Opaque active cells</Ctl>{" "}
+                    <Ctl>Ambient occlusion</Ctl> darkens regions of dense point
+                    overlap to convey depth. <Ctl>Opaque active cells</Ctl>{" "}
                     renders the cells that pass the filters at full opacity
                     rather than the default partial transparency;{" "}
                     <Ctl>active brightness</Ctl> applies an additive brightness
@@ -375,10 +393,9 @@ export function SettingsTab({
                     Reduces the scalar color values along each view ray to a
                     single value per pixel — a volumetric, see-through
                     projection. Works with Gene, Activity, Stim, and Swim.{" "}
-                    <Ctl>Min</Ctl> and <Ctl>Max</Ctl> take the lowest or
-                    highest value; <Ctl>Min/Max</Ctl> keeps whichever is
-                    farthest from zero; <Ctl>Mean</Ctl> averages;{" "}
-                    <Ctl>Sum</Ctl> accumulates.
+                    <Ctl>Min</Ctl> and <Ctl>Max</Ctl> take the lowest or highest
+                    value; <Ctl>Min/Max</Ctl> keeps whichever is farthest from
+                    zero; <Ctl>Mean</Ctl> averages; <Ctl>Sum</Ctl> accumulates.
                 </p>
                 {!projectionSupported && (
                     <p className="text-neutral-500 text-[11px] leading-snug ml-3">
@@ -400,7 +417,8 @@ export function SettingsTab({
                         value={displayedProjectionMode}
                         disabled={!projectionSupported}
                         onChange={(v) => {
-                            if (projectionSupported) update({ projectionMode: v });
+                            if (projectionSupported)
+                                update({ projectionMode: v });
                         }}
                         options={[
                             { value: "off", label: "Off" },
@@ -546,9 +564,9 @@ export function SettingsTab({
                     Stim correlation cutoffs
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    <Ctl>Floor</Ctl> is the minimum |r| a cell needs to count
-                    as responsive; <Ctl>saturation</Ctl> is where the color
-                    reaches full intensity. <Ctl>Split +/−</Ctl> uses separate
+                    <Ctl>Floor</Ctl> is the minimum |r| a cell needs to count as
+                    responsive; <Ctl>saturation</Ctl> is where the color reaches
+                    full intensity. <Ctl>Split +/−</Ctl> uses separate
                     saturation values for positive and negative correlations.
                 </p>
                 <NumberRow
@@ -609,9 +627,9 @@ export function SettingsTab({
                     Swim correlation cutoffs
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    <Ctl>Floor</Ctl> is the minimum |r| a cell needs to count
-                    as responsive; <Ctl>saturation</Ctl> is where the color
-                    reaches full intensity.
+                    <Ctl>Floor</Ctl> is the minimum |r| a cell needs to count as
+                    responsive; <Ctl>saturation</Ctl> is where the color reaches
+                    full intensity.
                 </p>
                 <NumberRow
                     label="responsive floor (|r| ≥)"
@@ -646,8 +664,8 @@ export function SettingsTab({
                         signedProjectionActive
                             ? "also controls projection opacity"
                             : signedColorMode
-                                ? "fade weak correlations"
-                                : "applies to Stim/Swim color modes"
+                              ? "fade weak correlations"
+                              : "applies to Stim/Swim color modes"
                     }
                 >
                     <input
@@ -701,6 +719,31 @@ export function SettingsTab({
                     step={0.1}
                     onChange={(v) => update({ activityHi: v })}
                 />
+            </section>
+
+            <section className="flex flex-col gap-2">
+                <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+                    Screenshot
+                </div>
+                <p className="text-neutral-400 leading-snug">
+                    Hides certain UI elements (reset-view buttons, panel resize
+                    handles, and the projection dropdown caret) for a clean
+                    screen capture.
+                </p>
+                <label
+                    className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
+                    title="hide non-essential UI chrome for a clean screenshot"
+                >
+                    <input
+                        type="checkbox"
+                        checked={settings.screenshotMode}
+                        onChange={(e) =>
+                            update({ screenshotMode: e.target.checked })
+                        }
+                        className="accent-neutral-300"
+                    />
+                    screenshot mode
+                </label>
             </section>
 
             <section className="flex flex-col gap-2">

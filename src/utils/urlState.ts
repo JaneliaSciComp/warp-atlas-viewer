@@ -316,6 +316,8 @@ function validateSettings(raw: unknown): Partial<SettingsState> {
   if (typeof s.autoSizing === 'boolean') out.autoSizing = s.autoSizing;
   if (typeof s.scaleByFilterCount === 'boolean') out.scaleByFilterCount = s.scaleByFilterCount;
   if (typeof s.debugMode === 'boolean') out.debugMode = s.debugMode;
+  // screenshotMode is intentionally not restored from the URL — it's an
+  // ephemeral presentation toggle, kept out of shared/persisted state.
   if (typeof s.fadeWeakCorrelation === 'boolean') out.fadeWeakCorrelation = s.fadeWeakCorrelation;
   if (typeof s.objectCentricRotation === 'boolean') out.objectCentricRotation = s.objectCentricRotation;
   if (isFiniteNum(s.rotationMomentum)) out.rotationMomentum = clamp(s.rotationMomentum, 0, 1);

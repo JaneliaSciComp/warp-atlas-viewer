@@ -339,7 +339,7 @@ export function BrainViewer({
               className="font-mono text-[10px] bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-1.5 py-0.5 rounded hover:bg-neutral-800"
               title="per-pixel projection through the point cloud — click to change"
             >
-              projection: {PROJECTION_MODE_LABELS[activeProjectionMode]} ▾
+              projection: {PROJECTION_MODE_LABELS[activeProjectionMode]}{settings.screenshotMode ? '' : ' ▾'}
             </button>
             {projMenuOpen && (
               <>
@@ -376,7 +376,7 @@ export function BrainViewer({
             )}
           </div>
         )}
-        {!atDefault && (
+        {!atDefault && !settings.screenshotMode && (
           <button
             onClick={(e) => {
               e.stopPropagation();

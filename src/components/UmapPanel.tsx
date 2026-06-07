@@ -567,7 +567,7 @@ export function UmapPanel({
               clear selection
             </button>
           )}
-          {zoomedIn && (
+          {zoomedIn && !settings.screenshotMode && (
             <button
               onClick={resetView}
               className="font-mono bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-1.5 py-0.5 rounded hover:bg-neutral-800"

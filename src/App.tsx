@@ -365,12 +365,16 @@ export default function App() {
           </p>
         </div>
         <div className="flex items-center gap-4">
-          <ExportButton
-            data={data}
-            effectiveSelection={effectiveSelection}
-            focusedNeuron={effectiveFocusedNeuron}
-          />
-          <LinksMenu />
+          {!settings.screenshotMode && (
+            <>
+              <ExportButton
+                data={data}
+                effectiveSelection={effectiveSelection}
+                focusedNeuron={effectiveFocusedNeuron}
+              />
+              <LinksMenu />
+            </>
+          )}
           <a
             href="https://www.janelia.org"
             target="_blank"
@@ -427,22 +431,24 @@ export default function App() {
                 className="absolute bottom-0 left-0 right-0 h-1.5 z-20 cursor-row-resize bg-transparent hover:bg-yellow-300/30 transition-colors"
               />
             )}
-            <button
-              onClick={() => setBottomOpen((o) => !o)}
-              title={bottomOpen ? 'hide bottom panel' : 'show bottom panel'}
-              aria-label={bottomOpen ? 'hide bottom panel' : 'show bottom panel'}
-              className="absolute bottom-0 left-1/2 -translate-x-1/2 z-30 bg-neutral-900/90 border border-b-0 border-neutral-700 text-neutral-200 w-[42px] py-0.5 rounded-t text-xs font-mono hover:bg-neutral-800 leading-none"
-            >
-              <span
-                aria-hidden
-                className={
-                  'inline-block ' +
-                  (bottomOpen ? 'translate-y-[-3px]' : 'translate-y-[3px]')
-                }
+            {!settings.screenshotMode && (
+              <button
+                onClick={() => setBottomOpen((o) => !o)}
+                title={bottomOpen ? 'hide bottom panel' : 'show bottom panel'}
+                aria-label={bottomOpen ? 'hide bottom panel' : 'show bottom panel'}
+                className="absolute bottom-0 left-1/2 -translate-x-1/2 z-30 bg-neutral-900/90 border border-b-0 border-neutral-700 text-neutral-200 w-[42px] py-0.5 rounded-t text-xs font-mono hover:bg-neutral-800 leading-none"
               >
-                {bottomOpen ? '⌄' : '⌃'}
-              </span>
-            </button>
+                <span
+                  aria-hidden
+                  className={
+                    'inline-block ' +
+                    (bottomOpen ? 'translate-y-[-3px]' : 'translate-y-[3px]')
+                  }
+                >
+                  {bottomOpen ? '⌄' : '⌃'}
+                </span>
+              </button>
+            )}
           </div>
 
           {/* Bottom split: filters + t-SNE. Renders only when open;
@@ -527,16 +533,19 @@ export default function App() {
           it sits on the viewport's right edge pointing left (click to
           open). Both are absolutely positioned against the outer
           container so they line up vertically regardless of where the
-          panel boundary is. */}
-      <button
-        onClick={() => setDetailOpen((o) => !o)}
-        title={detailOpen ? 'hide details' : 'show details'}
-        aria-label={detailOpen ? 'hide details panel' : 'show details panel'}
-        style={detailOpen ? { right: detailWidth } : { right: 0 }}
-        className="absolute top-1/2 -translate-y-1/2 z-30 bg-neutral-900/90 border border-r-0 border-neutral-700 text-neutral-200 py-3 px-1.5 rounded-l text-xs font-mono hover:bg-neutral-800"
-      >
-        {detailOpen ? '›' : '‹'}
-      </button>
+          panel boundary is. Hidden in screenshot mode along with the
+          other panel chrome. */}
+      {!settings.screenshotMode && (
+        <button
+          onClick={() => setDetailOpen((o) => !o)}
+          title={detailOpen ? 'hide details' : 'show details'}
+          aria-label={detailOpen ? 'hide details panel' : 'show details panel'}
+          style={detailOpen ? { right: detailWidth } : { right: 0 }}
+          className="absolute top-1/2 -translate-y-1/2 z-30 bg-neutral-900/90 border border-r-0 border-neutral-700 text-neutral-200 py-3 px-1.5 rounded-l text-xs font-mono hover:bg-neutral-800"
+        >
+          {detailOpen ? '›' : '‹'}
+        </button>
+      )}
     </div>
   );
 }

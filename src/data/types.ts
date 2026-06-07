@@ -473,6 +473,11 @@ export interface SettingsState {
      *  size + ghost visibility, etc.) so the auto / scale-by-filter
      *  math is inspectable while tuning. */
     debugMode: boolean;
+    /** Presentation toggle. When true, hides non-essential on-canvas
+     *  chrome — the reset-view buttons, the bottom/detail panel resize
+     *  handles, and the projection dropdown's caret — so the viewer
+     *  captures cleanly in a screenshot. Does not change what is rendered. */
+    screenshotMode: boolean;
 }
 
 export const DEFAULT_SETTINGS: SettingsState = {
@@ -508,6 +513,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
     projectionIntensityFloor: 0.05,
     projectionSumExposure: 1.0,
     debugMode: false,
+    screenshotMode: false,
 };
 
 export interface SelectionState {
