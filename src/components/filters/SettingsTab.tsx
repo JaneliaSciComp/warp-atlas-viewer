@@ -1,7 +1,16 @@
 import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import type { FilterState, SettingsState } from "../../data/types";
 import { DEFAULT_SETTINGS } from "../../data/types";
 import { KindToggle } from "./shared";
+
+// Bolds a control's name inside a section description so the prose maps
+// onto the toggle / slider / option it refers to.
+function Ctl({ children }: { children: ReactNode }) {
+    return (
+        <strong className="font-semibold text-neutral-300">{children}</strong>
+    );
+}
 
 // Per-user UI preference: hides the verbose explainer paragraphs in
 // every section so the tab is compact once you know what each control
@@ -96,11 +105,13 @@ export function SettingsTab({
                     3D point density
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Controls dot size and ghost visibility in the 3D view.
-                    Auto derives both from the 3D view height, hiding the
-                    manual sliders. Scale by filter enlarges active dots as
-                    fewer cells pass filters; scale by depth applies
-                    perspective.
+                    Controls dot size and ghost (out-of-filter cell)
+                    visibility in the 3D view.{" "}
+                    <Ctl>Auto point sizes</Ctl> derives both from the 3D view
+                    height, hiding the manual sliders.{" "}
+                    <Ctl>Scale by filter</Ctl> enlarges dots when fewer cells
+                    are visible; <Ctl>scale by depth</Ctl> applies perspective,
+                    making closer dots larger and farther ones smaller.
                 </p>
                 <label
                     className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
@@ -116,6 +127,30 @@ export function SettingsTab({
                     />
                     auto point sizes
                 </label>
+                {!settings.autoSizing && (
+                    <div className="flex flex-col gap-2 ml-3">
+                        <NumberRow
+                            label="3D point size (px)"
+                            value={settings.pointSize}
+                            min={1}
+                            max={40}
+                            step={0.5}
+                            onChange={(v) => update({ pointSize: v })}
+                        />
+                        <NumberRow
+                            label="3D ghost visibility"
+                            value={settings.ghostIntensity}
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            onChange={(v) =>
+                                update({
+                                    ghostIntensity: Math.max(0, Math.min(1, v)),
+                                })
+                            }
+                        />
+                    </div>
+                )}
                 {settings.autoSizing ? (
                     <label
                         className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-6"
@@ -148,30 +183,6 @@ export function SettingsTab({
                     />
                     scale by depth
                 </label>
-                {!settings.autoSizing && (
-                    <>
-                        <NumberRow
-                            label="3D point size (px)"
-                            value={settings.pointSize}
-                            min={1}
-                            max={40}
-                            step={0.5}
-                            onChange={(v) => update({ pointSize: v })}
-                        />
-                        <NumberRow
-                            label="3D ghost visibility"
-                            value={settings.ghostIntensity}
-                            min={0}
-                            max={1}
-                            step={0.05}
-                            onChange={(v) =>
-                                update({
-                                    ghostIntensity: Math.max(0, Math.min(1, v)),
-                                })
-                            }
-                        />
-                    </>
-                )}
             </section>
 
             <section className="flex flex-col gap-2">
@@ -179,8 +190,9 @@ export function SettingsTab({
                     3D camera controls
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Object-centric rotation orbits the brain center. Momentum
-                    adds drift after drag.
+                    <Ctl>Object-centric rotation</Ctl> orbits around the
+                    brain's center. <Ctl>Momentum</Ctl> keeps the view drifting
+                    after you release a drag.
                 </p>
                 <label
                     className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
@@ -215,8 +227,8 @@ export function SettingsTab({
                     t-SNE point density
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Controls dot size and out-of-filter ghost visibility for
-                    the t-SNE plot.
+                    Controls dot size and ghost (out-of-filter cell)
+                    visibility for the t-SNE plot.
                 </p>
                 <NumberRow
                     label="t-SNE point size (px)"
@@ -245,9 +257,11 @@ export function SettingsTab({
                     Rendering
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Ambient occlusion adds shadows. Opaque active cells makes
-                    cells passing filters opaque. Active brightness brightens
-                    those cells.
+                    <Ctl>Ambient occlusion</Ctl> shades crowded areas to add a
+                    sense of depth. <Ctl>Opaque active cells</Ctl> draws the
+                    cells that pass your filters at full opacity instead of
+                    slightly see-through; <Ctl>active brightness</Ctl> makes
+                    those same cells brighter.
                 </p>
                 {projectionActive && (
                     <p className="text-neutral-500 text-[11px] leading-snug ml-3">
@@ -356,10 +370,12 @@ export function SettingsTab({
                     Projection
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Projects color values through the 3D point cloud.
-                    Available for Gene, Activity, Stim, and Swim. Min and Max
-                    use extremes; Min/Max uses the value farthest from zero;
-                    Mean averages; Sum accumulates.
+                    Combines color values along the line of sight into one
+                    value per screen pixel — a see-through view. Works with
+                    Gene, Activity, Stim, and Swim. <Ctl>Min</Ctl> and{" "}
+                    <Ctl>Max</Ctl> take the lowest or highest;{" "}
+                    <Ctl>Min/Max</Ctl> keeps whichever is farthest from zero;{" "}
+                    <Ctl>Mean</Ctl> averages; <Ctl>Sum</Ctl> adds them up.
                 </p>
                 {!projectionSupported && (
                     <p className="text-neutral-500 text-[11px] leading-snug ml-3">
@@ -446,7 +462,8 @@ export function SettingsTab({
                     Gene plasma ceiling
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Sets the Gene color scale ceiling.
+                    Sets the spot count that maps to the top of the Gene
+                    color scale.
                 </p>
                 <NumberRow
                     label="max spot count"
@@ -463,8 +480,9 @@ export function SettingsTab({
                     Multi-gene coloring
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    For 2+ genes: Max = max gene value; Sum = total spots;
-                    Richness = genes expressed.
+                    When two or more genes are pinned: <Ctl>Max</Ctl> uses the
+                    strongest single gene; <Ctl>Sum</Ctl> adds up all their
+                    spots; <Ctl>Richness</Ctl> counts how many are expressed.
                 </p>
                 <div className="flex items-center gap-2">
                     <KindToggle
@@ -484,8 +502,9 @@ export function SettingsTab({
                     Gene expression threshold
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Sets how gene expression is called. Paper uses bundled
-                    calls; Global uses one spot-count cutoff.
+                    Sets how a gene counts as expressed. <Ctl>Paper</Ctl> uses
+                    the study's per-gene calls; <Ctl>Global</Ctl> uses a single
+                    spot-count cutoff for every gene.
                 </p>
                 <div className="flex items-center gap-2">
                     <KindToggle
@@ -524,8 +543,10 @@ export function SettingsTab({
                     Stim correlation cutoffs
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Floor sets the Stim threshold. Saturation sets the color
-                    scale. Split +/− separates saturation by sign.
+                    <Ctl>Floor</Ctl> is the minimum |r| a cell needs to count
+                    as responsive; <Ctl>saturation</Ctl> is where the color
+                    reaches full intensity. <Ctl>Split +/−</Ctl> uses separate
+                    saturation values for positive and negative correlations.
                 </p>
                 <NumberRow
                     label="responsive floor (|r| ≥)"
@@ -585,8 +606,9 @@ export function SettingsTab({
                     Swim correlation cutoffs
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Floor sets the Swim threshold. Saturation sets the color
-                    scale.
+                    <Ctl>Floor</Ctl> is the minimum |r| a cell needs to count
+                    as responsive; <Ctl>saturation</Ctl> is where the color
+                    reaches full intensity.
                 </p>
                 <NumberRow
                     label="responsive floor (|r| ≥)"
@@ -611,8 +633,9 @@ export function SettingsTab({
                     Fade weak correlations
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Fades weak Stim/Swim correlations. Also affects Stim/Swim
-                    projection opacity.
+                    Dims cells with weak Stim/Swim correlations so the strong
+                    ones stand out. Also controls opacity in Stim/Swim
+                    projections.
                 </p>
                 <label
                     className="flex items-center gap-2 text-xs cursor-pointer select-none ml-3 text-neutral-300"
@@ -656,7 +679,8 @@ export function SettingsTab({
                     Activity ΔF/F anchors
                 </div>
                 <p className="text-neutral-400 leading-snug">
-                    Sets the Activity color scale floor and ceiling.
+                    Sets the bottom and top of the Activity (ΔF/F) color
+                    scale.
                 </p>
                 <NumberRow
                     label="floor (ΔF/F)"
