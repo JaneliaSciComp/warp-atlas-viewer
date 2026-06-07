@@ -47,19 +47,47 @@ export interface LoadProgress {
 
 export type LoadProgressCallback = (p: LoadProgress) => void;
 
+const MOCK_CELL_COUNT = 10000;
+
+/** Mock mode is an explicit demo-only opt-in via `?mock=1`. It is never a
+ *  fallback: without it, any failure to load real preprocessed data
+ *  surfaces as an error rather than silently substituting a synthetic
+ *  atlas — a fake-looking-real atlas is dangerous in a viewer used to
+ *  draw scientific conclusions. Pure + exported so the gate is testable. */
+export function isMockRequested(locationSearch: string): boolean {
+  return new URLSearchParams(locationSearch).has('mock');
+}
+
+/** Parse + validate the manifest JSON. Guards that it's an object and the
+ *  expected version before the field-level checks in validateManifest, so
+ *  a stale/garbage manifest fails with a clear message instead of throwing
+ *  obscurely while constructing typed arrays. */
+export function parseManifest(raw: unknown): ManifestV3 {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new Error(
+      `manifest must be a JSON object (got ${raw === null ? 'null' : typeof raw}). ` +
+        `Re-run scripts/preprocess.py to regenerate ${PREPROCESSED_BASE}neurons.json.`,
+    );
+  }
+  const m = raw as ManifestV3;
+  if (m.version !== 3) {
+    throw new Error(
+      `unsupported manifest version ${m.version} (expected 3). ` +
+        `Re-run scripts/preprocess.py to regenerate ${PREPROCESSED_BASE}.`,
+    );
+  }
+  validateManifest(m);
+  return m;
+}
+
 export async function loadNeuronDataset(
   onProgress?: LoadProgressCallback,
 ): Promise<NeuronDataset> {
-  // Explicit demo-mode opt-in. Without ?mock=1, any failure to load real
-  // preprocessed data surfaces as an error rather than silently substituting
-  // a synthetic atlas — a fake-looking-real atlas is dangerous in a viewer
-  // that's used to draw scientific conclusions.
-  if (
-    typeof window !== 'undefined' &&
-    new URLSearchParams(window.location.search).has('mock')
-  ) {
-    console.info('[dataLoader] ?mock=1 set, generating synthetic 10k-cell dataset');
-    return generateMockData(10000);
+  if (typeof window !== 'undefined' && isMockRequested(window.location.search)) {
+    console.info(
+      `[dataLoader] ?mock=1 set, generating synthetic ${MOCK_CELL_COUNT / 1000}k-cell dataset`,
+    );
+    return generateMockData(MOCK_CELL_COUNT);
   }
   const res = await fetch(`${PREPROCESSED_BASE}neurons.json`, { cache: 'no-cache' });
   if (!res.ok) {
@@ -69,15 +97,22 @@ export async function loadNeuronDataset(
         `or append ?mock=1 to the URL to load a synthetic demo atlas.`,
     );
   }
-  const manifest = (await res.json()) as ManifestV3;
-  if (manifest.version !== 3) {
-    throw new Error(
-      `unsupported manifest version ${manifest.version} (expected 3). ` +
-        `Re-run scripts/preprocess.py to regenerate ${PREPROCESSED_BASE}.`,
-    );
-  }
-  validateManifest(manifest);
+  const manifest = parseManifest(await res.json());
   return await loadFromManifest(manifest, onProgress);
+}
+
+// Binary files required for every manifest. Optional regressors are
+// appended by binaryFileKeys only when the manifest declares them.
+const BINARY_FILE_KEYS: ReadonlyArray<keyof ManifestV3['files']> = [
+  'positions', 'regionIds', 'clusterIds', 'fishIds',
+  'geneCounts', 'geneBinary', 'umap', 'stimulusCorr', 'swimCorr',
+  'activityTrace', 'atlasRegionMask',
+];
+
+/** Binary file keys to fetch for this manifest (skips optional
+ *  regressors when absent). */
+export function binaryFileKeys(m: ManifestV3): Array<keyof ManifestV3['files']> {
+  return m.files.regressors ? [...BINARY_FILE_KEYS, 'regressors'] : [...BINARY_FILE_KEYS];
 }
 
 /** Sanity-check manifest scalars and metadata. Everything downstream
@@ -279,6 +314,52 @@ function decodeActivityTrace(
   return out;
 }
 
+/**
+ * Construct the in-memory dataset from already-fetched binary buffers.
+ *
+ * Validates every buffer's byte length against what the manifest implies
+ * BEFORE constructing typed arrays on top of it — a wrong size here is the
+ * single most common way for the viewer to render real-looking but wrong
+ * data, so fail loudly with the specific file. Separated from the fetch
+ * path so it can be exercised without a network round-trip.
+ */
+export function buildDataset(
+  m: ManifestV3,
+  buffers: Map<keyof ManifestV3['files'], ArrayBuffer>,
+): NeuronDataset {
+  const get = (k: keyof ManifestV3['files']): ArrayBuffer => {
+    const buf = buffers.get(k);
+    if (!buf) throw new Error(`missing binary buffer for ${k} (${m.files[k]})`);
+    validateBuffer(m.files[k]!, buf, expectedBytes(k, m));
+    return buf;
+  };
+  return {
+    count: m.count,
+    positions: new Float32Array(get('positions')),
+    regionIds: new Int16Array(get('regionIds')),
+    clusterIds: new Int16Array(get('clusterIds')),
+    fishIds: new Uint8Array(get('fishIds')),
+    geneCounts: new Float32Array(get('geneCounts')),
+    geneBinary: new Uint8Array(get('geneBinary')),
+    umap: new Float32Array(get('umap')),
+    stimulusCorr: new Float32Array(get('stimulusCorr')),
+    swimCorr: new Float32Array(get('swimCorr')),
+    activityTrace: decodeActivityTrace(get('activityTrace'), m.activityTraceQuant),
+    traceLength: m.traceLength,
+    traceSampleRateHz: m.traceSampleRateHz ?? 1.0,
+    stimulusWindowsSec: m.stimulusWindowsSec,
+    regressors: m.files.regressors ? new Float32Array(get('regressors')) : undefined,
+    atlasRegionMask: new Uint8Array(get('atlasRegionMask')),
+    atlasRegionNames: m.atlasRegionNames,
+    geneNames: m.geneNames,
+    regionNames: m.regionNames,
+    stimulusNames: m.stimulusNames,
+    clusterNames: m.clusterNames,
+    bounds: m.bounds,
+    source: 'real',
+  };
+}
+
 async function loadFromManifest(
   m: ManifestV3,
   onProgress?: LoadProgressCallback,
@@ -289,13 +370,7 @@ async function loadFromManifest(
   );
   const t0 = performance.now();
 
-  // List of binary files we need (skip optional regressors if absent).
-  const fileKeys: Array<keyof ManifestV3['files']> = [
-    'positions', 'regionIds', 'clusterIds', 'fishIds',
-    'geneCounts', 'geneBinary', 'umap', 'stimulusCorr', 'swimCorr',
-    'activityTrace', 'atlasRegionMask',
-  ];
-  if (m.files.regressors) fileKeys.push('regressors');
+  const fileKeys = binaryFileKeys(m);
 
   // Total = sum of decoded (raw) file sizes from the manifest. Content-
   // Length would report compressed bytes on prod and (depending on the
@@ -339,42 +414,11 @@ async function loadFromManifest(
     ),
   );
 
-  const lookup = new Map<string, ArrayBuffer>();
+  const lookup = new Map<keyof ManifestV3['files'], ArrayBuffer>();
   fileKeys.forEach((k, i) => lookup.set(k, buffers[i]));
 
-  // Validate every fetched buffer's byte length against what the manifest
-  // implies BEFORE constructing typed arrays on top of it. A wrong size
-  // here is the single most common way for the viewer to render real-
-  // looking but wrong data, so fail loudly with the specific file.
-  for (const k of fileKeys) {
-    validateBuffer(m.files[k]!, lookup.get(k)!, expectedBytes(k, m));
-  }
-
-  const ds: NeuronDataset = {
-    count: m.count,
-    positions: new Float32Array(lookup.get('positions')!),
-    regionIds: new Int16Array(lookup.get('regionIds')!),
-    clusterIds: new Int16Array(lookup.get('clusterIds')!),
-    fishIds: new Uint8Array(lookup.get('fishIds')!),
-    geneCounts: new Float32Array(lookup.get('geneCounts')!),
-    geneBinary: new Uint8Array(lookup.get('geneBinary')!),
-    umap: new Float32Array(lookup.get('umap')!),
-    stimulusCorr: new Float32Array(lookup.get('stimulusCorr')!),
-    swimCorr: new Float32Array(lookup.get('swimCorr')!),
-    activityTrace: decodeActivityTrace(lookup.get('activityTrace')!, m.activityTraceQuant),
-    traceLength: m.traceLength,
-    traceSampleRateHz: m.traceSampleRateHz ?? 1.0,
-    stimulusWindowsSec: m.stimulusWindowsSec,
-    regressors: lookup.has('regressors') ? new Float32Array(lookup.get('regressors')!) : undefined,
-    atlasRegionMask: new Uint8Array(lookup.get('atlasRegionMask')!),
-    atlasRegionNames: m.atlasRegionNames,
-    geneNames: m.geneNames,
-    regionNames: m.regionNames,
-    stimulusNames: m.stimulusNames,
-    clusterNames: m.clusterNames,
-    bounds: m.bounds,
-    source: 'real',
-  };
+  // Validate buffer lengths and construct the typed arrays.
+  const ds = buildDataset(m, lookup);
   const dt = performance.now() - t0;
   console.info(`[dataLoader] loaded in ${(dt / 1000).toFixed(1)}s`);
   return ds;
