@@ -257,15 +257,15 @@ src/
     neuron.vert.glsl, neuron.frag.glsl
   data/
     types.ts                        FilterState / SettingsState / NeuronDataset
-    dataLoader.ts                   real-or-mock fallback
-    mockData.ts                     synthetic fallback dataset
+    dataLoader.ts                   manifest load + binary fetch; ?mock=1 demo opt-in
+    mockData.ts                     synthetic demo dataset (?mock=1 only)
   utils/
     coloring.ts                     single-pass per-neuron colour/alpha/size fill
     colorMaps.ts                    plasma, region palettes, fish palette
     stimAssets.ts                   stimulus icons and labels
     urlState.ts                     hash codec for shareable URLs
     polygon.ts                      point-in-polygon for t-SNE lasso
-    constants.ts                    static name lists (mock-mode fallback)
+    constants.ts                    static name lists (used by mock mode)
   hooks/
     useNeuronData.ts                fetches + decodes the .bin blobs
     useColoring.ts                  shared per-cell color/alpha/size buffer

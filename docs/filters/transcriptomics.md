@@ -52,7 +52,7 @@ Switching to Gene mode with no genes selected (under either OR or AND) retains a
 | Goal | Gene mode | OR / AND | Subtype mode |
 |---|---|---|---|
 | Cells expressing `otpa` | `[otpa]` | — | — |
-| Cells expressing `otpa` **and** `slc17a7a` | `[otpa, slc17a7a]` | AND | — |
-| Cells expressing `otpa` **or** `slc17a7a` | `[otpa, slc17a7a]` | OR | — |
+| Cells expressing `otpa` **and** `vglut2a` | `[otpa, vglut2a]` | AND | — |
+| Cells expressing `otpa` **or** `vglut2a` | `[otpa, vglut2a]` | OR | — |
 | All cells in the `pou4f2_cckb` cluster | — | — | `pou4f2_cckb` |
 | `pou4f2_cckb` cells in the hindbrain | — | — | `pou4f2_cckb` + [Anatomy](./anatomy) = Hindbrain |
