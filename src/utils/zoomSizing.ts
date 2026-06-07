@@ -9,8 +9,8 @@ import * as THREE from 'three';
 // (defaultCamDistance / currentDistance) into the sizeScale uniform, but only
 // in flat mode — in depth mode it would double-count. Clamped so flat points
 // neither vanish at full zoom-out nor explode at full zoom-in.
-export const ZOOM_SIZE_MIN = 0.4;
-export const ZOOM_SIZE_MAX = 3.0;
+const ZOOM_SIZE_MIN = 0.4;
+const ZOOM_SIZE_MAX = 3.0;
 
 export function zoomSizeScale(
   camera: THREE.Camera,
@@ -29,8 +29,8 @@ export function zoomSizeScale(
 // value depth mode produces at the *default* zoom makes the toggle seamless
 // for any dataset (no per-volume tuning of a magic number). Mirrors the
 // shader constants so the two stay in lockstep.
-export const DEPTH_ATTEN_NUM = 160.0;
-export const DEPTH_ATTEN_MIN = 40.0;
+const DEPTH_ATTEN_NUM = 160.0;
+const DEPTH_ATTEN_MIN = 40.0;
 export function flatSizeFactor(defaultCamDistance: number): number {
   return DEPTH_ATTEN_NUM / Math.max(DEPTH_ATTEN_MIN, defaultCamDistance);
 }

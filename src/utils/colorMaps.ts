@@ -95,7 +95,7 @@ export function turbo(t: number): [number, number, number] {
 // Data-index k ∈ 1..16 maps to ramp(k/17), so k=1 (InfMO) gets the
 // purple/blue end and k=16 (Pal) gets the red end. Anterior → posterior
 // in the paper's figure walks down the palette (red Pal → purple InfMO).
-export const NIPY_SPECTRAL_REGION_PALETTE: Array<[number, number, number]> = [
+const NIPY_SPECTRAL_REGION_PALETTE: Array<[number, number, number]> = [
   [0.40, 0.40, 0.42],          //  0  Unassigned (dedicated gray)
   [0.478, 0.000, 0.545],       //  1  InfMO
   [0.345, 0.000, 0.624],       //  2  IntMO
@@ -121,14 +121,14 @@ function buildTurboRegionPalette(): Array<[number, number, number]> {
   return out;
 }
 
-export const TURBO_REGION_PALETTE: Array<[number, number, number]> = buildTurboRegionPalette();
+const TURBO_REGION_PALETTE: Array<[number, number, number]> = buildTurboRegionPalette();
 
 // High-contrast categorical alternative for cases where region labels
 // should be as separable as possible. Unlike nipy_spectral/Turbo, this
 // palette does not imply anatomical continuity; it intentionally jumps
 // around hue/lightness space and avoids black/white/neutral gray so the
 // dedicated Unassigned gray remains special on the dark viewport.
-export const DISTINCT_REGION_PALETTE: Array<[number, number, number]> = [
+const DISTINCT_REGION_PALETTE: Array<[number, number, number]> = [
   [0.40, 0.40, 0.42],       //  0  Unassigned (dedicated gray)
   rgb255(246, 34, 46),      //  1  InfMO
   rgb255(254, 0, 250),      //  2  IntMO
@@ -148,9 +148,6 @@ export const DISTINCT_REGION_PALETTE: Array<[number, number, number]> = [
   rgb255(133, 102, 13),     // 16  Pal
 ];
 
-// Back-compatible name for the default, paper-matching palette.
-export const REGION_PALETTE = NIPY_SPECTRAL_REGION_PALETTE;
-
 export function regionColor(idx: number, palette: RegionPalette = 'nipy_spectral'): [number, number, number] {
   const colors = palette === 'turbo'
     ? TURBO_REGION_PALETTE
@@ -163,7 +160,7 @@ export function regionColor(idx: number, palette: RegionPalette = 'nipy_spectral
 // Categorical palette for the per-fish color scheme. Kept distinct from
 // the region palettes so fish and regions don't read as visually related.
 // Cycles if a dataset somehow has more than 8 specimens.
-export const FISH_PALETTE: Array<[number, number, number]> = [
+const FISH_PALETTE: Array<[number, number, number]> = [
   [0.894, 0.102, 0.110], // red
   [0.216, 0.494, 0.722], // blue
   [0.302, 0.686, 0.290], // green
