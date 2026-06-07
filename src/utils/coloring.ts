@@ -49,7 +49,7 @@ export function allocColoring(n: number): ColoringResult {
   };
 }
 
-export interface ColoringStats {
+interface ColoringStats {
   /** Number of renderable cells in the active filter intersection. Drives
    *  the "cells visible" readout, so visual styling controls (fade weak
    *  correlations, ghost visibility, active selection dimming, opacity
@@ -94,7 +94,7 @@ export interface ColoringStats {
  *  drives both `applyColoring` and the filter→selection effect in
  *  App.tsx, guaranteeing the visualization and the derived selection
  *  always agree on what's "in set". */
-export interface CellPredicates {
+interface CellPredicates {
   /** Whether the cell is in the isolated region (or no region is isolated). */
   inRegion: boolean;
   /** Whether the cell passes the active gene/cluster filter. Always

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import type { SettingsState } from '../../data/types';
 import vertSrc from '../../shaders/neuron.vert.glsl?raw';
@@ -38,6 +38,21 @@ export function usePointCloudMaterials({
   projectionColorMap,
   settings,
 }: UsePointCloudMaterialsParams): PointCloudMaterials {
+  // Initial projection uniform values, captured once. The projection /
+  // ID materials below are created a single time (keyed on `gl` only) and
+  // are NOT recreated when projectionConfig or projectionColorMap change:
+  // projectionConfig is memoized upstream on [data, filter, settings], so
+  // it takes a fresh identity on every filter/settings change. Keying the
+  // materials on it recompiled the GLSL program on every interaction and,
+  // for projectionMaterial (which had no disposal), leaked the previous
+  // program each time. The reconciliation effects further down own all
+  // subsequent uniform updates, so the only role of these initial values
+  // is to give the first frame a valid color map before the effects run.
+  const initialProjectionRef = useRef({
+    colorMap: projectionColorMap,
+    config: projectionConfig,
+  });
+
   // Two-pass rendering. Opaque-ish cells (α ≥ 0.5: region/fish/highlight
   // colors at 0.85+, signal-saturated gene/stim/swim cells at 1.0) write
   // depth so they correctly occlude cells behind them — fixes the
@@ -134,17 +149,17 @@ export function usePointCloudMaterials({
         flatSizeFactor: { value: 0.4 },
         mode: { value: 0 },
         intensityFloor: { value: 0.05 },
-        colorMap: { value: projectionColorMap },
-        scalarMode: { value: projectionConfig.scalarMode },
-        scalarLo: { value: projectionConfig.scalarLo },
-        scalarHi: { value: projectionConfig.scalarHi },
-        scalarHiNeg: { value: projectionConfig.scalarHiNeg },
-        scalarLogDen: { value: projectionConfig.scalarLogDen },
+        colorMap: { value: initialProjectionRef.current.colorMap },
+        scalarMode: { value: initialProjectionRef.current.config.scalarMode },
+        scalarLo: { value: initialProjectionRef.current.config.scalarLo },
+        scalarHi: { value: initialProjectionRef.current.config.scalarHi },
+        scalarHiNeg: { value: initialProjectionRef.current.config.scalarHiNeg },
+        scalarLogDen: { value: initialProjectionRef.current.config.scalarLogDen },
         activeBrightness: { value: 0 },
         fadeWeakCorrelation: { value: 1 },
       },
     });
-  }, [gl, projectionColorMap, projectionConfig]);
+  }, [gl]);
   // ID-pass machinery for projection-mode picking. Same depth-test
   // reduction as the visible max/min projection, but writes the
   // winning cell's packed index per pixel to an offscreen RGBA8
@@ -182,14 +197,14 @@ export function usePointCloudMaterials({
           flatSizeFactor: { value: 0.4 },
           mode: { value: 0 },
           intensityFloor: { value: 0.05 },
-          scalarMode: { value: projectionConfig.scalarMode },
-          scalarLo: { value: projectionConfig.scalarLo },
-          scalarHi: { value: projectionConfig.scalarHi },
-          scalarHiNeg: { value: projectionConfig.scalarHiNeg },
-          scalarLogDen: { value: projectionConfig.scalarLogDen },
+          scalarMode: { value: initialProjectionRef.current.config.scalarMode },
+          scalarLo: { value: initialProjectionRef.current.config.scalarLo },
+          scalarHi: { value: initialProjectionRef.current.config.scalarHi },
+          scalarHiNeg: { value: initialProjectionRef.current.config.scalarHiNeg },
+          scalarLogDen: { value: initialProjectionRef.current.config.scalarLogDen },
         },
       }),
-    [gl, projectionConfig],
+    [gl],
   );
   useEffect(() => {
     const pr = gl.getPixelRatio();
@@ -229,12 +244,30 @@ export function usePointCloudMaterials({
     settings.activeBrightness,
     settings.fadeWeakCorrelation,
   ]);
+  // Explicit disposal of every resource this hook owns. These materials
+  // and the ID render target are created here and only referenced by the
+  // <points> primitives in PointCloud via the `material` prop — React
+  // Three Fiber does not own materials it didn't construct from JSX
+  // args, so it won't free their GLSL programs. All six instances are now
+  // stable (keyed on `gl`/`[]`), so this cleanup runs on unmount or a
+  // renderer swap rather than per interaction.
   useEffect(
     () => () => {
+      opaqueMaterial.dispose();
+      transparentMaterial.dispose();
+      contextMaterial.dispose();
+      projectionMaterial.dispose();
       idRt.dispose();
       idMaterial.dispose();
     },
-    [idRt, idMaterial],
+    [
+      opaqueMaterial,
+      transparentMaterial,
+      contextMaterial,
+      projectionMaterial,
+      idRt,
+      idMaterial,
+    ],
   );
 
   // Reconcile material state to the active projection mode. Three.js

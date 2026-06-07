@@ -1,9 +1,17 @@
-import { lazy, Suspense, useMemo, useState, useCallback, useEffect, useRef } from 'react';
-import type { FilterState, SelectionState, SettingsState } from './data/types';
+import { lazy, Suspense, useState, useCallback, useEffect, useRef } from 'react';
+import type { FilterState, SettingsState } from './data/types';
 import { DEFAULT_SETTINGS } from './data/types';
 import { useColoring } from './hooks/useColoring';
 import { useNeuronData } from './hooks/useNeuronData';
+import { useSanitizedDatasetState } from './hooks/useSanitizedDatasetState';
+import { useEffectiveSelection } from './hooks/useEffectiveSelection';
+import {
+  usePanelLayout,
+  BOTTOM_HEIGHT_DEFAULT,
+  DETAIL_WIDTH_DEFAULT,
+} from './hooks/usePanelLayout';
 import { useSelection } from './hooks/useSelection';
+import { useUrlSync } from './hooks/useUrlSync';
 import { useUniqueFishIds } from './hooks/useUniqueFishIds';
 import { FilterControls } from './components/FilterControls';
 import { LinksMenu } from './components/LinksMenu';
@@ -12,17 +20,8 @@ import { ColorLegend } from './components/ColorLegend';
 import { anyFilterActive, cellInSet } from './utils/coloring';
 import {
   decodeHash,
-  encodeHash,
-  diffFilter,
-  diffSettings,
-  roundCamera,
-  roundViewport,
-  viewportIsDefault,
-  roundLasso,
   sanitizeFilterAgainstDataset,
   sanitizeFocusedNeuron,
-  type CameraState,
-  type UmapViewport,
 } from './utils/urlState';
 import { cellsInPolygon } from './utils/polygon';
 import janeliaLogoUrl from '../images/janelia_logo.png';
@@ -68,19 +67,6 @@ const INITIAL_FILTER: FilterState = {
   swimMode: 'off',
 };
 
-// Panel resize bounds. The defaults also act as the expand-without-
-// history target when no URL value is restored. Persisted values are
-// clamped to these static bounds, while the live layout also caps the
-// bottom row to the currently visible app height so it cannot be clipped
-// by the root viewport.
-const BOTTOM_HEIGHT_DEFAULT = 352;
-const BOTTOM_HEIGHT_MIN = 120;
-const BOTTOM_HEIGHT_MAX = 1200;
-const DETAIL_WIDTH_DEFAULT = 360;
-const DETAIL_WIDTH_MIN = 240;
-const DETAIL_WIDTH_MAX = 800;
-const EMPTY_INDICES = new Uint32Array(0);
-
 // Read the URL hash exactly once at module load. Subsequent updates go
 // through history.replaceState so the in-app state is always the source
 // of truth and the URL just mirrors it.
@@ -121,55 +107,6 @@ export default function App() {
   const [activitySpeed, setActivitySpeed] = useState(
     INITIAL_URL_STATE?.activitySpeed ?? 10,
   );
-  // Shared per-cell coloring (colors / alphas / sizes) — computed once
-  // per filter/settings/selection/canvas-size change and passed to both
-  // BrainViewer and UmapPanel so neither has to repeat the 274k-cell
-  // applyColoring pass on every interaction.
-  const coloring = useColoring(
-    data,
-    filter,
-    settings,
-    selection,
-    brainCanvasSize.h,
-    activityPlaying &&
-      filter.colorMode === 'activity' &&
-      settings.projectionMode === 'off',
-  );
-  // The detail panel floats over the right edge of the viewer and can be
-  // hidden when not in use to give the brain viewer / t-SNE the full width.
-  const [detailOpen, setDetailOpen] = useState(INITIAL_URL_STATE?.detail ?? true);
-  const [bottomOpen, setBottomOpen] = useState(INITIAL_URL_STATE?.bottom ?? true);
-  // Bottom-row height in pixels. Persisted so a share link reproduces
-  // the original layout, and so a collapse → re-expand cycle restores
-  // the user's last dragged size rather than the default.
-  const [bottomHeight, setBottomHeight] = useState(
-    INITIAL_URL_STATE?.bottomHeight ?? BOTTOM_HEIGHT_DEFAULT,
-  );
-  const [detailWidth, setDetailWidth] = useState(
-    INITIAL_URL_STATE?.detailWidth ?? DETAIL_WIDTH_DEFAULT,
-  );
-  // Height available to the main viewer area after the header. The bottom
-  // panel can be restored from a large URL/window value, but the rendered
-  // row must never exceed this visible area; otherwise the t-SNE canvas
-  // measures off-screen pixels and "reset view" recenters into clipped
-  // space.
-  const mainAreaRef = useRef<HTMLDivElement>(null);
-  const [mainAreaHeight, setMainAreaHeight] = useState(0);
-  useEffect(() => {
-    const el = mainAreaRef.current;
-    if (!el) return;
-    const setMeasuredHeight = (height: number) => {
-      const next = Math.max(0, Math.floor(height));
-      setMainAreaHeight((prev) => (prev === next ? prev : next));
-    };
-    setMeasuredHeight(el.getBoundingClientRect().height);
-    const ro = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (entry) setMeasuredHeight(entry.contentRect.height);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
   // Single-neuron focus is independent of the group selection so a
   // t-SNE drag can persist while the user clicks through individual
   // neurons. Click on a neuron → focus it (DetailPanel shows just that
@@ -179,13 +116,57 @@ export default function App() {
   const [focusedNeuron, setFocusedNeuron] = useState<number | null>(
     INITIAL_URL_STATE?.focusedNeuron ?? null,
   );
-
-  // Camera + t-SNE viewport are read continuously during interaction.
-  // We keep them in refs (not React state) so they don't trigger
-  // re-renders, and use a debounced URL writer that reads from these
-  // refs alongside the React state.
-  const cameraRef = useRef<CameraState | null>(INITIAL_URL_STATE?.camera ?? null);
-  const umapRef = useRef<UmapViewport | null>(INITIAL_URL_STATE?.umap ?? null);
+  // Reconcile URL-derived filter / focus with the loaded dataset
+  // synchronously: the raw state above is restored before `data` exists,
+  // so it can carry indices that are out of range for the dataset that
+  // actually loaded. Every read below uses the sanitized values so no
+  // render feeds an out-of-range index into coloring, picking, or export.
+  // The raw state is committed back once (see the restore effect) so the
+  // editable filter and the URL converge on the clamped values.
+  const { effectiveFilter, effectiveFocusedNeuron } = useSanitizedDatasetState(
+    data,
+    filter,
+    focusedNeuron,
+  );
+  // Shared per-cell coloring (colors / alphas / sizes) — computed once
+  // per filter/settings/selection/canvas-size change and passed to both
+  // BrainViewer and UmapPanel so neither has to repeat the 274k-cell
+  // applyColoring pass on every interaction.
+  const coloring = useColoring(
+    data,
+    effectiveFilter,
+    settings,
+    selection,
+    brainCanvasSize.h,
+    activityPlaying &&
+      effectiveFilter.colorMode === 'activity' &&
+      settings.projectionMode === 'off',
+  );
+  // Resizable panel layout: detail/bottom open state, persisted sizes,
+  // the measured main-area height, the derived CSS grid templates, and
+  // the pointer-capture resize handlers all live in usePanelLayout.
+  const {
+    detailOpen,
+    setDetailOpen,
+    bottomOpen,
+    setBottomOpen,
+    bottomHeight,
+    detailWidth,
+    mainAreaRef,
+    outerLayout,
+    mainLayout,
+    onResizeDown,
+    onResizeMove,
+    onResizeUp,
+    onDetailResizeDown,
+    onDetailResizeMove,
+    onDetailResizeUp,
+  } = usePanelLayout({
+    detailOpen: INITIAL_URL_STATE?.detail,
+    bottomOpen: INITIAL_URL_STATE?.bottom,
+    bottomHeight: INITIAL_URL_STATE?.bottomHeight,
+    detailWidth: INITIAL_URL_STATE?.detailWidth,
+  });
 
   // Lasso polygon (in t-SNE data coords) for the current selection.
   // Persisting the polygon — not the index list — keeps share URLs
@@ -195,11 +176,11 @@ export default function App() {
 
   // Restore lasso selection from URL once data is loaded: re-run
   // point-in-polygon over the persisted vertices to derive indices.
-  // Also sanitize URL-restored filter/settings/focusedNeuron against the
-  // actual dataset arity — schema validation in decodeHash blocks
-  // type-level garbage, but a URL generated against a different dataset
-  // could still carry out-of-range gene/cluster/stim/cell indices that
-  // would NaN typed-array reads downstream.
+  // Reads of filter/focusedNeuron are already clamped synchronously by
+  // useSanitizedDatasetState above; the setFilter/setFocusedNeuron calls
+  // here only commit that clamp back into the editable React state so the
+  // filter cards and the URL writer converge on the in-range values and
+  // never spread a stale out-of-range index forward.
   const selectionRestoredRef = useRef(false);
   useEffect(() => {
     if (selectionRestoredRef.current) return;
@@ -232,10 +213,6 @@ export default function App() {
     selectionRestoredRef.current = true;
   }, [data, setIndices]);
 
-  // Mirror of activityPlaying as a ref so the URL writer's setTimeout
-  // can sample the latest value without re-creating the debounce dep
-  // chain on every play/pause toggle.
-  const isPlayingRef = useRef(false);
   // Stop playback when the Color scheme leaves Activity — there's
   // nothing on screen driven by activitySample outside that mode, so
   // running an interval would just churn React state for no payoff.
@@ -245,212 +222,30 @@ export default function App() {
     }
   }, [filter.colorMode, activityPlaying]);
 
-  // Debounced URL writer. Re-runs after every render so any state
-  // change (including ref-driven camera/umap updates routed via
-  // scheduleUrlWrite below) is captured. 50 ms is short enough that a
-  // single click feels instant, long enough to coalesce camera-drag
-  // bursts (the camera-controls 'change' fires 30-60×/sec while moving).
-  const URL_DEBOUNCE_MS = 50;
-  // Hard cap on how long a continuous emit burst can defer the write.
-  // Trackball damping produces ~2 s of sub-epsilon emits after release;
-  // without this, the URL hash would never update during the damping
-  // tail and a tab duplicated mid-coast would copy a stale URL.
-  const URL_MAX_WAIT_MS = 250;
-  // Browser + proxy hash limits vary (Firefox throws SecurityError past
-  // a few KB; Chrome silently truncates in extremes; corporate proxies
-  // are sometimes stricter). Cap below the practical floor so a
-  // multi-hundred-vertex lasso doesn't break sharing or history-state.
-  const MAX_HASH_BYTES = 6000;
-  const urlTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const urlBurstStartRef = useRef<number | null>(null);
-  const warnedLassoDroppedRef = useRef(false);
-  const warnedHashDroppedRef = useRef(false);
-  // Snapshot state into refs so flushUrlWrite (which is called from
-  // event listeners and so must NOT depend on render-cycle closures)
-  // always reads the latest values.
-  const filterRef = useRef(filter);
-  filterRef.current = filter;
-  const settingsRef = useRef(settings);
-  settingsRef.current = settings;
-  const focusedNeuronRef = useRef(focusedNeuron);
-  focusedNeuronRef.current = focusedNeuron;
-  const detailOpenRef = useRef(detailOpen);
-  detailOpenRef.current = detailOpen;
-  const bottomOpenRef = useRef(bottomOpen);
-  bottomOpenRef.current = bottomOpen;
-  const bottomHeightRef = useRef(bottomHeight);
-  bottomHeightRef.current = bottomHeight;
-  const detailWidthRef = useRef(detailWidth);
-  detailWidthRef.current = detailWidth;
-  const lassoPolyRef = useRef(lassoPoly);
-  lassoPolyRef.current = lassoPoly;
-  const activitySpeedRef = useRef(activitySpeed);
-  activitySpeedRef.current = activitySpeed;
-  const writeUrlNow = useCallback(() => {
-    if (urlTimerRef.current) {
-      clearTimeout(urlTimerRef.current);
-      urlTimerRef.current = null;
-    }
-    urlBurstStartRef.current = null;
-    if (isPlayingRef.current) return;
-    const filterDiff = diffFilter(filterRef.current, INITIAL_FILTER);
-    const settingsDiff = diffSettings(settingsRef.current, DEFAULT_SETTINGS);
-    const cam = cameraRef.current ? roundCamera(cameraRef.current) : undefined;
-    const umap = umapRef.current && !viewportIsDefault(umapRef.current)
-      ? roundViewport(umapRef.current)
-      : undefined;
-    const lasso = lassoPolyRef.current ? roundLasso(lassoPolyRef.current) : undefined;
-    const baseFields = {
-      filter: Object.keys(filterDiff).length > 0 ? filterDiff : undefined,
-      settings: Object.keys(settingsDiff).length > 0 ? settingsDiff : undefined,
-      focusedNeuron: focusedNeuronRef.current ?? undefined,
-      detail: detailOpenRef.current ? undefined : false,
-      bottom: bottomOpenRef.current ? undefined : false,
-      bottomHeight:
-        bottomHeightRef.current !== BOTTOM_HEIGHT_DEFAULT
-          ? Math.round(bottomHeightRef.current)
-          : undefined,
-      detailWidth:
-        detailWidthRef.current !== DETAIL_WIDTH_DEFAULT
-          ? Math.round(detailWidthRef.current)
-          : undefined,
-      camera: cam,
-      umap,
-      activitySpeed:
-        activitySpeedRef.current !== 10 ? activitySpeedRef.current : undefined,
-    };
-    let hash = encodeHash({ ...baseFields, lasso });
-    if (hash.length > MAX_HASH_BYTES && lasso) {
-      // Drop just the lasso first — it's by far the largest field and
-      // the selection itself stays live in app state.
-      hash = encodeHash(baseFields);
-      if (!warnedLassoDroppedRef.current) {
-        console.warn(
-          `[urlState] lasso polygon (${lasso.length / 2} vertices) makes share URL ` +
-            `exceed ${MAX_HASH_BYTES}-byte cap; dropping lasso from URL hash. ` +
-            `Selection stays active in the UI.`,
-        );
-        warnedLassoDroppedRef.current = true;
-      }
-    }
-    if (hash.length > MAX_HASH_BYTES) {
-      // Lasso wasn't the culprit (or wasn't there). Drop the whole hash.
-      if (!warnedHashDroppedRef.current) {
-        console.warn(
-          `[urlState] encoded state exceeds ${MAX_HASH_BYTES}-byte URL hash cap; ` +
-            `skipping URL persistence this update.`,
-        );
-        warnedHashDroppedRef.current = true;
-      }
-      hash = '';
-    }
-    const target = `${window.location.pathname}${window.location.search}${hash}`;
-    window.history.replaceState(null, '', target);
-  }, []);
-  const scheduleUrlWrite = useCallback(() => {
-    const now = Date.now();
-    if (urlBurstStartRef.current === null) {
-      urlBurstStartRef.current = now;
-    }
-    const burstElapsed = now - urlBurstStartRef.current;
-    if (urlTimerRef.current) clearTimeout(urlTimerRef.current);
-    if (burstElapsed >= URL_MAX_WAIT_MS) {
-      // Force-write so a continuous emit burst (e.g. trackball damping)
-      // can't defer the URL hash forever.
-      writeUrlNow();
-      return;
-    }
-    const remainingMax = URL_MAX_WAIT_MS - burstElapsed;
-    const wait = Math.min(URL_DEBOUNCE_MS, remainingMax);
-    urlTimerRef.current = setTimeout(() => {
-      urlTimerRef.current = null;
-      writeUrlNow();
-    }, wait);
-  }, [writeUrlNow]);
-  // Schedule a URL write whenever React state changes. scheduleUrlWrite
-  // itself is stable (it reads through refs), so we depend on the
-  // individual state values instead — without this, lasso / filter /
-  // panel changes wouldn't trigger a write at all.
-  useEffect(() => {
-    scheduleUrlWrite();
-  }, [
-    filter,
-    settings,
-    focusedNeuron,
-    detailOpen,
-    bottomOpen,
-    bottomHeight,
-    detailWidth,
-    lassoPoly,
-    activitySpeed,
-    scheduleUrlWrite,
-  ]);
-  // While true, pagehide / visibilitychange flush handlers no-op so a
-  // reload triggered by an external hash change can't replaceState the
-  // current (stale) app state over the freshly pasted hash.
-  const suppressFlushRef = useRef(false);
-  // Belt-and-suspenders: flush the URL when the tab is about to be
-  // hidden/closed. pagehide covers refresh, navigation, close, and the
-  // bfcache path; visibilitychange catches tab-switches the user
-  // didn't initiate via the address bar.
-  useEffect(() => {
-    const flush = () => {
-      if (suppressFlushRef.current) return;
-      writeUrlNow();
-    };
-    window.addEventListener('pagehide', flush);
-    document.addEventListener('visibilitychange', flush);
-    return () => {
-      window.removeEventListener('pagehide', flush);
-      document.removeEventListener('visibilitychange', flush);
-    };
-  }, [writeUrlNow]);
-  // External hash changes (user pasting a URL, clicking a bookmark,
-  // hitting back/forward) come in as hashchange events. Our own writes
-  // go through history.replaceState, which does NOT fire hashchange,
-  // so this handler only sees user-driven changes. Reload so the new
-  // hash flows through the module-level INITIAL_URL_STATE read on
-  // mount; suppress flushes and cancel any pending debounced write
-  // first so neither path can overwrite the pasted hash before the
-  // reload commits.
-  useEffect(() => {
-    const onHashChange = () => {
-      suppressFlushRef.current = true;
-      if (urlTimerRef.current) {
-        clearTimeout(urlTimerRef.current);
-        urlTimerRef.current = null;
-      }
-      window.location.reload();
-    };
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
-  }, []);
-  // Camera + t-SNE viewport changes go through refs; they call
-  // scheduleUrlWrite directly so the URL still picks them up.
-  const handleCameraChange = useCallback(
-    (cam: CameraState) => {
-      cameraRef.current = cam;
-      scheduleUrlWrite();
+  // Mirror all persisted view state into the URL hash and route camera /
+  // t-SNE viewport changes (which live in refs) into the same debounced
+  // writer. All the timer/snapshot-ref machinery lives in useUrlSync.
+  const { handleCameraChange, handleUmapViewportChange } = useUrlSync(
+    {
+      filter: effectiveFilter,
+      settings,
+      focusedNeuron: effectiveFocusedNeuron,
+      detailOpen,
+      bottomOpen,
+      bottomHeight,
+      detailWidth,
+      lassoPoly,
+      activitySpeed,
+      activityPlaying,
     },
-    [scheduleUrlWrite],
-  );
-  const handleUmapViewportChange = useCallback(
-    (vp: UmapViewport) => {
-      umapRef.current = vp;
-      scheduleUrlWrite();
+    {
+      defaultFilter: INITIAL_FILTER,
+      bottomHeightDefault: BOTTOM_HEIGHT_DEFAULT,
+      detailWidthDefault: DETAIL_WIDTH_DEFAULT,
+      initialCamera: INITIAL_URL_STATE?.camera ?? null,
+      initialUmap: INITIAL_URL_STATE?.umap ?? null,
     },
-    [scheduleUrlWrite],
   );
-  // Reflect the lifted playing state into the URL-writer's ref and
-  // flush a write on stop so the final activitySample lands in the
-  // share URL (we suppress writes during playback to keep the URL
-  // stable). Only fires on the play→pause transition.
-  const prevPlayingRef = useRef(activityPlaying);
-  useEffect(() => {
-    isPlayingRef.current = activityPlaying;
-    if (prevPlayingRef.current && !activityPlaying) scheduleUrlWrite();
-    prevPlayingRef.current = activityPlaying;
-  }, [activityPlaying, scheduleUrlWrite]);
 
   // Sample-advance interval. Sits in App (not in ActivityTimeRow) so
   // visible playback survives the row unmounting on tab switches or
@@ -482,31 +277,13 @@ export default function App() {
   // We never write a filter-derived selection back into it, so the
   // user's gesture survives every filter change — order of operations
   // is commutative (anatomy → drag and drag → anatomy land in the
-  // same state).
-  //
-  // For the DetailPanel we still want to display the filter
-  // intersection when the user hasn't selected anything, so derive an
-  // "effective" selection: user selection wins; otherwise fall back to
-  // the filter intersection if any filter is active; otherwise empty.
-  // Both effectiveSelection and visibleCount come out of the same
-  // applyColoring pass via useColoring — no separate 274k-cell walks
-  // here. effectiveSelection prefers the user's explicit lasso/click
-  // when there is one, else falls back to the filter-derived index
-  // list, else empty.
-  // 'all' source acts as a sentinel: the indices array is empty and
-  // consumers should treat the selection as "every cell in the dataset"
-  // (count = data.count). Lets us skip allocating a 0..N-1 buffer when
-  // no filter/selection narrows the population.
-  const effectiveSelection = useMemo<SelectionState>(() => {
-    if (!data) return selection;
-    if (selection.indices.length > 0) return selection;
-    if (coloring?.filterSelection) {
-      return { indices: coloring.filterSelection, source: 'filter' };
-    }
-    return { indices: EMPTY_INDICES, source: 'all' };
-  }, [data, selection, coloring]);
-
-  const visibleCount = data ? coloring?.visibleCount ?? data.count : 0;
+  // same state). useEffectiveSelection then layers the filter-derived
+  // fallback on top for the Detail panel / export.
+  const { effectiveSelection, visibleCount } = useEffectiveSelection(
+    data,
+    selection,
+    coloring,
+  );
 
   const handleUmapSelect = useCallback(
     (indices: Uint32Array, polygon: Float32Array | null) => {
@@ -543,91 +320,6 @@ export default function App() {
     setLassoPoly(null);
     clear();
   }, [clear]);
-
-  // Outer 2-column grid: main content on the left, detail panel on the
-  // right (full screen height) when open. minmax(0, 1fr) lets the main
-  // column actually shrink below its content's intrinsic size — plain
-  // `1fr` defaults to minmax(auto, 1fr) which pins the min to
-  // min-content and breaks horizontal resize once the window goes
-  // below the initial width.
-  const outerLayout = useMemo(
-    () => ({
-      gridTemplateColumns: detailOpen
-        ? `minmax(0, 1fr) ${detailWidth}px`
-        : 'minmax(0, 1fr)',
-    }),
-    [detailOpen, detailWidth],
-  );
-  const liveBottomHeightMax = mainAreaHeight > 0
-    ? Math.max(BOTTOM_HEIGHT_MIN, Math.min(BOTTOM_HEIGHT_MAX, mainAreaHeight))
-    : BOTTOM_HEIGHT_MAX;
-  const visibleBottomHeight = mainAreaHeight > 0
-    ? Math.min(bottomHeight, mainAreaHeight)
-    : bottomHeight;
-
-  // Drag handler for the bottom-panel resize strip. Records the
-  // pointerdown anchor and updates bottomHeight in real time via
-  // setPointerCapture so the cursor can travel anywhere without
-  // losing the gesture. The live upper bound also respects the current
-  // app height so dragging cannot allocate an off-screen bottom row.
-  const dragRef = useRef<{ y: number; h: number } | null>(null);
-  const onResizeDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    dragRef.current = { y: e.clientY, h: bottomHeight };
-    e.preventDefault();
-  }, [bottomHeight]);
-  const onResizeMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const d = dragRef.current;
-    if (!d) return;
-    const next = Math.max(
-      BOTTOM_HEIGHT_MIN,
-      Math.min(liveBottomHeightMax, d.h - (e.clientY - d.y)),
-    );
-    setBottomHeight(next);
-  }, [liveBottomHeightMax]);
-  const onResizeUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    dragRef.current = null;
-    if ((e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) {
-      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    }
-  }, []);
-
-  // Detail-panel resize: same setPointerCapture pattern, X axis,
-  // negated delta so dragging left grows the panel.
-  const detailDragRef = useRef<{ x: number; w: number } | null>(null);
-  const onDetailResizeDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    detailDragRef.current = { x: e.clientX, w: detailWidth };
-    e.preventDefault();
-  }, [detailWidth]);
-  const onDetailResizeMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const d = detailDragRef.current;
-    if (!d) return;
-    const next = Math.max(
-      DETAIL_WIDTH_MIN,
-      Math.min(DETAIL_WIDTH_MAX, d.w - (e.clientX - d.x)),
-    );
-    setDetailWidth(next);
-  }, []);
-  const onDetailResizeUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    detailDragRef.current = null;
-    if ((e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) {
-      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    }
-  }, []);
-
-  // Inside the main column, two rows: brain viewer + bottom bar
-  // (filters + t-SNE). When the bottom bar is hidden the second row
-  // collapses and the brain viewer reclaims the full height.
-  const mainLayout = useMemo(
-    () => ({
-      gridTemplateColumns: 'minmax(0, 1fr)',
-      gridTemplateRows: bottomOpen
-        ? `minmax(0, 1fr) ${visibleBottomHeight}px`
-        : 'minmax(0, 1fr)',
-    }),
-    [bottomOpen, visibleBottomHeight],
-  );
 
   if (error) {
     return (
@@ -676,7 +368,7 @@ export default function App() {
           <ExportButton
             data={data}
             effectiveSelection={effectiveSelection}
-            focusedNeuron={focusedNeuron}
+            focusedNeuron={effectiveFocusedNeuron}
           />
           <LinksMenu />
           <a
@@ -701,11 +393,11 @@ export default function App() {
               <Suspense fallback={<LoadingPane label="Loading 3D viewer…" />}>
                 <BrainViewer
                   data={data}
-                  filter={filter}
+                  filter={effectiveFilter}
                   settings={settings}
                   coloring={coloring}
                   selection={selection}
-                  focusedNeuron={focusedNeuron}
+                  focusedNeuron={effectiveFocusedNeuron}
                   onFocus={setFocusedNeuron}
                   onCanvasSizeChange={setBrainCanvasSize}
                   initialCamera={INITIAL_URL_STATE?.camera ?? null}
@@ -717,7 +409,7 @@ export default function App() {
               </Suspense>
               <ColorLegend
                 data={data}
-                filter={filter}
+                filter={effectiveFilter}
                 settings={settings}
                 uniqueFishIds={uniqueFishIds}
               />
@@ -764,7 +456,7 @@ export default function App() {
               <div className="flex flex-col bg-neutral-800 min-h-0 min-w-0 overflow-hidden">
                 <FilterControls
                   data={data}
-                  filter={filter}
+                  filter={effectiveFilter}
                   setFilter={setFilter}
                   settings={settings}
                   setSettings={setSettings}
@@ -783,14 +475,14 @@ export default function App() {
               <Suspense fallback={<LoadingPane label="Loading t-SNE panel…" />}>
                 <UmapPanel
                   data={data}
-                  filter={filter}
+                  filter={effectiveFilter}
                   settings={settings}
                   selection={selection}
                   coloring={coloring}
                   pauseForActivityPlayback={
-                    activityPlaying && filter.colorMode === 'activity'
+                    activityPlaying && effectiveFilter.colorMode === 'activity'
                   }
-                  focusedNeuron={focusedNeuron}
+                  focusedNeuron={effectiveFocusedNeuron}
                   onFocus={setFocusedNeuron}
                   onSelect={handleUmapSelect}
                   initialViewport={INITIAL_URL_STATE?.umap ?? null}
@@ -820,10 +512,10 @@ export default function App() {
             <Suspense fallback={<LoadingPane label="Loading details…" />}>
               <DetailPanel
                 data={data}
-                filter={filter}
+                filter={effectiveFilter}
                 settings={settings}
                 selection={effectiveSelection}
-                focusedNeuron={focusedNeuron}
+                focusedNeuron={effectiveFocusedNeuron}
               />
             </Suspense>
           </aside>

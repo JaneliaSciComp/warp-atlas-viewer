@@ -426,7 +426,7 @@ function validatePersisted(raw: Record<string, unknown>): PersistedState {
 
 /** Unique fish ids present in the dataset, as a Set for O(1)
  *  membership tests. Built once per sanitize call — fishIds is a flat
- *  Uint8Array with no explicit unique list (cf. CodeReview §1.2). */
+ *  Uint8Array with no explicit unique list. */
 function fishIdSet(fishIds: Uint8Array): Set<number> {
   const s = new Set<number>();
   for (let i = 0; i < fishIds.length; i++) s.add(fishIds[i]);

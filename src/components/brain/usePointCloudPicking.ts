@@ -9,6 +9,7 @@ import {
   type ColoringResult,
 } from '../../utils/coloring';
 import type { SharedColoring } from '../../hooks/useColoring';
+import { screenPointToRenderTargetPixel } from './projectionPicking';
 
 export interface PickState {
   /** Mouse position in canvas pixel coords, or null if mouse outside. */
@@ -114,9 +115,16 @@ export function usePointCloudPicking({
         gl.setClearColor(prevClearColor, prevClearAlpha);
       }
       const pr = gl.getPixelRatio();
-      // readPixels uses bottom-up Y; our cursor coords are top-down.
-      const px = Math.floor(pos.x * pr);
-      const py = Math.floor((size.height - pos.y) * pr);
+      // Convert the cursor (CSS px, top-down) to an ID-target texel
+      // (device px, bottom-up), clamped so a cursor on the top/right
+      // edge can't read one texel past the buffer.
+      const { x: px, y: py } = screenPointToRenderTargetPixel(
+        pos,
+        size.height,
+        pr,
+        idRt.width,
+        idRt.height,
+      );
       const pixel = idPixelRef.current;
       gl.readRenderTargetPixels(idRt, px, py, 1, 1, pixel);
       const packed = pixel[0] | (pixel[1] << 8) | (pixel[2] << 16);
