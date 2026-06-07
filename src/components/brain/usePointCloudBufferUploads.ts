@@ -51,11 +51,15 @@ export function usePointCloudBufferUploads({
   // Reusable draw-order index attribute. coloring.drawOrder is a fresh
   // Uint32Array from each applyColoring pass, so wrapping it in a new
   // THREE.BufferAttribute on every filter change would allocate a new GPU
-  // index buffer each time. We instead keep one attribute and copy the
-  // new order into its backing store, so Three reuses the same buffer via
-  // bufferSubData. The attribute is owned here; Three frees it with the
-  // geometry it's attached to.
-  const indexAttrRef = useRef<THREE.BufferAttribute | null>(null);
+  // index buffer each time. We instead keep one attribute per geometry and
+  // copy the new order into its backing store, so Three reuses the same buffer
+  // via bufferSubData. Once uploaded, the attribute stays attached to the
+  // geometry so Three can free its GL buffer when the geometry is disposed.
+  const indexAttrRef = useRef<{
+    geometry: THREE.BufferGeometry;
+    attr: THREE.BufferAttribute;
+    mode: 'drawOrder' | 'identity' | null;
+  } | null>(null);
 
   useEffect(() => {
     if (!coloring) return;
@@ -134,21 +138,40 @@ export function usePointCloudBufferUploads({
     // depthWrite: false (so the depth buffer doesn't enforce true 3D
     // ordering for transparents) this guarantees in-set cells
     // composite over the dim ghost haze regardless of where they
-    // sit in space. When no filter is active drawOrder is null and
-    // we clear the index so the renderer falls back to natural order.
-    if (coloring.drawOrder) {
-      let idxAttr = indexAttrRef.current;
-      if (!idxAttr || idxAttr.array.length !== coloring.drawOrder.length) {
+    // sit in space. When no filter is active drawOrder is null; before
+    // the first reordering we leave the geometry unindexed, and after
+    // that we rewrite the reusable index to identity order and keep it
+    // attached so Three disposes the uploaded GL buffer with the geometry.
+    const ensureIndexAttr = (length: number) => {
+      let owned = indexAttrRef.current;
+      if (
+        !owned ||
+        owned.geometry !== geometry ||
+        owned.attr.array.length !== length
+      ) {
         // Allocate once per geometry size; reused across filter changes.
-        idxAttr = new THREE.BufferAttribute(
-          new Uint32Array(coloring.drawOrder.length),
-          1,
-        );
-        indexAttrRef.current = idxAttr;
+        const attr = new THREE.BufferAttribute(new Uint32Array(length), 1);
+        attr.setUsage(THREE.DynamicDrawUsage);
+        owned = { geometry, attr, mode: null };
+        indexAttrRef.current = owned;
       }
-      (idxAttr.array as Uint32Array).set(coloring.drawOrder);
-      idxAttr.needsUpdate = true;
-      if (geometry.index !== idxAttr) geometry.setIndex(idxAttr);
+      return owned;
+    };
+    if (coloring.drawOrder) {
+      const owned = ensureIndexAttr(coloring.drawOrder.length);
+      (owned.attr.array as Uint32Array).set(coloring.drawOrder);
+      owned.attr.needsUpdate = true;
+      owned.mode = 'drawOrder';
+      if (geometry.index !== owned.attr) geometry.setIndex(owned.attr);
+    } else if (indexAttrRef.current?.geometry === geometry) {
+      const owned = ensureIndexAttr(data.count);
+      if (owned.mode !== 'identity') {
+        const indices = owned.attr.array as Uint32Array;
+        for (let i = 0; i < indices.length; i++) indices[i] = i;
+        owned.attr.needsUpdate = true;
+        owned.mode = 'identity';
+      }
+      if (geometry.index !== owned.attr) geometry.setIndex(owned.attr);
     } else if (geometry.index) {
       geometry.setIndex(null);
     }
