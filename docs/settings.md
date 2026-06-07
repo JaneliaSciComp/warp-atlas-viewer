@@ -15,11 +15,11 @@ A **show descriptions** checkbox sits next to the reset button. When unchecked, 
 
 ## 3D point density {#3d-point-density}
 
-Controls how big the dots are and how visible out-of-filter cells (ghosts) are in the 3D brain view.
+Controls how big the points are and how visible out-of-filter cells (ghosts) are in the 3D brain view.
 
 - **auto point sizes** *(default on)* — derives point size and ghost visibility from the live 3D canvas height, so the viewer self-adapts as you resize the window or expand/collapse the bottom panel. Manual sliders are hidden while auto is on.
 - **scale by filter** *(default on, nested under auto)* — additionally enlarges *active* (in-set) cells as the filter narrows, so a small selected cluster reads louder than the surrounding population. Ghost cells are not boosted.
-- **scale by depth** *(default on)* — shrinks cells the farther they sit from the camera (the familiar perspective look). Turn it off to drop that per-cell perspective falloff so every cell contributes equally regardless of depth — the "see through the volume" convention used by max-intensity projection. Flat-mode dots are matched to the perspective size at the default zoom, so flipping the toggle doesn't change density, and they scale gently with camera zoom so on-screen density stays roughly constant as you zoom in and out. Independent of `auto point sizes` and of the projection mode, so any combination is valid.
+- **scale by depth** *(default on)* — shrinks cells the farther they sit from the camera (the familiar perspective look). Turn it off to drop that per-cell perspective falloff so every cell contributes equally regardless of depth — the "see through the volume" convention used by max-intensity projection. Flat-mode points are matched to the perspective size at the default zoom, so flipping the toggle doesn't change density, and they scale gently with camera zoom so on-screen density stays roughly constant as you zoom in and out. Independent of `auto point sizes` and of the projection mode, so any combination is valid.
 
 With auto **off**, the two sliders are exposed directly:
 
@@ -98,9 +98,9 @@ The slider range is `0` – `1` in `0.05` steps.
 
 ## t-SNE point density
 
-The t-SNE scatter has its own size and ghost-visibility section because its dot field is much denser per cell and there's no perspective falloff to shrink distant points. These controls are always manual; there is no t-SNE auto mode.
+The t-SNE scatter has its own size and ghost-visibility section because its point field is much denser per cell and there's no perspective falloff to shrink distant points. These controls are always manual; there is no t-SNE auto mode.
 
-- **point size (px)** — uniform dot diameter for every cell. Range `2` – `40` px; default `11`.
+- **point size (px)** — uniform point diameter for every cell. Range `2` – `40` px; default `11`.
 - **ghost visibility** (0..1) — visibility of out-of-filter cells in t-SNE specifically. Defaults to `0.25` because the higher density of t-SNE points makes them stack more aggressively than in the 3D view; the lower default keeps the active population readable without hiding the ghosts you're targeting when re-lassoing.
 
 These settings do not interact with the 3D-viewer controls in either direction.
