@@ -6,6 +6,7 @@ import {
 import type { NeuronDataset, FilterState, SelectionState, SettingsState } from '../data/types';
 import { STIM_ICONS, STIM_LABELS, stimIndexFromName } from '../utils/stimAssets';
 import { coolwarm, rgbToHex } from '../utils/colorMaps';
+import { computeSelectionStats, computeSwimPartition } from '../utils/selectionStats';
 
 interface Props {
   data: NeuronDataset;
@@ -20,7 +21,7 @@ export function DetailPanel({ data, filter, settings, selection, focusedNeuron }
   // When a neuron is focused, the detail view shows just that cell;
   // otherwise it falls back to the group selection (t-SNE, cluster,
   // region) or, when source is 'all', the entire dataset (a `null`
-  // indices arg tells computeStats to walk 0..count-1 directly so we
+  // indices arg tells the stats engine to walk 0..count-1 directly so we
   // don't allocate a redundant N-long index buffer). Empty-handed =
   // the prompt below.
   const isAll = selection.source === 'all';
@@ -29,14 +30,23 @@ export function DetailPanel({ data, filter, settings, selection, focusedNeuron }
     if (isAll) return null;
     return selection.indices;
   }, [focusedNeuron, isAll, selection.indices]);
-  const stats = useMemo(
-    () => computeStats(data, indicesToShow, settings.swimLo),
+  // The heavy aggregation depends only on the selection, so it survives
+  // swimLo changes (and the all-cells variant is cached per dataset).
+  // The swim partition is the only swimLo-dependent piece, split into its
+  // own cheap O(count) memo so dragging the responsive-floor slider
+  // doesn't re-walk genes/stimuli/traces over the whole selection.
+  const baseStats = useMemo(
+    () => computeSelectionStats(data, indicesToShow),
+    [data, indicesToShow],
+  );
+  const swim = useMemo(
+    () => computeSwimPartition(data, indicesToShow, settings.swimLo),
     [data, indicesToShow, settings.swimLo],
   );
   const isFocused = focusedNeuron != null;
   const displayCount = isAll && !isFocused ? data.count : indicesToShow?.length ?? 0;
 
-  if (!stats) {
+  if (!baseStats) {
     // The only way to land here in practice is with an active filter
     // whose intersection is empty — App.tsx falls back to the
     // all-neurons sentinel otherwise, so indices is never empty for
@@ -53,6 +63,11 @@ export function DetailPanel({ data, filter, settings, selection, focusedNeuron }
       </div>
     );
   }
+
+  // baseStats is non-null past the guard, so the partition (always
+  // computed) merges in to give the rest of the view a single stats
+  // object with both the heavy summaries and the swim counts.
+  const stats = { ...baseStats, ...swim };
 
   const allExpressedRows: Array<{ gene: string; v: number }> = [];
   for (let g = 0; g < stats.geneMeans.length; g++) {
@@ -465,89 +480,6 @@ function topItems(counts: Map<number, number>, names: string[], k: number): stri
     .slice(0, k)
     .map(([id, n]) => `${names[id] ?? id}(${n})`)
     .join(', ');
-}
-
-// `indices === null` is the all-cells sentinel: walk 0..data.count-1
-// directly so the caller doesn't allocate a redundant identity buffer
-// for the common "no filter, no selection" view. Exported for tests.
-export function computeStats(data: NeuronDataset, indices: Uint32Array | null, swimLo: number) {
-  const n = indices === null ? data.count : indices.length;
-  if (n === 0) return null;
-  const G = data.geneNames.length;
-  const S = data.stimulusNames.length;
-  const T = data.traceLength;
-
-  const geneMeans = new Float32Array(G);
-  const stimulusMeans = new Float32Array(S);
-  const meanTrace = new Float32Array(T);
-  const regionCounts = new Map<number, number>();
-  const atlasRegionCounts = new Map<number, number>();
-  const clusterCounts = new Map<number, number>();
-  const fishCounts = new Map<number, number>();
-  // Atlas membership is a packed bitfield: 14 bytes / 112 bits per cell
-  // in WARP. Derive sizing from the dataset so a future atlas with a
-  // different region count still works.
-  const A = data.atlasRegionNames.length;
-  const atlasBytes = Math.ceil(A / 8);
-  // Swim correlation summary. swimMean matches the per-stimulus chart's
-  // arithmetic-mean convention. swimPos/Neg/Off partition the selection
-  // by the user's responsive-floor magnitude so a mixed group doesn't
-  // average to a misleading near-zero. swimBins is a 40-bin histogram
-  // over [-1, +1] used by the Detail-panel swim chart.
-  const SWIM_BINS = 40;
-  const SWIM_BIN_WIDTH = 2 / SWIM_BINS; // 0.05
-  const swimBins = new Uint32Array(SWIM_BINS);
-  let swimSum = 0;
-  let swimPos = 0;
-  let swimNeg = 0;
-  let swimMin = Infinity;
-  let swimMax = -Infinity;
-
-  for (let k = 0; k < n; k++) {
-    const i = indices === null ? k : indices[k];
-    for (let g = 0; g < G; g++) geneMeans[g] += data.geneCounts[i * G + g];
-    for (let s = 0; s < S; s++) stimulusMeans[s] += data.stimulusCorr[i * S + s];
-    const traceBase = i * T;
-    for (let t = 0; t < T; t++) meanTrace[t] += data.activityTrace[traceBase + t];
-    const sr = data.swimCorr[i];
-    swimSum += sr;
-    if (sr >=  swimLo) swimPos++;
-    else if (sr <= -swimLo) swimNeg++;
-    if (sr < swimMin) swimMin = sr;
-    if (sr > swimMax) swimMax = sr;
-    // Map [-1, +1] to bin index [0, SWIM_BINS-1]; values outside the
-    // range clamp to the edge bins so e.g. r=−1.05 doesn't underflow.
-    let bin = Math.floor((sr + 1) / SWIM_BIN_WIDTH);
-    if (bin < 0) bin = 0;
-    if (bin >= SWIM_BINS) bin = SWIM_BINS - 1;
-    swimBins[bin]++;
-    inc(regionCounts, data.regionIds[i]);
-    inc(clusterCounts, data.clusterIds[i]);
-    inc(fishCounts, data.fishIds[i]);
-    const atlasBase = i * atlasBytes;
-    for (let r = 0; r < A; r++) {
-      if ((data.atlasRegionMask[atlasBase + (r >> 3)] >> (r & 7)) & 1) {
-        inc(atlasRegionCounts, r);
-      }
-    }
-  }
-  const inv = 1 / n;
-  for (let g = 0; g < G; g++) geneMeans[g] *= inv;
-  for (let s = 0; s < S; s++) stimulusMeans[s] *= inv;
-  for (let t = 0; t < T; t++) meanTrace[t] *= inv;
-  const swimMean = swimSum * inv;
-  const swimOff = n - swimPos - swimNeg;
-
-  return {
-    geneMeans, stimulusMeans, meanTrace,
-    regionCounts, atlasRegionCounts, clusterCounts, fishCounts,
-    swimMean, swimPos, swimNeg, swimOff,
-    swimMin, swimMax, swimBins, swimBinWidth: SWIM_BIN_WIDTH,
-  };
-}
-
-function inc<K>(m: Map<K, number>, k: K) {
-  m.set(k, (m.get(k) ?? 0) + 1);
 }
 
 function formatSigned(v: number): string {
