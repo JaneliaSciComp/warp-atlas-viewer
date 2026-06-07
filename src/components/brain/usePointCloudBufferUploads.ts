@@ -48,6 +48,15 @@ export function usePointCloudBufferUploads({
     coloringRevision: number;
   } | null>(null);
 
+  // Reusable draw-order index attribute. coloring.drawOrder is a fresh
+  // Uint32Array from each applyColoring pass, so wrapping it in a new
+  // THREE.BufferAttribute on every filter change would allocate a new GPU
+  // index buffer each time. We instead keep one attribute and copy the
+  // new order into its backing store, so Three reuses the same buffer via
+  // bufferSubData. The attribute is owned here; Three frees it with the
+  // geometry it's attached to.
+  const indexAttrRef = useRef<THREE.BufferAttribute | null>(null);
+
   useEffect(() => {
     if (!coloring) return;
     const activityShaderMode =
@@ -128,7 +137,18 @@ export function usePointCloudBufferUploads({
     // sit in space. When no filter is active drawOrder is null and
     // we clear the index so the renderer falls back to natural order.
     if (coloring.drawOrder) {
-      geometry.setIndex(new THREE.BufferAttribute(coloring.drawOrder, 1));
+      let idxAttr = indexAttrRef.current;
+      if (!idxAttr || idxAttr.array.length !== coloring.drawOrder.length) {
+        // Allocate once per geometry size; reused across filter changes.
+        idxAttr = new THREE.BufferAttribute(
+          new Uint32Array(coloring.drawOrder.length),
+          1,
+        );
+        indexAttrRef.current = idxAttr;
+      }
+      (idxAttr.array as Uint32Array).set(coloring.drawOrder);
+      idxAttr.needsUpdate = true;
+      if (geometry.index !== idxAttr) geometry.setIndex(idxAttr);
     } else if (geometry.index) {
       geometry.setIndex(null);
     }

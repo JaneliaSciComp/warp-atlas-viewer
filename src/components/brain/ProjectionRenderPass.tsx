@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { ProjectionMode } from '../../data/types';
@@ -59,6 +59,21 @@ export function ProjectionRenderPass({
 }) {
   const { gl, scene, camera, size } = useThree();
 
+  // Initial composite uniform values, captured once. The off-screen
+  // target, composite material, fullscreen quad, and scene below are
+  // built a single time and never recreated when projectionConfig /
+  // projectionColorMap change: projectionConfig is memoized upstream on
+  // [data, filter, settings], so it takes a fresh identity on every
+  // filter/settings change while projection is active. Keying this
+  // useMemo on it reallocated the float render target, recompiled the
+  // composite program, and rebuilt the quad geometry on every
+  // interaction. The reconciliation effects below own all subsequent
+  // uniform updates; these initial values only seed the first frame.
+  const initialProjectionRef = useRef({
+    colorMap: projectionColorMap,
+    config: projectionConfig,
+  });
+
   const { rt, fullscreenScene, fullscreenCamera, compositeMaterial } = useMemo(() => {
     const rt = new THREE.WebGLRenderTarget(1, 1, {
       depthBuffer: false,
@@ -83,12 +98,12 @@ export function ProjectionRenderPass({
         mode: { value: 0 },
         sumExposure: { value: 1 },
         intensityFloor: { value: 0.05 },
-        colorMap: { value: projectionColorMap },
-        scalarMode: { value: projectionConfig.scalarMode },
-        scalarLo: { value: projectionConfig.scalarLo },
-        scalarHi: { value: projectionConfig.scalarHi },
-        scalarHiNeg: { value: projectionConfig.scalarHiNeg },
-        scalarLogDen: { value: projectionConfig.scalarLogDen },
+        colorMap: { value: initialProjectionRef.current.colorMap },
+        scalarMode: { value: initialProjectionRef.current.config.scalarMode },
+        scalarLo: { value: initialProjectionRef.current.config.scalarLo },
+        scalarHi: { value: initialProjectionRef.current.config.scalarHi },
+        scalarHiNeg: { value: initialProjectionRef.current.config.scalarHiNeg },
+        scalarLogDen: { value: initialProjectionRef.current.config.scalarLogDen },
         activeBrightness: { value: 0 },
         fadeWeakCorrelation: { value: 1 },
       },
@@ -98,7 +113,7 @@ export function ProjectionRenderPass({
     fullscreenScene.add(quad);
     const fullscreenCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     return { rt, fullscreenScene, fullscreenCamera, compositeMaterial };
-  }, [projectionColorMap, projectionConfig]);
+  }, []);
 
   useEffect(() => {
     // Composite reduction selector: 0 mean, 1 sum, 2 max, 3 min, 4 min/max.
