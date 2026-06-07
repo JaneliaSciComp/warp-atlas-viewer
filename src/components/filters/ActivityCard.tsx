@@ -1,5 +1,6 @@
 import type { NeuronDataset, FilterState, StimMode } from '../../data/types';
 import { STIM_ICONS, STIM_LABELS } from '../../utils/stimAssets';
+import { toggleStimulus } from '../../utils/filterModel';
 import { Card, KindToggle } from './shared';
 
 const STIM_MODE_OPTIONS: Array<{ value: StimMode; label: string; title: string }> = [
@@ -34,13 +35,11 @@ export function ActivityCard({
   filter: FilterState;
   update: (p: Partial<FilterState>) => void;
 }) {
+  // Set for the per-button pressed checks below; the toggle rule itself
+  // lives in utils/filterModel.
   const sel = new Set(filter.selectedStimuli);
-  const toggle = (idx: number) => {
-    const next = new Set(sel);
-    if (next.has(idx)) next.delete(idx);
-    else next.add(idx);
-    update({ selectedStimuli: Array.from(next).sort((a, b) => a - b) });
-  };
+  const toggle = (idx: number) =>
+    update({ selectedStimuli: toggleStimulus(filter.selectedStimuli, idx) });
   const hasSel = filter.selectedStimuli.length > 0;
   const filterArmed = filter.stimMode !== 'off';
   // OR/AND only matters when the stim filter is actually evaluating

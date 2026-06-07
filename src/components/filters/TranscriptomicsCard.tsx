@@ -1,19 +1,13 @@
 import type { NeuronDataset, FilterState } from '../../data/types';
 import { Card, KindToggle } from './shared';
 import { SearchSelect } from './SearchSelect';
-
-/** Dedupe an array of integer indices while preserving insertion
- *  order — used so the gene-filter rows render in the order the user
- *  added them (newest at the bottom) rather than re-sorting on every
- *  change. */
-function dedupePreserveOrder(xs: number[]): number[] {
-  const seen = new Set<number>();
-  const out: number[] = [];
-  for (const x of xs) {
-    if (!seen.has(x)) { seen.add(x); out.push(x); }
-  }
-  return out;
-}
+import {
+  addFirstAvailableGene,
+  clusterForSubtypeMode,
+  geneRowOptions,
+  removeGeneAtRow,
+  replaceGeneAtRow,
+} from '../../utils/filterModel';
 
 export function TranscriptomicsCard({
   data,
@@ -26,59 +20,31 @@ export function TranscriptomicsCard({
 }) {
   const onClusterChange = (v: number) => update({ selectedCluster: v });
 
-  // Cluster 0 is reserved for "Unassigned" — cells the upstream
-  // pipeline couldn't classify. Filtering to it on first entry into
-  // Subtype mode produces an almost-empty brain, so when the toggle
-  // flips to Subtype while selectedCluster still points at Unassigned,
-  // promote to the first real cluster.
+  // Promote off the reserved "Unassigned" cluster when entering Subtype
+  // mode so the first view isn't near-empty (see clusterForSubtypeMode).
   const onTxModeChange = (m: FilterState['txMode']) => {
-    if (m === 'subtype' && data.clusterNames[filter.selectedCluster] === 'Unassigned') {
-      const firstReal = data.clusterNames.findIndex((c) => c !== 'Unassigned');
-      if (firstReal >= 0) {
-        update({ txMode: m, selectedCluster: firstReal });
-        return;
-      }
+    if (m === 'subtype') {
+      update({
+        txMode: m,
+        selectedCluster: clusterForSubtypeMode(filter.selectedCluster, data.clusterNames),
+      });
+    } else {
+      update({ txMode: m });
     }
-    update({ txMode: m });
   };
 
-  // ── Multi-gene helpers ─────────────────────────────────────────────
+  // ── Multi-gene helpers — pure rules live in utils/filterModel ───────
   const sel = filter.selectedGenes;
   const G = data.geneNames.length;
-  const replaceGene = (rowIdx: number, newGene: number) => {
-    // Splice in-place, then dedupe + sort (selectedGenes is kept
-    // sorted + unique to match the URL-state diff convention and the
-    // stim-filter pattern).
-    const next = sel.slice();
-    next[rowIdx] = newGene;
-    update({ selectedGenes: dedupePreserveOrder(next) });
-  };
-  const removeGene = (rowIdx: number) => {
-    const next = sel.slice();
-    next.splice(rowIdx, 1);
-    update({ selectedGenes: next });
-  };
+  const replaceGene = (rowIdx: number, newGene: number) =>
+    update({ selectedGenes: replaceGeneAtRow(sel, rowIdx, newGene) });
+  const removeGene = (rowIdx: number) =>
+    update({ selectedGenes: removeGeneAtRow(sel, rowIdx) });
   const addGene = () => {
-    if (sel.length >= G) return;
-    // First not-yet-selected gene (alphabetical). User can change the
-    // dropdown immediately to pick something specific.
-    const used = new Set(sel);
-    const firstAvail = data.geneNames
-      .map((name, i) => ({ name, i }))
-      .filter((o) => !used.has(o.i))
-      .sort((a, b) => a.name.localeCompare(b.name))[0];
-    if (!firstAvail) return;
-    update({ selectedGenes: dedupePreserveOrder([...sel, firstAvail.i]) });
+    const next = addFirstAvailableGene(sel, data.geneNames);
+    if (next !== sel) update({ selectedGenes: next });
   };
-  // For each row, the dropdown lists all genes except those already
-  // selected on OTHER rows — so the user can't add the same gene twice.
-  const rowOptions = (rowIdx: number) => {
-    const otherUsed = new Set(sel.filter((_, k) => k !== rowIdx));
-    return data.geneNames
-      .map((name, i) => ({ value: i, label: name }))
-      .filter((o) => !otherUsed.has(o.value))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  };
+  const rowOptions = (rowIdx: number) => geneRowOptions(sel, data.geneNames, rowIdx);
   const logicMeaningful = sel.length >= 2;
   const addDisabled = sel.length >= G;
 
