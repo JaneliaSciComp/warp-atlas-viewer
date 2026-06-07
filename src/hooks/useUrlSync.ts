@@ -41,6 +41,7 @@ export interface UrlSyncState {
   bottomOpen: boolean;
   bottomHeight: number;
   detailWidth: number;
+  umapWidth: number;
   lassoPoly: Float32Array | null;
   activitySpeed: number;
   activityPlaying: boolean;
@@ -51,6 +52,7 @@ export interface UrlSyncConfig {
   defaultFilter: FilterState;
   bottomHeightDefault: number;
   detailWidthDefault: number;
+  umapWidthDefault: number;
   initialCamera: CameraState | null;
   initialUmap: UmapViewport | null;
 }
@@ -79,6 +81,7 @@ export function useUrlSync(state: UrlSyncState, config: UrlSyncConfig): UrlSyncH
     bottomOpen,
     bottomHeight,
     detailWidth,
+    umapWidth,
     lassoPoly,
     activitySpeed,
     activityPlaying,
@@ -119,6 +122,8 @@ export function useUrlSync(state: UrlSyncState, config: UrlSyncConfig): UrlSyncH
   bottomHeightRef.current = bottomHeight;
   const detailWidthRef = useRef(detailWidth);
   detailWidthRef.current = detailWidth;
+  const umapWidthRef = useRef(umapWidth);
+  umapWidthRef.current = umapWidth;
   const lassoPolyRef = useRef(lassoPoly);
   lassoPolyRef.current = lassoPoly;
   const activitySpeedRef = useRef(activitySpeed);
@@ -135,7 +140,8 @@ export function useUrlSync(state: UrlSyncState, config: UrlSyncConfig): UrlSyncH
     }
     urlBurstStartRef.current = null;
     if (isPlayingRef.current) return;
-    const { defaultFilter, bottomHeightDefault, detailWidthDefault } = configRef.current;
+    const { defaultFilter, bottomHeightDefault, detailWidthDefault, umapWidthDefault } =
+      configRef.current;
     const filterDiff = diffFilter(filterRef.current, defaultFilter);
     const settingsDiff = diffSettings(settingsRef.current, DEFAULT_SETTINGS);
     // screenshotMode is an ephemeral presentation toggle — never persist
@@ -160,6 +166,10 @@ export function useUrlSync(state: UrlSyncState, config: UrlSyncConfig): UrlSyncH
       detailWidth:
         detailWidthRef.current !== detailWidthDefault
           ? Math.round(detailWidthRef.current)
+          : undefined,
+      umapWidth:
+        umapWidthRef.current !== umapWidthDefault
+          ? Math.round(umapWidthRef.current)
           : undefined,
       camera: cam,
       umap,

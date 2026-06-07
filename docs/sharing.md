@@ -17,7 +17,7 @@ Every meaningful piece of view state is encoded in the URL hash (the `#…` port
 | **t-SNE viewport** | Pan and zoom. |
 | **Selection** | Focused-cell id; lasso polygon (when present). |
 | **Activity time** | When Colors is set to Activity, the current sample index and playback speed. |
-| **Panel visibility** | Whether the Detail panel or bottom panel is collapsed, and the dragged size of each (bottom-panel height, Detail-panel width). |
+| **Panel visibility** | Whether the Detail panel or bottom panel is collapsed, and the dragged size of each (bottom-panel height, Detail-panel width, t-SNE panel width). |
 
 ## Sharing
 

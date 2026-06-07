@@ -17,12 +17,16 @@ The large area filling most of the screen. Every visible cell is rendered as a G
 
 Bottom-right. A 2D scatter plot of every cell's t-SNE embedding; transcriptomically similar cells appear nearby regardless of anatomical position. Supports independent pan and zoom and is the locus of [lasso selection](/selections#lasso-in-the-t-sne). See [t-SNE panel](/ui/tsne).
 
+::: tip Resize
+Drag the **left edge** of the t-SNE panel to widen or narrow it; the filter strip beside it gives up or reclaims the freed space. The edge highlights faintly and the cursor changes to a horizontal-resize arrow on hover, like the other panel resizers. **Double-click** any of these handles to snap that panel back to its default size. The chosen width is remembered in the URL, like the bottom-panel height and Detail-panel width.
+:::
+
 ## Detail panel
 
 Right edge. Populates on click-focus, lasso selection, the current filter intersection, or — when neither filter nor selection narrows the view — a summary across all cells in the dataset. Displays a gene bar chart, the mean ΔF/F trace overlaid with stimulus on-windows, a per-stimulus correlation chart, and a swim-correlation histogram. See [Detail panel](/ui/detail).
 
-::: tip Collapse handle
-Click the **‹** handle on the right edge of the 3D viewer to toggle the Detail panel.
+::: tip Collapse & resize
+Click the **‹** handle on the right edge of the 3D viewer to toggle the Detail panel. Drag the panel's **left edge** (it highlights on hover) to resize it; **double-click** that edge to reset the width to its default. The width is remembered in the URL.
 :::
 
 ## Filter strip (bottom panel)
@@ -33,8 +37,8 @@ Bottom-left. A tab shell with three tabs:
 - **Settings** — threshold cutoffs, ramp anchors, point density, projection, rendering, and camera behavior. See [Settings](/settings).
 - **About** — a condensed viewer overview, documentation link, and the [paper presets](/findings).
 
-::: tip Collapse handle
-Click the **⌄** handle at the bottom edge of the 3D viewer to hide the filter strip.
+::: tip Collapse & resize
+Click the **⌄** handle at the bottom edge of the 3D viewer to hide the filter strip. Drag the **divider** along the top of the strip (it highlights on hover) to resize it; **double-click** the divider to reset the height to its default. The height is remembered in the URL.
 :::
 
 ## Color legend

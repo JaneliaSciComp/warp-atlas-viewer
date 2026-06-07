@@ -12,12 +12,19 @@ const BOTTOM_HEIGHT_MAX = 1200;
 export const DETAIL_WIDTH_DEFAULT = 360;
 const DETAIL_WIDTH_MIN = 240;
 const DETAIL_WIDTH_MAX = 800;
+// Width of the t-SNE panel (bottom-right of the bottom row). The grid
+// also clamps it to the row width at render time, so these static bounds
+// only bracket the dragged value.
+export const UMAP_WIDTH_DEFAULT = 320;
+const UMAP_WIDTH_MIN = 200;
+const UMAP_WIDTH_MAX = 760;
 
 export interface PanelLayoutInitial {
   detailOpen?: boolean;
   bottomOpen?: boolean;
   bottomHeight?: number;
   detailWidth?: number;
+  umapWidth?: number;
 }
 
 export interface PanelLayout {
@@ -29,6 +36,8 @@ export interface PanelLayout {
   bottomHeight: number;
   /** Persisted detail-panel width. */
   detailWidth: number;
+  /** Persisted t-SNE (bottom-right) panel width. */
+  umapWidth: number;
   /** Attach to the main grid container so the bottom-row cap can track
    *  the visible height. */
   mainAreaRef: React.RefCallback<HTMLDivElement>;
@@ -42,6 +51,14 @@ export interface PanelLayout {
   onDetailResizeDown: (e: React.PointerEvent<HTMLDivElement>) => void;
   onDetailResizeMove: (e: React.PointerEvent<HTMLDivElement>) => void;
   onDetailResizeUp: (e: React.PointerEvent<HTMLDivElement>) => void;
+  onUmapResizeDown: (e: React.PointerEvent<HTMLDivElement>) => void;
+  onUmapResizeMove: (e: React.PointerEvent<HTMLDivElement>) => void;
+  onUmapResizeUp: (e: React.PointerEvent<HTMLDivElement>) => void;
+  /** Double-click a resize handle to snap that panel back to its default
+   *  size. */
+  onResizeDoubleClick: () => void;
+  onDetailResizeDoubleClick: () => void;
+  onUmapResizeDoubleClick: () => void;
 }
 
 /**
@@ -62,6 +79,9 @@ export function usePanelLayout(initial: PanelLayoutInitial = {}): PanelLayout {
   );
   const [detailWidth, setDetailWidth] = useState(
     initial.detailWidth ?? DETAIL_WIDTH_DEFAULT,
+  );
+  const [umapWidth, setUmapWidth] = useState(
+    initial.umapWidth ?? UMAP_WIDTH_DEFAULT,
   );
 
   // Height available to the main viewer area after the header. The bottom
@@ -164,6 +184,39 @@ export function usePanelLayout(initial: PanelLayoutInitial = {}): PanelLayout {
     }
   }, []);
 
+  // t-SNE panel resize: a strip on the panel's LEFT edge. Same
+  // setPointerCapture pattern and negated delta as the detail panel —
+  // dragging left grows the t-SNE (and shrinks the filter column beside
+  // it).
+  const umapDragRef = useRef<{ x: number; w: number } | null>(null);
+  const onUmapResizeDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    umapDragRef.current = { x: e.clientX, w: umapWidth };
+    e.preventDefault();
+  }, [umapWidth]);
+  const onUmapResizeMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const d = umapDragRef.current;
+    if (!d) return;
+    const next = Math.max(
+      UMAP_WIDTH_MIN,
+      Math.min(UMAP_WIDTH_MAX, d.w - (e.clientX - d.x)),
+    );
+    setUmapWidth(next);
+  }, []);
+  const onUmapResizeUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    umapDragRef.current = null;
+    if ((e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    }
+  }, []);
+
+  // Double-click any handle to snap that panel back to its default size.
+  // A click carries no pointer movement, so the drag handlers leave the
+  // size untouched and only this fires.
+  const onResizeDoubleClick = useCallback(() => setBottomHeight(BOTTOM_HEIGHT_DEFAULT), []);
+  const onDetailResizeDoubleClick = useCallback(() => setDetailWidth(DETAIL_WIDTH_DEFAULT), []);
+  const onUmapResizeDoubleClick = useCallback(() => setUmapWidth(UMAP_WIDTH_DEFAULT), []);
+
   // Inside the main column, two rows: brain viewer + bottom bar
   // (filters + t-SNE). When the bottom bar is hidden the second row
   // collapses and the brain viewer reclaims the full height.
@@ -184,6 +237,7 @@ export function usePanelLayout(initial: PanelLayoutInitial = {}): PanelLayout {
     setBottomOpen,
     bottomHeight,
     detailWidth,
+    umapWidth,
     mainAreaRef,
     outerLayout,
     mainLayout,
@@ -193,5 +247,11 @@ export function usePanelLayout(initial: PanelLayoutInitial = {}): PanelLayout {
     onDetailResizeDown,
     onDetailResizeMove,
     onDetailResizeUp,
+    onUmapResizeDown,
+    onUmapResizeMove,
+    onUmapResizeUp,
+    onResizeDoubleClick,
+    onDetailResizeDoubleClick,
+    onUmapResizeDoubleClick,
   };
 }

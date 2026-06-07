@@ -81,6 +81,9 @@ export interface PersistedState {
   /** Width of the right detail panel in pixels. Same persistence
    *  reasoning as bottomHeight. */
   detailWidth?: number;
+  /** Width of the t-SNE (bottom-right) panel in pixels. Same persistence
+   *  reasoning as detailWidth. */
+  umapWidth?: number;
   camera?: CameraState;
   umap?: UmapViewport;
   /** Activity playback speed multiplier (1, 2, 10, 50, 100). The
@@ -400,6 +403,10 @@ function validatePersisted(raw: Record<string, unknown>): PersistedState {
   }
   if (isFiniteNum(raw.detailWidth)) {
     out.detailWidth = clamp(raw.detailWidth, 240, 800);
+  }
+  // Matches the UMAP_WIDTH_MIN/MAX drag bounds in usePanelLayout.
+  if (isFiniteNum(raw.umapWidth)) {
+    out.umapWidth = clamp(raw.umapWidth, 200, 760);
   }
   const cam = validateCamera(raw.camera);
   if (cam) out.camera = cam;

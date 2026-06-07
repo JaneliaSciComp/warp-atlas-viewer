@@ -9,6 +9,7 @@ import {
   usePanelLayout,
   BOTTOM_HEIGHT_DEFAULT,
   DETAIL_WIDTH_DEFAULT,
+  UMAP_WIDTH_DEFAULT,
 } from './hooks/usePanelLayout';
 import { useSelection } from './hooks/useSelection';
 import { useUrlSync } from './hooks/useUrlSync';
@@ -152,6 +153,7 @@ export default function App() {
     setBottomOpen,
     bottomHeight,
     detailWidth,
+    umapWidth,
     mainAreaRef,
     outerLayout,
     mainLayout,
@@ -161,11 +163,18 @@ export default function App() {
     onDetailResizeDown,
     onDetailResizeMove,
     onDetailResizeUp,
+    onUmapResizeDown,
+    onUmapResizeMove,
+    onUmapResizeUp,
+    onResizeDoubleClick,
+    onDetailResizeDoubleClick,
+    onUmapResizeDoubleClick,
   } = usePanelLayout({
     detailOpen: INITIAL_URL_STATE?.detail,
     bottomOpen: INITIAL_URL_STATE?.bottom,
     bottomHeight: INITIAL_URL_STATE?.bottomHeight,
     detailWidth: INITIAL_URL_STATE?.detailWidth,
+    umapWidth: INITIAL_URL_STATE?.umapWidth,
   });
 
   // Lasso polygon (in t-SNE data coords) for the current selection.
@@ -234,6 +243,7 @@ export default function App() {
       bottomOpen,
       bottomHeight,
       detailWidth,
+      umapWidth,
       lassoPoly,
       activitySpeed,
       activityPlaying,
@@ -242,6 +252,7 @@ export default function App() {
       defaultFilter: INITIAL_FILTER,
       bottomHeightDefault: BOTTOM_HEIGHT_DEFAULT,
       detailWidthDefault: DETAIL_WIDTH_DEFAULT,
+      umapWidthDefault: UMAP_WIDTH_DEFAULT,
       initialCamera: INITIAL_URL_STATE?.camera ?? null,
       initialUmap: INITIAL_URL_STATE?.umap ?? null,
     },
@@ -427,7 +438,8 @@ export default function App() {
                 onPointerMove={onResizeMove}
                 onPointerUp={onResizeUp}
                 onPointerCancel={onResizeUp}
-                title="Drag to resize"
+                onDoubleClick={onResizeDoubleClick}
+                title="Drag to resize · double-click to reset"
                 className="absolute bottom-0 left-0 right-0 h-1.5 z-20 cursor-row-resize bg-transparent hover:bg-yellow-300/30 transition-colors"
               />
             )}
@@ -457,7 +469,7 @@ export default function App() {
           {bottomOpen && (
             <div
               className="row-start-2 col-start-1 grid min-h-0 min-w-0"
-              style={{ gridTemplateColumns: 'minmax(0, 1fr) min(320px, 100%)' }}
+              style={{ gridTemplateColumns: `minmax(0, 1fr) min(${umapWidth}px, 100%)` }}
             >
               <div className="flex flex-col bg-neutral-800 min-h-0 min-w-0 overflow-hidden">
                 <FilterControls
@@ -478,23 +490,40 @@ export default function App() {
                   onClearSelection={handleClearSelection}
                 />
               </div>
-              <Suspense fallback={<LoadingPane label="Loading t-SNE panel…" />}>
-                <UmapPanel
-                  data={data}
-                  filter={effectiveFilter}
-                  settings={settings}
-                  selection={selection}
-                  coloring={coloring}
-                  pauseForActivityPlayback={
-                    activityPlaying && effectiveFilter.colorMode === 'activity'
-                  }
-                  focusedNeuron={effectiveFocusedNeuron}
-                  onFocus={setFocusedNeuron}
-                  onSelect={handleUmapSelect}
-                  initialViewport={INITIAL_URL_STATE?.umap ?? null}
-                  onViewportChange={handleUmapViewportChange}
+              {/* t-SNE column, with a draggable strip on its left edge.
+                  Matches the other resizers: transparent until hover,
+                  then a faint yellow highlight. */}
+              <div className="relative min-h-0 min-w-0">
+                <div
+                  role="separator"
+                  aria-orientation="vertical"
+                  aria-label="Resize t-SNE panel"
+                  onPointerDown={onUmapResizeDown}
+                  onPointerMove={onUmapResizeMove}
+                  onPointerUp={onUmapResizeUp}
+                  onPointerCancel={onUmapResizeUp}
+                  onDoubleClick={onUmapResizeDoubleClick}
+                  title="Drag to resize · double-click to reset"
+                  className="absolute top-0 bottom-0 left-0 w-1.5 z-20 cursor-col-resize bg-transparent hover:bg-yellow-300/30 transition-colors"
                 />
-              </Suspense>
+                <Suspense fallback={<LoadingPane label="Loading t-SNE panel…" />}>
+                  <UmapPanel
+                    data={data}
+                    filter={effectiveFilter}
+                    settings={settings}
+                    selection={selection}
+                    coloring={coloring}
+                    pauseForActivityPlayback={
+                      activityPlaying && effectiveFilter.colorMode === 'activity'
+                    }
+                    focusedNeuron={effectiveFocusedNeuron}
+                    onFocus={setFocusedNeuron}
+                    onSelect={handleUmapSelect}
+                    initialViewport={INITIAL_URL_STATE?.umap ?? null}
+                    onViewportChange={handleUmapViewportChange}
+                  />
+                </Suspense>
+              </div>
             </div>
           )}
         </div>
@@ -512,7 +541,8 @@ export default function App() {
               onPointerMove={onDetailResizeMove}
               onPointerUp={onDetailResizeUp}
               onPointerCancel={onDetailResizeUp}
-              title="Drag to resize"
+              onDoubleClick={onDetailResizeDoubleClick}
+              title="Drag to resize · double-click to reset"
               className="absolute top-0 bottom-0 left-0 w-1.5 z-20 cursor-col-resize bg-transparent hover:bg-yellow-300/30 transition-colors"
             />
             <Suspense fallback={<LoadingPane label="Loading details…" />}>
