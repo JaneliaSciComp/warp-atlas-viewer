@@ -31,7 +31,7 @@ export interface PanelLayout {
   detailWidth: number;
   /** Attach to the main grid container so the bottom-row cap can track
    *  the visible height. */
-  mainAreaRef: React.RefObject<HTMLDivElement>;
+  mainAreaRef: React.RefCallback<HTMLDivElement>;
   /** Inline grid-template for the outer (main | detail) columns. */
   outerLayout: { gridTemplateColumns: string };
   /** Inline grid-template for the main column's (viewer / bottom) rows. */
@@ -69,23 +69,28 @@ export function usePanelLayout(initial: PanelLayoutInitial = {}): PanelLayout {
   // row must never exceed this visible area; otherwise the t-SNE canvas
   // measures off-screen pixels and "reset view" recenters into clipped
   // space.
-  const mainAreaRef = useRef<HTMLDivElement>(null);
+  const [mainAreaEl, setMainAreaEl] = useState<HTMLDivElement | null>(null);
+  // Callback ref instead of a RefObject + [] effect: App renders the
+  // loading shell before the main grid exists, so a one-shot effect can
+  // see `null` and never observe the element that mounts after data load.
+  const mainAreaRef = useCallback((node: HTMLDivElement | null) => {
+    setMainAreaEl((prev) => (prev === node ? prev : node));
+  }, []);
   const [mainAreaHeight, setMainAreaHeight] = useState(0);
   useEffect(() => {
-    const el = mainAreaRef.current;
-    if (!el) return;
+    if (!mainAreaEl) return;
     const setMeasuredHeight = (height: number) => {
       const next = Math.max(0, Math.floor(height));
       setMainAreaHeight((prev) => (prev === next ? prev : next));
     };
-    setMeasuredHeight(el.getBoundingClientRect().height);
+    setMeasuredHeight(mainAreaEl.getBoundingClientRect().height);
     const ro = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (entry) setMeasuredHeight(entry.contentRect.height);
     });
-    ro.observe(el);
+    ro.observe(mainAreaEl);
     return () => ro.disconnect();
-  }, []);
+  }, [mainAreaEl]);
 
   // Outer 2-column grid: main content on the left, detail panel on the
   // right (full screen height) when open. minmax(0, 1fr) lets the main
