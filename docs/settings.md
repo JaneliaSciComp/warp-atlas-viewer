@@ -243,9 +243,11 @@ Tune these to match the practical dynamic range of the dataset's calcium traces.
 
 A presentation toggle for capturing a clean image of the viewer. When **screenshot mode** is on, the on-canvas chrome that is only useful for interaction is hidden: the panel show/hide tabs that stick out into the 3D view (the `⌄`/`⌃` bottom-panel tab and the `›`/`‹` detail-panel tab), the **reset view** buttons on the 3D viewer and t-SNE panel, the `▾` caret on the **projection** control, and the **Export** and **Links** items in the top bar. The Janelia logo and all data — points, colors, legend, charts — are untouched; this only removes UI affordances, never anything you would want in the figure.
 
-Resizing still works while it is on: the bottom and detail panels keep their drag handles (the thin strips that highlight on mouse-over), so you can set the exact layout for the shot without leaving screenshot mode. Set the layout first, then toggle on, since the panel show/hide tabs are hidden.
+Resizing still works while it is on: the bottom, detail, and t-SNE panels keep their drag handles (the thin strips that highlight on mouse-over), so you can set the exact layout for the shot without leaving screenshot mode. Set the layout first, then toggle on, since the panel show/hide tabs are hidden.
 
-Off by default. Unlike every other setting, screenshot mode is **not** persisted in the URL hash — it is an ephemeral presentation state, so a shared or reloaded link never lands someone in a chrome-hidden view they cannot easily escape. Turn it off from this same toggle.
+While screenshot mode is on, a **screenshot mode** checkbox also appears at the top of the Settings tab (next to **show descriptions**) as an always-visible escape — unchecking it leaves the mode and restores the hidden chrome. It disappears again once the mode is off.
+
+Off by default. Unlike every other setting, screenshot mode is **not** persisted in the URL hash — it is an ephemeral presentation state, so a shared or reloaded link never lands someone in a chrome-hidden view they cannot easily escape. Turn it off from this same toggle or the top-of-tab checkbox.
 
 ## Debug {#debug-overlay}
 
