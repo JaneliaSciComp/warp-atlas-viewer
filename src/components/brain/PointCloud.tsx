@@ -11,6 +11,7 @@ import {
   PROJECTION_POINTS_NAME,
 } from './sceneObjectNames';
 import { registerProjectionShaderChunks } from './registerProjectionShaderChunks';
+import { VOLUME_GROUP_ROTATION, VOLUME_GROUP_SCALE } from './volumeTransform';
 import { usePointCloudMaterials } from './usePointCloudMaterials';
 import { usePointCloudPicking, type PickState } from './usePointCloudPicking';
 import { useFocusMarker } from './useFocusMarker';
@@ -153,7 +154,7 @@ export function PointCloud({
 
   const projectionOn = projectionMode !== 'off';
   return (
-    <group rotation={[0, 0, Math.PI / 2]} scale={[1, -1, 1]}>
+    <group rotation={VOLUME_GROUP_ROTATION} scale={VOLUME_GROUP_SCALE}>
       {projectionOn ? (
         // Projection mode replaces the normal opaque + transparent
         // foreground with an existing-buffer ghost pass plus the
