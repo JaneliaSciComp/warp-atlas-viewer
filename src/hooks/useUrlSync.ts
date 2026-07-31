@@ -148,6 +148,9 @@ export function useUrlSync(state: UrlSyncState, config: UrlSyncConfig): UrlSyncH
     // it, so a share link doesn't land the recipient in a chrome-hidden
     // state they can't easily escape.
     delete settingsDiff.screenshotMode;
+    // embeddedMode is set by ?embed=1, not by the hash — persisting it would
+    // let a shared link drop the recipient into iframe chrome.
+    delete settingsDiff.embeddedMode;
     const cam = cameraRef.current ? roundCamera(cameraRef.current) : undefined;
     const umap = umapRef.current && !viewportIsDefault(umapRef.current)
       ? roundViewport(umapRef.current)

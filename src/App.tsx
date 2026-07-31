@@ -21,6 +21,7 @@ import { ColorLegend } from './components/ColorLegend';
 import { anyFilterActive, cellInSet } from './utils/coloring';
 import {
   decodeHash,
+  isEmbedRequested,
   sanitizeFilterAgainstDataset,
   sanitizeFocusedNeuron,
 } from './utils/urlState';
@@ -86,6 +87,8 @@ const INITIAL_FILTER_STATE: FilterState = {
 const INITIAL_SETTINGS_STATE: SettingsState = {
   ...DEFAULT_SETTINGS,
   ...(INITIAL_URL_STATE?.settings ?? {}),
+  // ?embed=1 wins: the hash never carries embeddedMode.
+  ...(isEmbedRequested(window.location.search) ? { embeddedMode: true } : {}),
 };
 
 export default function App() {
