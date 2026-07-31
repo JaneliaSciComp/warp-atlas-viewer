@@ -19,6 +19,7 @@ import { DebugOverlay, FpsMeter } from './brain/debugOverlay';
 import { CameraSync, ScreenSpacePan, type ScreenPanState } from './brain/cameraControls';
 import { ProjectionRenderPass } from './brain/ProjectionRenderPass';
 import { PointCloud, type PickState } from './brain/PointCloud';
+import { BrainMeshes } from './brain/BrainMeshes';
 
 const VIEWER_BACKGROUND = '#0a0a0a';
 
@@ -269,6 +270,7 @@ export function BrainViewer({
           defaultCamDistance={defaultCamPosition[2]}
           volumeCenter={VOLUME_CENTER_VEC}
         />
+        <BrainMeshes settings={settings} />
         <TrackballControls
           makeDefault
           // rotationMomentum maps inversely to TrackballControls' damping:

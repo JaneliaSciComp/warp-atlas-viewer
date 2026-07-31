@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import type { FilterState, SettingsState } from "../../data/types";
 import { DEFAULT_SETTINGS } from "../../data/types";
+import { BRAIN_MESH_CONTROLS, loadMeshManifest } from "../../data/meshLoader";
 import { KindToggle } from "./shared";
 
 // Bolds a control's name inside a section description so the prose maps
@@ -46,6 +47,17 @@ export function SettingsTab({
             );
         }
     }, [showDescriptions]);
+    // null = still checking, false = meshes not generated, true = available.
+    const [meshesAvailable, setMeshesAvailable] = useState<boolean | null>(null);
+    useEffect(() => {
+        let live = true;
+        loadMeshManifest().then((m) => {
+            if (live) setMeshesAvailable(m !== null);
+        });
+        return () => {
+            live = false;
+        };
+    }, []);
     const projectionSupported =
         filter.colorMode === "gene" ||
         filter.colorMode === "activity" ||
@@ -743,6 +755,94 @@ export function SettingsTab({
                         className="accent-neutral-300"
                     />
                     screenshot mode
+                </label>
+            </section>
+
+            <section className="flex flex-col gap-2">
+                <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+                    Brain models
+                </div>
+                <p className="text-neutral-400 leading-snug">
+                    Translucent whole-brain reference meshes from{" "}
+                    <a
+                        href="https://mapzebrain.org"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-yellow-300 hover:underline"
+                    >
+                        mapZebrain
+                    </a>{" "}
+                    drawn as anatomical context around the cells.{" "}
+                    <Ctl>Brain outline</Ctl> is the whole-brain surface;{" "}
+                    <Ctl>fibers</Ctl> and <Ctl>cell bodies</Ctl> are the
+                    neuropil and soma-rich compartments. All off by default.
+                </p>
+                {meshesAvailable === false && (
+                    <p className="text-neutral-500 text-[11px] leading-snug ml-3">
+                        Meshes not found — run{" "}
+                        <code className="text-neutral-400">
+                            python3 scripts/fetch_meshes.py
+                        </code>{" "}
+                        to download and convert them.
+                    </p>
+                )}
+                {BRAIN_MESH_CONTROLS.map((control) => (
+                    <div key={control.key} className="flex flex-col gap-1">
+                        <label
+                            className={
+                                "flex items-center gap-2 text-xs cursor-pointer select-none ml-3 " +
+                                (meshesAvailable === false
+                                    ? "text-neutral-500 cursor-not-allowed"
+                                    : "text-neutral-300")
+                            }
+                        >
+                            <input
+                                type="checkbox"
+                                checked={settings[control.enabledKey]}
+                                disabled={meshesAvailable === false}
+                                onChange={(e) =>
+                                    // Cast: a computed key from a union of
+                                    // string literals widens to string, which
+                                    // isn't assignable to Partial<SettingsState>.
+                                    update({
+                                        [control.enabledKey]: e.target.checked,
+                                    } as Partial<SettingsState>)
+                                }
+                                className="accent-yellow-300"
+                            />
+                            {control.label}
+                        </label>
+                        <NumberRow
+                            label="opacity"
+                            value={settings[control.opacityKey]}
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            disabled={
+                                meshesAvailable === false ||
+                                !settings[control.enabledKey]
+                            }
+                            onChange={(v) =>
+                                update({
+                                    [control.opacityKey]: v,
+                                } as Partial<SettingsState>)
+                            }
+                        />
+                    </div>
+                ))}
+                <label
+                    className="flex items-center gap-2 text-xs cursor-pointer select-none ml-3 mt-2 text-neutral-300"
+                    title="adds the view-orientation icon bar and opens on mapZebrain's default orientation; used when the viewer is embedded in an iframe on mapzebrain.org"
+                >
+                    <input
+                        type="checkbox"
+                        checked={settings.embeddedMode}
+                        onChange={(e) =>
+                            update({ embeddedMode: e.target.checked })
+                        }
+                        className="accent-yellow-300"
+                    />
+                    Embedded mode (orientation icons)
                 </label>
             </section>
 
