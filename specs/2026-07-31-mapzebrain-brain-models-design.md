@@ -110,6 +110,51 @@ and puts the outline mesh strictly around the cell cloud on all six faces.
 
 That six-face containment is the script's self-check.
 
+### A third space: the render group transform
+
+There is one more transform, and it is easy to miss. `PointCloud.tsx` wraps
+every point pass in:
+
+```tsx
+<group rotation={[0, 0, Math.PI / 2]} scale={[1, -1, 1]}>
+```
+
+Three.js composes this as `M = T · R · S`, so a preprocessed vertex `(x, y, z)`
+becomes `R · S · (x, y, z)` = `R · (x, −y, z)` = **`(y, x, z)`**. So there are
+three spaces, not two:
+
+| space | X | Y | Z |
+|---|---|---|---|
+| mapZebrain voxel / WARP raw | LR column | AP row (caudal +) | DV slice (dorsal +) |
+| preprocessed (`positions.bin`) | LR, centered | rostral + | dorsal + |
+| **world (what the camera sees)** | **rostral +** | **lateral** | **dorsal +** |
+
+Consequences:
+
+- The default camera at `(0, 0, +D)` with `up = (0, 1, 0)` gives a dorsal view
+  with **rostral pointing screen-right** and the lateral axis vertical — a
+  landscape framing that fits the viewer's wide 3D panel. `preprocess.py`'s
+  comment and `README.md` both say "anterior renders at the top of the screen",
+  which describes the preprocessed space and is stale with respect to this group
+  transform. Fix the wording while touching these docs.
+- `scale = [1, −1, 1]` composed with the rotation has determinant −1, so the
+  group is **orientation-reversing** — a mirror. Anatomical left/right in world
+  space is therefore flipped relative to a naive reading of the voxel axes, which
+  is an additional reason the LR handedness needs a visual check rather than a
+  derivation (see [Open detail: LR handedness](#open-detail-lr-handedness)). It
+  also inverts triangle winding, which is harmless here because the mesh material
+  is `DoubleSide` and Phong flips normals for back faces.
+- The group has no translation, so the origin still maps to the origin and
+  `volumeCenter = [0, 0, 0]` holds in world space unchanged.
+
+**Design consequence:** the brain meshes are rendered *inside a group carrying
+the same rotation and scale*, so the mesh blobs stay in exactly the same space
+as `positions.bin` and the containment check above applies directly. The two
+magic values are hoisted into one shared module so the point cloud and the
+meshes cannot drift apart. Baking the group transform into the mesh data
+instead would have duplicated it and silently broken the meshes the next time
+anyone re-framed the view.
+
 ## Architecture
 
 ### Unit 1 — `scripts/fetch_meshes.py` (new)
@@ -206,19 +251,28 @@ two lights they need.
 `<Canvas>` in `BrainViewer`.
 
 **What it depends on.** `meshLoader`, `skipAmbientOcclusionUserData` from
-`AmbientOcclusion.tsx`, `BRAIN_MESH_GROUP_NAME` from `sceneObjectNames.ts`.
+`AmbientOcclusion.tsx`, `BRAIN_MESH_GROUP_NAME` from `sceneObjectNames.ts`, and
+`VOLUME_GROUP_ROTATION` / `VOLUME_GROUP_SCALE` from `volumeTransform.ts` (new —
+see "A third space" above; `PointCloud.tsx` is changed to import the same two
+constants instead of inlining them).
 
+- Renders inside `<group rotation={VOLUME_GROUP_ROTATION}
+  scale={VOLUME_GROUP_SCALE}>` so the meshes inherit exactly the point cloud's
+  preprocessed→world mapping.
 - Loads a mesh the first time its toggle goes true; keeps the geometry cached
   afterward so re-toggling is instant.
 - `BufferGeometry` with a `position` attribute, then `computeVertexNormals()`
   (flat facet normals on non-indexed geometry — matches mapZebrain).
 - `MeshPhongMaterial`: `color` from the manifest (`#dddcdf`, mapZebrain's own
   value for all three), `transparent: true`, `opacity` from settings,
-  `side: THREE.DoubleSide` (the shell is seen from inside), `depthWrite: false`,
-  and `renderOrder` above the point cloud. mapZebrain uses `depthTest: false`;
-  `depthWrite: false` plus render order gets the same "tints over everything"
-  read while still letting the point cloud depth-sort against itself. This is a
-  tuning knob to settle against the real render, not a fixed decision.
+  `side: THREE.DoubleSide` (the shell is seen from inside, and the group's mirror
+  inverts winding), `depthWrite: false`, and `renderOrder: 3` — above every
+  existing point pass, which use −1 (projection context), 0 (opaque /
+  projection), 1 (transparent), and 2 (focus marker). mapZebrain uses
+  `depthTest: false`; `depthWrite: false` plus render order gets the same "tints
+  over everything" read while still letting the point cloud depth-sort against
+  itself. This is a tuning knob to settle against the real render, not a fixed
+  decision.
 - `userData: { ...skipAmbientOcclusionUserData }` so SAO doesn't paint dark rims
   on the shell.
 - All three meshes live under a single `<group name={BRAIN_MESH_GROUP_NAME}>`
@@ -264,29 +318,48 @@ pairs derived from the camera distance.
 (`defaultCamPosition[2]`, i.e. `span × 0.95 ≈ 745`).
 
 mapZebrain's hardcoded quaternions/positions are **not** ported. They live in
-mapZebrain's camera frame (`up = (0, −1, 0)`, AP sign opposite to warp's), so
-copying them would be both wrong and opaque. Derived in warp space instead —
-where `+X`/`−X` are the lateral axes, `+Y` is rostral, `+Z` is dorsal:
+mapZebrain's camera frame (`up = (0, −1, 0)`, AP sign opposite to warp's, and no
+equivalent of warp's render group transform), so copying them would be both
+wrong and opaque. Derived in **world** space instead — where `+X` is rostral,
+`±Y` are the lateral axes, and `+Z` is dorsal:
 
 | label | position | up |
 |---|---|---|
 | Dorsal | `(0, 0, +D)` | `(0, 1, 0)` |
 | Ventral | `(0, 0, −D)` | `(0, 1, 0)` |
-| Sagittal (vertical-left) | `(−D, 0, 0)` | `(0, 1, 0)` |
-| Sagittal (vertical-right) | `(+D, 0, 0)` | `(0, 1, 0)` |
-| Sagittal (horizontal-left) | `(−D, 0, 0)` | `(0, 0, 1)` |
-| Sagittal (horizontal-right) | `(+D, 0, 0)` | `(0, 0, 1)` |
-| Coronal | `(0, +D, 0)` | `(0, 0, 1)` |
+| Sagittal (vertical-left) | `(0, −D, 0)` | `(1, 0, 0)` |
+| Sagittal (vertical-right) | `(0, +D, 0)` | `(1, 0, 0)` |
+| Sagittal (horizontal-left) | `(0, −D, 0)` | `(0, 0, 1)` |
+| Sagittal (horizontal-right) | `(0, +D, 0)` | `(0, 0, 1)` |
+| Coronal | `(+D, 0, 0)` | `(0, 0, 1)` |
+
+`D = defaultCamPosition[2] = span × 0.95 ≈ 744.9`, where `span` is the largest
+preprocessed axis extent (the AP axis, 784.15). `D` is a distance, so the group
+transform does not affect it.
 
 "Dorsal" is identical to warp's existing default camera, so that icon and the
 existing "reset view" button do the same thing — as in mapZebrain, where the
 dorsal icon calls `resetCameraControls()`.
 
-"Vertical" means rostral-up (up along the AP axis); "horizontal" means dorsal-up
-(up along the DV axis), matching mapZebrain's icon naming. Coronal views from
-the rostral side, matching mapZebrain's coronal preset.
+"Vertical" means rostral-up (up along the rostral axis, world `+X`);
+"horizontal" means dorsal-up (up along world `+Z`), matching mapZebrain's icon
+naming. Coronal views from the rostral side, matching mapZebrain's coronal
+preset.
 
 No preset has `up` parallel to its view direction, so none is degenerate.
+
+### Open detail: dorsal-view roll
+
+mapZebrain's dorsal view is **portrait** — rostral up. Warp's default dorsal
+view is **landscape** — rostral right — because the render group rotates the
+volume 90° to fit the wide 3D panel. The icon glyphs are drawn portrait.
+
+This spec keeps "Dorsal" identical to warp's existing default, because the
+default view must not change and the dorsal icon doubles as reset. The
+divergence from the icon artwork is accepted for now. If it reads wrong once the
+bar is on screen, the fix is a per-preset roll: `up = (−1, 0, 0)` for Dorsal and
+`(1, 0, 0)` for Ventral puts rostral up, at the cost of the dorsal icon no
+longer matching the default view. Confirm visually before settling.
 
 ### Unit 6 — `cameraControls.tsx` change: `resetRef` → `applyViewRef`
 
@@ -419,10 +492,12 @@ so the icon bar does not exist. No layout, panel, or chrome change.
 
 ## Open detail: LR handedness
 
-Which of `±X` is the animal's left is not derivable from the data available.
-The brain is near-bilaterally symmetric, so the containment test only weakly
-favours identity on LR (overshoot 0.78 vs 3.67 — consistent, not conclusive),
-and neither the atlas region names nor the mesh geometry distinguish sides.
+Which of world `±Y` is the animal's left is not derivable from the data
+available. Three things stack up here: the brain is near-bilaterally symmetric,
+so the containment test only weakly favours identity on LR (overshoot 0.78 vs
+3.67 — consistent, not conclusive); neither the atlas region names nor the mesh
+geometry distinguish sides; and the render group is a mirror (determinant −1), so
+world handedness is reversed relative to the voxel axes anyway.
 
 Resolution: compare the two sagittal presets against mapZebrain's icon glyphs
 in the browser once the bar is wired up. If they are swapped, the fix is
@@ -444,8 +519,14 @@ with the mapZebrain team before this ships publicly.
 - `README.md` — `scripts/fetch_meshes.py` in the setup/preprocess sequence;
   brain models and embedded mode in the feature list.
 - `docs/preprocess.md` — a "Brain meshes" section: sources, the transform, the
-  self-check.
-- `docs/ui/viewer.md` — the orientation icon bar and embedded mode.
+  self-check, and the three coordinate spaces table.
+- `docs/ui/viewer.md` — the orientation icon bar and embedded mode, plus the
+  world-space axis convention (rostral is screen-right in the default view).
+- Correct the stale "anterior renders at the top of the screen" wording in
+  `README.md` and `scripts/preprocess.py`. `docs/export.md`'s claim that exported
+  coordinates "match what you see on screen" is also loose — the CSV carries
+  preprocessed coordinates, not world ones; add the one-line clarification while
+  in there.
 - `docs/settings.md` — the Brain models section.
 - `docs/sharing.md` — which of the new settings ride in the URL hash.
 
