@@ -13,16 +13,39 @@
  *  Canvas `fov` prop — keep them from drifting by importing this. */
 export const VIEWER_FOV_DEG = 45;
 
-/** Camera distance at which `extent` exactly fills the vertical field of
- *  view, times a margin.
+/** Largest distance from the origin reached by a bounding box, over every
+ *  axis and both corners.
+ *
+ *  Not half the span: the cell cloud is centered on its *mean*, not its
+ *  bounding-box middle, so it sits off-centre by ~24 units rostro-caudally
+ *  (preprocessed bounds run −415.8 … +368.4). Since the camera always targets
+ *  the origin, the half-extent it has to cover is the larger arm, not the
+ *  average of the two. Using span / 2 here clipped the caudal tail.
+ */
+export function boundsMaxAbs(bounds: { min: number[]; max: number[] }): number {
+  return Math.max(...bounds.min.map(Math.abs), ...bounds.max.map(Math.abs));
+}
+
+/** Camera distance at which `halfExtent` exactly fills half the vertical
+ *  field of view, times a margin.
  *
  *  Needed because three's fov is the VERTICAL fov. Warp's normal default
  *  distance (span * 0.95) framed the brain's 784-unit rostro-caudal extent
  *  horizontally across a wide panel. Embedded mode rolls that extent
  *  vertical, where span * 0.95 clips the rostral and caudal tips.
+ *
+ *  The default 1.25 margin is not cosmetic: the mapZebrain outline mesh
+ *  reaches ~499 units caudally against the cell cloud's ~416, because it
+ *  includes the spinal-cord stub the recording does not cover. Framing to the
+ *  cells alone would cut the reference brain's tail off whenever the outline
+ *  is on.
  */
-export function fitDistance(extent: number, fovDeg = VIEWER_FOV_DEG, margin = 1.05): number {
-  return (extent / 2 / Math.tan(((fovDeg / 2) * Math.PI) / 180)) * margin;
+export function fitDistance(
+  halfExtent: number,
+  fovDeg = VIEWER_FOV_DEG,
+  margin = 1.25,
+): number {
+  return (halfExtent / Math.tan(((fovDeg / 2) * Math.PI) / 180)) * margin;
 }
 
 export type ViewPresetKey =
@@ -50,11 +73,14 @@ export interface ViewPreset {
  *  dorsal-up (up along world +Z) — mapZebrain's naming. Coronal views from
  *  the rostral side, as mapZebrain's does.
  *
- *  Which of ±Y is the animal's left is NOT derivable: the brain is near
- *  bilaterally symmetric and the volume group transform is a mirror. The
- *  left/right labels here are provisional and must be confirmed against the
- *  icon artwork in the browser; if they are swapped, swap the two `dir`
- *  signs in each sagittal pair.
+ *  Which of ±Y is the animal's left is not derivable from the data — the
+ *  brain is near bilaterally symmetric and the volume group transform is a
+ *  mirror — so the sagittal sides are pinned to mapZebrain's icon artwork
+ *  instead, which is the affordance the user actually clicks. Its
+ *  left_sagittal glyph shows the fish with its snout pointing screen-left and
+ *  right_sagittal shows it pointing screen-right, which puts the "left" views
+ *  on world +Y. The tests assert that screen reading so it cannot silently
+ *  flip back.
  */
 export const VIEW_PRESETS: ViewPreset[] = [
   { key: 'dorsal', label: 'Dorsal', dir: [0, 0, 1], up: [1, 0, 0] },
@@ -62,25 +88,25 @@ export const VIEW_PRESETS: ViewPreset[] = [
   {
     key: 'sagittalVerticalLeft',
     label: 'Sagittal (vertical-left)',
-    dir: [0, -1, 0],
+    dir: [0, 1, 0],
     up: [1, 0, 0],
   },
   {
     key: 'sagittalVerticalRight',
     label: 'Sagittal (vertical-right)',
-    dir: [0, 1, 0],
+    dir: [0, -1, 0],
     up: [1, 0, 0],
   },
   {
     key: 'sagittalHorizontalLeft',
     label: 'Sagittal (horizontal-left)',
-    dir: [0, -1, 0],
+    dir: [0, 1, 0],
     up: [0, 0, 1],
   },
   {
     key: 'sagittalHorizontalRight',
     label: 'Sagittal (horizontal-right)',
-    dir: [0, 1, 0],
+    dir: [0, -1, 0],
     up: [0, 0, 1],
   },
   { key: 'coronal', label: 'Coronal', dir: [1, 0, 0], up: [0, 0, 1] },

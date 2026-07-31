@@ -20,6 +20,13 @@ import { CameraSync, ScreenSpacePan, type ScreenPanState } from './brain/cameraC
 import { ProjectionRenderPass } from './brain/ProjectionRenderPass';
 import { PointCloud, type PickState } from './brain/PointCloud';
 import { BrainMeshes } from './brain/BrainMeshes';
+import {
+  EMBEDDED_DEFAULT_PRESET,
+  VIEWER_FOV_DEG,
+  boundsMaxAbs,
+  fitDistance,
+} from './brain/viewPresets';
+import { ViewOrientationBar } from './brain/ViewOrientationBar';
 
 const VIEWER_BACKGROUND = '#0a0a0a';
 
@@ -106,14 +113,35 @@ export function BrainViewer({
     onCanvasSizeChange(canvasSize);
   }, [canvasSize, onCanvasSizeChange]);
 
-  // Default camera position derived from the data bounds — straight-on
-  // dorsal view with the brain comfortably filling the landscape panel.
-  // span doubles as the basis for the zoom limits below.
-  const { defaultCamPosition, minDistance, maxDistance } = useMemo(() => {
+  // Default camera derived from the data bounds. Normal mode keeps the
+  // original landscape framing verbatim — the brain's long rostro-caudal axis
+  // runs horizontally across the wide panel, with the volume group transform
+  // putting rostral at screen-right. span doubles as the basis for the zoom
+  // limits below.
+  const { defaultCamPosition, defaultCamUp, presetDistance, minDistance, maxDistance } = useMemo(() => {
     const { min, max } = data.bounds;
     const span = Math.max(max[0] - min[0], max[1] - min[1], max[2] - min[2]);
+    // Embedded mode opens on mapZebrain's own default: dorsal, brain vertical,
+    // rostral up. That rolls the 784-unit rostro-caudal extent from horizontal
+    // to vertical, and three's fov is the VERTICAL fov, so the landscape
+    // distance below would clip the rostral and caudal tips — hence
+    // fitDistance. It takes the largest arm from the origin rather than half
+    // the span, because the cloud is centered on its mean and so sits
+    // off-centre; and its default margin also clears the outline mesh, which
+    // reaches further caudally than the cells. presetDistance is the orbit
+    // distance the icon bar uses too, so no preset can clip either.
+    const presetDistance = fitDistance(boundsMaxAbs(data.bounds));
+    const embedded = settings.embeddedMode;
     return {
-      defaultCamPosition: [0, 0, span * 0.95] as [number, number, number],
+      defaultCamPosition: (embedded
+        ? [0, 0, presetDistance]
+        : [0, 0, span * 0.95]) as [number, number, number],
+      defaultCamUp: (embedded ? EMBEDDED_DEFAULT_PRESET.up : [0, 1, 0]) as [
+        number,
+        number,
+        number,
+      ],
+      presetDistance,
       // Hard zoom-in floor. Without it, TrackballControls' default
       // minDistance=0 lets the wheel keep shrinking the camera-to-
       // target offset asymptotically: the view stops changing once
@@ -126,7 +154,7 @@ export function BrainViewer({
       minDistance: span * 0.15,
       maxDistance: span * 5,
     };
-  }, [data]);
+  }, [data, settings.embeddedMode]);
   // initialCamera is the URL-restored seed. Capture it once at mount in
   // a ref so a later prop update (e.g. a parent re-emitting the URL
   // state) can't yank the camera mid-interaction.
@@ -146,8 +174,6 @@ export function BrainViewer({
   const applyViewRef = useRef<
     ((position: [number, number, number], up: [number, number, number]) => void) | null
   >(null);
-  // Task 9 makes this mode-dependent; landscape everywhere for now.
-  const defaultCamUp: [number, number, number] = [0, 1, 0];
   const initiallyAtDefault = !mountCameraRef.current;
   const [atDefault, setAtDefault] = useState(initiallyAtDefault);
 
@@ -249,7 +275,7 @@ export function BrainViewer({
       onClick={onClickDiv}
     >
       <Canvas
-        camera={{ position: camPosition, fov: 45, near: 0.1, far: 10000 }}
+        camera={{ position: camPosition, fov: VIEWER_FOV_DEG, near: 0.1, far: 10000 }}
         gl={{ antialias: false, powerPreference: 'high-performance' }}
         dpr={[1, 2]}
       >
@@ -328,6 +354,12 @@ export function BrainViewer({
         <div className="neuron-tooltip" style={{ left: hover.x + 14, top: hover.y + 14 }}>
           {tooltip}
         </div>
+      )}
+      {settings.embeddedMode && !settings.screenshotMode && (
+        <ViewOrientationBar
+          distance={presetDistance}
+          applyView={(position, up) => applyViewRef.current?.(position, up)}
+        />
       )}
       <div className="absolute top-2 left-2 flex flex-col items-start gap-1.5 pointer-events-none">
         {supportsScalarProjection(filter.colorMode) && (
