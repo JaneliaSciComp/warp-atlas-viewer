@@ -242,8 +242,10 @@ Failure handling: a missing or unparseable `meshes.json` resolves to `null`
 rather than throwing, so the Settings section can render a disabled state with a
 "run `scripts/fetch_meshes.py`" hint. Mock mode (`?mock=1`) has no
 `preprocessed/` at all and takes the same path. A blob that 404s or fails
-length validation surfaces as an inline error on that one mesh's row, leaving
-the other two usable.
+length validation rejects only its own mesh — logged to the console, leaving the
+other two usable. No per-row error UI: the section-level "meshes not generated"
+hint covers the case anyone will actually hit, and a half-generated
+`preprocessed/` is not worth bespoke chrome.
 
 ### Unit 3 — `src/components/brain/BrainMeshes.tsx` (new)
 
