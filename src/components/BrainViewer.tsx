@@ -142,7 +142,11 @@ export function BrainViewer({
   // Imperative handle into CameraSync so the overlay button can snap
   // the camera back to its default position/pan without lifting the
   // r3f controls instance out of the Canvas.
-  const resetRef = useRef<(() => void) | null>(null);
+  const applyViewRef = useRef<
+    ((position: [number, number, number], up: [number, number, number]) => void) | null
+  >(null);
+  // Task 9 makes this mode-dependent; landscape everywhere for now.
+  const defaultCamUp: [number, number, number] = [0, 1, 0];
   const initiallyAtDefault = !mountCameraRef.current;
   const [atDefault, setAtDefault] = useState(initiallyAtDefault);
 
@@ -292,7 +296,8 @@ export function BrainViewer({
           onCameraChange={onCameraChange}
           panRef={screenPanRef}
           defaultCamPosition={defaultCamPosition}
-          resetRef={resetRef}
+          defaultCamUp={defaultCamUp}
+          applyViewRef={applyViewRef}
           onAtDefaultChange={setAtDefault}
           lockTargetToCenter={settings.objectCentricRotation}
           volumeCenter={VOLUME_CENTER}
@@ -380,7 +385,7 @@ export function BrainViewer({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              resetRef.current?.();
+              applyViewRef.current?.(defaultCamPosition, defaultCamUp);
             }}
             className="pointer-events-auto font-mono text-[10px] bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-1.5 py-0.5 rounded hover:bg-neutral-800"
           >

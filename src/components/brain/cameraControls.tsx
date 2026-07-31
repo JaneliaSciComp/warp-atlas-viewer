@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { CameraState } from '../../utils/urlState';
+import { isAtDefaultCamera } from './viewPresets';
 
 export interface ScreenPanState {
   /** CSS-pixel offset applied in projection space. Positive values move
@@ -127,7 +128,8 @@ export function CameraSync({
   onCameraChange,
   panRef,
   defaultCamPosition,
-  resetRef,
+  defaultCamUp,
+  applyViewRef,
   onAtDefaultChange,
   lockTargetToCenter,
   volumeCenter,
@@ -136,7 +138,17 @@ export function CameraSync({
   onCameraChange?: (cam: CameraState) => void;
   panRef: React.MutableRefObject<ScreenPanState>;
   defaultCamPosition: [number, number, number];
-  resetRef: React.MutableRefObject<(() => void) | null>;
+  /** Camera up vector for the default view. Landscape (0,1,0) normally,
+   *  portrait (1,0,0) in embedded mode, where the viewer opens on
+   *  mapZebrain's orientation. */
+  defaultCamUp: [number, number, number];
+  /** Imperative "snap the camera to this view" handle. Called by the
+   *  reset-view button with the defaults, and by the orientation icon bar
+   *  with a preset. Also clears the screen pan and projection view offset,
+   *  since a canonical view should not stay panned. */
+  applyViewRef: React.MutableRefObject<
+    ((position: [number, number, number], up: [number, number, number]) => void) | null
+  >;
   onAtDefaultChange: (atDefault: boolean) => void;
   /** When true, the orbit target is forced back to volumeCenter each
    *  frame so rotation always pivots around the volume. When false, the
@@ -162,12 +174,12 @@ export function CameraSync({
   const atDefaultRef = useRef<boolean | null>(null);
 
   useEffect(() => {
-    resetRef.current = () => {
-      camera.position.set(...defaultCamPosition);
+    applyViewRef.current = (position, up) => {
+      camera.position.set(...position);
       // TrackballControls rotates camera.up during orbit, so position
-      // + target alone leaves the view rolled. Restore the canonical
-      // up vector so the volume returns to its original orientation.
-      camera.up.set(0, 1, 0);
+      // + target alone leaves the view rolled. Set up explicitly so the
+      // volume lands in the intended orientation.
+      camera.up.set(...up);
       controls?.target.set(...volumeCenter);
       controls?.update();
       panRef.current.x = 0;
@@ -178,9 +190,9 @@ export function CameraSync({
       invalidate();
     };
     return () => {
-      resetRef.current = null;
+      applyViewRef.current = null;
     };
-  }, [camera, controls, defaultCamPosition, invalidate, panRef, resetRef, size.height, size.width, volumeCenter]);
+  }, [camera, controls, invalidate, panRef, applyViewRef, size.height, size.width, volumeCenter]);
 
   useEffect(() => {
     if (!controls || restoredRef.current) return;
@@ -209,9 +221,17 @@ export function CameraSync({
       }
       controls.target.set(...target);
       controls.update();
+    } else {
+      // No camera in the URL. Previously this relied on three's default
+      // camera.up already being (0, 1, 0); with a mode-dependent default up
+      // (embedded mode opens portrait) it has to be set explicitly.
+      camera.position.set(...defaultCamPosition);
+      camera.up.set(...defaultCamUp);
+      controls.target.set(...volumeCenter);
+      controls.update();
     }
     restoredRef.current = true;
-  }, [controls, camera, initialCamera, volumeCenter]);
+  }, [controls, camera, initialCamera, volumeCenter, defaultCamPosition, defaultCamUp]);
 
   useFrame(() => {
     if (!controls) return;
@@ -224,20 +244,16 @@ export function CameraSync({
       controls.target.set(...volumeCenter);
       controls.update();
     }
-    const targetAtCenter =
-      Math.abs(controls.target.x - volumeCenter[0]) < POS_EPS &&
-      Math.abs(controls.target.y - volumeCenter[1]) < POS_EPS &&
-      Math.abs(controls.target.z - volumeCenter[2]) < POS_EPS;
-    const isAtDefault =
-      Math.abs(camera.position.x - defaultCamPosition[0]) < POS_EPS &&
-      Math.abs(camera.position.y - defaultCamPosition[1]) < POS_EPS &&
-      Math.abs(camera.position.z - defaultCamPosition[2]) < POS_EPS &&
-      Math.abs(camera.up.x) < 1e-3 &&
-      Math.abs(camera.up.y - 1) < 1e-3 &&
-      Math.abs(camera.up.z) < 1e-3 &&
-      panRef.current.x === 0 &&
-      panRef.current.y === 0 &&
-      targetAtCenter;
+    const isAtDefault = isAtDefaultCamera({
+      position: [camera.position.x, camera.position.y, camera.position.z],
+      up: [camera.up.x, camera.up.y, camera.up.z],
+      target: [controls.target.x, controls.target.y, controls.target.z],
+      defaultPosition: defaultCamPosition,
+      defaultUp: defaultCamUp,
+      volumeCenter,
+      pan: panRef.current,
+      posEps: POS_EPS,
+    });
     if (atDefaultRef.current !== isAtDefault) {
       atDefaultRef.current = isAtDefault;
       onAtDefaultChange(isAtDefault);
