@@ -290,24 +290,48 @@ shape cue). Lights cannot affect the point cloud, so this is safe.
 
 ### Unit 4 — pass integration (edits to existing files)
 
-Two existing passes render the whole scene and will silently misbehave
-otherwise.
+Every pass that renders the whole scene will pick up the shell meshes unless
+told not to. There are three such places, and one of them is a correctness bug
+rather than a cosmetic one.
 
-1. **`usePointCloudPicking.ts`** does `scene.overrideMaterial = idMaterial;
-   gl.render(scene, camera)`. A shell mesh in that scene gets drawn into the ID
-   render target and depth-occludes cells behind it, so hovering through the
-   shell would report the wrong cell or none. Fix: hide
-   `BRAIN_MESH_GROUP_NAME` for the duration of the ID pass, using the same
-   save/restore `prevVisible` pattern already there for the context and marker
-   objects.
-2. **`AmbientOcclusion.tsx`** — no code change needed; the existing
-   `skipAmbientOcclusion` userData opt-out is honoured by its
-   `renderOverride`, and `BrainMeshes` sets it.
+**1. `ProjectionRenderPass.tsx` — required, and the important one.** Its
+`useFrame` renders `scene` up to **four times per frame**, juggling
+`PROJECTION_CONTEXT_NAME` / `PROJECTION_POINTS_NAME` / `FOCUS_MARKER_NAME`
+visibility between them. The shells must be visible for exactly one of them:
 
-`ProjectionRenderPass` needs **no change**: its step-1 context pass renders the
-scene with the projection points and focus marker hidden, so the shells appear
-as context underneath the composited projection, which is where they belong.
-Verify this rather than assume it.
+| step | line | target | shells should be |
+|---|---|---|---|
+| 1. ghost/context underlay | 183 | back buffer | **visible** — this is context, it's the point |
+| 2a. sequential depth-MIP | 196 | back buffer, `autoClear` off | hidden |
+| 2b. accumulation | 209 | **off-screen float RT, additive / MAX blending** | hidden |
+| 4. focus-marker overlay | 226 | back buffer, `autoClear` off | hidden |
+
+Step 2b is the bug. That target accumulates `(positiveSum, negativeSum,
+denominator, denominator)` with additive blending, and the composite shader
+reconstructs the reduced scalar from it. A shell rendered into that buffer adds
+its color into those channels across the entire brain silhouette, biasing every
+mean/sum projection — a wrong scientific image, silently. Steps 2a and 4 are
+cosmetic by comparison: the shell would be composited two or three times over,
+reading at multiples of its set opacity.
+
+Fix: extend the existing save/restore `prevVisible` block to
+`BRAIN_MESH_GROUP_NAME`, visible for step 1 and hidden for 2a / 2b / 4.
+
+**2. `usePointCloudPicking.ts` — required, narrow.** Its ID-buffer readback
+(`scene.overrideMaterial = idMaterial; gl.render(scene, camera)`, line 108) would
+draw the shells into the ID target with the ID material and depth-occlude cells
+behind them, so hovering through the shell would report the wrong cell or none.
+Fix: hide `BRAIN_MESH_GROUP_NAME` for the duration of that render, using the
+`prevVisible` pattern already there for the context and marker points.
+
+Scope note: this is the **only** ID-buffer pass, and it runs only in `max` /
+`min` / `maxabs` projection modes. Normal-mode picking is CPU-geometric (nearest
+cell center in screen space — no `Raycaster`, no render), so the shells cannot
+affect it. The fix is therefore one block, not a general picking change.
+
+**3. `AmbientOcclusion.tsx` — no change needed.** Its `renderOverride` already
+walks the scene and hides anything with `userData[skipAmbientOcclusion] === true`,
+which `BrainMeshes` sets.
 
 ### Unit 5 — `src/components/brain/viewPresets.ts` (new)
 
@@ -496,9 +520,11 @@ mapZebrain region membership (`atlasRegionMask`); mapZebrain's 3D view selects
 not regions and are not selectable — they are inert context geometry. Nothing
 in the Anatomy card, `useEffectiveSelection`, or the focus/lasso paths changes.
 
-**Picking through the shell** keeps working because the shells are hidden during
-the ID pass (Unit 4). A translucent shell in front of a cell tints it but does
-not block the click, which matches mapZebrain's behaviour.
+**Picking through the shell** keeps working. In normal mode picking is
+CPU-geometric and never saw the shells at all; in `max` / `min` / `maxabs`
+projection modes the shells are hidden during the ID pass (Unit 4). A translucent
+shell in front of a cell tints it but does not block the click, matching
+mapZebrain's behaviour.
 
 **Default view is unchanged *without* `?embed=1`.** All three mesh toggles
 default off, so a user who never opens Settings sees byte-identical rendering,
@@ -534,8 +560,11 @@ re-orientation is scoped strictly to embedded mode.
 - Opacity sliders move each mesh independently.
 - Hovering and clicking a cell *through* the shell still focuses the right cell.
 - Ambient occlusion on + outline on: no dark rims on the shell.
-- Each projection mode + outline on: the shell renders as context under the
-  projection, not over it.
+- Each of the eight projection modes with the outline on: the shell renders once,
+  as context under the projection, at the opacity actually set — not doubled or
+  tripled. Compare a mean/sum projection with the outline on vs off: the coloured
+  scalar must be identical, since the shell is excluded from the accumulation
+  target. This is the check for the step-2b corruption.
 - `?embed=1` shows the icon bar; without it, no bar.
 - `?embed=1` opens on the portrait dorsal view (brain vertical, rostral up) with
   neither the rostral nor the caudal tip clipped, at several panel sizes.
