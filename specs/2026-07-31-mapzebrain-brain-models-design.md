@@ -8,8 +8,10 @@
 Bring mapZebrain's three whole-brain reference meshes (outline / fibers / cell
 bodies) into the WARP viewer as translucent anatomical context, and add
 mapZebrain's seven view-orientation icons above the 3D view. Both are
-non-default. This is the first step toward running the WARP viewer inside an
-iframe on the mapZebrain site.
+non-default. Embedded mode additionally opens on mapZebrain's own default
+orientation — dorsal, brain vertical, rostral up — rather than warp's landscape
+default. This is the first step toward running the WARP viewer inside an iframe
+on the mapZebrain site.
 
 Explicitly **not** in this scope:
 
@@ -21,10 +23,11 @@ Explicitly **not** in this scope:
   Embedded mode is purely additive this round.
 - Any `postMessage` bridge between mapZebrain and the embedded viewer.
 
-## Background: the two coordinate spaces
+## Background: the coordinate spaces
 
-This was the main risk, and it is resolved: **the two spaces are the same
-space.**
+This was the main risk. Resolved: **mapZebrain's mesh space and WARP's raw
+coordinate space are the same space**, and there is a third (world) space
+downstream of both — see "A third space" below.
 
 mapZebrain's reference volume is `597 × 974 × 359` voxels (LR × AP × DV;
 `server/atlas_app/region_mask_decoder.py` declares the TIFF shape as
@@ -323,60 +326,104 @@ equivalent of warp's render group transform), so copying them would be both
 wrong and opaque. Derived in **world** space instead — where `+X` is rostral,
 `±Y` are the lateral axes, and `+Z` is dorsal:
 
-| label | position | up |
-|---|---|---|
-| Dorsal | `(0, 0, +D)` | `(0, 1, 0)` |
-| Ventral | `(0, 0, −D)` | `(0, 1, 0)` |
-| Sagittal (vertical-left) | `(0, −D, 0)` | `(1, 0, 0)` |
-| Sagittal (vertical-right) | `(0, +D, 0)` | `(1, 0, 0)` |
-| Sagittal (horizontal-left) | `(0, −D, 0)` | `(0, 0, 1)` |
-| Sagittal (horizontal-right) | `(0, +D, 0)` | `(0, 0, 1)` |
-| Coronal | `(+D, 0, 0)` | `(0, 0, 1)` |
-
-`D = defaultCamPosition[2] = span × 0.95 ≈ 744.9`, where `span` is the largest
-preprocessed axis extent (the AP axis, 784.15). `D` is a distance, so the group
-transform does not affect it.
-
-"Dorsal" is identical to warp's existing default camera, so that icon and the
-existing "reset view" button do the same thing — as in mapZebrain, where the
-dorsal icon calls `resetCameraControls()`.
+| label | position | up | reads as |
+|---|---|---|---|
+| Dorsal | `(0, 0, +D)` | `(1, 0, 0)` | rostral up (portrait) |
+| Ventral | `(0, 0, −D)` | `(1, 0, 0)` | rostral up (portrait) |
+| Sagittal (vertical-left) | `(0, −D, 0)` | `(1, 0, 0)` | rostral up |
+| Sagittal (vertical-right) | `(0, +D, 0)` | `(1, 0, 0)` | rostral up |
+| Sagittal (horizontal-left) | `(0, −D, 0)` | `(0, 0, 1)` | dorsal up |
+| Sagittal (horizontal-right) | `(0, +D, 0)` | `(0, 0, 1)` | dorsal up |
+| Coronal | `(+D, 0, 0)` | `(0, 0, 1)` | dorsal up |
 
 "Vertical" means rostral-up (up along the rostral axis, world `+X`);
 "horizontal" means dorsal-up (up along world `+Z`), matching mapZebrain's icon
 naming. Coronal views from the rostral side, matching mapZebrain's coronal
-preset.
+preset. No preset has `up` parallel to its view direction, so none is degenerate.
 
-No preset has `up` parallel to its view direction, so none is degenerate.
+`D = PRESET_CAM_DISTANCE ≈ 993.9` — see the next section for why it is not
+warp's existing 744.9.
 
-### Open detail: dorsal-view roll
+### Embedded mode has its own default camera
 
-mapZebrain's dorsal view is **portrait** — rostral up. Warp's default dorsal
-view is **landscape** — rostral right — because the render group rotates the
-volume 90° to fit the wide 3D panel. The icon glyphs are drawn portrait.
+Embedded mode must open on **mapZebrain's** default view: dorsal, brain
+vertical, rostral up. That is the Dorsal preset above, and it differs from
+warp's normal default (`up = (0, 1, 0)`, rostral screen-right) by a 90° roll.
 
-This spec keeps "Dorsal" identical to warp's existing default, because the
-default view must not change and the dorsal icon doubles as reset. The
-divergence from the icon artwork is accepted for now. If it reads wrong once the
-bar is on screen, the fix is a per-preset roll: `up = (−1, 0, 0)` for Dorsal and
-`(1, 0, 0)` for Ventral puts rostral up, at the cost of the dorsal icon no
-longer matching the default view. Confirm visually before settling.
+**A fixed distance does not work for both.** Warp's existing
+`defaultCamPosition = [0, 0, span × 0.95] = [0, 0, 744.9]` was tuned for the
+landscape framing, where the 784-unit AP extent runs *horizontally* across a
+wide panel. Rolled to portrait, that same extent runs *vertically*, and three's
+`fov` is the **vertical** field of view — so at 744.9 the rostral and caudal tips
+are clipped off-screen. Fitting the AP extent vertically at `fov = 45°` needs
+`(784.15 / 2) / tan(22.5°) = 946.6`, so:
 
-### Unit 6 — `cameraControls.tsx` change: `resetRef` → `applyViewRef`
+```
+PRESET_CAM_DISTANCE = (maxPreprocessedSpan / 2) / tan(fov / 2) * 1.05   ≈ 993.9
+```
 
-`CameraSync` currently exposes `resetRef.current()`, which snaps to
-`defaultCamPosition` with `up = (0, 1, 0)`, clears the screen pan, and clears
-the projection view offset. Generalise it to
-`applyViewRef.current(position, up)` doing exactly the same work with the
-position and up passed in. The existing "reset view" button becomes its first
-caller with `(defaultCamPosition, [0, 1, 0])`; the icon bar is the second.
+The lateral extent (458.4) then fits horizontally for any panel aspect ratio
+above 458.4 / 784.15 = 0.585, which every realistic layout clears. The 1.05
+margin is a visual-tuning knob.
 
-One function, two callers — no new abstraction, and the duplication that a
-separate "apply preset" path would have introduced never exists.
+Warp's normal-mode default keeps the literal `span * 0.95` **unchanged** — the
+requirement is that the non-embedded view is byte-identical, so the two modes
+deliberately use two different distance formulas rather than unifying on one.
+
+| | position | up |
+|---|---|---|
+| normal default | `[0, 0, span × 0.95]` ≈ `[0, 0, 744.9]` | `(0, 1, 0)` |
+| embedded default | `[0, 0, PRESET_CAM_DISTANCE]` ≈ `[0, 0, 993.9]` | `(1, 0, 0)` |
+
+So in embedded mode the Dorsal icon, the "reset view" button, and the view the
+viewer opens on are all the same thing — matching mapZebrain, where the dorsal
+icon calls `resetCameraControls()`.
+
+**Toggling `embeddedMode` at runtime does not move the camera.** It changes what
+"reset" means and shows/hides the icon bar; the camera only jumps on an explicit
+reset or preset click. Yanking a camera mid-session would be worse than the
+minor inconsistency. The `?embed=1` path is unaffected because the mode is known
+before first mount.
+
+**A latent bug this exposes:** `CameraSync` currently only sets `camera.up` when
+restoring from `initialCamera`. With no URL camera it relies on three's default
+`up = (0, 1, 0)` happening to be right. Once the default up is mode-dependent
+that no longer holds, so the restore effect must apply the default view
+(position *and* up) when `initialCamera` is absent. This also has to be threaded
+through the `isAtDefault` check, which hardcodes a comparison against
+`(0, 1, 0)`.
+
+### Unit 6 — `cameraControls.tsx`: `resetRef` → `applyViewRef`, and a mode-dependent default up
+
+Three related changes to `CameraSync`:
+
+1. **Generalise `resetRef`.** It currently exposes `resetRef.current()`, which
+   snaps to `defaultCamPosition` with a hardcoded `up = (0, 1, 0)`, clears the
+   screen pan, and clears the projection view offset. Becomes
+   `applyViewRef.current(position, up)`, doing the same work with both passed in.
+   The "reset view" button is its first caller, with
+   `(defaultCamPosition, defaultCamUp)`; the icon bar is the second. One
+   function, two callers — the duplication a separate "apply preset" path would
+   have introduced never exists.
+2. **Accept `defaultCamUp`** as a new prop alongside `defaultCamPosition`, and
+   use it in place of the hardcoded `(0, 1, 0)` in both the reset path and the
+   `isAtDefault` comparison (which currently asserts `up.x ≈ 0, up.y ≈ 1,
+   up.z ≈ 0`). Compare against `defaultCamUp` component-wise with the same
+   `1e-3` tolerance.
+3. **Apply the default view on mount when there is no URL camera.** The restore
+   effect currently only touches `camera.up` inside the `if (initialCamera)`
+   branch. Add an else branch that sets position and up from the defaults, so
+   embedded mode opens portrait rather than inheriting three's `(0, 1, 0)`.
+
+Note that the existing line `camera.up.set(0, 1, 0).applyQuaternion(...)` in the
+quaternion-restore path stays as-is — `(0, 1, 0)` there is the camera's *local*
+up axis being rotated into world space, which is correct in every mode and is a
+different thing from the default world up.
 
 Downstream behaviour comes for free: `onAtDefaultChange` starts reporting false
-after a non-dorsal preset, so the "reset view" button appears; and `CameraSync`'s
-per-frame emit pushes the new camera into the URL hash through the existing
-debounce.
+after a non-default preset, so the "reset view" button appears; and
+`CameraSync`'s per-frame emit pushes the new camera into the URL hash through the
+existing debounce.
 
 ### Unit 7 — settings + activation
 
@@ -453,9 +500,11 @@ in the Anatomy card, `useEffectiveSelection`, or the focus/lasso paths changes.
 the ID pass (Unit 4). A translucent shell in front of a cell tints it but does
 not block the click, which matches mapZebrain's behaviour.
 
-**Default view is unchanged.** All three mesh toggles default off, so a user who
-never opens Settings sees byte-identical rendering. `embeddedMode` defaults off,
-so the icon bar does not exist. No layout, panel, or chrome change.
+**Default view is unchanged *without* `?embed=1`.** All three mesh toggles
+default off, so a user who never opens Settings sees byte-identical rendering,
+including the camera. `embeddedMode` defaults off, so neither the icon bar nor
+the portrait camera exists. No layout, panel, or chrome change. The camera
+re-orientation is scoped strictly to embedded mode.
 
 ## Testing
 
@@ -468,8 +517,11 @@ so the icon bar does not exist. No layout, panel, or chrome change.
    for each preset, assert `|position| == D`, assert `up` is a unit vector not
    parallel to the view direction, and assert the resulting camera basis is
    right-handed and orthonormal. Plus one anatomical assertion per axis: the
-   dorsal preset looks along `−Z` with screen-up `+Y` (dorsal view, rostral up);
-   the coronal preset looks along `−Y` with screen-up `+Z` (coronal, dorsal up).
+   dorsal preset looks along `−Z` with screen-up `+X` (dorsal view, rostral up);
+   the coronal preset looks along `−X` with screen-up `+Z` (coronal, dorsal up).
+   Plus one assertion that `PRESET_CAM_DISTANCE` fits the largest preprocessed
+   extent vertically at `fov = 45°` — the check that would have caught the
+   portrait clipping bug.
 3. **`npm run check`** (`tsc --noEmit && eslint . && vitest run && vite build`)
    must pass.
 4. **Manual, in the browser** — see the verification list below.
@@ -485,7 +537,14 @@ so the icon bar does not exist. No layout, panel, or chrome change.
 - Each projection mode + outline on: the shell renders as context under the
   projection, not over it.
 - `?embed=1` shows the icon bar; without it, no bar.
+- `?embed=1` opens on the portrait dorsal view (brain vertical, rostral up) with
+  neither the rostral nor the caudal tip clipped, at several panel sizes.
+- Without `?embed=1`, the opening camera is identical to before the change.
 - Each of the seven icons produces the anatomically correct view.
+- In embedded mode, the Dorsal icon and the "reset view" button agree, and after
+  clicking Dorsal the "reset view" button disappears (`isAtDefault` is comparing
+  against the right up vector).
+- Toggling the embedded-mode checkbox at runtime does not jump the camera.
 - Screenshot mode hides the icon bar.
 - Reload with a shared URL: mesh toggles and opacities restore; `embeddedMode`
   does not.
