@@ -239,6 +239,40 @@ Two anchors for the [Activity color scheme](/filters/colors#activity):
 
 Tune these to match the practical dynamic range of the dataset's calcium traces.
 
+## Brain models {#brain-models}
+
+Draws mapZebrain's whole-brain reference meshes as translucent anatomical
+context around the cells: **Brain outline** (the whole-brain surface),
+**Brain fibers** (neuropil) and **Brain cell bodies** (soma-rich
+compartments). Each has its own checkbox and opacity slider, and all three are
+off by default, so the standard view is unchanged.
+
+The meshes ship separately from the cell data and are fetched only when you
+turn one on. They require `python3 scripts/fetch_meshes.py` to have been run —
+until then the rows are disabled and say so. See
+[Preprocessing → Brain meshes](/preprocess#brain-meshes).
+
+The mesh toggles and their opacities travel in the URL hash, so a shared link
+reproduces them.
+
+### Embedded mode {#embedded-mode}
+
+Adds a row of seven view-orientation icons above the 3D view — dorsal,
+ventral, the two sagittal pairs, and coronal — and opens the viewer on
+mapZebrain's own default orientation (dorsal, brain vertical, rostral up)
+rather than warp's landscape framing. It exists for running the viewer inside
+an iframe on [mapzebrain.org](https://mapzebrain.org), and changes nothing
+else: no panel, layout, or chrome is hidden.
+
+Normally you set it with `?embed=1` on the URL, which is what an embedding
+page's `src` attribute uses. The checkbox here is for trying it by hand.
+Unlike the mesh toggles, embedded mode is **not** written to the URL hash —
+like [screenshot mode](#screenshot-mode) it is a presentation mode, not
+shareable view state, so a link you share won't drop the recipient into it.
+
+Toggling the checkbox mid-session shows or hides the icon bar and changes what
+"reset view" means, but deliberately does not jump the camera.
+
 ## Screenshot mode {#screenshot-mode}
 
 A presentation toggle for capturing a clean image of the viewer. When **screenshot mode** is on, the on-canvas chrome that is only useful for interaction is hidden: the panel show/hide tabs that stick out into the 3D view (the `⌄`/`⌃` bottom-panel tab and the `›`/`‹` detail-panel tab), the **reset view** buttons on the 3D viewer and t-SNE panel, the `▾` caret on the **projection** control, and the **Export** and **Links** items in the top bar. The Janelia logo and all data — points, colors, legend, charts — are untouched; this only removes UI affordances, never anything you would want in the figure.

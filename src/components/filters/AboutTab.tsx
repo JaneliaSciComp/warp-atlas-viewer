@@ -250,6 +250,27 @@ export function AboutTab({
 
             <section className="flex flex-col gap-1">
                 <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+                    Brain models
+                </div>
+                <p className="text-neutral-400 leading-snug">
+                    The whole-brain reference meshes (outline, fibers, cell
+                    bodies) and the view-orientation icons come from{" "}
+                    <a
+                        href="https://mapzebrain.org"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-yellow-300 hover:underline"
+                    >
+                        mapZebrain
+                    </a>{" "}
+                    (<em>Kunst et al., 2019</em>), the shared reference brain
+                    this dataset is registered into. Enable them under Settings
+                    → Brain models.
+                </p>
+            </section>
+
+            <section className="flex flex-col gap-1">
+                <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
                     Code
                 </div>
                 <p className="text-neutral-400 leading-snug">

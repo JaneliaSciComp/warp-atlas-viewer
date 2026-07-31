@@ -5,7 +5,7 @@ description: Controls and content of the anatomical view.
 
 # 3D viewer
 
-The largest panel on screen. Every visible cell is rendered as a point in [mapZebrain](https://mapzebrain.org) coordinates, with the view oriented so that anterior is at the top of the screen.
+The largest panel on screen. Every visible cell is rendered as a point in [mapZebrain](https://mapzebrain.org) coordinates, with the view oriented so that the brain's long rostro-caudal axis lies across the wide panel — rostral at screen-right, dorsal toward the viewer. ([Embedded mode](#embedded-mode) instead opens portrait, rostral up, matching mapZebrain's own default.)
 
 ## Controls
 
@@ -27,9 +27,35 @@ Refresh/share preserves the full camera state (position, orientation, orbit targ
 
 ## Contents
 
-- **Anatomy:** the mapZebrain reference frame. The camera starts oriented toward the dorsal surface.
+- **Anatomy:** the mapZebrain reference frame. The camera starts oriented toward the dorsal surface, with rostral at screen-right.
+- **Brain models:** optional translucent mapZebrain reference meshes (outline, fibers, cell bodies) drawn as anatomical context around the cells. Off by default; see [Settings → Brain models](/settings#brain-models).
 - **Cell count:** approximately 274,455 cells total. The number actually visible depends on the current filter combination; the [visible-cell readout](/filters/overview#visible-cell-readout) in the Filters tab reports it.
 - **Specimen mix:** every cell originates from one of 3 specimens, pooled by default. Use **Anatomy → specimen** to restrict to one specimen, or **Colors → Specimen** to paint by source specimen. See [Specimens](/filters/anatomy#specimens).
+
+## Embedded mode {#embedded-mode}
+
+Enabled with `?embed=1` on the URL (or the checkbox in [Settings → Brain
+models](/settings#brain-models)). It exists for running the viewer inside an
+iframe on [mapzebrain.org](https://mapzebrain.org), and adds two things:
+
+- **A view-orientation icon bar** above the 3D view, using mapZebrain's own
+  icons: dorsal, ventral, sagittal vertical left/right, sagittal horizontal
+  left/right, and coronal. Clicking one snaps the camera to that view and
+  clears any pan. "Vertical" means rostral-up; "horizontal" means dorsal-up.
+- **mapZebrain's default orientation** on open: dorsal, brain vertical,
+  rostral up — rather than warp's landscape framing. The dorsal icon and the
+  **reset view** button both return to it.
+
+Nothing else changes: no panel, layout, or chrome is hidden. The bar is
+suppressed in [screenshot mode](/settings#screenshot-mode).
+
+::: tip Axis convention
+In the rendered scene, +x is rostral, ±y are the lateral axes, and +z is
+dorsal. That is a 90° rotation of the preprocessed coordinates the CSV
+[export](/export) carries, and it is mirrored — so which lateral side is the
+animal's left is not something you can read off the axes. The sagittal
+presets are matched to mapZebrain's icon artwork instead.
+:::
 
 ## Color encoding
 
@@ -38,7 +64,7 @@ The active **Colors** scheme determines per-cell color. See [Colors](/filters/co
 ## Rendering notes
 
 - The point cloud is drawn in a single GPU pass, so render cost is largely independent of the filter combination.
-- Projection modes add off-screen reduction/compositing passes so deep scalar signal can be seen through the point cloud. They are available for Gene, Activity, Stim, and Swim color schemes.
+- Projection modes add off-screen reduction/compositing passes so deep scalar signal can be seen through the point cloud. They are available for Gene, Activity, Stim, and Swim color schemes. Brain models are drawn as context underneath a projection but are excluded from its reduction, so turning a mesh on never changes the projected values.
 - Filtered-out cells are drawn dim and transparent rather than skipped, preserving the silhouette of the full brain as context. The amount of dim is controlled by the ghost visibility in [Settings → 3D point density](/settings#3d-point-density).
 - Point size and ghost visibility self-tune to the live canvas height in auto mode — shorter views use smaller points with moderate ghost visibility, while taller views grow points and peak ghost visibility near typical full-height layouts. Optionally, **scale by filter** can also enlarge active cells (up to 2× their auto size) when the filter narrows to a small group. Both knobs live in [Settings → 3D point density](/settings#3d-point-density); turning auto off exposes the manual sliders.
 
