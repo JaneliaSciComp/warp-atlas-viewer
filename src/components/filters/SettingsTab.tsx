@@ -30,10 +30,18 @@ export function SettingsTab({
 }) {
     const update = (patch: Partial<SettingsState>) =>
         setSettings({ ...settings, ...patch });
-    const reset = () => setSettings(DEFAULT_SETTINGS);
+    // embeddedMode is exempt from reset. It is a deployment mode set by
+    // ?embed=1, not a user preference: inside a mapzebrain.org iframe,
+    // "reset settings" tearing out the orientation bar leaves no way to get it
+    // back short of reloading. Leaving it in also made the button read as
+    // dirty on a pristine ?embed=1 load, inviting exactly that click.
+    const reset = () =>
+        setSettings({ ...DEFAULT_SETTINGS, embeddedMode: settings.embeddedMode });
     const dirty = (
         Object.keys(DEFAULT_SETTINGS) as Array<keyof typeof DEFAULT_SETTINGS>
-    ).some((k) => settings[k] !== DEFAULT_SETTINGS[k]);
+    ).some(
+        (k) => k !== "embeddedMode" && settings[k] !== DEFAULT_SETTINGS[k],
+    );
     const [showDescriptions, setShowDescriptions] = useState<boolean>(() => {
         if (typeof window === "undefined") return true;
         const v = window.localStorage.getItem(SHOW_DESC_KEY);
