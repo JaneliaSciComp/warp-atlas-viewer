@@ -15,7 +15,7 @@ import {
 import { useSelection } from './hooks/useSelection';
 import { useUrlSync } from './hooks/useUrlSync';
 import { useUniqueFishIds } from './hooks/useUniqueFishIds';
-import { FilterControls } from './components/FilterControls';
+import { FilterControls, type Tab } from './components/FilterControls';
 import { LinksMenu } from './components/LinksMenu';
 import { ExportButton } from './components/ExportButton';
 import { ColorLegend } from './components/ColorLegend';
@@ -112,6 +112,9 @@ export default function App() {
   const [activitySpeed, setActivitySpeed] = useState(
     INITIAL_URL_STATE?.activitySpeed ?? 10,
   );
+  // Sidebar/bottom-panel active tab. Lifted out of FilterControls so the
+  // 3D view's gear icon (embedded mode) can select the Settings tab.
+  const [panelTab, setPanelTab] = useState<Tab>('filters');
   // Single-neuron focus is independent of the group selection so a
   // t-SNE drag can persist while the user clicks through individual
   // neurons. Click on a neuron → focus it (DetailPanel shows just that
@@ -509,6 +512,8 @@ export default function App() {
                   setActivitySpeed={setActivitySpeed}
                   selection={selection}
                   onClearSelection={handleClearSelection}
+                  tab={panelTab}
+                  onTabChange={setPanelTab}
                 />
               </div>
               {/* t-SNE column, with a draggable strip on its left edge.
