@@ -311,7 +311,11 @@ export function BrainViewer({
       >
         <color
           attach="background"
-          args={[settings.embeddedMode ? EMBEDDED_BACKGROUND : VIEWER_BACKGROUND]}
+          // Mount-time value, not the live setting: everything else in
+          // embedded mode is fixed at page load (layout, palette, camera
+          // default, preserveDrawingBuffer above), and docs/settings.md
+          // promises a mid-session toggle does not repaint the palette.
+          args={[embeddedAtMountRef.current ? EMBEDDED_BACKGROUND : VIEWER_BACKGROUND]}
         />
         {settings.debugMode && <FpsMeter onSample={setFps} />}
         <PointCloud

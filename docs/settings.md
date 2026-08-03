@@ -283,9 +283,11 @@ site's own atlas page rather than a bolted-on panel:
   **gear** icon after the seven orientation icons. The gear opens the
   sidebar — if it's collapsed — and switches it to the Settings tab.
 - The accent color and panel background switch to mapZebrain's own
-  palette (its `#ff1493` tab-underline pink, `#111` panels), so the
-  sidebar and tabs read as continuous with the host page. The standalone
-  viewer's yellow accent and panel color are unaffected.
+  palette (its `#ff1493` tab-underline pink, `#111` panels), and the 3D
+  canvas clears to pure black (`#000000`) instead of the standalone
+  `#0a0a0a`, so the sidebar, tabs, and viewer read as continuous with the
+  host page. The standalone viewer's yellow accent, panel color, and
+  canvas background are unaffected.
 
 Normally you set it with `?embed=1` on the URL, which is what an embedding
 page's `src` attribute uses. The checkbox here is for trying it by hand.

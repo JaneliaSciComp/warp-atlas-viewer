@@ -42,6 +42,19 @@ export function nextSidebarWidth(startWidth: number, dx: number): number {
   return Math.max(SIDEBAR_WIDTH_MIN, Math.min(SIDEBAR_WIDTH_MAX, startWidth + dx));
 }
 
+// Share of the post-rail width a single embedded panel track may take. Two
+// panels at 0.4 leave 0.2 of it for the viewer, at ANY container width — the
+// `- 28px` below is 0.4 of the 70px the two rails consume, so the percentage
+// is really 40% of (container − rails). Without this cap the fixed tracks
+// could out-total the container: the `minmax(0, 1fr)` viewer would resolve to
+// 0px and the right rail — the detail panel's only toggle in embedded mode —
+// would be pushed outside the root `overflow-hidden` and become unclickable.
+// Reached at 500x700 with the *default* 360/360, not just hostile values.
+const PANEL_TRACK_SHARE = 0.4;
+function panelTrack(width: number): string {
+  return `min(${width}px, calc(${PANEL_TRACK_SHARE * 100}% - ${PANEL_TRACK_SHARE * 2 * RAIL_WIDTH}px))`;
+}
+
 /**
  * Inline `grid-template-columns` for the outer app grid.
  *
@@ -49,7 +62,10 @@ export function nextSidebarWidth(startWidth: number, dx: number): number {
  * tracks — rail, sidebar, viewer, detail, rail — with a collapsed panel
  * dropping its track entirely (the element is not rendered either, so grid
  * auto-placement still lines up). The rails are always present so there is
- * always something to click.
+ * always something to click, except in screenshot mode where they are not
+ * rendered at all and so must not get tracks either (a track with no child
+ * would shift every later child one column left; a dummy child to fill it
+ * would paint a 35px gutter into the one mode meant for clean capture).
  */
 export function outerGridTemplate({
   embedded,
@@ -57,21 +73,24 @@ export function outerGridTemplate({
   sidebarWidth,
   detailOpen,
   detailWidth,
+  screenshotMode = false,
 }: {
   embedded: boolean;
   sidebarOpen: boolean;
   sidebarWidth: number;
   detailOpen: boolean;
   detailWidth: number;
+  screenshotMode?: boolean;
 }): string {
   if (!embedded) {
     return detailOpen ? `minmax(0, 1fr) ${detailWidth}px` : 'minmax(0, 1fr)';
   }
-  const tracks = [`${RAIL_WIDTH}px`];
-  if (sidebarOpen) tracks.push(`${sidebarWidth}px`);
+  const rails = !screenshotMode;
+  const tracks = rails ? [`${RAIL_WIDTH}px`] : [];
+  if (sidebarOpen) tracks.push(panelTrack(sidebarWidth));
   tracks.push('minmax(0, 1fr)');
-  if (detailOpen) tracks.push(`${detailWidth}px`);
-  tracks.push(`${RAIL_WIDTH}px`);
+  if (detailOpen) tracks.push(panelTrack(detailWidth));
+  if (rails) tracks.push(`${RAIL_WIDTH}px`);
   return tracks.join(' ');
 }
 
@@ -138,6 +157,9 @@ export interface PanelLayout {
 export function usePanelLayout(
   initial: PanelLayoutInitial = {},
   embedded = false,
+  // Live, unlike `embedded`: screenshot mode drops the rails (and their
+  // tracks) mid-session, and the grid has to follow on the same render.
+  screenshotMode = false,
 ): PanelLayout {
   const [detailOpen, setDetailOpen] = useState(initial.detailOpen ?? true);
   const [bottomOpen, setBottomOpen] = useState(initial.bottomOpen ?? true);
@@ -200,9 +222,10 @@ export function usePanelLayout(
         sidebarWidth,
         detailOpen,
         detailWidth,
+        screenshotMode,
       }),
     }),
-    [embedded, sidebarOpen, sidebarWidth, detailOpen, detailWidth],
+    [embedded, sidebarOpen, sidebarWidth, detailOpen, detailWidth, screenshotMode],
   );
   const liveBottomHeightMax = mainAreaHeight > 0
     ? Math.max(BOTTOM_HEIGHT_MIN, Math.min(BOTTOM_HEIGHT_MAX, mainAreaHeight))

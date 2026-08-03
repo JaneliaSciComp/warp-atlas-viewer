@@ -135,6 +135,44 @@ function CollapseRail({
   );
 }
 
+/** A panel's drag-to-resize strip. Four of these differ only in position,
+ *  axis, and which handler trio they drive — including the `onPointerCancel`
+ *  wiring, which is easy to forget when copying the block. `className` and
+ *  `orientation` stay per-call-site: the bottom strip is horizontal and the
+ *  positioning classes are what pin each strip to its own panel edge. */
+function ResizeStrip({
+  label,
+  className,
+  orientation = 'vertical',
+  onDown,
+  onMove,
+  onUp,
+  onDoubleClick,
+}: {
+  label: string;
+  className: string;
+  orientation?: 'vertical' | 'horizontal';
+  onDown: (e: React.PointerEvent<HTMLDivElement>) => void;
+  onMove: (e: React.PointerEvent<HTMLDivElement>) => void;
+  onUp: (e: React.PointerEvent<HTMLDivElement>) => void;
+  onDoubleClick: () => void;
+}) {
+  return (
+    <div
+      role="separator"
+      aria-orientation={orientation}
+      aria-label={label}
+      onPointerDown={onDown}
+      onPointerMove={onMove}
+      onPointerUp={onUp}
+      onPointerCancel={onUp}
+      onDoubleClick={onDoubleClick}
+      title="Drag to resize · double-click to reset"
+      className={className}
+    />
+  );
+}
+
 export default function App() {
   const { data, error, progress } = useNeuronData();
   const uniqueFishIds = useUniqueFishIds(data);
@@ -241,6 +279,8 @@ export default function App() {
       sidebarWidth: INITIAL_URL_STATE?.sidebarWidth,
     },
     EMBEDDED,
+    // Screenshot mode drops the rails, so the grid must drop their tracks.
+    settings.screenshotMode,
   );
 
   // Lasso polygon (in t-SNE data coords) for the current selection.
@@ -453,7 +493,12 @@ export default function App() {
             setSettings((s) => ({ ...s, projectionMode: mode }))
           }
           onOpenSettings={() => {
+            // Both, because the gear is reachable from either layout: the
+            // sidebar hosts the tabs in embedded mode, the bottom panel does
+            // in standalone (embeddedMode toggled on live). Opening only one
+            // leaves the gear dead in the other.
             setSidebarOpen(true);
+            setBottomOpen(true);
             setPanelTab('settings');
           }}
         />
@@ -558,16 +603,12 @@ export default function App() {
 
   const detailAside = detailOpen && (
     <aside className="relative min-h-0 min-w-0 border-l border-neutral-800 bg-neutral-900">
-      <div
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize detail panel"
-        onPointerDown={onDetailResizeDown}
-        onPointerMove={onDetailResizeMove}
-        onPointerUp={onDetailResizeUp}
-        onPointerCancel={onDetailResizeUp}
+      <ResizeStrip
+        label="Resize detail panel"
+        onDown={onDetailResizeDown}
+        onMove={onDetailResizeMove}
+        onUp={onDetailResizeUp}
         onDoubleClick={onDetailResizeDoubleClick}
-        title="Drag to resize · double-click to reset"
         className="absolute top-0 bottom-0 left-0 w-1.5 z-20 cursor-col-resize bg-transparent hover:bg-yellow-300/30 transition-colors"
       />
       <Suspense fallback={<LoadingPane label="Loading details…" />}>
@@ -612,14 +653,14 @@ export default function App() {
       )}
       {EMBEDDED ? (
         <div ref={mainAreaRef} className="flex-1 grid min-h-0" style={outerLayout}>
-          {/* The rails are grid items occupying the first and last tracks,
-              which outerGridTemplate always emits. So screenshot mode
-              substitutes an empty div rather than rendering nothing —
-              otherwise the tracks would be empty and the whole layout would
-              shift 35px left. */}
-          {settings.screenshotMode ? (
-            <div />
-          ) : (
+          {/* The rails are grid items occupying the first and last tracks.
+              Children are auto-placed, so child count must match track
+              count — screenshot mode therefore drops the rail TRACKS too
+              (outerGridTemplate takes screenshotMode) rather than filling
+              them with placeholder divs, which had no background and
+              painted two 35px neutral-900 gutters into the one mode meant
+              for a clean capture. */}
+          {!settings.screenshotMode && (
             <CollapseRail
               side="left"
               open={sidebarOpen}
@@ -635,16 +676,12 @@ export default function App() {
             >
               {sidebarHeader}
               <div className="flex-1 min-h-0">{filterPanel}</div>
-              <div
-                role="separator"
-                aria-orientation="vertical"
-                aria-label="Resize filters sidebar"
-                onPointerDown={onSidebarResizeDown}
-                onPointerMove={onSidebarResizeMove}
-                onPointerUp={onSidebarResizeUp}
-                onPointerCancel={onSidebarResizeUp}
+              <ResizeStrip
+                label="Resize filters sidebar"
+                onDown={onSidebarResizeDown}
+                onMove={onSidebarResizeMove}
+                onUp={onSidebarResizeUp}
                 onDoubleClick={onSidebarResizeDoubleClick}
-                title="Drag to resize · double-click to reset"
                 className="absolute top-0 bottom-0 right-0 w-1.5 z-20 cursor-col-resize bg-transparent hover:bg-yellow-300/30 transition-colors"
               />
             </div>
@@ -656,9 +693,7 @@ export default function App() {
             )}
           </div>
           {detailAside}
-          {settings.screenshotMode ? (
-            <div />
-          ) : (
+          {!settings.screenshotMode && (
             <CollapseRail
               side="right"
               open={detailOpen}
@@ -679,16 +714,13 @@ export default function App() {
             <div className="relative min-h-0 min-w-0 row-start-1 col-start-1">
               <div className="absolute inset-0">{viewer}</div>
               {bottomOpen && (
-                <div
-                  role="separator"
-                  aria-orientation="horizontal"
-                  aria-label="Resize bottom panel"
-                  onPointerDown={onResizeDown}
-                  onPointerMove={onResizeMove}
-                  onPointerUp={onResizeUp}
-                  onPointerCancel={onResizeUp}
+                <ResizeStrip
+                  label="Resize bottom panel"
+                  orientation="horizontal"
+                  onDown={onResizeDown}
+                  onMove={onResizeMove}
+                  onUp={onResizeUp}
                   onDoubleClick={onResizeDoubleClick}
-                  title="Drag to resize · double-click to reset"
                   className="absolute bottom-0 left-0 right-0 h-1.5 z-20 cursor-row-resize bg-transparent hover:bg-yellow-300/30 transition-colors"
                 />
               )}
@@ -727,16 +759,12 @@ export default function App() {
                     Matches the other resizers: transparent until hover,
                     then a faint yellow highlight. */}
                 <div className="relative min-h-0 min-w-0">
-                  <div
-                    role="separator"
-                    aria-orientation="vertical"
-                    aria-label="Resize t-SNE panel"
-                    onPointerDown={onUmapResizeDown}
-                    onPointerMove={onUmapResizeMove}
-                    onPointerUp={onUmapResizeUp}
-                    onPointerCancel={onUmapResizeUp}
+                  <ResizeStrip
+                    label="Resize t-SNE panel"
+                    onDown={onUmapResizeDown}
+                    onMove={onUmapResizeMove}
+                    onUp={onUmapResizeUp}
                     onDoubleClick={onUmapResizeDoubleClick}
-                    title="Drag to resize · double-click to reset"
                     className="absolute top-0 bottom-0 left-0 w-1.5 z-20 cursor-col-resize bg-transparent hover:bg-yellow-300/30 transition-colors"
                   />
                   {tsnePanel}

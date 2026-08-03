@@ -11,6 +11,12 @@
   --panel-rgb: 38 38 38; /* neutral-800 #262626 */
 }
 
+/* Applied to App's root element. Anything portaled to document.body is
+   OUTSIDE this scope and silently gets the :root palette instead —
+   ExportButton's dialog (ExportButton.tsx) and SearchSelect's dropdown
+   (SearchSelect.tsx) are the two existing portals. Neither uses `accent` or
+   `panel` today, so there is no bug; if one ever does, move these two
+   variables to :root and swap them with a body-level class. */
 .embedded {
   --accent-rgb: 255 20 147; /* mapZebrain .mat-ink-bar #ff1493 */
   --panel-rgb: 17 17 17; /* mapZebrain .side-menu #111 */

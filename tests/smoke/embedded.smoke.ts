@@ -41,6 +41,55 @@ test('the sidebar rail collapses and restores the sidebar', async ({ page }) => 
 
   await page.getByTestId('rail-sidebar').click();
   await expect(page.getByTestId('embedded-sidebar')).toBeVisible();
+
+  // The other three collapse combinations, for the same reason: grid children
+  // are auto-placed with no explicit col-start, so the child count has to
+  // match the track count outerGridTemplate emits. Get that wrong and every
+  // child lands one column left — the visible symptom is a rail leaving its
+  // viewport edge, which is what these measure.
+  const width = page.viewportSize()!.width;
+  const railsAtEdges = async (why: string) => {
+    const left = (await page.getByTestId('rail-sidebar').boundingBox())!;
+    const right = (await page.getByTestId('rail-detail').boundingBox())!;
+    expect(Math.round(left.width), `left rail width, ${why}`).toBe(35);
+    expect(Math.round(right.width), `right rail width, ${why}`).toBe(35);
+    expect(Math.round(left.x), `left rail at the left edge, ${why}`).toBe(0);
+    expect(Math.round(right.x + right.width), `right rail at the right edge, ${why}`).toBe(width);
+  };
+  await railsAtEdges('both panels open');
+  await page.getByTestId('rail-detail').click();
+  await expect(page.locator('aside')).toHaveCount(0);
+  await railsAtEdges('detail collapsed');
+  await page.getByTestId('rail-sidebar').click();
+  await expect(page.getByTestId('embedded-sidebar')).toHaveCount(0);
+  await railsAtEdges('both collapsed');
+});
+
+test('screenshot mode drops the rails and their tracks, leaving no gutters', async ({
+  page,
+}) => {
+  await page.goto('/?mock=1&embed=1');
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByLabel('screenshot mode').check();
+
+  // No rails, and — the point of this case — no placeholder children holding
+  // empty 35px tracks either: those had no background and painted two
+  // neutral-900 gutters into the mode meant for a clean capture.
+  await expect(page.getByTestId('rail-sidebar')).toHaveCount(0);
+  await expect(page.getByTestId('rail-detail')).toHaveCount(0);
+  const tracks = await page
+    .locator('div.flex-1.grid')
+    .evaluate((el) => getComputedStyle(el).gridTemplateColumns);
+  expect(tracks.split(' ')).toHaveLength(3);
+
+  // Three tracks, three children, flush to both edges.
+  const width = page.viewportSize()!.width;
+  const sidebar = (await page.getByTestId('embedded-sidebar').boundingBox())!;
+  const detail = (await page.locator('aside').boundingBox())!;
+  expect(Math.round(sidebar.x)).toBe(0);
+  expect(Math.round(detail.x + detail.width)).toBe(width);
 });
 
 test('standalone mode keeps the bottom panel and no rails', async ({ page }) => {
@@ -151,6 +200,37 @@ test('standalone keeps the t-SNE panel docked, with no t-SNE tab', async ({ page
   // Both canvases visible at once, and no tab button for t-SNE.
   await expect(page.locator('canvas')).toHaveCount(2);
   await expect(page.getByRole('button', { name: 't-SNE' })).toHaveCount(0);
+
+  // The t-SNE viewport also survives a bottom-panel collapse here. Standalone
+  // unmounts UmapPanel on collapse just as the embedded tab switch does, and
+  // the initialViewport reseed (App.tsx) is shared by both layout branches —
+  // so this is standalone behaviour that differs from before the sidebar work
+  // and needs pinning, deliberate improvement or not.
+  //
+  // Scope by the panel's own resize strip rather than a canvas index, and use
+  // the "reset view" button as the observable rather than the URL hash:
+  // UmapPanel skips onViewportChange on its first effect tick, so a
+  // wrongly-reseeded remount never reports its (default) viewport back up and
+  // the hash keeps showing the pre-collapse value either way. See the
+  // embedded round-trip test above.
+  const tsneColumn = page.locator('div:has(> [aria-label="Resize t-SNE panel"])');
+  const tsne = (await tsneColumn.locator('canvas').boundingBox())!;
+  await page.mouse.move(tsne.x + tsne.width / 2, tsne.y + tsne.height / 2);
+  await page.mouse.wheel(0, -400); // zoom in
+  await page.keyboard.down('Shift'); // shift+drag = pan (plain drag = lasso)
+  await page.mouse.down();
+  await page.mouse.move(tsne.x + tsne.width / 2 + 60, tsne.y + tsne.height / 2 + 30, {
+    steps: 5,
+  });
+  await page.mouse.up();
+  await page.keyboard.up('Shift');
+  await expect(tsneColumn.getByRole('button', { name: 'reset view' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'hide bottom panel' }).click();
+  await expect(page.locator('canvas')).toHaveCount(1);
+  await page.getByRole('button', { name: 'show bottom panel' }).click();
+  await expect(page.locator('canvas')).toHaveCount(2);
+  await expect(tsneColumn.getByRole('button', { name: 'reset view' })).toBeVisible();
 });
 
 test('the gear icon opens the Settings tab', async ({ page }) => {
