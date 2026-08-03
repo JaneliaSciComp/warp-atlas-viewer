@@ -85,11 +85,19 @@ const INITIAL_FILTER_STATE: FilterState = {
   ...INITIAL_FILTER,
   ...(INITIAL_URL_STATE?.filter ?? {}),
 };
+const EMBED_REQUESTED = isEmbedRequested(window.location.search);
 const INITIAL_SETTINGS_STATE: SettingsState = {
   ...DEFAULT_SETTINGS,
+  // Embedded DEFAULT (not an override): the whole-brain outline is the
+  // anatomical context mapZebrain's own 3D view always shows, so an embedded
+  // viewer that opens without it looks like a bare point cloud next to their
+  // page. Spread BEFORE the hash so an explicit `brainOutline: false` in a
+  // share URL still wins — unlike embeddedMode below, this setting IS
+  // persisted.
+  ...(EMBED_REQUESTED ? { brainOutline: true } : {}),
   ...(INITIAL_URL_STATE?.settings ?? {}),
   // ?embed=1 wins: the hash never carries embeddedMode.
-  ...(isEmbedRequested(window.location.search) ? { embeddedMode: true } : {}),
+  ...(EMBED_REQUESTED ? { embeddedMode: true } : {}),
 };
 
 // Layout mode, fixed at module load. Read from INITIAL_SETTINGS_STATE rather
@@ -115,8 +123,8 @@ function CollapseRail({
   label: string;
   testId: string;
 }) {
-  // The glyph points the way the click will move the panel edge.
-  const glyph = side === 'left' ? (open ? '‹' : '›') : open ? '›' : '‹';
+  // Points the way the click will move the panel edge.
+  const pointsLeft = side === 'left' ? open : !open;
   return (
     <button
       onClick={onToggle}
@@ -125,13 +133,38 @@ function CollapseRail({
       aria-expanded={open}
       data-testid={testId}
       className={
-        'h-full w-full flex items-center justify-center text-lg font-mono ' +
+        'h-full w-full flex items-center justify-center ' +
         'bg-[#111] border border-black text-neutral-200 hover:bg-[#444] ' +
         (side === 'left' ? 'rounded-r-[3px]' : 'rounded-l-[3px]')
       }
     >
-      <span aria-hidden>{glyph}</span>
+      <ArrowGlyph pointsLeft={pointsLeft} />
     </button>
+  );
+}
+
+/** Approximates Bootstrap 3's `glyphicon glyphicon-arrow-left/right`, which is
+ *  what mapZebrain's own side-menu buttons use (left-menu.component.html:313).
+ *  Drawn rather than imported: pulling in the Glyphicons webfont for two
+ *  arrows would cost a font request for a single pair of shapes. A solid
+ *  arrow, not a chevron — `‹`/`›` read as much lighter weight than theirs. */
+function ArrowGlyph({ pointsLeft }: { pointsLeft: boolean }) {
+  return (
+    <svg
+      aria-hidden="true"
+      width="17"
+      height="17"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+    >
+      <path
+        d={
+          pointsLeft
+            ? 'M7.1 1.9 1 8l6.1 6.1v-3.9H15V5.8H7.1z'
+            : 'M8.9 1.9 15 8l-6.1 6.1v-3.9H1V5.8h7.9z'
+        }
+      />
+    </svg>
   );
 }
 
@@ -595,7 +628,10 @@ export default function App() {
             effectiveSelection={effectiveSelection}
             focusedNeuron={effectiveFocusedNeuron}
           />
-          <LinksMenu />
+          {/* Left-anchored here: the button sits near the left edge of a
+              ~360px sidebar, so the header's default right-anchoring would
+              run the menu out of the sidebar and under the collapse rail. */}
+          <LinksMenu align="left" />
         </div>
       )}
     </div>

@@ -299,6 +299,101 @@ test('standalone and embedded resolve the tab-underline accent to their own pale
   expect(embeddedAccent).toBe('rgb(255, 20, 147)');
 });
 
+test('links resolve to their own colour, separate from the accent', async ({ page }) => {
+  // --link-rgb is deliberately NOT --accent-rgb in embedded mode: pink works
+  // on a tab underline but reads badly as body-text link colour on #111, so
+  // links use mapZebrain's brand orange instead. Two variables, one class
+  // each — a regression that collapsed them back into one would leave both
+  // class attributes intact, so this reads resolved colour.
+  const linkColour = (p: typeof page) =>
+    p.locator('a.text-link').first().evaluate((el) => getComputedStyle(el).color);
+
+  await page.goto('/?mock=1');
+  await expect(page.getByText('10,000 cells pooled from 3 fish (mock)')).toBeVisible({
+    timeout: 20_000,
+  });
+  await page.getByRole('button', { name: 'About', exact: true }).click();
+  // Standalone links must be unchanged from what users see today: yellow-300,
+  // the same value as the accent there.
+  expect(await linkColour(page)).toBe('rgb(253, 224, 71)');
+
+  await page.goto('/?mock=1&embed=1');
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+  await page.getByRole('button', { name: 'About', exact: true }).click();
+  expect(await linkColour(page)).toBe('rgb(252, 172, 69)'); // mapZebrain #fcac45
+});
+
+test('embedded mode enables the brain outline by default, and the hash can still turn it off', async ({
+  page,
+}) => {
+  // The outline is anatomical context mapZebrain's own 3D view always shows.
+  // It is applied as a *default* rather than an override, so it has to be
+  // spread BEFORE the URL hash in INITIAL_SETTINGS_STATE — this setting is
+  // persisted, unlike embeddedMode. Swapping the two spread orders would make
+  // a shared link's explicit "off" silently revert to on, which is what the
+  // second half of this test pins.
+  const outline = (p: typeof page) => p.getByLabel(/outline/i).first();
+
+  await page.goto('/?mock=1&embed=1');
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(outline(page)).toBeChecked();
+
+  // Standalone is untouched — the mesh is opt-in there, as before.
+  await page.goto('/?mock=1');
+  await expect(page.getByText('10,000 cells pooled from 3 fish (mock)')).toBeVisible({
+    timeout: 20_000,
+  });
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(outline(page)).not.toBeChecked();
+
+  const off = '#!' + encodeURIComponent(JSON.stringify({ settings: { brainOutline: false } }));
+  await page.goto(`/?mock=1&embed=1${off}`);
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(outline(page)).not.toBeChecked();
+});
+
+test('the links dropdown opens inside the sidebar, not under the collapse rail', async ({
+  page,
+}) => {
+  // The header places this button near the viewport's right edge, so its menu
+  // is right-anchored there. The embedded sidebar places it near the LEFT edge
+  // of a ~360px column, where right-anchoring ran the menu out of the sidebar
+  // and underneath the collapse rail. Hence the per-call-site `align` prop.
+  await page.goto('/?mock=1&embed=1');
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+
+  // Hover, not click: mouseEnter opens the menu, so a click would toggle it
+  // straight back shut.
+  const button = page.getByRole('button', { name: /^Links/ });
+  await button.hover();
+  const menu = page.getByRole('menu');
+  await expect(menu).toBeVisible();
+
+  const b = (await button.boundingBox())!;
+  const m = (await menu.boundingBox())!;
+  const sidebar = (await page.getByTestId('embedded-sidebar').boundingBox())!;
+  expect(Math.abs(m.x - b.x)).toBeLessThanOrEqual(1);
+  expect(m.x).toBeGreaterThanOrEqual(sidebar.x);
+  expect(m.x + m.width).toBeLessThanOrEqual(sidebar.x + sidebar.width + 1);
+  // Hit-test the menu so a clipped-but-laid-out menu cannot pass.
+  await expect(menu.locator('a').first()).toBeVisible();
+
+  // Standalone keeps right-anchoring: left-anchoring there would run the menu
+  // off the right edge of the viewport.
+  await page.goto('/?mock=1');
+  await expect(page.getByText('10,000 cells pooled from 3 fish (mock)')).toBeVisible({
+    timeout: 20_000,
+  });
+  const sBtn = page.getByRole('button', { name: /^Links/ });
+  await sBtn.hover();
+  await expect(page.getByRole('menu')).toBeVisible();
+  const sb = (await sBtn.boundingBox())!;
+  const sm = (await page.getByRole('menu').boundingBox())!;
+  expect(Math.abs(sm.x + sm.width - (sb.x + sb.width))).toBeLessThanOrEqual(1);
+});
+
 test('toggling embedded mode live via Settings shows the bar but not the screenshot button or a repainted accent', async ({
   page,
 }) => {

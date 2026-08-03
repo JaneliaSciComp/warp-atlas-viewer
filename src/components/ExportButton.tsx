@@ -90,7 +90,7 @@ export function ExportButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex items-center gap-1 px-2 py-1 text-sm font-medium text-neutral-100 hover:text-accent"
+        className="flex items-center gap-1 px-2 py-1 text-sm font-medium text-neutral-100 hover:text-link"
       >
         Export
       </button>

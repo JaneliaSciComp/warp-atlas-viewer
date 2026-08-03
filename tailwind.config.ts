@@ -10,6 +10,7 @@ export default {
         // what makes opacity modifiers (ring-accent/60) work — a raw
         // var(--accent) cannot take an alpha channel.
         accent: 'rgb(var(--accent-rgb) / <alpha-value>)',
+        link: 'rgb(var(--link-rgb) / <alpha-value>)',
         panel: 'rgb(var(--panel-rgb) / <alpha-value>)',
       },
       fontFamily: {

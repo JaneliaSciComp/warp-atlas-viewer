@@ -776,7 +776,7 @@ export function SettingsTab({
                         href="https://mapzebrain.org"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-accent hover:underline"
+                        className="text-link hover:underline"
                     >
                         mapZebrain
                     </a>{" "}

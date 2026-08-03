@@ -157,7 +157,7 @@ export function AboutTab({
                         href="https://www.biorxiv.org/content/10.64898/2026.02.07.704095v1"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-accent hover:underline"
+                        className="text-link hover:underline"
                     >
                         paper
                     </a>
@@ -188,7 +188,7 @@ export function AboutTab({
                                 href={docsUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-accent hover:underline"
+                                className="text-link hover:underline"
                             >
                                 Open the docs →
                             </a>
@@ -208,7 +208,7 @@ export function AboutTab({
                         href="https://www.biorxiv.org/content/10.64898/2026.02.07.704095v1"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-accent hover:underline"
+                        className="text-link hover:underline"
                     >
                         WARP paper
                     </a>
@@ -259,7 +259,7 @@ export function AboutTab({
                         href="https://mapzebrain.org"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-accent hover:underline"
+                        className="text-link hover:underline"
                     >
                         mapZebrain
                     </a>{" "}
@@ -279,7 +279,7 @@ export function AboutTab({
                         href="https://github.com/JaneliaSciComp/warp-atlas-viewer"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-accent hover:underline"
+                        className="text-link hover:underline"
                     >
                         github.com/JaneliaSciComp/warp-atlas-viewer
                     </a>

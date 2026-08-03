@@ -24,6 +24,12 @@ const PRESET_ICONS: Record<ViewPresetKey, string> = {
 
 const BUTTON_CLASS =
   'p-0.5 rounded border border-neutral-700 bg-neutral-900/85 hover:bg-neutral-800 hover:border-neutral-500';
+// The screenshot and gear icons carry their own artwork frame, so a border
+// around them reads as a double outline. mapZebrain renders these two as bare
+// <img> too (three-dview.component.html:34-43), unlike the seven orientation
+// tiles. Background and hover state stay, so they remain identifiable as
+// buttons.
+const PLAIN_BUTTON_CLASS = 'p-0.5 rounded bg-neutral-900/85 hover:bg-neutral-800';
 
 /** The view-orientation icon row above the 3D view, mirroring mapZebrain's.
  *  Only rendered in embedded mode. The trailing screenshot + gear pair
@@ -67,7 +73,7 @@ export function ViewOrientationBar({
             e.stopPropagation();
             onCapture();
           }}
-          className={BUTTON_CLASS}
+          className={PLAIN_BUTTON_CLASS}
         >
           <img src={screenshotIcon} alt="" className="h-[25px] w-[25px]" />
         </button>
@@ -79,7 +85,7 @@ export function ViewOrientationBar({
           e.stopPropagation();
           onOpenSettings();
         }}
-        className={BUTTON_CLASS}
+        className={PLAIN_BUTTON_CLASS}
       >
         <img src={settingsIcon} alt="" className="h-[25px] w-[25px]" />
       </button>

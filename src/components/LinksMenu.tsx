@@ -15,7 +15,16 @@ const STATIC_LINKS: Array<{ text: string; href: string }> = [
 // cursor from the button into the menu without it disappearing.
 const CLOSE_DELAY_MS = 100;
 
-export function LinksMenu() {
+export function LinksMenu({
+  align = 'right',
+}: {
+  /** Which edge of the button the dropdown is anchored to. The header places
+   *  this button near the viewport's right edge, where a left-anchored menu
+   *  would run off-screen; the embedded sidebar places it near the LEFT edge
+   *  of a ~360px column, where a right-anchored menu extends leftward out of
+   *  the sidebar and under the collapse rail. Hence per-call-site. */
+  align?: 'left' | 'right';
+} = {}) {
   const docsUrl = import.meta.env.VITE_WARP_DOCS_URL;
   const links = docsUrl
     ? [{ text: 'Documentation', href: docsUrl }, ...STATIC_LINKS]
@@ -79,7 +88,10 @@ export function LinksMenu() {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full mt-1 min-w-[180px] bg-neutral-900 border border-neutral-700 rounded shadow-lg z-50 py-1"
+          className={
+            'absolute top-full mt-1 min-w-[180px] bg-neutral-900 border border-neutral-700 rounded shadow-lg z-50 py-1 ' +
+            (align === 'left' ? 'left-0' : 'right-0')
+          }
         >
           {links.map((l) => (
             <a
@@ -89,7 +101,7 @@ export function LinksMenu() {
               rel="noopener noreferrer"
               role="menuitem"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-neutral-100 hover:bg-neutral-800 hover:text-accent"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-neutral-100 hover:bg-neutral-800 hover:text-link"
             >
               <span>{l.text}</span>
               <ExternalLinkIcon />

@@ -295,8 +295,22 @@ site's own atlas page rather than a bolted-on panel:
   palette (its `#ff1493` tab-underline pink, `#111` panels), and the 3D
   canvas clears to pure black (`#000000`) instead of the standalone
   `#0a0a0a`, so the sidebar, tabs, and viewer read as continuous with the
-  host page. The standalone viewer's yellow accent, panel color, and
-  canvas background are unaffected.
+  host page. **Links** get their own color — mapZebrain's brand orange
+  `#fcac45` — rather than the accent pink, which works on a tab underline
+  but reads poorly as body text against `#111`. The standalone viewer's
+  yellow accent, link color, panel color, and canvas background are all
+  unaffected.
+- The [whole-brain outline mesh](#brain-models) is **on by default**, since
+  it is the anatomical context mapZebrain's own 3D view always shows. This
+  is a default rather than an override, so a shared link that explicitly
+  turns it off still opens with it off.
+
+  One wrinkle worth knowing: because the URL hash records only what differs
+  from the *standalone* defaults, switching the outline off in embedded mode
+  leaves nothing in the hash to record it — so a reload returns to the
+  embedded default of on. The toggle works for the session; it just doesn't
+  persist. Fibers and cell bodies are unaffected and stay off by default in
+  both modes.
 
 Normally you set it with `?embed=1` on the URL, which is what an embedding
 page's `src` attribute uses. The checkbox here is for trying it by hand.
