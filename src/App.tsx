@@ -505,6 +505,49 @@ export default function App() {
     </Suspense>
   );
 
+  const janeliaLogo = (
+    <a
+      href="https://www.janelia.org"
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Janelia Research Campus"
+    >
+      <img src={janeliaLogoUrl} alt="Janelia Research Campus" className="h-10 block" />
+    </a>
+  );
+
+  const cellCountLine = (
+    <p
+      className="font-mono text-[11px] text-neutral-500"
+      title="Cells from each fish are registered into shared mapZebrain atlas coordinates."
+    >
+      {data.count.toLocaleString()} cells pooled from {uniqueFishIds.length} fish{data.source === 'mock' ? ' (mock)' : ''}
+    </p>
+  );
+
+  // Embedded mode has no page header — mapZebrain's own nav sits above the
+  // iframe. The header's contents move to a compact strip at the top of the
+  // sidebar, mirroring mapZebrain's own "All items" heading, and the Janelia
+  // logo becomes a corner overlay on the 3D view.
+  const sidebarHeader = (
+    <div data-testid="sidebar-header" className="flex-shrink-0 px-3 pt-2 pb-1.5">
+      <h1 className="text-sm font-semibold text-neutral-100 leading-tight">
+        WARP Atlas Viewer
+      </h1>
+      {cellCountLine}
+      {!settings.screenshotMode && (
+        <div className="flex items-center gap-3 mt-1.5">
+          <ExportButton
+            data={data}
+            effectiveSelection={effectiveSelection}
+            focusedNeuron={effectiveFocusedNeuron}
+          />
+          <LinksMenu />
+        </div>
+      )}
+    </div>
+  );
+
   const detailAside = detailOpen && (
     <aside className="relative min-h-0 min-w-0 border-l border-neutral-800 bg-neutral-900">
       <div
@@ -533,37 +576,27 @@ export default function App() {
 
   return (
     <div className="relative h-full w-full overflow-hidden flex flex-col">
-      <header className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-neutral-900 border-b border-neutral-800">
-        <div className="flex items-baseline gap-3">
-          <h1 className="text-base font-semibold text-neutral-100">WARP Atlas Viewer</h1>
-          <p
-            className="font-mono text-[11px] text-neutral-500"
-            title="Cells from each fish are registered into shared mapZebrain atlas coordinates."
-          >
-            {data.count.toLocaleString()} cells pooled from {uniqueFishIds.length} fish{data.source === 'mock' ? ' (mock)' : ''}
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          {!settings.screenshotMode && (
-            <>
-              <ExportButton
-                data={data}
-                effectiveSelection={effectiveSelection}
-                focusedNeuron={effectiveFocusedNeuron}
-              />
-              <LinksMenu />
-            </>
-          )}
-          <a
-            href="https://www.janelia.org"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Janelia Research Campus"
-          >
-            <img src={janeliaLogoUrl} alt="Janelia Research Campus" className="h-10 block" />
-          </a>
-        </div>
-      </header>
+      {!EMBEDDED && (
+        <header className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-neutral-900 border-b border-neutral-800">
+          <div className="flex items-baseline gap-3">
+            <h1 className="text-base font-semibold text-neutral-100">WARP Atlas Viewer</h1>
+            {cellCountLine}
+          </div>
+          <div className="flex items-center gap-4">
+            {!settings.screenshotMode && (
+              <>
+                <ExportButton
+                  data={data}
+                  effectiveSelection={effectiveSelection}
+                  focusedNeuron={effectiveFocusedNeuron}
+                />
+                <LinksMenu />
+              </>
+            )}
+            {janeliaLogo}
+          </div>
+        </header>
+      )}
       {EMBEDDED ? (
         <div ref={mainAreaRef} className="flex-1 grid min-h-0" style={outerLayout}>
           {/* The rails are grid items occupying the first and last tracks,
@@ -587,6 +620,7 @@ export default function App() {
               data-testid="embedded-sidebar"
               className="relative flex flex-col min-h-0 min-w-0 overflow-hidden bg-neutral-800"
             >
+              {sidebarHeader}
               <div className="flex-1 min-h-0">{filterPanel}</div>
               <div
                 role="separator"
@@ -602,7 +636,12 @@ export default function App() {
               />
             </div>
           )}
-          <div className="relative min-h-0 min-w-0">{viewer}</div>
+          <div className="relative min-h-0 min-w-0">
+            {viewer}
+            {!settings.screenshotMode && (
+              <div className="absolute bottom-2 right-2 z-10">{janeliaLogo}</div>
+            )}
+          </div>
           {detailAside}
           {settings.screenshotMode ? (
             <div />

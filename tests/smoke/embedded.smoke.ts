@@ -52,3 +52,22 @@ test('standalone mode keeps the bottom panel and no rails', async ({ page }) => 
   await expect(page.getByTestId('rail-sidebar')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'WARP Atlas Viewer' })).toBeVisible();
 });
+
+test('embedded mode folds the header into the sidebar', async ({ page }) => {
+  await page.goto('/?mock=1&embed=1');
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+
+  // No page-level header row: the host page supplies one.
+  await expect(page.locator('header')).toHaveCount(0);
+
+  // Title, cell count, Export, and Links all live in the sidebar instead.
+  const header = page.getByTestId('sidebar-header');
+  await expect(header.getByRole('heading', { name: 'WARP Atlas Viewer' })).toBeVisible();
+  await expect(header.getByText('10,000 cells pooled from 3 fish (mock)')).toBeVisible();
+  await expect(header.getByRole('button', { name: /export/i })).toBeVisible();
+
+  // The Janelia logo moves onto the 3D view rather than disappearing.
+  await expect(
+    page.getByRole('link', { name: 'Janelia Research Campus' }),
+  ).toBeVisible();
+});
