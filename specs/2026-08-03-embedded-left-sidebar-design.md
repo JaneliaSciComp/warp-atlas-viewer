@@ -106,6 +106,36 @@ iframe, the reversal is one line: `detailOpen` initialises to
 `initial.detailOpen ?? !embedded` instead of `?? true`. Recorded here so the
 option is not re-derived later.
 
+### The arithmetic this section got wrong
+
+**Amended after the final review.** Sampling two viewport sizes (1280×720 and
+1024×640) hid the actual invariant. The fixed tracks sum to
+`70 + sidebarWidth + detailWidth` with no cap, so the `minmax(0, 1fr)` viewer
+absorbs any shortfall and then the grid overflows the root `overflow-hidden`. At
+**500×720 with default widths — nothing hostile** the viewer track measured 0px
+and the detail rail sat at `x=755` inside a 500px viewport, clipped away. Since
+that rail is the detail panel's only toggle in embedded mode, recovery required
+the left rail. The same state was reachable at 1024px from the share URL
+`#!{"sidebarWidth":700,"detailWidth":800}`.
+
+Shipped fix: each panel track is `min(${w}px, calc(40% - 28px))` —
+`28 = 0.4 × 70`, so each panel gets `0.4·(W − 70)` and the viewer keeps
+`0.2·(W − 70)`. Verified in Chromium across 15 container widths × 3 width pairs:
+the right rail's right edge equals the container for every `W ≥ 71`, and the
+viewer track is always above zero. 70px is two rails, so that floor is exact and
+no expression can do better. The reviewer's initial suggestion of `min(Wpx, 40vw)`
+was rejected during implementation because `0.2W − 70 ≤ 0` for `W ≤ 350`;
+percentages also beat `vw` here because the grid container is the quantity the
+invariant is written in.
+
+Note the cap is **not** inert whenever the panels already fit: it engages below
+roughly 970px at the default 360, and at 1280px with hostile 700/800 widths it
+clamps both to 484px.
+
+`bottomHeight` already had precisely this live cap (`liveBottomHeightMax`); the
+sidebar simply never got one. **Lesson for future plans: state the arithmetic
+invariant, not two sample viewport sizes.**
+
 ## Architecture
 
 ### Unit 1 — `src/hooks/usePanelLayout.ts`: sidebar state
@@ -491,6 +521,30 @@ ignores them. No migration.
 - `docs/sharing.md` — `sidebarWidth` / `sidebarOpen` in the hash;
   `embeddedMode` still not.
 - `README.md` — one line in the feature list if embedded mode is mentioned there.
+
+## Parked at merge (found by the final review, deliberately not fixed)
+
+Both are pre-existing weaknesses that the new width cap makes reachable by
+window size rather than only by dragging. Both were rated Minor and neither
+blocks the feature; recorded here because the run ledger they were found in is
+scratch.
+
+- **The sidebar tab bar clips below ~780px.** `FilterControls.tsx`'s tab row has
+  `overflow-x: visible` inside the sidebar's `overflow-hidden`, and a fixed
+  284px min-content width. Measured at a 500px viewport (sidebar 172px), the
+  **Settings** and **About** tabs are clipped and unclickable; at 640px **About**
+  is. Note 284px already exceeds the documented 280px drag minimum, so a user
+  could clip **About** by dragging even before this change — the plan picked 280
+  without measuring what the tab row needs. Fix is one class
+  (`overflow-x-auto`), but it touches standalone DOM, which is why it was not
+  folded into a feature whose central constraint is that standalone does not
+  move.
+- **The resize strip goes silently inert below ~770px.** Rendered width is
+  `min(state, cap)`, and the whole `[280, 700]` state range sits above the cap
+  there, so dragging and double-click-to-reset have no visible effect. The
+  dragged value is preserved and reappears when there is room. Documented in
+  `docs/settings.md` and `docs/ui/panels.md`; worth a comment beside
+  `panelTrack` naming the ceiling.
 
 ## Future work (not this change)
 

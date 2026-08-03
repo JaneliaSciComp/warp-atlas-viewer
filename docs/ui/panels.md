@@ -69,6 +69,13 @@ behaves.
 Drag the sidebar's **right edge** to resize it (`280`–`700` px; the
 default is `360` px). **Double-click** the edge to reset it. The width is
 remembered in the URL, like every other panel size.
+
+In a narrow iframe the sidebar and detail panel are each capped at 40% of
+the width remaining after the two rails, so the 3D view always keeps a
+fifth of it. Below about 970 px the sidebar renders narrower than you
+dragged it; below about 770 px the drag has no visible effect at all,
+though the value is remembered. See
+[Embedded mode](/settings#embedded-mode).
 :::
 
 The page header and the bottom-panel/detail-panel show/hide handles are

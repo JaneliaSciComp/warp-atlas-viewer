@@ -265,6 +265,15 @@ site's own atlas page rather than a bolted-on panel:
   Filters, t-SNE, Settings, About. Drag the sidebar's right edge to
   resize it (`280`–`700` px; double-click the handle to reset it to the
   default `360` px). Collapse it with the left-edge rail.
+
+  In a narrow iframe the sidebar and the detail panel are each also capped
+  at 40% of the width left over after the two rails, so the 3D view always
+  keeps a fifth of it. Below roughly 970 px the sidebar therefore renders
+  narrower than you dragged it, and below roughly 770 px it renders at the
+  cap regardless of the dragged value — the drag has no visible effect
+  there, though the value you set is remembered and reappears once there is
+  room for it. Without the cap a small enough iframe would give the 3D view
+  zero width and push the detail panel's rail off-screen entirely.
 - The **t-SNE plot** is the second tab, immediately right of Filters. Its
   pan/zoom and any lasso persist across a tab switch, so leaving the tab
   and coming back lands you exactly where you left off. While the t-SNE
