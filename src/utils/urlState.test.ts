@@ -478,3 +478,28 @@ describe('validateSettings brain-mesh fields', () => {
     expect(out?.settings?.embeddedMode).toBeUndefined();
   });
 });
+
+describe('sidebar layout persistence', () => {
+  it('round-trips sidebarWidth and sidebarOpen', () => {
+    const out = decodeHash(encodeHash({ sidebarWidth: 480, sidebarOpen: false }));
+    expect(out?.sidebarWidth).toBe(480);
+    expect(out?.sidebarOpen).toBe(false);
+  });
+
+  it('clamps a hostile sidebarWidth to the drag bounds', () => {
+    expect(decodeHash(encodeHash({ sidebarWidth: 5 }))?.sidebarWidth).toBe(280);
+    expect(decodeHash(encodeHash({ sidebarWidth: 99999 }))?.sidebarWidth).toBe(700);
+  });
+
+  it('drops a non-numeric sidebarWidth', () => {
+    // Hand-edited hash: the field is present but unusable, so it must be
+    // absent from the decoded state rather than poisoning the layout.
+    const hash = '#!' + encodeURIComponent(JSON.stringify({ sidebarWidth: 'wide' }));
+    expect(decodeHash(hash)?.sidebarWidth).toBeUndefined();
+  });
+
+  it('drops a non-boolean sidebarOpen', () => {
+    const hash = '#!' + encodeURIComponent(JSON.stringify({ sidebarOpen: 'yes' }));
+    expect(decodeHash(hash)?.sidebarOpen).toBeUndefined();
+  });
+});

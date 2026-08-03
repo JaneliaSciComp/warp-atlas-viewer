@@ -10,6 +10,7 @@ import {
   BOTTOM_HEIGHT_DEFAULT,
   DETAIL_WIDTH_DEFAULT,
   UMAP_WIDTH_DEFAULT,
+  SIDEBAR_WIDTH_DEFAULT,
 } from './hooks/usePanelLayout';
 import { useSelection } from './hooks/useSelection';
 import { useUrlSync } from './hooks/useUrlSync';
@@ -90,6 +91,12 @@ const INITIAL_SETTINGS_STATE: SettingsState = {
   // ?embed=1 wins: the hash never carries embeddedMode.
   ...(isEmbedRequested(window.location.search) ? { embeddedMode: true } : {}),
 };
+
+// Layout mode, fixed at module load. Read from INITIAL_SETTINGS_STATE rather
+// than live `settings` on purpose: toggling the Settings checkbox mid-session
+// must not re-shuffle the grid out from under a live camera — the same
+// reasoning the camera default already uses.
+const EMBEDDED = INITIAL_SETTINGS_STATE.embeddedMode;
 
 export default function App() {
   const { data, error, progress } = useNeuronData();
@@ -172,13 +179,25 @@ export default function App() {
     onResizeDoubleClick,
     onDetailResizeDoubleClick,
     onUmapResizeDoubleClick,
-  } = usePanelLayout({
-    detailOpen: INITIAL_URL_STATE?.detail,
-    bottomOpen: INITIAL_URL_STATE?.bottom,
-    bottomHeight: INITIAL_URL_STATE?.bottomHeight,
-    detailWidth: INITIAL_URL_STATE?.detailWidth,
-    umapWidth: INITIAL_URL_STATE?.umapWidth,
-  });
+    // setSidebarOpen / onSidebarResizeDown / onSidebarResizeMove /
+    // onSidebarResizeUp / onSidebarResizeDoubleClick are not destructured
+    // yet: nothing renders the sidebar in this task, and an unused binding
+    // would trip eslint (same reasoning as umapViewportRef below). Task 4
+    // adds them alongside the sidebar's JSX.
+    sidebarOpen,
+    sidebarWidth,
+  } = usePanelLayout(
+    {
+      detailOpen: INITIAL_URL_STATE?.detail,
+      bottomOpen: INITIAL_URL_STATE?.bottom,
+      bottomHeight: INITIAL_URL_STATE?.bottomHeight,
+      detailWidth: INITIAL_URL_STATE?.detailWidth,
+      umapWidth: INITIAL_URL_STATE?.umapWidth,
+      sidebarOpen: INITIAL_URL_STATE?.sidebarOpen,
+      sidebarWidth: INITIAL_URL_STATE?.sidebarWidth,
+    },
+    EMBEDDED,
+  );
 
   // Lasso polygon (in t-SNE data coords) for the current selection.
   // Persisting the polygon — not the index list — keeps share URLs
@@ -247,6 +266,8 @@ export default function App() {
       bottomHeight,
       detailWidth,
       umapWidth,
+      sidebarOpen,
+      sidebarWidth,
       lassoPoly,
       activitySpeed,
       activityPlaying,
@@ -256,6 +277,7 @@ export default function App() {
       bottomHeightDefault: BOTTOM_HEIGHT_DEFAULT,
       detailWidthDefault: DETAIL_WIDTH_DEFAULT,
       umapWidthDefault: UMAP_WIDTH_DEFAULT,
+      sidebarWidthDefault: SIDEBAR_WIDTH_DEFAULT,
       initialCamera: INITIAL_URL_STATE?.camera ?? null,
       initialUmap: INITIAL_URL_STATE?.umap ?? null,
     },

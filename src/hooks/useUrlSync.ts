@@ -42,6 +42,8 @@ export interface UrlSyncState {
   bottomHeight: number;
   detailWidth: number;
   umapWidth: number;
+  sidebarOpen: boolean;
+  sidebarWidth: number;
   lassoPoly: Float32Array | null;
   activitySpeed: number;
   activityPlaying: boolean;
@@ -53,6 +55,7 @@ export interface UrlSyncConfig {
   bottomHeightDefault: number;
   detailWidthDefault: number;
   umapWidthDefault: number;
+  sidebarWidthDefault: number;
   initialCamera: CameraState | null;
   initialUmap: UmapViewport | null;
 }
@@ -60,6 +63,10 @@ export interface UrlSyncConfig {
 export interface UrlSyncHandlers {
   handleCameraChange: (cam: CameraState) => void;
   handleUmapViewportChange: (vp: UmapViewport) => void;
+  /** Live t-SNE viewport. Exposed so a caller that unmounts and remounts
+   *  UmapPanel (the embedded-mode t-SNE tab) can reseed it from the current
+   *  viewport rather than the module-load URL value. */
+  umapViewportRef: React.MutableRefObject<UmapViewport | null>;
 }
 
 /**
@@ -82,6 +89,8 @@ export function useUrlSync(state: UrlSyncState, config: UrlSyncConfig): UrlSyncH
     bottomHeight,
     detailWidth,
     umapWidth,
+    sidebarOpen,
+    sidebarWidth,
     lassoPoly,
     activitySpeed,
     activityPlaying,
@@ -124,6 +133,10 @@ export function useUrlSync(state: UrlSyncState, config: UrlSyncConfig): UrlSyncH
   detailWidthRef.current = detailWidth;
   const umapWidthRef = useRef(umapWidth);
   umapWidthRef.current = umapWidth;
+  const sidebarOpenRef = useRef(sidebarOpen);
+  sidebarOpenRef.current = sidebarOpen;
+  const sidebarWidthRef = useRef(sidebarWidth);
+  sidebarWidthRef.current = sidebarWidth;
   const lassoPolyRef = useRef(lassoPoly);
   lassoPolyRef.current = lassoPoly;
   const activitySpeedRef = useRef(activitySpeed);
@@ -140,8 +153,13 @@ export function useUrlSync(state: UrlSyncState, config: UrlSyncConfig): UrlSyncH
     }
     urlBurstStartRef.current = null;
     if (isPlayingRef.current) return;
-    const { defaultFilter, bottomHeightDefault, detailWidthDefault, umapWidthDefault } =
-      configRef.current;
+    const {
+      defaultFilter,
+      bottomHeightDefault,
+      detailWidthDefault,
+      umapWidthDefault,
+      sidebarWidthDefault,
+    } = configRef.current;
     const filterDiff = diffFilter(filterRef.current, defaultFilter);
     const settingsDiff = diffSettings(settingsRef.current, DEFAULT_SETTINGS);
     // screenshotMode is an ephemeral presentation toggle — never persist
@@ -173,6 +191,11 @@ export function useUrlSync(state: UrlSyncState, config: UrlSyncConfig): UrlSyncH
       umapWidth:
         umapWidthRef.current !== umapWidthDefault
           ? Math.round(umapWidthRef.current)
+          : undefined,
+      sidebarOpen: sidebarOpenRef.current ? undefined : false,
+      sidebarWidth:
+        sidebarWidthRef.current !== sidebarWidthDefault
+          ? Math.round(sidebarWidthRef.current)
           : undefined,
       camera: cam,
       umap,
@@ -243,6 +266,12 @@ export function useUrlSync(state: UrlSyncState, config: UrlSyncConfig): UrlSyncH
     bottomOpen,
     bottomHeight,
     detailWidth,
+    // umapWidth was missing here: dragging the t-SNE width changed state but
+    // never scheduled a write, so it only reached the URL if some later
+    // change or a pagehide flush happened to follow.
+    umapWidth,
+    sidebarOpen,
+    sidebarWidth,
     lassoPoly,
     activitySpeed,
     scheduleUrlWrite,
@@ -314,5 +343,5 @@ export function useUrlSync(state: UrlSyncState, config: UrlSyncConfig): UrlSyncH
     prevPlayingRef.current = activityPlaying;
   }, [activityPlaying, scheduleUrlWrite]);
 
-  return { handleCameraChange, handleUmapViewportChange };
+  return { handleCameraChange, handleUmapViewportChange, umapViewportRef: umapRef };
 }

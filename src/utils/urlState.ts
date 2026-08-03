@@ -84,6 +84,12 @@ export interface PersistedState {
   /** Width of the t-SNE (bottom-right) panel in pixels. Same persistence
    *  reasoning as detailWidth. */
   umapWidth?: number;
+  /** Left-sidebar open state (embedded mode only). Same persistence
+   *  reasoning as `bottom`. */
+  sidebarOpen?: boolean;
+  /** Width of the embedded-mode left sidebar in pixels. Same persistence
+   *  reasoning as detailWidth. */
+  sidebarWidth?: number;
   camera?: CameraState;
   umap?: UmapViewport;
   /** Activity playback speed multiplier (1, 2, 10, 50, 100). The
@@ -431,6 +437,14 @@ function validatePersisted(raw: Record<string, unknown>): PersistedState {
   // Matches the UMAP_WIDTH_MIN/MAX drag bounds in usePanelLayout.
   if (isFiniteNum(raw.umapWidth)) {
     out.umapWidth = clamp(raw.umapWidth, 200, 760);
+  }
+  if (typeof raw.sidebarOpen === 'boolean') out.sidebarOpen = raw.sidebarOpen;
+  // Matches the SIDEBAR_WIDTH_MIN/MAX drag bounds in usePanelLayout. The
+  // bounds are duplicated as literals here exactly as the three above are:
+  // urlState must stay a pure, DOM-free module, so it does not import from
+  // the layout hook.
+  if (isFiniteNum(raw.sidebarWidth)) {
+    out.sidebarWidth = clamp(raw.sidebarWidth, 280, 700);
   }
   const cam = validateCamera(raw.camera);
   if (cam) out.camera = cam;
