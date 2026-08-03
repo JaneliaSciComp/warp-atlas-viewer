@@ -1294,9 +1294,12 @@ test('the t-SNE tab holds the plot and survives a tab round-trip', async ({ page
   // order, so the t-SNE canvas is nth(0) and the 3D canvas is nth(1) —
   // an index-based selector here silently asserts a lower bound on the
   // wrong canvas and would pass through a real t-SNE sizing regression.
+  // The 10px margin is deliberately tight: at 40 the assertion still
+  // passed with a `p-3` scroller injected into the tab body, i.e. it did
+  // not actually test the thing it names. Verified to fail at 10.
   const body = await sidebar.boundingBox();
   const tsne = await sidebar.locator('canvas').boundingBox();
-  expect(tsne!.width).toBeGreaterThan(body!.width - 40);
+  expect(tsne!.width).toBeGreaterThan(body!.width - 10);
 
   await sidebar.getByRole('button', { name: 'Filters' }).click();
   await expect(page.locator('canvas')).toHaveCount(1);
