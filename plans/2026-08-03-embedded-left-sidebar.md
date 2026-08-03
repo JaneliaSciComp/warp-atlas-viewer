@@ -1310,6 +1310,17 @@ test('the t-SNE tab holds the plot and survives a tab round-trip', async ({ page
   expect(pageErrors).toEqual([]);
 });
 
+// A third test — that the viewport actually survives the round trip, which is
+// the regression this whole task exists to prevent — was added during
+// implementation after review found the two below assert only mount counts and
+// sizing. See tests/smoke/embedded.smoke.ts:122-140. Two lessons worth keeping:
+// the URL hash is NOT a usable observable here (UmapPanel skips
+// onViewportChange on its first effect tick, so a wrongly-reseeded remount
+// never overwrites it, and a hash-based check passes with the bug present); and
+// the viewport must be moved off its default before the round trip, or the
+// assertion compares two default viewports and passes regardless. The working
+// observable is the panel's own "reset view" button visibility.
+
 test('standalone keeps the t-SNE panel docked, with no t-SNE tab', async ({ page }) => {
   await page.goto('/?mock=1');
   await expect(page.getByText('10,000 cells pooled from 3 fish (mock)')).toBeVisible({
