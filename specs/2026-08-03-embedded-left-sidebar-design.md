@@ -298,15 +298,29 @@ bare click as focus/unfocus.
 
 **The screenshot needs care.** The canvas is created without
 `preserveDrawingBuffer` (`BrainViewer.tsx:279`), so the drawing buffer is cleared
-after compositing and a bare `canvas.toDataURL()` returns a blank image. Adding
-`preserveDrawingBuffer: true` would tax every frame for every user.
+after compositing and a bare `canvas.toDataURL()` returns a blank image.
 
-Instead, capture on demand: a tiny component inside `<Canvas>` uses `useThree`
-to register a callback into a `captureRef`, which calls `gl.render(scene, camera)`
-and then `gl.domElement.toDataURL('image/png')` **in the same tick**. This
-mirrors the `applyViewRef` pattern the icon bar already uses to reach into the
-Canvas, so it introduces no new mechanism. The result downloads as
-`warp-atlas.png` via a synthetic `<a download>` click.
+> **Superseded during planning.** This section originally specified an
+> on-demand capture: a component inside `<Canvas>` using `useThree` to register
+> a `captureRef` that calls `gl.render(scene, camera)` then `toDataURL()` in one
+> tick. That is **wrong in the five projection modes** — `ProjectionRenderPass`
+> builds its image across up to four passes per frame in `useFrame`, so
+> re-rendering the raw scene would silently produce a different picture than the
+> one on screen. The mechanism below replaces it.
+
+Set `preserveDrawingBuffer: true` on the `Canvas`'s `gl` options **in embedded
+mode only**, and read the composited back buffer directly:
+`containerRef.current.querySelector('canvas').toDataURL('image/png')`, downloaded
+as `warp-atlas.png` via a synthetic `<a download>` click. Correct in every mode,
+less code than the `captureRef` plumbing, and the per-frame copy cost is confined
+to the embedded viewer rather than taxing every user.
+
+The trade-off: `gl` options are read once at `Canvas` creation, so toggling the
+Settings checkbox mid-session cannot enable capture. The screenshot button is
+therefore gated on the mount-time value of `embeddedMode` (held in a ref beside
+the existing `mountCameraRef`), so it never appears in a state where it would
+emit a blank PNG. This mirrors the existing documented caveat that toggling
+`embeddedMode` mid-session does not move the camera.
 
 Expect — and document — that the PNG contains **only the 3D render**: the colour
 legend, the icon bar, the projection pill, and tooltips are DOM overlays and are
@@ -332,18 +346,33 @@ ever seen side by side.
 an accent would be a large, ugly diff and a permanent tax on every future
 component.
 
-Instead, two variables in `src/styles/globals.css`:
+Instead, two CSS variables re-pointed by an `embedded` class on App's root div.
 
-```css
-:root        { --accent: theme(colors.yellow.300); --panel: theme(colors.neutral.800); }
-.embedded    { --accent: #ff1493;                 --panel: #111; }
+> **Refined during planning.** This section originally specified raw
+> `border-[var(--accent)]` arbitrary values. That breaks on the four sites using
+> an opacity modifier (`ring-yellow-300/60`, `bg-yellow-300/30`): Tailwind cannot
+> inject an alpha channel into an opaque `var()`. Register the colour in
+> `tailwind.config.ts` with the `<alpha-value>` placeholder instead, backed by a
+> space-separated RGB triple.
+
+```ts
+// tailwind.config.ts
+colors: {
+  accent: 'rgb(var(--accent-rgb) / <alpha-value>)',
+  panel: 'rgb(var(--panel-rgb) / <alpha-value>)',
+}
 ```
 
-App puts `embedded` on its root div. The 19 sites become
-`border-[var(--accent)]` / `text-[var(--accent)]` / `bg-[var(--accent)]` — a
-mechanical substitution with no behaviour change in standalone mode, where the
-variable resolves to the same yellow it does today. Panel backgrounds that should
-darken use `bg-[var(--panel)]`.
+```css
+/* globals.css */
+:root     { --accent-rgb: 253 224 71; --panel-rgb: 38 38 38; }  /* yellow-300, neutral-800 */
+.embedded { --accent-rgb: 255 20 147; --panel-rgb: 17 17 17; }  /* #ff1493, #111 */
+```
+
+The call sites become `border-accent`, `text-accent`, `ring-accent/60`,
+`accent-accent`, `bg-panel` — a mechanical substitution with no behaviour change
+in standalone mode, where the variables resolve to the same colours as today.
+15 of the 19 `yellow-300` sites change; see the exclusions below.
 
 Scope limits, deliberate:
 
@@ -351,9 +380,12 @@ Scope limits, deliberate:
   is poor contrast; mapZebrain itself keeps tab labels white
   (`right-menu.component.css:2-20`) and puts the colour in the ink bar. Warp's
   tab labels stay `neutral-100` / `neutral-500`.
-- **The resize-handle hover highlight stays yellow** (`bg-yellow-300/30`). It is
-  a transient affordance, not brand accent, and pink-on-hover reads as an error
-  state.
+- **The resize-handle hover highlight stays yellow** (`bg-yellow-300/30`, three
+  sites in `App.tsx`). It is a transient affordance, not brand accent, and
+  pink-on-hover reads as an error state.
+- **The Export dialog's confirm button stays yellow** (`ExportButton.tsx:191`).
+  Its base is `yellow-400`, not `yellow-300`, so re-pointing it would need a
+  second variable for no real gain.
 - **Colour maps, the legend, and every data colour are untouched.** They are
   tuned against a near-black background and are the scientific content; the host
   site's palette does not get a vote.
