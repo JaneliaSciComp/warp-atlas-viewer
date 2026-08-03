@@ -219,7 +219,7 @@ test('standalone and embedded resolve the tab-underline accent to their own pale
   expect(embeddedAccent).toBe('rgb(255, 20, 147)');
 });
 
-test('toggling embedded mode live via Settings shows the bar but not the screenshot button', async ({
+test('toggling embedded mode live via Settings shows the bar but not the screenshot button or a repainted accent', async ({
   page,
 }) => {
   // Deliberately NOT ?embed=1: this loads the standalone layout, so the
@@ -255,4 +255,17 @@ test('toggling embedded mode live via Settings shows the bar but not the screens
   // preserveDrawingBuffer to the already-created Canvas, so offering the
   // button here would silently produce a blank PNG.
   await expect(page.getByRole('button', { name: '3D view screenshot' })).toHaveCount(0);
+
+  // Same story for the accent palette: `.embedded` is applied from the
+  // module-load EMBEDDED constant (src/App.tsx), not the live
+  // settings.embeddedMode this checkbox writes to. That's deliberate — a
+  // mid-session toggle must not repaint the palette (or reflow the layout,
+  // or jump the camera) out from under the user. If EMBEDDED were ever
+  // swapped for the live setting here, this checkbox would turn the
+  // underline pink; it must not. 'Settings' is the active tab at this point
+  // (clicked above), so its underline is the one carrying border-accent.
+  const accentAfterToggle = await page
+    .getByRole('button', { name: 'Settings', exact: true })
+    .evaluate((el) => getComputedStyle(el).borderBottomColor);
+  expect(accentAfterToggle).toBe('rgb(253, 224, 71)');
 });
