@@ -71,3 +71,46 @@ test('embedded mode folds the header into the sidebar', async ({ page }) => {
     page.getByRole('link', { name: 'Janelia Research Campus' }),
   ).toBeVisible();
 });
+
+test('the t-SNE tab holds the plot and survives a tab round-trip', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+
+  await page.goto('/?mock=1&embed=1');
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+
+  const sidebar = page.getByTestId('embedded-sidebar');
+  // Four tabs, t-SNE second.
+  await expect(sidebar.getByRole('button', { name: 't-SNE' })).toBeVisible();
+
+  // On the Filters tab there is exactly one canvas — the 3D view. The t-SNE
+  // canvas is unmounted, which is the behaviour the viewport-reseed below
+  // exists to make safe.
+  await expect(page.locator('canvas')).toHaveCount(1);
+
+  await sidebar.getByRole('button', { name: 't-SNE' }).click();
+  await expect(page.locator('canvas')).toHaveCount(2);
+
+  // The t-SNE canvas must fill the tab body, not sit in a padded scroller.
+  const body = await sidebar.boundingBox();
+  const tsne = await page.locator('canvas').nth(1).boundingBox();
+  expect(tsne!.width).toBeGreaterThan(body!.width - 40);
+
+  await sidebar.getByRole('button', { name: 'Filters' }).click();
+  await expect(page.locator('canvas')).toHaveCount(1);
+  await sidebar.getByRole('button', { name: 't-SNE' }).click();
+  await expect(page.locator('canvas')).toHaveCount(2);
+
+  await page.waitForTimeout(250);
+  expect(pageErrors).toEqual([]);
+});
+
+test('standalone keeps the t-SNE panel docked, with no t-SNE tab', async ({ page }) => {
+  await page.goto('/?mock=1');
+  await expect(page.getByText('10,000 cells pooled from 3 fish (mock)')).toBeVisible({
+    timeout: 20_000,
+  });
+  // Both canvases visible at once, and no tab button for t-SNE.
+  await expect(page.locator('canvas')).toHaveCount(2);
+  await expect(page.getByRole('button', { name: 't-SNE' })).toHaveCount(0);
+});

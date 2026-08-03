@@ -300,7 +300,7 @@ export default function App() {
   // Mirror all persisted view state into the URL hash and route camera /
   // t-SNE viewport changes (which live in refs) into the same debounced
   // writer. All the timer/snapshot-ref machinery lives in useUrlSync.
-  const { handleCameraChange, handleUmapViewportChange } = useUrlSync(
+  const { handleCameraChange, handleUmapViewportChange, umapViewportRef } = useUrlSync(
     {
       filter: effectiveFilter,
       settings,
@@ -463,6 +463,29 @@ export default function App() {
     </>
   );
 
+  const tsnePanel = (
+    <Suspense fallback={<LoadingPane label="Loading t-SNE panel…" />}>
+      <UmapPanel
+        data={data}
+        filter={effectiveFilter}
+        settings={settings}
+        selection={selection}
+        coloring={coloring}
+        pauseForActivityPlayback={
+          activityPlaying && effectiveFilter.colorMode === 'activity'
+        }
+        focusedNeuron={effectiveFocusedNeuron}
+        onFocus={setFocusedNeuron}
+        onSelect={handleUmapSelect}
+        // Reseed from the live viewport, not the module-load URL value: the
+        // embedded t-SNE tab unmounts this panel on every tab switch, and
+        // INITIAL_URL_STATE is frozen at page load.
+        initialViewport={umapViewportRef.current ?? INITIAL_URL_STATE?.umap ?? null}
+        onViewportChange={handleUmapViewportChange}
+      />
+    </Suspense>
+  );
+
   const filterPanel = (
     <FilterControls
       data={data}
@@ -482,27 +505,8 @@ export default function App() {
       onClearSelection={handleClearSelection}
       tab={panelTab}
       onTabChange={setPanelTab}
+      tsneTab={EMBEDDED ? tsnePanel : undefined}
     />
-  );
-
-  const tsnePanel = (
-    <Suspense fallback={<LoadingPane label="Loading t-SNE panel…" />}>
-      <UmapPanel
-        data={data}
-        filter={effectiveFilter}
-        settings={settings}
-        selection={selection}
-        coloring={coloring}
-        pauseForActivityPlayback={
-          activityPlaying && effectiveFilter.colorMode === 'activity'
-        }
-        focusedNeuron={effectiveFocusedNeuron}
-        onFocus={setFocusedNeuron}
-        onSelect={handleUmapSelect}
-        initialViewport={INITIAL_URL_STATE?.umap ?? null}
-        onViewportChange={handleUmapViewportChange}
-      />
-    </Suspense>
   );
 
   const janeliaLogo = (
