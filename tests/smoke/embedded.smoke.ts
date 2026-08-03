@@ -99,12 +99,45 @@ test('the t-SNE tab holds the plot and survives a tab round-trip', async ({ page
   // wrong canvas and would pass through a real t-SNE sizing regression.
   const body = await sidebar.boundingBox();
   const tsne = await sidebar.locator('canvas').boundingBox();
+  // Measured real-world gap at both sidebar bounds is ~1px (border only —
+  // see task-6-report.md); 10px leaves headroom without hiding a real
+  // padded-scroller regression the way the original 40px margin did.
   expect(tsne!.width).toBeGreaterThan(body!.width - 10);
+
+  // The viewport must survive the round trip too — this is the entire
+  // reason this task exists (see the initialViewport reseed in App.tsx).
+  // Change it away from its default first: comparing two default
+  // viewports would pass even if the reseed were deleted outright.
+  //
+  // The observable is UmapPanel's own "reset view" button, not the URL
+  // hash: onViewportChange deliberately skips firing on a component's
+  // first effect tick (so a URL-restored viewport doesn't immediately
+  // overwrite itself), which means a wrongly-reseeded remount never
+  // reports its (wrong) viewport back up — the hash would keep showing
+  // the last real value from before the switch either way, so it can't
+  // tell a correct reseed from a broken one. "reset view" only renders
+  // while `viewport` (the exact state `initialViewport` seeds) is
+  // non-default, so it directly reflects what the remounted panel
+  // actually has, not what App last heard about.
+  await page.mouse.move(tsne!.x + tsne!.width / 2, tsne!.y + tsne!.height / 2);
+  await page.mouse.wheel(0, -400); // zoom in
+  await page.keyboard.down('Shift'); // shift+drag = pan (plain drag = lasso)
+  await page.mouse.down();
+  await page.mouse.move(tsne!.x + tsne!.width / 2 + 60, tsne!.y + tsne!.height / 2 + 30, {
+    steps: 5,
+  });
+  await page.mouse.up();
+  await page.keyboard.up('Shift');
+  await expect(sidebar.getByRole('button', { name: 'reset view' })).toBeVisible();
 
   await sidebar.getByRole('button', { name: 'Filters' }).click();
   await expect(page.locator('canvas')).toHaveCount(1);
   await sidebar.getByRole('button', { name: 't-SNE' }).click();
   await expect(page.locator('canvas')).toHaveCount(2);
+  // The panel just remounted. If it reseeded from the frozen page-load
+  // URL value instead of the live viewport ref, `viewport` would be back
+  // to default and this button would be gone.
+  await expect(sidebar.getByRole('button', { name: 'reset view' })).toBeVisible();
 
   await page.waitForTimeout(250);
   expect(pageErrors).toEqual([]);
