@@ -217,7 +217,7 @@ export function outerGridTemplate({
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run src/hooks/usePanelLayout.test.ts`
-Expected: PASS — 6 tests.
+Expected: PASS — 7 tests.
 
 - [ ] **Step 5: Wire the state and handlers into the hook**
 
@@ -498,17 +498,7 @@ Return `umapViewportRef: umapRef` from the hook alongside the two handlers.
 
 - [ ] **Step 6: Wire App up**
 
-In `src/App.tsx`, add a module-scope constant just below `INITIAL_SETTINGS_STATE` (line 92). Every later task reads this one name rather than re-deriving it:
-
-```tsx
-// Layout mode, fixed at module load. Read from INITIAL_SETTINGS_STATE rather
-// than live `settings` on purpose: toggling the Settings checkbox mid-session
-// must not re-shuffle the grid out from under a live camera — the same
-// reasoning the camera default already uses.
-const EMBEDDED = INITIAL_SETTINGS_STATE.embeddedMode;
-```
-
-Import `SIDEBAR_WIDTH_DEFAULT` from `./hooks/usePanelLayout`, destructure `sidebarOpen`, `setSidebarOpen`, `sidebarWidth`, `onSidebarResizeDown`, `onSidebarResizeMove`, `onSidebarResizeUp`, `onSidebarResizeDoubleClick` from `usePanelLayout`, and pass the restored values in:
+In `src/App.tsx`, import `SIDEBAR_WIDTH_DEFAULT` from `./hooks/usePanelLayout`, destructure `sidebarOpen` and `sidebarWidth` from `usePanelLayout`, and pass the restored values in:
 
 ```tsx
   } = usePanelLayout(
@@ -520,14 +510,14 @@ Import `SIDEBAR_WIDTH_DEFAULT` from `./hooks/usePanelLayout`, destructure `sideb
       umapWidth: INITIAL_URL_STATE?.umapWidth,
       sidebarOpen: INITIAL_URL_STATE?.sidebarOpen,
       sidebarWidth: INITIAL_URL_STATE?.sidebarWidth,
-    },
-    EMBEDDED,
-  );
+    });
 ```
 
-In the `useUrlSync` call, add `sidebarOpen` and `sidebarWidth` to the state object and `sidebarWidthDefault: SIDEBAR_WIDTH_DEFAULT` to the config object. Do **not** destructure `umapViewportRef` yet — an unused binding would trip eslint. Task 6 adds it when it has a consumer.
+**Do not pass `usePanelLayout` a second argument yet, and do not add an `EMBEDDED` const.** Both belong to Task 4. Passing the real flag here would flip `outerGridTemplate` to five tracks while App's outer grid still has only two auto-placed children — CSS would seat the 3D viewer in the 35px rail track and the detail panel in the sidebar track, so `?embed=1` would render visibly broken until Task 4 landed. Leaving `embedded` at its `false` default keeps two tracks and two children, which is correct. Persistence still works and stays fully testable: `useUrlSync` reads the width from the hook's return regardless of the flag.
 
-At this point the sidebar state exists and persists but nothing renders it. That is intentional: this task is reviewable on its own.
+For the same reason, destructure only `sidebarOpen` and `sidebarWidth` — the setter and the resize handlers have no consumer until Task 4 and an unused binding would trip eslint's `no-unused-vars`. Do **not** destructure `umapViewportRef` either; Task 6 adds it when it has a consumer.
+
+In the `useUrlSync` call, add `sidebarOpen` and `sidebarWidth` to the state object and `sidebarWidthDefault: SIDEBAR_WIDTH_DEFAULT` to the config object.
 
 - [ ] **Step 7: Verify**
 
@@ -851,9 +841,34 @@ test('standalone mode keeps the bottom panel and no rails', async ({ page }) => 
 Run: `npx playwright test tests/smoke/embedded.smoke.ts`
 Expected: FAIL — the first two tests time out looking for `embedded-sidebar`. The third (standalone) should already PASS.
 
-- [ ] **Step 3: Hoist the shared pieces into element variables**
+- [ ] **Step 3: Turn the embedded flag on**
 
-In `src/App.tsx`, immediately before the `return (` at line 369, add (`EMBEDDED` came from Task 2):
+Task 2 deliberately left `usePanelLayout`'s `embedded` argument unset, because five grid tracks with two auto-placed children renders broken. This task adds the flag and the three missing children in one commit, so the two never disagree.
+
+In `src/App.tsx`, add a module-scope constant just below `INITIAL_SETTINGS_STATE` (line 92). Every later task reads this one name rather than re-deriving it:
+
+```tsx
+// Layout mode, fixed at module load. Read from INITIAL_SETTINGS_STATE rather
+// than live `settings` on purpose: toggling the Settings checkbox mid-session
+// must not re-shuffle the grid out from under a live camera — the same
+// reasoning the camera default already uses.
+const EMBEDDED = INITIAL_SETTINGS_STATE.embeddedMode;
+```
+
+Pass it as `usePanelLayout`'s second argument, and extend the destructure with the four names Task 2 left out because they had no consumer yet: `setSidebarOpen`, `onSidebarResizeDown`, `onSidebarResizeMove`, `onSidebarResizeUp`, `onSidebarResizeDoubleClick`.
+
+```tsx
+  } = usePanelLayout(
+    {
+      /* …the existing initial object from Task 2, unchanged… */
+    },
+    EMBEDDED,
+  );
+```
+
+- [ ] **Step 4: Hoist the shared pieces into element variables**
+
+In `src/App.tsx`, immediately before the `return (` at line 369, add:
 
 ```tsx
   // Hoisted so the standalone and embedded branches below compose the same
@@ -958,7 +973,7 @@ In `src/App.tsx`, immediately before the `return (` at line 369, add (`EMBEDDED`
 
 Then replace the corresponding inline JSX in the existing standalone tree with `{viewer}`, `{filterPanel}`, `{tsnePanel}`, and `{detailAside}`.
 
-- [ ] **Step 4: Add the rail component**
+- [ ] **Step 5: Add the rail component**
 
 Still in `src/App.tsx`, above `export default function App()`:
 
@@ -1001,7 +1016,7 @@ function CollapseRail({
 }
 ```
 
-- [ ] **Step 5: Add the embedded branch**
+- [ ] **Step 6: Add the embedded branch**
 
 Wrap the existing `<div ref={mainAreaRef} …>` grid (lines 402-562) in `{EMBEDDED ? (…embedded…) : (…existing…)}`. The `else` branch is that existing tree unchanged apart from the Step 3 substitutions — do not retype or restructure it. The `then` branch is new:
 
@@ -1072,17 +1087,17 @@ One more thing to change outside the grid: **the detail-panel tab handle at the 
       {!EMBEDDED && !settings.screenshotMode && (
 ```
 
-- [ ] **Step 6: Run the smoke test to verify it passes**
+- [ ] **Step 7: Run the smoke test to verify it passes**
 
 Run: `npx playwright test tests/smoke/embedded.smoke.ts`
 Expected: PASS — 3 tests.
 
-- [ ] **Step 7: Verify the full gate**
+- [ ] **Step 8: Verify the full gate**
 
 Run: `npm run check && npm run test:smoke`
 Expected: PASS.
 
-- [ ] **Step 8: Look at it**
+- [ ] **Step 9: Look at it**
 
 Run `npm run dev`, open `/?mock=1&embed=1`, and check by hand:
 
@@ -1092,7 +1107,7 @@ Run `npm run dev`, open `/?mock=1&embed=1`, and check by hand:
 - Collapse both panels: the 3D view spans everything between the rails.
 - Compare `/?mock=1` against `main` — identical.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
 git add src/App.tsx tests/smoke/embedded.smoke.ts
