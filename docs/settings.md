@@ -257,12 +257,35 @@ reproduces them.
 
 ### Embedded mode {#embedded-mode}
 
-Adds a row of seven view-orientation icons above the 3D view — dorsal,
-ventral, the two sagittal pairs, and coronal — and opens the viewer on
-mapZebrain's own default orientation (dorsal, brain vertical, rostral up)
-rather than warp's landscape framing. It exists for running the viewer inside
-an iframe on [mapzebrain.org](https://mapzebrain.org), and changes nothing
-else: no panel, layout, or chrome is hidden.
+Reworks the whole layout for running the viewer inside an iframe on
+[mapzebrain.org](https://mapzebrain.org), so it reads as part of that
+site's own atlas page rather than a bolted-on panel:
+
+- The bottom panel moves to a resizable **left sidebar** with four tabs —
+  Filters, t-SNE, Settings, About. Drag the sidebar's right edge to
+  resize it (`280`–`700` px; double-click the handle to reset it to the
+  default `360` px). Collapse it with the left-edge rail.
+- The **t-SNE plot** is the second tab, immediately right of Filters. Its
+  pan/zoom and any lasso persist across a tab switch, so leaving the tab
+  and coming back lands you exactly where you left off. While the t-SNE
+  tab is hidden, the **t-SNE selection card** on the Filters tab is how
+  you see the lasso's cell count and clear it.
+- There is **no page header**. The title, cell count, **Export**, and
+  **Links** move into a strip at the top of the sidebar, and the Janelia
+  logo becomes a corner overlay on the 3D view instead of sitting in a
+  header bar.
+- Two **35px collapse rails** sit at the left and right viewport edges,
+  replacing the `⌄`/`⌃` bottom-panel handle and the `›`/`‹` detail-panel
+  handle. The left rail toggles the sidebar; the right rail toggles the
+  Detail panel.
+- The view-orientation bar (see [3D viewer → Embedded
+  mode](/ui/viewer#embedded-mode)) gains a **screenshot** icon and a
+  **gear** icon after the seven orientation icons. The gear opens the
+  sidebar — if it's collapsed — and switches it to the Settings tab.
+- The accent color and panel background switch to mapZebrain's own
+  palette (its `#ff1493` tab-underline pink, `#111` panels), so the
+  sidebar and tabs read as continuous with the host page. The standalone
+  viewer's yellow accent and panel color are unaffected.
 
 Normally you set it with `?embed=1` on the URL, which is what an embedding
 page's `src` attribute uses. The checkbox here is for trying it by hand.
@@ -270,8 +293,14 @@ Unlike the mesh toggles, embedded mode is **not** written to the URL hash —
 like [screenshot mode](#screenshot-mode) it is a presentation mode, not
 shareable view state, so a link you share won't drop the recipient into it.
 
-Toggling the checkbox mid-session shows or hides the icon bar and changes what
-"reset view" means, but deliberately does not jump the camera.
+Toggling the checkbox mid-session shows or hides the icon bar and changes
+what "reset view" means, but deliberately does not jump the camera, reflow
+the sidebar layout, or repaint the palette — the layout and palette are
+fixed from the value read at page load, same as the camera default. For
+the same reason, the checkbox cannot enable the screenshot button either:
+the 3D canvas's `preserveDrawingBuffer` is fixed when the canvas is
+created, so capturing a screenshot requires loading with `?embed=1` rather
+than flipping the setting mid-session.
 
 ## Screenshot mode {#screenshot-mode}
 

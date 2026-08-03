@@ -23,7 +23,7 @@ Four filter cards (**Transcriptomics × Visual Stimuli × Swim × Anatomy**) com
 - **Swim**: keep cells correlated (+ swim-driven) or anti-correlated (− anti-swim) with estimated swim power; magnitude threshold tunable in Settings.
 - **Anatomy**: an atlas toggle picks between the 16 paper-focal regions and the 112-region [mapZebrain](https://mapzebrain.org) atlas (the two are alternatives, not stacked) feeding a single region dropdown, plus an independent control to restrict to one of 3 fish specimens.
 - **Brain models**: optional translucent mapZebrain reference meshes (brain outline, fibers, cell bodies) drawn as anatomical context around the cells, each with its own visibility toggle and opacity. Off by default; requires the one-time `scripts/fetch_meshes.py` step.
-- **Embedded mode** (`?embed=1`): adds mapZebrain's seven view-orientation icons above the 3D view and opens on mapZebrain's own default orientation (dorsal, brain vertical, rostral up). Intended for running the viewer in an iframe on [mapzebrain.org](https://mapzebrain.org); purely additive, no layout change.
+- **Embedded mode** (`?embed=1`): for running the viewer in an iframe on [mapzebrain.org](https://mapzebrain.org). Moves the filter panel to a resizable left sidebar with the t-SNE plot as a tab, drops the page header into that sidebar, adds mapZebrain's nine-icon 3D toolbar (seven orientations plus screenshot and settings), its edge collapse rails, and its accent palette, and opens on mapZebrain's own default orientation (dorsal, brain vertical, rostral up). The standalone layout is unaffected.
 
 Selections are independent of filters:
 

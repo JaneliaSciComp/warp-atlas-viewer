@@ -5,7 +5,11 @@ description: The 2D transcriptomic projection, lasso selection, and its link to 
 
 # t-SNE panel
 
-The 2D scatter plot at the bottom-right of the screen. Every point corresponds to the same cell as in the 3D viewer, projected into the t-SNE embedding so that transcriptomically similar cells appear nearby regardless of their anatomical position.
+The 2D scatter plot at the bottom-right of the screen. ([Embedded
+mode](#embedded-mode) instead renders it as a tab in the left sidebar.)
+Every point corresponds to the same cell as in the 3D viewer, projected
+into the t-SNE embedding so that transcriptomically similar cells appear
+nearby regardless of their anatomical position.
 
 ## Uses
 
@@ -34,3 +38,16 @@ The 2D scatter plot at the bottom-right of the screen. Every point corresponds t
 ## Coloring
 
 The t-SNE panel uses the same Colors scheme as the 3D viewer. Because the t-SNE is a projection of the same cells (not a separate dataset), switching schemes is informative: **Colors → Region** reveals how cleanly transcriptomic clusters align with anatomy, while **Colors → Gene expression** with one gene pinned shows that gene's expression density across the embedding.
+
+## Embedded mode {#embedded-mode}
+
+In [embedded mode](/settings#embedded-mode) the t-SNE panel is not docked
+beside the filter strip — it is the sidebar's second tab, immediately
+right of Filters. Switching tabs unmounts and remounts the panel, but its
+pan/zoom viewport and any active lasso are preserved across the round
+trip: leaving the tab and coming back lands you exactly where you left it,
+not back at the default view.
+
+While the t-SNE tab is hidden, the **t-SNE selection card** on the Filters
+tab is how you see the lasso's cell count and clear it — it's the only
+view into the lasso until you switch back to the tab.

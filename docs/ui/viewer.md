@@ -35,19 +35,45 @@ Refresh/share preserves the full camera state (position, orientation, orbit targ
 ## Embedded mode {#embedded-mode}
 
 Enabled with `?embed=1` on the URL (or the checkbox in [Settings → Brain
-models](/settings#brain-models)). It exists for running the viewer inside an
-iframe on [mapzebrain.org](https://mapzebrain.org), and adds two things:
+models](/settings#brain-models)). It reworks the whole layout for running
+the viewer inside an iframe on [mapzebrain.org](https://mapzebrain.org) —
+see [Settings → Embedded mode](/settings#embedded-mode) for the sidebar,
+rails, and palette changes. In the 3D view specifically, it adds:
 
-- **A view-orientation icon bar** above the 3D view, using mapZebrain's own
-  icons: dorsal, ventral, sagittal vertical left/right, sagittal horizontal
-  left/right, and coronal. Clicking one snaps the camera to that view and
-  clears any pan. "Vertical" means rostral-up; "horizontal" means dorsal-up.
+- **A nine-icon bar** above the 3D view, using mapZebrain's own artwork:
+  the seven view-orientation icons — dorsal, ventral, sagittal vertical
+  left/right, sagittal horizontal left/right, and coronal — plus a
+  **screenshot** icon and a **gear** icon. Clicking an orientation icon
+  snaps the camera to that view and clears any pan. "Vertical" means
+  rostral-up; "horizontal" means dorsal-up.
 - **mapZebrain's default orientation** on open: dorsal, brain vertical,
   rostral up — rather than warp's landscape framing. The dorsal icon and the
   **reset view** button both return to it.
 
-Nothing else changes: no panel, layout, or chrome is hidden. The bar is
-suppressed in [screenshot mode](/settings#screenshot-mode).
+### Screenshot icon
+
+Downloads a PNG (`warp-atlas.png`) of the current 3D render. The image
+contains **only the 3D render**: the color legend, the icon bar, the
+projection pill, and tooltips are DOM overlays drawn on top of the canvas,
+not part of the capture. This matches mapZebrain's own screenshot behavior
+and is by design, not a bug. [Screenshot mode](/settings#screenshot-mode)
+remains the way to set up a clean full-viewport capture — via your OS or
+browser's own screenshot tool — that does include the legend and other
+on-screen overlays.
+
+The button only appears when the page was loaded with `?embed=1`. The 3D
+canvas's `preserveDrawingBuffer` option — required for the capture to see
+anything — is fixed when the canvas is created, so toggling **Embedded
+mode** in Settings mid-session cannot retroactively add it; the rest of
+the bar does appear on a live toggle, since it doesn't depend on canvas
+creation.
+
+### Gear icon
+
+Opens the sidebar (if it's collapsed) and switches it to the Settings tab.
+
+The bar, including both icons above, is suppressed in [screenshot
+mode](/settings#screenshot-mode).
 
 ::: tip Axis convention
 In the rendered scene, +x is rostral, ±y are the lateral axes, and +z is
