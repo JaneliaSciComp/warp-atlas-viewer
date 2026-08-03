@@ -1760,13 +1760,18 @@ In `src/App.tsx`, on the outermost div (line 370):
 Run: `npm run check`
 Expected: PASS.
 
-Then confirm the alias resolves to the identical colour before changing any call site — a Tailwind class that fails to compile produces no style and no error, so this is the step that catches a typo:
+Then confirm the alias **resolves** to the intended colour. A Tailwind class that fails to compile produces no style and no error, and a typo in the channel triple produces the wrong colour just as silently, so this needs a computed-style check rather than a grep of the built CSS. Grepping only proves the variable was *emitted*; it cannot distinguish `253 224 71` from `253 244 71`.
 
-```bash
-npm run build && grep -o 'rgb(var(--accent-rgb)[^)]*)' dist/assets/*.css | head
-```
+Add a test to `tests/smoke/embedded.smoke.ts` that reads the resolved colour of the active tab underline in both modes:
 
-Expected: at least one match, proving the alias generated CSS rather than being dropped.
+- standalone (`/?mock=1`) → `rgb(253, 224, 71)` (yellow-300, i.e. unchanged from today)
+- embedded (`/?mock=1&embed=1`) → `rgb(255, 20, 147)` (mapZebrain's ink bar)
+
+Read it with `getComputedStyle`, not by asserting on the class attribute — the class name is exactly what a broken alias leaves intact.
+
+**Acceptance is fault injection, not a passing run.** This assertion is only meaningful if it fails on a wrong colour, so prove it: temporarily change one channel of `--accent-rgb` in `:root`, confirm the standalone expectation fails, then restore. Report the failure output. Three assertions in this plan passed while asserting nothing, so a green run is not evidence.
+
+Note this test also subsumes the compile check — an alias that does not generate CSS resolves to the browser default, not to yellow-300.
 
 - [ ] **Step 4: Swap the 15 call sites**
 
