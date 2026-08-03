@@ -29,6 +29,9 @@ import {
 import { ViewOrientationBar } from './brain/ViewOrientationBar';
 
 const VIEWER_BACKGROUND = '#0a0a0a';
+// mapZebrain's own clear colour (web-gl.service.ts:47), so the embedded
+// canvas and the host page's canvas match exactly.
+const EMBEDDED_BACKGROUND = '#000000';
 
 interface Props {
   data: NeuronDataset;
@@ -61,6 +64,8 @@ interface Props {
    *  status pill. Wired to the same settings.projectionMode the
    *  Settings tab drives, so the two controls stay in sync. */
   onProjectionModeChange?: (mode: ProjectionMode) => void;
+  /** Fired when the gear icon in the embedded orientation bar is clicked. */
+  onOpenSettings?: () => void;
 }
 
 const VOLUME_CENTER: [number, number, number] = [0, 0, 0];
@@ -79,6 +84,7 @@ export function BrainViewer({
   initialCamera,
   onCameraChange,
   onProjectionModeChange,
+  onOpenSettings,
 }: Props) {
   const [hover, setHover] = useState<{ i: number; x: number; y: number } | null>(null);
   const [projMenuOpen, setProjMenuOpen] = useState(false);
@@ -159,6 +165,11 @@ export function BrainViewer({
   // a ref so a later prop update (e.g. a parent re-emitting the URL
   // state) can't yank the camera mid-interaction.
   const mountCameraRef = useRef(initialCamera);
+  // Embedded mode at MOUNT. The Canvas reads its `gl` options once at
+  // creation, so preserveDrawingBuffer — and therefore whether a screenshot
+  // can be taken at all — is fixed here. Toggling the Settings checkbox
+  // later must not offer a button that would emit a blank PNG.
+  const embeddedAtMountRef = useRef(settings.embeddedMode);
   const screenPanRef = useRef<ScreenPanState>({
     x: mountCameraRef.current?.pan?.[0] ?? 0,
     y: mountCameraRef.current?.pan?.[1] ?? 0,
@@ -251,6 +262,19 @@ export function BrainViewer({
     setHover({ i, x: pos.x, y: pos.y });
   }, []);
 
+  // Reads the composited back buffer, so the PNG matches what is on screen
+  // in every mode — including the projection modes, where the image is built
+  // across several passes per frame and re-rendering the raw scene here
+  // would produce a different picture.
+  const onCapture = useCallback(() => {
+    const canvas = containerRef.current?.querySelector('canvas');
+    if (!canvas) return;
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = 'warp-atlas.png';
+    a.click();
+  }, []);
+
   const projectionConfig = useMemo(
     () => scalarProjectionConfig(data, filter, settings),
     [data, filter, settings],
@@ -276,10 +300,19 @@ export function BrainViewer({
     >
       <Canvas
         camera={{ position: camPosition, fov: VIEWER_FOV_DEG, near: 0.1, far: 10000 }}
-        gl={{ antialias: false, powerPreference: 'high-performance' }}
+        gl={{
+          antialias: false,
+          powerPreference: 'high-performance',
+          // Needed for toDataURL to see anything. Embedded-only: it costs a
+          // full-canvas copy per frame.
+          preserveDrawingBuffer: embeddedAtMountRef.current,
+        }}
         dpr={[1, 2]}
       >
-        <color attach="background" args={[VIEWER_BACKGROUND]} />
+        <color
+          attach="background"
+          args={[settings.embeddedMode ? EMBEDDED_BACKGROUND : VIEWER_BACKGROUND]}
+        />
         {settings.debugMode && <FpsMeter onSample={setFps} />}
         <PointCloud
           data={data}
@@ -359,6 +392,8 @@ export function BrainViewer({
         <ViewOrientationBar
           distance={presetDistance}
           applyView={(position, up) => applyViewRef.current?.(position, up)}
+          onCapture={embeddedAtMountRef.current ? onCapture : null}
+          onOpenSettings={() => onOpenSettings?.()}
         />
       )}
       <div className="absolute top-2 left-2 flex flex-col items-start gap-1.5 pointer-events-none">

@@ -452,6 +452,10 @@ export default function App() {
           onProjectionModeChange={(mode) =>
             setSettings((s) => ({ ...s, projectionMode: mode }))
           }
+          onOpenSettings={() => {
+            setSidebarOpen(true);
+            setPanelTab('settings');
+          }}
         />
       </Suspense>
       <ColorLegend

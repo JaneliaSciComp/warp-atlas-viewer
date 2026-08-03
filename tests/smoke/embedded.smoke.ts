@@ -152,3 +152,41 @@ test('standalone keeps the t-SNE panel docked, with no t-SNE tab', async ({ page
   await expect(page.locator('canvas')).toHaveCount(2);
   await expect(page.getByRole('button', { name: 't-SNE' })).toHaveCount(0);
 });
+
+test('the gear icon opens the Settings tab', async ({ page }) => {
+  await page.goto('/?mock=1&embed=1');
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+
+  await page.getByRole('button', { name: '3D view settings' }).click();
+  await expect(page.getByText('3D point density', { exact: true })).toBeVisible();
+});
+
+test('the gear icon reopens a collapsed sidebar', async ({ page }) => {
+  await page.goto('/?mock=1&embed=1');
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+
+  await page.getByTestId('rail-sidebar').click();
+  await expect(page.getByTestId('embedded-sidebar')).toHaveCount(0);
+
+  await page.getByRole('button', { name: '3D view settings' }).click();
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible();
+  await expect(page.getByText('3D point density', { exact: true })).toBeVisible();
+});
+
+test('the screenshot icon downloads a non-blank PNG', async ({ page }) => {
+  await page.goto('/?mock=1&embed=1');
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+  // Let the point cloud actually draw before capturing.
+  await page.waitForTimeout(1500);
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: '3D view screenshot' }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe('warp-atlas.png');
+
+  // The preserveDrawingBuffer trap: without it toDataURL yields a tiny
+  // all-transparent PNG. A real capture of a 274k-point scene is far larger.
+  const path = await download.path();
+  const { statSync } = await import('node:fs');
+  expect(statSync(path!).size).toBeGreaterThan(20_000);
+});
