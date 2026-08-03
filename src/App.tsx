@@ -92,12 +92,6 @@ const INITIAL_SETTINGS_STATE: SettingsState = {
   ...(isEmbedRequested(window.location.search) ? { embeddedMode: true } : {}),
 };
 
-// Layout mode, fixed at module load. Read from INITIAL_SETTINGS_STATE rather
-// than live `settings` on purpose: toggling the Settings checkbox mid-session
-// must not re-shuffle the grid out from under a live camera — the same
-// reasoning the camera default already uses.
-const EMBEDDED = INITIAL_SETTINGS_STATE.embeddedMode;
-
 export default function App() {
   const { data, error, progress } = useNeuronData();
   const uniqueFishIds = useUniqueFishIds(data);
@@ -182,22 +176,24 @@ export default function App() {
     // setSidebarOpen / onSidebarResizeDown / onSidebarResizeMove /
     // onSidebarResizeUp / onSidebarResizeDoubleClick are not destructured
     // yet: nothing renders the sidebar in this task, and an unused binding
-    // would trip eslint (same reasoning as umapViewportRef below). Task 4
-    // adds them alongside the sidebar's JSX.
+    // would trip eslint (same reasoning as umapViewportRef below). The
+    // `embedded` argument to usePanelLayout is deferred for the same
+    // reason from the other direction: passing it here flips the outer
+    // grid to five tracks while App still only renders two children, so
+    // CSS auto-placement would seat them in the wrong tracks. Task 4 adds
+    // the flag together with the rails/sidebar JSX that makes five tracks
+    // correct.
     sidebarOpen,
     sidebarWidth,
-  } = usePanelLayout(
-    {
-      detailOpen: INITIAL_URL_STATE?.detail,
-      bottomOpen: INITIAL_URL_STATE?.bottom,
-      bottomHeight: INITIAL_URL_STATE?.bottomHeight,
-      detailWidth: INITIAL_URL_STATE?.detailWidth,
-      umapWidth: INITIAL_URL_STATE?.umapWidth,
-      sidebarOpen: INITIAL_URL_STATE?.sidebarOpen,
-      sidebarWidth: INITIAL_URL_STATE?.sidebarWidth,
-    },
-    EMBEDDED,
-  );
+  } = usePanelLayout({
+    detailOpen: INITIAL_URL_STATE?.detail,
+    bottomOpen: INITIAL_URL_STATE?.bottom,
+    bottomHeight: INITIAL_URL_STATE?.bottomHeight,
+    detailWidth: INITIAL_URL_STATE?.detailWidth,
+    umapWidth: INITIAL_URL_STATE?.umapWidth,
+    sidebarOpen: INITIAL_URL_STATE?.sidebarOpen,
+    sidebarWidth: INITIAL_URL_STATE?.sidebarWidth,
+  });
 
   // Lasso polygon (in t-SNE data coords) for the current selection.
   // Persisting the polygon — not the index list — keeps share URLs
