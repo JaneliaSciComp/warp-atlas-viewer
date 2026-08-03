@@ -1690,8 +1690,8 @@ git commit -m "Add mapZebrain's screenshot and settings icons to the orientation
 
 **The spec's mechanism is refined here.** It proposed raw `border-[var(--accent)]` arbitrary values. That breaks on the four sites that use an opacity modifier (`ring-yellow-300/60`, `bg-yellow-300/30`): Tailwind cannot inject an alpha channel into an opaque `var()`. Registering the colour in `tailwind.config.ts` with the `<alpha-value>` placeholder — backed by a space-separated RGB-channel variable — makes the opacity modifiers work and gives the call sites natural names (`border-accent`, `ring-accent/60`).
 
-Four of the 19 sites are deliberately **not** changed:
-- `App.tsx:446`, `App.tsx:510`, `App.tsx:549` — `hover:bg-yellow-300/30` on the resize strips. A transient drag affordance, not brand accent; pink-on-hover reads as an error state.
+Five sites are deliberately **not** changed. (The plan originally said four, counting three resize strips — Task 4 then added a fourth, the sidebar's own, using the same hover class. Expect **7** `yellow-300` matches in `src/` after this task: 4 in `App.tsx`, 1 in `ExportButton.tsx`, and 2 in `globals.css` — a comment and the variable's own value.)
+- The four `hover:bg-yellow-300/30` resize strips in `App.tsx` (bottom, detail, t-SNE, and the sidebar's). A transient drag affordance, not brand accent; pink-on-hover reads as an error state. All four must stay yellow together — converting a subset would leave some handles glowing yellow and one pink.
 - `ExportButton.tsx:191` — `bg-yellow-400 … hover:bg-yellow-300`, a filled primary button in a modal dialog. Its base colour is `yellow-400`, so it would need a second variable for no real gain.
 
 **Files:**
@@ -1802,7 +1802,7 @@ Leave the `Card` component's `bg-neutral-900/60` alone; it reads correctly again
 grep -rn "yellow-300" src/
 ```
 
-Expected: exactly 4 lines — `App.tsx` ×3 (the resize strips) and `ExportButton.tsx:191`. Any other hit is a missed site.
+Expected: exactly 7 lines — `App.tsx` ×4 (the resize strips: bottom, detail, t-SNE, and the sidebar's, which Task 4 added after this table was first written), `ExportButton.tsx:191`, and `globals.css` ×2 (a comment and the `--accent-rgb` value itself). More means a call site was missed; fewer means one of the intentional five was converted.
 
 - [ ] **Step 6: Verify**
 
