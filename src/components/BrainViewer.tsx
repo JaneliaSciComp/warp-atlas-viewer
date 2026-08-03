@@ -26,12 +26,24 @@ import {
   boundsMaxAbs,
   fitDistance,
 } from './brain/viewPresets';
-import { ViewOrientationBar } from './brain/ViewOrientationBar';
+import { BAR_NATURAL_WIDTH_PX, ViewOrientationBar } from './brain/ViewOrientationBar';
 
 const VIEWER_BACKGROUND = '#0a0a0a';
 // mapZebrain's own clear colour (web-gl.service.ts:47), so the embedded
 // canvas and the host page's canvas match exactly.
 const EMBEDDED_BACKGROUND = '#000000';
+// Below this viewer width the orientation bar is hidden rather than squashed or
+// left to run under the colour legend.
+//
+// The bar is centred on the viewer, so its right edge sits at
+// `width/2 + barWidth/2`. The legend is right-anchored 104px in from the
+// viewer's right edge (96px wide plus its 8px offset, measured for the default
+// region legend). Clearing it needs `width/2 + barWidth/2 < width - 104`, i.e.
+// `width > barWidth + 208` = 553. Rounded up for slack. A gradient legend is
+// wider than the region one, so just above this threshold the bar can still
+// meet a gradient legend — cosmetic, and only on a non-default colour scheme,
+// which is not worth a second breakpoint.
+const MIN_VIEWER_WIDTH_FOR_BAR = BAR_NATURAL_WIDTH_PX + 215;
 
 interface Props {
   data: NeuronDataset;
@@ -392,7 +404,15 @@ export function BrainViewer({
           {tooltip}
         </div>
       )}
-      {settings.embeddedMode && !settings.screenshotMode && (
+      {/* The bar is an overlay centred on the viewer, so in a narrow embed it
+          would either crush its own icons or run under the colour legend at
+          top-right. Hide it instead: the orientation presets are a
+          convenience, and the Settings tab still reaches everything they do.
+          canvasSize.w starts at 0 and is filled by the ResizeObserver above,
+          so the bar simply appears once the first measurement lands. */}
+      {settings.embeddedMode &&
+        !settings.screenshotMode &&
+        canvasSize.w >= MIN_VIEWER_WIDTH_FOR_BAR && (
         <ViewOrientationBar
           distance={presetDistance}
           applyView={(position, up) => applyViewRef.current?.(position, up)}

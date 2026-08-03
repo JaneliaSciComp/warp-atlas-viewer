@@ -22,18 +22,34 @@ const PRESET_ICONS: Record<ViewPresetKey, string> = {
   coronal: coronalIcon,
 };
 
-const BUTTON_CLASS =
-  'p-0.5 rounded border border-neutral-700 bg-neutral-900/85 hover:bg-neutral-800 hover:border-neutral-500';
-// The screenshot and gear icons carry their own artwork frame, so a border
-// around them reads as a double outline. mapZebrain renders these two as bare
-// <img> too (three-dview.component.html:34-43), unlike the seven orientation
-// tiles. Background and hover state stay, so they remain identifiable as
-// buttons.
-const PLAIN_BUTTON_CLASS = 'p-0.5 rounded bg-neutral-900/85 hover:bg-neutral-800';
+// One class for all nine buttons: no border, since each icon's artwork carries
+// its own frame and a border around it reads as a double outline. mapZebrain
+// sizes the orientation icons at height=32 and the screenshot/gear pair at
+// height=25 with an extra gap between the groups
+// (three-dview.component.html:12-43); that asymmetry was copied here
+// originally but reads as an accident rather than a choice, so all nine are
+// uniform instead. Background and hover state stay, so they are still
+// identifiable as buttons.
+const BUTTON_CLASS = 'p-0.5 rounded bg-neutral-900/85 hover:bg-neutral-800';
+// Height only — width comes from each icon's own aspect ratio, which is what
+// mapZebrain's `height="32"` markup does. The artwork is not square (the
+// dorsal tile is 51x64, the vertical-sagittal pair narrower still), so forcing
+// `w-8` stretched every orientation icon horizontally.
+const ICON_CLASS = 'h-8 w-auto';
 
-/** The view-orientation icon row above the 3D view, mirroring mapZebrain's.
- *  Only rendered in embedded mode. The trailing screenshot + gear pair
- *  matches mapZebrain's own bar, at their smaller 25px size. */
+/** Width the row occupies, in px — measured in Chromium, not derived, because
+ *  it depends on nine pieces of artwork with different aspect ratios (icon
+ *  widths at 32px tall: 25.5, 25.5, 16.5, 17, 32, 32, 32, 32, 32) plus 4px
+ *  padding per side and 8px gaps. A constant rather than a runtime measurement
+ *  because the caller decides whether to render the bar *before* it exists.
+ *  Re-measure if the artwork or the spacing changes;
+ *  `MIN_VIEWER_WIDTH_FOR_BAR` in BrainViewer is derived from it. */
+export const BAR_NATURAL_WIDTH_PX = 345;
+
+/** The view-orientation icon row above the 3D view, mirroring mapZebrain's:
+ *  seven orientations, then a screenshot icon and a gear. Only rendered in
+ *  embedded mode, and only when the viewer is wide enough to hold it — see
+ *  `MIN_VIEWER_WIDTH_FOR_BAR` at the call site. */
 export function ViewOrientationBar({
   distance,
   applyView,
@@ -48,7 +64,16 @@ export function ViewOrientationBar({
   onOpenSettings: () => void;
 }) {
   return (
-    <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2">
+    // w-max is load-bearing: an absolutely positioned flex row with `left-1/2`
+    // is shrink-to-fit against the space from its left edge to the containing
+    // block's right edge — i.e. half the viewer column. Below ~690px of viewer
+    // that is narrower than the row needs, so without it the flex items shrink
+    // and every icon renders squashed. max-content lets the row take its
+    // natural width, which -translate-x-1/2 then centres.
+    <div
+      data-testid="view-orientation-bar"
+      className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex w-max items-center gap-2"
+    >
       {VIEW_PRESETS.map((preset) => (
         <button
           key={preset.key}
@@ -61,10 +86,9 @@ export function ViewOrientationBar({
           }}
           className={BUTTON_CLASS}
         >
-          <img src={PRESET_ICONS[preset.key]} alt={preset.label} className="h-8 w-8" />
+          <img src={PRESET_ICONS[preset.key]} alt={preset.label} className={ICON_CLASS} />
         </button>
       ))}
-      <span className="w-1" aria-hidden />
       {onCapture && (
         <button
           title="Download a PNG of the 3D view"
@@ -73,9 +97,9 @@ export function ViewOrientationBar({
             e.stopPropagation();
             onCapture();
           }}
-          className={PLAIN_BUTTON_CLASS}
+          className={BUTTON_CLASS}
         >
-          <img src={screenshotIcon} alt="" className="h-[25px] w-[25px]" />
+          <img src={screenshotIcon} alt="" className={ICON_CLASS} />
         </button>
       )}
       <button
@@ -85,9 +109,9 @@ export function ViewOrientationBar({
           e.stopPropagation();
           onOpenSettings();
         }}
-        className={PLAIN_BUTTON_CLASS}
+        className={BUTTON_CLASS}
       >
-        <img src={settingsIcon} alt="" className="h-[25px] w-[25px]" />
+        <img src={settingsIcon} alt="" className={ICON_CLASS} />
       </button>
     </div>
   );

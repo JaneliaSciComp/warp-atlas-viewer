@@ -234,6 +234,10 @@ test('standalone keeps the t-SNE panel docked, with no t-SNE tab', async ({ page
 });
 
 test('the gear icon opens the Settings tab', async ({ page }) => {
+  // Wider than the 1280 default: with both panels open at 1280 the viewer is
+  // ~490px, below MIN_VIEWER_WIDTH_FOR_BAR, so the whole icon bar — gear
+  // included — is deliberately hidden. See the orientation-bar test above.
+  await page.setViewportSize({ width: 1500, height: 860 });
   await page.goto('/?mock=1&embed=1');
   await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
 
@@ -254,6 +258,10 @@ test('the gear icon reopens a collapsed sidebar', async ({ page }) => {
 });
 
 test('the screenshot icon downloads a non-blank PNG', async ({ page }) => {
+  // Wider than the 1280 default so the icon bar is above its width gate — at
+  // 1280 with both panels open the bar, and so the screenshot button, is
+  // hidden. See the orientation-bar test above.
+  await page.setViewportSize({ width: 1500, height: 860 });
   await page.goto('/?mock=1&embed=1');
   await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
   // Let the point cloud actually draw before capturing.
@@ -352,6 +360,59 @@ test('embedded mode enables the brain outline by default, and the hash can still
   await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(outline(page)).not.toBeChecked();
+});
+
+test('the orientation bar renders at full size or not at all', async ({ page }) => {
+  // The bar is a centred overlay in a column the sidebar and detail panel
+  // squeeze. Two failure modes it must avoid: flex-shrinking its own icons to
+  // half width (what `w-max` prevents), and running under the colour legend at
+  // top-right (what the width gate prevents). So: full width, or absent.
+  const bar = page.getByTestId('view-orientation-bar');
+
+  // 1500 wide → ~710px viewer, above the gate.
+  await page.setViewportSize({ width: 1500, height: 860 });
+  await page.goto('/?mock=1&embed=1');
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+  await expect(bar).toBeVisible();
+  const shown = (await bar.boundingBox())!;
+  // Natural width is 345px; anything materially under it means the flex items
+  // shrank and every icon is distorted.
+  expect(shown.width).toBeGreaterThan(340);
+  // Icons keep their own aspect ratio, so the row is NOT nine equal widths —
+  // the two vertical-sagittal tiles are ~17px against the camera's 32px.
+  const iconWidths = await bar.locator('img').evaluateAll((els) =>
+    els.map((el) => Math.round(el.getBoundingClientRect().width)),
+  );
+  expect(iconWidths).toHaveLength(9);
+  expect(Math.min(...iconWidths)).toBeLessThan(20);
+  expect(Math.max(...iconWidths)).toBe(32);
+
+  // Everything below resizes the SAME page rather than reloading. That matters:
+  // BrainViewer is behind React.lazy, so after a fresh goto a `toHaveCount(0)`
+  // assertion passes instantly against a viewer that has not mounted yet — it
+  // races rather than testing the gate. Resizing live means each assertion runs
+  // from a state where the opposite was just true, so a transition has to
+  // actually happen.
+
+  // 1390 wide → ~600px viewer: above the gate, but HALF of it (300px) is under
+  // the bar's 345px natural width. That band is the only place the shrink bug
+  // is reachable, so it is what makes `w-max` load-bearing — at 1500 there is
+  // already enough room and the width assertion above passes either way.
+  await page.setViewportSize({ width: 1390, height: 860 });
+  await expect(bar).toBeVisible();
+  expect((await bar.boundingBox())!.width).toBeGreaterThan(340);
+
+  // 1280 wide → ~490px viewer, below the gate: gone rather than squashed or
+  // overlapping the legend. The bar was visible a moment ago, so this is a real
+  // disappearance.
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(bar).toHaveCount(0);
+
+  // Collapsing a panel widens the viewer past the gate, so it comes back — the
+  // gate tracks the viewer, not the window.
+  await page.getByTestId('rail-detail').click();
+  await expect(bar).toBeVisible();
+  expect((await bar.boundingBox())!.width).toBeGreaterThan(340);
 });
 
 test('the links dropdown opens inside the sidebar, not under the collapse rail', async ({
