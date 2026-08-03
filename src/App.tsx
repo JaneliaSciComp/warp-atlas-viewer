@@ -92,6 +92,49 @@ const INITIAL_SETTINGS_STATE: SettingsState = {
   ...(isEmbedRequested(window.location.search) ? { embeddedMode: true } : {}),
 };
 
+// Layout mode, fixed at module load. Read from INITIAL_SETTINGS_STATE rather
+// than live `settings` on purpose: toggling the Settings checkbox mid-session
+// must not re-shuffle the grid out from under a live camera — the same
+// reasoning the camera default already uses.
+const EMBEDDED = INITIAL_SETTINGS_STATE.embeddedMode;
+
+/** mapZebrain's own collapse affordance: a full-height 35px arrow button
+ *  pinned to a viewport edge (assets/css/sideMenu.css:29-58). Used in
+ *  embedded mode in place of the small tab handles that stick into the 3D
+ *  view. */
+function CollapseRail({
+  side,
+  open,
+  onToggle,
+  label,
+  testId,
+}: {
+  side: 'left' | 'right';
+  open: boolean;
+  onToggle: () => void;
+  label: string;
+  testId: string;
+}) {
+  // The glyph points the way the click will move the panel edge.
+  const glyph = side === 'left' ? (open ? '‹' : '›') : open ? '›' : '‹';
+  return (
+    <button
+      onClick={onToggle}
+      title={`${open ? 'hide' : 'show'} ${label}`}
+      aria-label={`${open ? 'hide' : 'show'} ${label}`}
+      aria-expanded={open}
+      data-testid={testId}
+      className={
+        'h-full w-full flex items-center justify-center text-lg font-mono ' +
+        'bg-[#111] border border-black text-neutral-200 hover:bg-[#444] ' +
+        (side === 'left' ? 'rounded-r-[3px]' : 'rounded-l-[3px]')
+      }
+    >
+      <span aria-hidden>{glyph}</span>
+    </button>
+  );
+}
+
 export default function App() {
   const { data, error, progress } = useNeuronData();
   const uniqueFishIds = useUniqueFishIds(data);
@@ -176,27 +219,29 @@ export default function App() {
     onResizeDoubleClick,
     onDetailResizeDoubleClick,
     onUmapResizeDoubleClick,
-    // setSidebarOpen / onSidebarResizeDown / onSidebarResizeMove /
-    // onSidebarResizeUp / onSidebarResizeDoubleClick are not destructured
-    // yet: nothing renders the sidebar in this task, and an unused binding
-    // would trip eslint (same reasoning as umapViewportRef below). The
-    // `embedded` argument to usePanelLayout is deferred for the same
-    // reason from the other direction: passing it here flips the outer
-    // grid to five tracks while App still only renders two children, so
-    // CSS auto-placement would seat them in the wrong tracks. Task 4 adds
-    // the flag together with the rails/sidebar JSX that makes five tracks
-    // correct.
+    // The sidebar names below only have a consumer in embedded mode, and
+    // `embedded` only makes sense once the rails/sidebar JSX exists: the
+    // flag flips the outer grid to five tracks, so it must land together
+    // with the five children CSS auto-placement seats into them.
     sidebarOpen,
+    setSidebarOpen,
     sidebarWidth,
-  } = usePanelLayout({
-    detailOpen: INITIAL_URL_STATE?.detail,
-    bottomOpen: INITIAL_URL_STATE?.bottom,
-    bottomHeight: INITIAL_URL_STATE?.bottomHeight,
-    detailWidth: INITIAL_URL_STATE?.detailWidth,
-    umapWidth: INITIAL_URL_STATE?.umapWidth,
-    sidebarOpen: INITIAL_URL_STATE?.sidebarOpen,
-    sidebarWidth: INITIAL_URL_STATE?.sidebarWidth,
-  });
+    onSidebarResizeDown,
+    onSidebarResizeMove,
+    onSidebarResizeUp,
+    onSidebarResizeDoubleClick,
+  } = usePanelLayout(
+    {
+      detailOpen: INITIAL_URL_STATE?.detail,
+      bottomOpen: INITIAL_URL_STATE?.bottom,
+      bottomHeight: INITIAL_URL_STATE?.bottomHeight,
+      detailWidth: INITIAL_URL_STATE?.detailWidth,
+      umapWidth: INITIAL_URL_STATE?.umapWidth,
+      sidebarOpen: INITIAL_URL_STATE?.sidebarOpen,
+      sidebarWidth: INITIAL_URL_STATE?.sidebarWidth,
+    },
+    EMBEDDED,
+  );
 
   // Lasso polygon (in t-SNE data coords) for the current selection.
   // Persisting the polygon — not the index list — keeps share URLs
@@ -387,6 +432,105 @@ export default function App() {
     );
   }
 
+  // Hoisted so the standalone and embedded branches below compose the same
+  // elements instead of duplicating them. Only one branch renders, so each
+  // is created once.
+  const viewer = (
+    <>
+      <Suspense fallback={<LoadingPane label="Loading 3D viewer…" />}>
+        <BrainViewer
+          data={data}
+          filter={effectiveFilter}
+          settings={settings}
+          coloring={coloring}
+          selection={selection}
+          focusedNeuron={effectiveFocusedNeuron}
+          onFocus={setFocusedNeuron}
+          onCanvasSizeChange={setBrainCanvasSize}
+          initialCamera={INITIAL_URL_STATE?.camera ?? null}
+          onCameraChange={handleCameraChange}
+          onProjectionModeChange={(mode) =>
+            setSettings((s) => ({ ...s, projectionMode: mode }))
+          }
+        />
+      </Suspense>
+      <ColorLegend
+        data={data}
+        filter={effectiveFilter}
+        settings={settings}
+        uniqueFishIds={uniqueFishIds}
+      />
+    </>
+  );
+
+  const filterPanel = (
+    <FilterControls
+      data={data}
+      filter={effectiveFilter}
+      setFilter={setFilter}
+      settings={settings}
+      setSettings={setSettings}
+      uniqueFishIds={uniqueFishIds}
+      onReset={handleResetFilters}
+      visibleCount={visibleCount}
+      applyView={handleApplyView}
+      activityPlaying={activityPlaying}
+      setActivityPlaying={setActivityPlaying}
+      activitySpeed={activitySpeed}
+      setActivitySpeed={setActivitySpeed}
+      selection={selection}
+      onClearSelection={handleClearSelection}
+      tab={panelTab}
+      onTabChange={setPanelTab}
+    />
+  );
+
+  const tsnePanel = (
+    <Suspense fallback={<LoadingPane label="Loading t-SNE panel…" />}>
+      <UmapPanel
+        data={data}
+        filter={effectiveFilter}
+        settings={settings}
+        selection={selection}
+        coloring={coloring}
+        pauseForActivityPlayback={
+          activityPlaying && effectiveFilter.colorMode === 'activity'
+        }
+        focusedNeuron={effectiveFocusedNeuron}
+        onFocus={setFocusedNeuron}
+        onSelect={handleUmapSelect}
+        initialViewport={INITIAL_URL_STATE?.umap ?? null}
+        onViewportChange={handleUmapViewportChange}
+      />
+    </Suspense>
+  );
+
+  const detailAside = detailOpen && (
+    <aside className="relative min-h-0 min-w-0 border-l border-neutral-800 bg-neutral-900">
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize detail panel"
+        onPointerDown={onDetailResizeDown}
+        onPointerMove={onDetailResizeMove}
+        onPointerUp={onDetailResizeUp}
+        onPointerCancel={onDetailResizeUp}
+        onDoubleClick={onDetailResizeDoubleClick}
+        title="Drag to resize · double-click to reset"
+        className="absolute top-0 bottom-0 left-0 w-1.5 z-20 cursor-col-resize bg-transparent hover:bg-yellow-300/30 transition-colors"
+      />
+      <Suspense fallback={<LoadingPane label="Loading details…" />}>
+        <DetailPanel
+          data={data}
+          filter={effectiveFilter}
+          settings={settings}
+          selection={effectiveSelection}
+          focusedNeuron={effectiveFocusedNeuron}
+        />
+      </Suspense>
+    </aside>
+  );
+
   return (
     <div className="relative h-full w-full overflow-hidden flex flex-col">
       <header className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-neutral-900 border-b border-neutral-800">
@@ -420,169 +564,141 @@ export default function App() {
           </a>
         </div>
       </header>
-      <div ref={mainAreaRef} className="flex-1 grid min-h-0" style={outerLayout}>
-        {/* Main column: brain viewer on top, filters + t-SNE on bottom. */}
-        <div className="grid min-h-0 min-w-0" style={mainLayout}>
-          {/* Top: 3D viewer + legend + clear-selection button + the
-              bottom-panel show/hide tab handle (sits flush at the
-              bottom edge of the brain viewer area regardless of
-              whether the bottom row is collapsed). */}
-          <div className="relative min-h-0 min-w-0 row-start-1 col-start-1">
-            <div className="absolute inset-0">
-              <Suspense fallback={<LoadingPane label="Loading 3D viewer…" />}>
-                <BrainViewer
-                  data={data}
-                  filter={effectiveFilter}
-                  settings={settings}
-                  coloring={coloring}
-                  selection={selection}
-                  focusedNeuron={effectiveFocusedNeuron}
-                  onFocus={setFocusedNeuron}
-                  onCanvasSizeChange={setBrainCanvasSize}
-                  initialCamera={INITIAL_URL_STATE?.camera ?? null}
-                  onCameraChange={handleCameraChange}
-                  onProjectionModeChange={(mode) =>
-                    setSettings((s) => ({ ...s, projectionMode: mode }))
-                  }
-                />
-              </Suspense>
-              <ColorLegend
-                data={data}
-                filter={effectiveFilter}
-                settings={settings}
-                uniqueFishIds={uniqueFishIds}
-              />
-            </div>
-            {bottomOpen && (
+      {EMBEDDED ? (
+        <div ref={mainAreaRef} className="flex-1 grid min-h-0" style={outerLayout}>
+          {/* The rails are grid items occupying the first and last tracks,
+              which outerGridTemplate always emits. So screenshot mode
+              substitutes an empty div rather than rendering nothing —
+              otherwise the tracks would be empty and the whole layout would
+              shift 35px left. */}
+          {settings.screenshotMode ? (
+            <div />
+          ) : (
+            <CollapseRail
+              side="left"
+              open={sidebarOpen}
+              onToggle={() => setSidebarOpen((o) => !o)}
+              label="filters sidebar"
+              testId="rail-sidebar"
+            />
+          )}
+          {sidebarOpen && (
+            <div
+              data-testid="embedded-sidebar"
+              className="relative flex flex-col min-h-0 min-w-0 overflow-hidden bg-neutral-800"
+            >
+              <div className="flex-1 min-h-0">{filterPanel}</div>
               <div
                 role="separator"
-                aria-orientation="horizontal"
-                aria-label="Resize bottom panel"
-                onPointerDown={onResizeDown}
-                onPointerMove={onResizeMove}
-                onPointerUp={onResizeUp}
-                onPointerCancel={onResizeUp}
-                onDoubleClick={onResizeDoubleClick}
+                aria-orientation="vertical"
+                aria-label="Resize filters sidebar"
+                onPointerDown={onSidebarResizeDown}
+                onPointerMove={onSidebarResizeMove}
+                onPointerUp={onSidebarResizeUp}
+                onPointerCancel={onSidebarResizeUp}
+                onDoubleClick={onSidebarResizeDoubleClick}
                 title="Drag to resize · double-click to reset"
-                className="absolute bottom-0 left-0 right-0 h-1.5 z-20 cursor-row-resize bg-transparent hover:bg-yellow-300/30 transition-colors"
+                className="absolute top-0 bottom-0 right-0 w-1.5 z-20 cursor-col-resize bg-transparent hover:bg-yellow-300/30 transition-colors"
               />
-            )}
-            {!settings.screenshotMode && (
-              <button
-                onClick={() => setBottomOpen((o) => !o)}
-                title={bottomOpen ? 'hide bottom panel' : 'show bottom panel'}
-                aria-label={bottomOpen ? 'hide bottom panel' : 'show bottom panel'}
-                className="absolute bottom-0 left-1/2 -translate-x-1/2 z-30 bg-neutral-900/90 border border-b-0 border-neutral-700 text-neutral-200 w-[42px] py-0.5 rounded-t text-xs font-mono hover:bg-neutral-800 leading-none"
-              >
-                <span
-                  aria-hidden
-                  className={
-                    'inline-block ' +
-                    (bottomOpen ? 'translate-y-[-3px]' : 'translate-y-[3px]')
-                  }
+            </div>
+          )}
+          <div className="relative min-h-0 min-w-0">{viewer}</div>
+          {detailAside}
+          {settings.screenshotMode ? (
+            <div />
+          ) : (
+            <CollapseRail
+              side="right"
+              open={detailOpen}
+              onToggle={() => setDetailOpen((o) => !o)}
+              label="details panel"
+              testId="rail-detail"
+            />
+          )}
+        </div>
+      ) : (
+        <div ref={mainAreaRef} className="flex-1 grid min-h-0" style={outerLayout}>
+          {/* Main column: brain viewer on top, filters + t-SNE on bottom. */}
+          <div className="grid min-h-0 min-w-0" style={mainLayout}>
+            {/* Top: 3D viewer + legend + clear-selection button + the
+                bottom-panel show/hide tab handle (sits flush at the
+                bottom edge of the brain viewer area regardless of
+                whether the bottom row is collapsed). */}
+            <div className="relative min-h-0 min-w-0 row-start-1 col-start-1">
+              <div className="absolute inset-0">{viewer}</div>
+              {bottomOpen && (
+                <div
+                  role="separator"
+                  aria-orientation="horizontal"
+                  aria-label="Resize bottom panel"
+                  onPointerDown={onResizeDown}
+                  onPointerMove={onResizeMove}
+                  onPointerUp={onResizeUp}
+                  onPointerCancel={onResizeUp}
+                  onDoubleClick={onResizeDoubleClick}
+                  title="Drag to resize · double-click to reset"
+                  className="absolute bottom-0 left-0 right-0 h-1.5 z-20 cursor-row-resize bg-transparent hover:bg-yellow-300/30 transition-colors"
+                />
+              )}
+              {!settings.screenshotMode && (
+                <button
+                  onClick={() => setBottomOpen((o) => !o)}
+                  title={bottomOpen ? 'hide bottom panel' : 'show bottom panel'}
+                  aria-label={bottomOpen ? 'hide bottom panel' : 'show bottom panel'}
+                  className="absolute bottom-0 left-1/2 -translate-x-1/2 z-30 bg-neutral-900/90 border border-b-0 border-neutral-700 text-neutral-200 w-[42px] py-0.5 rounded-t text-xs font-mono hover:bg-neutral-800 leading-none"
                 >
-                  {bottomOpen ? '⌄' : '⌃'}
-                </span>
-              </button>
+                  <span
+                    aria-hidden
+                    className={
+                      'inline-block ' +
+                      (bottomOpen ? 'translate-y-[-3px]' : 'translate-y-[3px]')
+                    }
+                  >
+                    {bottomOpen ? '⌄' : '⌃'}
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {/* Bottom split: filters + t-SNE. Renders only when open;
+                when hidden, the gridTemplateRows drops the second row
+                and the brain viewer reclaims the height. */}
+            {bottomOpen && (
+              <div
+                className="row-start-2 col-start-1 grid min-h-0 min-w-0"
+                style={{ gridTemplateColumns: `minmax(0, 1fr) min(${umapWidth}px, 100%)` }}
+              >
+                <div className="flex flex-col bg-neutral-800 min-h-0 min-w-0 overflow-hidden">
+                  {filterPanel}
+                </div>
+                {/* t-SNE column, with a draggable strip on its left edge.
+                    Matches the other resizers: transparent until hover,
+                    then a faint yellow highlight. */}
+                <div className="relative min-h-0 min-w-0">
+                  <div
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label="Resize t-SNE panel"
+                    onPointerDown={onUmapResizeDown}
+                    onPointerMove={onUmapResizeMove}
+                    onPointerUp={onUmapResizeUp}
+                    onPointerCancel={onUmapResizeUp}
+                    onDoubleClick={onUmapResizeDoubleClick}
+                    title="Drag to resize · double-click to reset"
+                    className="absolute top-0 bottom-0 left-0 w-1.5 z-20 cursor-col-resize bg-transparent hover:bg-yellow-300/30 transition-colors"
+                  />
+                  {tsnePanel}
+                </div>
+              </div>
             )}
           </div>
 
-          {/* Bottom split: filters + t-SNE. Renders only when open;
-              when hidden, the gridTemplateRows drops the second row
-              and the brain viewer reclaims the height. */}
-          {bottomOpen && (
-            <div
-              className="row-start-2 col-start-1 grid min-h-0 min-w-0"
-              style={{ gridTemplateColumns: `minmax(0, 1fr) min(${umapWidth}px, 100%)` }}
-            >
-              <div className="flex flex-col bg-neutral-800 min-h-0 min-w-0 overflow-hidden">
-                <FilterControls
-                  data={data}
-                  filter={effectiveFilter}
-                  setFilter={setFilter}
-                  settings={settings}
-                  setSettings={setSettings}
-                  uniqueFishIds={uniqueFishIds}
-                  onReset={handleResetFilters}
-                  visibleCount={visibleCount}
-                  applyView={handleApplyView}
-                  activityPlaying={activityPlaying}
-                  setActivityPlaying={setActivityPlaying}
-                  activitySpeed={activitySpeed}
-                  setActivitySpeed={setActivitySpeed}
-                  selection={selection}
-                  onClearSelection={handleClearSelection}
-                  tab={panelTab}
-                  onTabChange={setPanelTab}
-                />
-              </div>
-              {/* t-SNE column, with a draggable strip on its left edge.
-                  Matches the other resizers: transparent until hover,
-                  then a faint yellow highlight. */}
-              <div className="relative min-h-0 min-w-0">
-                <div
-                  role="separator"
-                  aria-orientation="vertical"
-                  aria-label="Resize t-SNE panel"
-                  onPointerDown={onUmapResizeDown}
-                  onPointerMove={onUmapResizeMove}
-                  onPointerUp={onUmapResizeUp}
-                  onPointerCancel={onUmapResizeUp}
-                  onDoubleClick={onUmapResizeDoubleClick}
-                  title="Drag to resize · double-click to reset"
-                  className="absolute top-0 bottom-0 left-0 w-1.5 z-20 cursor-col-resize bg-transparent hover:bg-yellow-300/30 transition-colors"
-                />
-                <Suspense fallback={<LoadingPane label="Loading t-SNE panel…" />}>
-                  <UmapPanel
-                    data={data}
-                    filter={effectiveFilter}
-                    settings={settings}
-                    selection={selection}
-                    coloring={coloring}
-                    pauseForActivityPlayback={
-                      activityPlaying && effectiveFilter.colorMode === 'activity'
-                    }
-                    focusedNeuron={effectiveFocusedNeuron}
-                    onFocus={setFocusedNeuron}
-                    onSelect={handleUmapSelect}
-                    initialViewport={INITIAL_URL_STATE?.umap ?? null}
-                    onViewportChange={handleUmapViewportChange}
-                  />
-                </Suspense>
-              </div>
-            </div>
-          )}
+          {/* Detail panel column — full-screen height. When closed the
+              column collapses (gridTemplateColumns drops to '1fr') so the
+              main column reclaims the width. */}
+          {detailAside}
         </div>
-
-        {/* Detail panel column — full-screen height. When closed the
-            column collapses (gridTemplateColumns drops to '1fr') so the
-            main column reclaims the width. */}
-        {detailOpen && (
-          <aside className="relative min-h-0 min-w-0 border-l border-neutral-800 bg-neutral-900">
-            <div
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="Resize detail panel"
-              onPointerDown={onDetailResizeDown}
-              onPointerMove={onDetailResizeMove}
-              onPointerUp={onDetailResizeUp}
-              onPointerCancel={onDetailResizeUp}
-              onDoubleClick={onDetailResizeDoubleClick}
-              title="Drag to resize · double-click to reset"
-              className="absolute top-0 bottom-0 left-0 w-1.5 z-20 cursor-col-resize bg-transparent hover:bg-yellow-300/30 transition-colors"
-            />
-            <Suspense fallback={<LoadingPane label="Loading details…" />}>
-              <DetailPanel
-                data={data}
-                filter={effectiveFilter}
-                settings={settings}
-                selection={effectiveSelection}
-                focusedNeuron={effectiveFocusedNeuron}
-              />
-            </Suspense>
-          </aside>
-        )}
-      </div>
+      )}
 
       {/* Tab handle for the detail panel: when open it sits on the
           panel's left edge pointing right (click to close); when closed
@@ -590,8 +706,8 @@ export default function App() {
           open). Both are absolutely positioned against the outer
           container so they line up vertically regardless of where the
           panel boundary is. Hidden in screenshot mode along with the
-          other panel chrome. */}
-      {!settings.screenshotMode && (
+          other panel chrome. In embedded mode the right rail replaces it. */}
+      {!EMBEDDED && !settings.screenshotMode && (
         <button
           onClick={() => setDetailOpen((o) => !o)}
           title={detailOpen ? 'hide details' : 'show details'}
