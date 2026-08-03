@@ -776,7 +776,7 @@ export function SettingsTab({
                         href="https://mapzebrain.org"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-yellow-300 hover:underline"
+                        className="text-accent hover:underline"
                     >
                         mapZebrain
                     </a>{" "}
@@ -816,7 +816,7 @@ export function SettingsTab({
                                         [control.enabledKey]: e.target.checked,
                                     } as Partial<SettingsState>)
                                 }
-                                className="accent-yellow-300"
+                                className="accent-accent"
                             />
                             {control.label}
                         </label>
@@ -848,7 +848,7 @@ export function SettingsTab({
                         onChange={(e) =>
                             update({ embeddedMode: e.target.checked })
                         }
-                        className="accent-yellow-300"
+                        className="accent-accent"
                     />
                     Embedded mode (orientation icons)
                 </label>
@@ -917,7 +917,7 @@ function NumberRow({
                     value={value}
                     disabled={disabled}
                     onChange={(e) => onChange(parseFloat(e.target.value))}
-                    className="w-32 accent-yellow-300"
+                    className="w-32 accent-accent"
                 />
                 <input
                     type="number"

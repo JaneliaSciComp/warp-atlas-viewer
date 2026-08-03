@@ -191,6 +191,34 @@ test('the screenshot icon downloads a non-blank PNG', async ({ page }) => {
   expect(statSync(path!).size).toBeGreaterThan(20_000);
 });
 
+test('standalone and embedded resolve the tab-underline accent to their own palettes', async ({
+  page,
+}) => {
+  // The class on the active tab button is `border-accent` in both modes —
+  // only the CSS variable it resolves through differs. Asserting on the
+  // class name would pass even if the Tailwind alias failed to compile or
+  // a channel triple were mistyped (both leave the class attribute intact
+  // and silently fall back to the browser default border colour), so this
+  // reads the resolved colour instead.
+  await page.goto('/?mock=1');
+  await expect(page.getByText('10,000 cells pooled from 3 fish (mock)')).toBeVisible({
+    timeout: 20_000,
+  });
+  const standaloneAccent = await page
+    .getByRole('button', { name: 'Filters', exact: true })
+    .evaluate((el) => getComputedStyle(el).borderBottomColor);
+  // yellow-300 — must be unchanged from what standalone users see today.
+  expect(standaloneAccent).toBe('rgb(253, 224, 71)');
+
+  await page.goto('/?mock=1&embed=1');
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+  const embeddedAccent = await page
+    .getByRole('button', { name: 'Filters', exact: true })
+    .evaluate((el) => getComputedStyle(el).borderBottomColor);
+  // mapZebrain's .mat-ink-bar pink.
+  expect(embeddedAccent).toBe('rgb(255, 20, 147)');
+});
+
 test('toggling embedded mode live via Settings shows the bar but not the screenshot button', async ({
   page,
 }) => {

@@ -583,7 +583,12 @@ export default function App() {
   );
 
   return (
-    <div className="relative h-full w-full overflow-hidden flex flex-col">
+    <div
+      className={
+        'relative h-full w-full overflow-hidden flex flex-col' +
+        (EMBEDDED ? ' embedded' : '')
+      }
+    >
       {!EMBEDDED && (
         <header className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-neutral-900 border-b border-neutral-800">
           <div className="flex items-baseline gap-3">
@@ -626,7 +631,7 @@ export default function App() {
           {sidebarOpen && (
             <div
               data-testid="embedded-sidebar"
-              className="relative flex flex-col min-h-0 min-w-0 overflow-hidden bg-neutral-800"
+              className="relative flex flex-col min-h-0 min-w-0 overflow-hidden bg-panel"
             >
               {sidebarHeader}
               <div className="flex-1 min-h-0">{filterPanel}</div>
@@ -715,7 +720,7 @@ export default function App() {
                 className="row-start-2 col-start-1 grid min-h-0 min-w-0"
                 style={{ gridTemplateColumns: `minmax(0, 1fr) min(${umapWidth}px, 100%)` }}
               >
-                <div className="flex flex-col bg-neutral-800 min-h-0 min-w-0 overflow-hidden">
+                <div className="flex flex-col bg-panel min-h-0 min-w-0 overflow-hidden">
                   {filterPanel}
                 </div>
                 {/* t-SNE column, with a draggable strip on its left edge.

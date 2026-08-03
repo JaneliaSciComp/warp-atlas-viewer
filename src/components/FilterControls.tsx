@@ -98,7 +98,7 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
   }, [tab]);
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-neutral-800 border-t border-neutral-700">
+    <div className="flex flex-col h-full min-h-0 bg-panel border-t border-neutral-700">
       <div className="flex-shrink-0 flex border-b border-neutral-700 px-2 pt-1">
         {tabs.map((t) => {
           const active = tab === t.id;
@@ -109,7 +109,7 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
               className={
                 'px-3 py-1.5 text-xs uppercase tracking-wider font-mono -mb-px border-b-2 ' +
                 (active
-                  ? 'text-neutral-100 border-yellow-300'
+                  ? 'text-neutral-100 border-accent'
                   : 'text-neutral-500 border-transparent hover:text-neutral-300')
               }
             >

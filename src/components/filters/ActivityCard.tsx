@@ -83,7 +83,7 @@ export function ActivityCard({
               className={
                 'w-8 h-8 rounded border flex items-center justify-center transition-[border-color,box-shadow,opacity] ' +
                 (pressed
-                  ? 'border-yellow-300 ring-1 ring-yellow-300/60 opacity-100'
+                  ? 'border-accent ring-1 ring-accent/60 opacity-100'
                   : 'border-neutral-700 opacity-50 hover:opacity-90')
               }
             >

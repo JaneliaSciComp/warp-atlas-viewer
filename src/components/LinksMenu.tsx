@@ -89,7 +89,7 @@ export function LinksMenu() {
               rel="noopener noreferrer"
               role="menuitem"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-neutral-100 hover:bg-neutral-800 hover:text-yellow-300"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-neutral-100 hover:bg-neutral-800 hover:text-accent"
             >
               <span>{l.text}</span>
               <ExternalLinkIcon />
