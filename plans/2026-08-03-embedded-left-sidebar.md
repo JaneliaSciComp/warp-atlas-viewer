@@ -1042,7 +1042,11 @@ Wrap the existing `<div ref={mainAreaRef} …>` grid (lines 402-562) in `{EMBEDD
           {sidebarOpen && (
             <div
               data-testid="embedded-sidebar"
-              className="relative flex flex-col min-h-0 min-w-0 bg-neutral-800"
+              // overflow-hidden matches the standalone filter column's wrapper:
+              // it clips a card wider than the track instead of letting it
+              // paint over the 3D canvas. FilterControls' own body still owns
+              // the vertical overflow-y-auto.
+              className="relative flex flex-col min-h-0 min-w-0 overflow-hidden bg-neutral-800"
             >
               <div className="flex-1 min-h-0">{filterPanel}</div>
               <div
