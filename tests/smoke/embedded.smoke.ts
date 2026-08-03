@@ -190,3 +190,41 @@ test('the screenshot icon downloads a non-blank PNG', async ({ page }) => {
   const { statSync } = await import('node:fs');
   expect(statSync(path!).size).toBeGreaterThan(20_000);
 });
+
+test('toggling embedded mode live via Settings shows the bar but not the screenshot button', async ({
+  page,
+}) => {
+  // Deliberately NOT ?embed=1: this loads the standalone layout, so the
+  // Canvas is created with preserveDrawingBuffer fixed to false at mount
+  // (embeddedAtMountRef captures settings.embeddedMode === false here).
+  await page.goto('/?mock=1');
+  await expect(page.getByRole('heading', { name: 'WARP Atlas Viewer' })).toBeVisible({
+    timeout: 20_000,
+  });
+  // BrainViewer is lazy-loaded (React.lazy + Suspense): its function body,
+  // and therefore embeddedAtMountRef's useRef initializer, only runs once
+  // the chunk resolves and it actually mounts. Wait for its canvas before
+  // touching settings, or the checkbox toggle below could race the mount
+  // and get baked into the ref instead of the pre-toggle value.
+  await expect(page.locator('canvas')).toBeVisible({ timeout: 20_000 });
+
+  // No orientation bar yet — embeddedMode starts off in standalone mode.
+  await expect(page.getByRole('button', { name: 'Dorsal' })).toHaveCount(0);
+
+  // Flip embeddedMode on via the live Settings checkbox (SettingsTab.tsx),
+  // not the URL — a ?embed=1 reload would make the mount-time ref and the
+  // live value agree, defeating the point of this test.
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByLabel('Embedded mode (orientation icons)').check();
+
+  // The bar itself is gated on the LIVE settings.embeddedMode, so it (and
+  // the gear, which is always rendered inside it) appear immediately.
+  await expect(page.getByRole('button', { name: 'Dorsal' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '3D view settings' })).toBeVisible();
+
+  // But the screenshot button stays gated on embeddedAtMountRef, which is
+  // still false — toggling the checkbox cannot retroactively add
+  // preserveDrawingBuffer to the already-created Canvas, so offering the
+  // button here would silently produce a blank PNG.
+  await expect(page.getByRole('button', { name: '3D view screenshot' })).toHaveCount(0);
+});
