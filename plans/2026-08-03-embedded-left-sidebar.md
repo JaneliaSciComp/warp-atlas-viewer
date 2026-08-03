@@ -924,6 +924,9 @@ In `src/App.tsx`, immediately before the `return (` at line 369, add:
     />
   );
 
+  // Declare tsnePanel BEFORE filterPanel: filterPanel's `tsneTab` prop
+  // references it in its initializer, so the reverse order is a
+  // temporal-dead-zone ReferenceError the moment App renders.
   const tsnePanel = (
     <Suspense fallback={<LoadingPane label="Loading t-SNE panel…" />}>
       <UmapPanel
@@ -1286,8 +1289,13 @@ test('the t-SNE tab holds the plot and survives a tab round-trip', async ({ page
   await expect(page.locator('canvas')).toHaveCount(2);
 
   // The t-SNE canvas must fill the tab body, not sit in a padded scroller.
+  // Scope the locator to the sidebar rather than indexing the page's
+  // canvases: in embedded mode the sidebar precedes the viewer in DOM
+  // order, so the t-SNE canvas is nth(0) and the 3D canvas is nth(1) —
+  // an index-based selector here silently asserts a lower bound on the
+  // wrong canvas and would pass through a real t-SNE sizing regression.
   const body = await sidebar.boundingBox();
-  const tsne = await page.locator('canvas').nth(1).boundingBox();
+  const tsne = await sidebar.locator('canvas').boundingBox();
   expect(tsne!.width).toBeGreaterThan(body!.width - 40);
 
   await sidebar.getByRole('button', { name: 'Filters' }).click();
