@@ -615,28 +615,61 @@ test('embedded mode opens the detail panel wider, and agrees with the URL writer
   const hash = decodeURIComponent(await page.evaluate(() => location.hash));
   expect(hash).not.toContain('detailWidth');
 
-  // Double-click resets to the embedded default, not the standalone one. On a
-  // FRESH page: navigating this page to a different hash would be a
-  // same-document navigation, and the outgoing page's pending debounced hash
-  // write can land on top of the new hash before App reloads to read it — so
-  // the panel intermittently comes back at 413 instead of 600. A full document
-  // load has no such window.
-  const fresh = await page.context().newPage();
-  await fresh.setViewportSize({ width: 1600, height: 900 });
-  await fresh.goto(
+  // Double-click resets to the embedded default, not the standalone one. This
+  // navigates the same document to a different hash, which App handles by
+  // reloading so the new hash is read at module load — safe now that a write in
+  // flight can no longer land on top of it (see the pasted-hash test below).
+  await page.goto(
     '/?mock=1&embed=1#!' + encodeURIComponent(JSON.stringify({ detailWidth: 600 })),
   );
-  await expect(fresh.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
-  const freshWidth = async () =>
-    Math.round((await fresh.locator('aside').boundingBox())!.width);
-  expect(await freshWidth()).toBe(600); // an explicit hash width still wins
-  await fresh.locator('[aria-label="Resize detail panel"]').dblclick();
-  await expect(async () => expect(await freshWidth()).toBe(413)).toPass({ timeout: 5_000 });
-  await fresh.close();
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+  await expect(async () => expect(await width()).toBe(600)).toPass({ timeout: 10_000 });
+  await page.locator('[aria-label="Resize detail panel"]').dblclick();
+  await expect(async () => expect(await width()).toBe(413)).toPass({ timeout: 5_000 });
 
   await page.goto('/?mock=1');
   await expect(page.getByText('10,000 cells pooled from 3 fish (mock)')).toBeVisible({
     timeout: 20_000,
   });
   expect(await width()).toBe(360);
+});
+
+test('a pasted hash is not overwritten by a write already in flight', async ({ page }) => {
+  // Assigning location.hash does NOT dispatch hashchange synchronously. So a
+  // debounced URL write in flight runs first and replaceStates the app's own
+  // state over the hash the user just pasted; the hashchange handler then
+  // reloads and restores the wrong state. The handler cannot prevent this —
+  // by the time it runs, location.hash is the app's value again. writeUrlNow
+  // refusing to overwrite a hash it did not write is what closes the window.
+  //
+  // Holding a drag across the paste is what makes this deterministic: it keeps
+  // writes being scheduled, and past the 250ms burst cap scheduleUrlWrite calls
+  // the writer synchronously, which no clearTimeout in the handler would catch.
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto('/?mock=1&embed=1');
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+  await page.waitForTimeout(1800);
+
+  const strip = (await page.locator('[aria-label="Resize detail panel"]').boundingBox())!;
+  await page.mouse.move(strip.x + 3, strip.y + 200);
+  await page.mouse.down();
+  for (let i = 0; i < 5; i++) {
+    await page.mouse.move(strip.x - i * 12, strip.y + 200);
+    await page.waitForTimeout(70);
+  }
+  // Paste mid-drag.
+  await page.evaluate(() => {
+    window.location.hash = '!' + encodeURIComponent(JSON.stringify({ detailWidth: 600 }));
+  });
+  for (let i = 5; i < 12; i++) {
+    await page.mouse.move(strip.x - i * 12, strip.y + 200);
+    await page.waitForTimeout(40);
+  }
+  await page.mouse.up();
+
+  // The reload the handler triggers must land on the pasted width, not on the
+  // width the drag was producing.
+  await expect(async () =>
+    expect(Math.round((await page.locator('aside').boundingBox())!.width)).toBe(600),
+  ).toPass({ timeout: 10_000 });
 });

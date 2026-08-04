@@ -32,6 +32,38 @@ const MAX_HASH_BYTES = 6000;
 // Activity playback speed multiplier omitted from the hash at this value.
 const ACTIVITY_SPEED_DEFAULT = 10;
 
+/**
+ * Whether a URL write may proceed.
+ *
+ * `hashIsOurs` is the one that stops a pasted share link from being eaten.
+ * Setting `location.hash` does not dispatch `hashchange` synchronously — the
+ * event is queued — so a debounced write already in flight runs *first* and
+ * `replaceState`s this page's state over the hash the user just pasted. By the
+ * time the hashchange handler runs, `location.hash` is our own value again and
+ * the reload it triggers restores the wrong state. Refusing to overwrite a hash
+ * we did not write closes that window, and covers bookmarks and back/forward
+ * for the same reason.
+ *
+ * Checked inside the writer rather than at each caller: writes arrive by three
+ * routes — the debounce timer, a synchronous call from `scheduleUrlWrite` when
+ * the burst cap is exceeded, and the pagehide/visibilitychange flush — and no
+ * amount of `clearTimeout` in the hashchange handler can catch the second one.
+ */
+export function mayWriteUrl({
+  playing,
+  hashIsOurs,
+}: {
+  /** Activity playback is running; the hash is held still so a share link
+   *  captures a frame rather than a moving picture. */
+  playing: boolean;
+  /** The current `location.hash` is the one this hook last wrote. False means
+   *  something else changed it — a paste, a bookmark, back/forward — and our
+   *  state is now the stale one. */
+  hashIsOurs: boolean;
+}): boolean {
+  return !playing && hashIsOurs;
+}
+
 /** The view state the URL mirrors. All sanitized values — see App. */
 export interface UrlSyncState {
   filter: FilterState;
@@ -111,6 +143,13 @@ export function useUrlSync(state: UrlSyncState, config: UrlSyncConfig): UrlSyncH
   // can sample the latest value without re-creating the debounce dep
   // chain on every play/pause toggle.
   const isPlayingRef = useRef(false);
+  // The hash as the browser reported it after our last write — read back rather
+  // than assumed, so any encoding normalisation the browser applies can't make
+  // our own hash look foreign. Seeded with the hash we loaded on, which is ours
+  // for this purpose: it is what the app's state was built from.
+  const lastWrittenHashRef = useRef(
+    typeof window === 'undefined' ? '' : window.location.hash,
+  );
 
   // Snapshot state into refs so the writer (called from event listeners
   // that must NOT depend on render-cycle closures) always reads the
@@ -152,7 +191,15 @@ export function useUrlSync(state: UrlSyncState, config: UrlSyncConfig): UrlSyncH
       urlTimerRef.current = null;
     }
     urlBurstStartRef.current = null;
-    if (isPlayingRef.current) return;
+    // The single choke point for every write, whatever route it arrived by.
+    if (
+      !mayWriteUrl({
+        playing: isPlayingRef.current,
+        hashIsOurs: window.location.hash === lastWrittenHashRef.current,
+      })
+    ) {
+      return;
+    }
     const {
       defaultFilter,
       bottomHeightDefault,
@@ -231,6 +278,7 @@ export function useUrlSync(state: UrlSyncState, config: UrlSyncConfig): UrlSyncH
     }
     const target = `${window.location.pathname}${window.location.search}${hash}`;
     window.history.replaceState(null, '', target);
+    lastWrittenHashRef.current = window.location.hash;
   }, []);
   const scheduleUrlWrite = useCallback(() => {
     const now = Date.now();
@@ -276,17 +324,14 @@ export function useUrlSync(state: UrlSyncState, config: UrlSyncConfig): UrlSyncH
     activitySpeed,
     scheduleUrlWrite,
   ]);
-  // While true, pagehide / visibilitychange flush handlers no-op so a
-  // reload triggered by an external hash change can't replaceState the
-  // current (stale) app state over the freshly pasted hash.
-  const suppressFlushRef = useRef(false);
   // Belt-and-suspenders: flush the URL when the tab is about to be
   // hidden/closed. pagehide covers refresh, navigation, close, and the
   // bfcache path; visibilitychange catches tab-switches the user
-  // didn't initiate via the address bar.
+  // didn't initiate via the address bar. No guard of its own — writeUrlNow
+  // owns that for every caller, and its hash check is what keeps this from
+  // stamping our state over a hash someone just pasted.
   useEffect(() => {
     const flush = () => {
-      if (suppressFlushRef.current) return;
       writeUrlNow();
     };
     window.addEventListener('pagehide', flush);
@@ -300,13 +345,15 @@ export function useUrlSync(state: UrlSyncState, config: UrlSyncConfig): UrlSyncH
   // hitting back/forward) come in as hashchange events. Our own writes
   // go through history.replaceState, which does NOT fire hashchange,
   // so this handler only sees user-driven changes. Reload so the new
-  // hash flows through the module-level INITIAL_URL_STATE read on
-  // mount; suppress flushes and cancel any pending debounced write
-  // first so neither path can overwrite the pasted hash before the
-  // reload commits.
+  // hash flows through the module-level INITIAL_URL_STATE read on mount.
+  //
+  // This handler cannot be what protects the pasted hash: `hashchange` is
+  // dispatched asynchronously, so by the time it runs a write in flight may
+  // already have replaced the pasted hash with ours — and then there is nothing
+  // left to protect. writeUrlNow's hash check is what actually holds the line;
+  // cancelling the pending timer here just saves it a pointless call.
   useEffect(() => {
     const onHashChange = () => {
-      suppressFlushRef.current = true;
       if (urlTimerRef.current) {
         clearTimeout(urlTimerRef.current);
         urlTimerRef.current = null;

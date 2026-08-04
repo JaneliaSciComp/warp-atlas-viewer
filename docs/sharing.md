@@ -29,6 +29,10 @@ Every meaningful piece of view state is encoded in the URL hash (the `#…` port
 Browser bookmarks store the full URL and can therefore be used to maintain a set of favorite views.
 :::
 
+Pasting a link into a tab that already has the viewer open works too: the
+viewer notices the change and reloads so the pasted state is what loads. It
+does not matter whether the two URLs differ only after the `#`.
+
 ## Limitations
 
 ### Hash size limit
