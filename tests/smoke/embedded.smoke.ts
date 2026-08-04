@@ -532,3 +532,62 @@ test('the links dropdown opens inside the sidebar, not under the collapse rail',
   const sm = (await page.getByRole('menu').boundingBox())!;
   expect(Math.abs(sm.x + sm.width - (sb.x + sb.width))).toBeLessThanOrEqual(1);
 });
+
+test('embedded mode opens with free rotation, no momentum, and a raised framing', async ({
+  page,
+}) => {
+  // Wide enough for the orientation bar, since the preset click below needs it.
+  await page.setViewportSize({ width: 1500, height: 900 });
+  await page.goto('/?mock=1&embed=1');
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('canvas')).toBeVisible();
+  await page.waitForTimeout(2500); // let the point cloud and outline mesh draw
+
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  // mapZebrain's own 3D view orbits freely with no damping; embedded matches it.
+  await expect(page.getByLabel(/object-centric/i).first()).not.toBeChecked();
+  const momentum = page.locator('label').filter({ hasText: /momentum/i }).first();
+  expect(await momentum.locator('input').last().inputValue()).toBe('0');
+
+  // The 10px upward framing nudge is a projection offset held outside the
+  // user's pan, so that a reset-to-default restores it instead of undoing it.
+  // Measured as the topmost lit row of the rendered canvas: reading the offset
+  // off the camera is not possible from the page, and pixels are the thing that
+  // actually matters anyway. Embedded mode sets preserveDrawingBuffer, so the
+  // canvas can be read back.
+  const topLitRow = () =>
+    page.evaluate(async () => {
+      const cv = document.querySelector('canvas') as HTMLCanvasElement;
+      const img = new Image();
+      await new Promise((res, rej) => {
+        img.onload = res;
+        img.onerror = rej;
+        img.src = cv.toDataURL('image/png');
+      });
+      const oc = document.createElement('canvas');
+      oc.width = img.width;
+      oc.height = img.height;
+      const ctx = oc.getContext('2d')!;
+      ctx.drawImage(img, 0, 0);
+      const d = ctx.getImageData(0, 0, oc.width, oc.height).data;
+      const dpr = oc.height / cv.clientHeight;
+      for (let y = 0; y < oc.height; y++) {
+        for (let x = 0; x < oc.width; x++) {
+          const i = (y * oc.width + x) * 4;
+          if (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2] > 18) return y / dpr;
+        }
+      }
+      return -1;
+    });
+
+  const before = await topLitRow();
+  expect(before).toBeGreaterThan(0);
+
+  // A preset click runs applyView, which zeroes the user pan. If it also zeroed
+  // the baseline — as it did before the baseline existed — the volume would
+  // drop back down by 10px here.
+  await page.getByRole('button', { name: 'Dorsal' }).click();
+  await page.waitForTimeout(1200);
+  const after = await topLitRow();
+  expect(Math.abs(after - before)).toBeLessThanOrEqual(1);
+});

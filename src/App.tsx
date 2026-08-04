@@ -94,7 +94,16 @@ const INITIAL_SETTINGS_STATE: SettingsState = {
   // page. Spread BEFORE the hash so an explicit `brainOutline: false` in a
   // share URL still wins — unlike embeddedMode below, this setting IS
   // persisted.
-  ...(EMBED_REQUESTED ? { brainOutline: true } : {}),
+  ...(EMBED_REQUESTED
+    ? {
+        brainOutline: true,
+        // mapZebrain's own 3D view rotates freely with no damping, so the
+        // embedded viewer matches it: object-centric rotation off (native
+        // trackball pan and free orbit target) and no momentum coast.
+        objectCentricRotation: false,
+        rotationMomentum: 0,
+      }
+    : {}),
   ...(INITIAL_URL_STATE?.settings ?? {}),
   // ?embed=1 wins: the hash never carries embeddedMode.
   ...(EMBED_REQUESTED ? { embeddedMode: true } : {}),

@@ -16,7 +16,7 @@ import {
 } from './brain/projectionModel';
 import { buildTooltip } from './brain/tooltip';
 import { DebugOverlay, FpsMeter } from './brain/debugOverlay';
-import { CameraSync, ScreenSpacePan, type ScreenPanState } from './brain/cameraControls';
+import { CameraSync, NO_PAN, ScreenSpacePan, type ScreenPanState } from './brain/cameraControls';
 import { ProjectionRenderPass } from './brain/ProjectionRenderPass';
 import { PointCloud, type PickState } from './brain/PointCloud';
 import { BrainMeshes } from './brain/BrainMeshes';
@@ -44,6 +44,11 @@ const EMBEDDED_BACKGROUND = '#000000';
 // meet a gradient legend — cosmetic, and only on a non-default colour scheme,
 // which is not worth a second breakpoint.
 const MIN_VIEWER_WIDTH_FOR_BAR = BAR_NATURAL_WIDTH_PX + 215;
+// Embedded mode nudges the volume up 10px so the portrait brain sits centred in
+// the iframe's viewport rather than low in it. Same sign convention as a
+// screen-space pan (negative y = up), but held apart from the user's pan: see
+// ScreenSpacePan's `baseline`.
+const EMBEDDED_VIEW_OFFSET: ScreenPanState = { x: 0, y: -10 };
 
 interface Props {
   data: NeuronDataset;
@@ -184,6 +189,9 @@ export function BrainViewer({
   // screenshot button and the buffer it depends on from ever disagreeing, which
   // they would silently, by producing a blank PNG.
   const embeddedAtMountRef = useRef(settings.embeddedMode);
+  // Module constants either way, so this is referentially stable and safe in
+  // the effect dependency arrays inside ScreenSpacePan / CameraSync.
+  const viewOffsetBaseline = embeddedAtMountRef.current ? EMBEDDED_VIEW_OFFSET : NO_PAN;
   const screenPanRef = useRef<ScreenPanState>({
     x: mountCameraRef.current?.pan?.[0] ?? 0,
     y: mountCameraRef.current?.pan?.[1] ?? 0,
@@ -370,6 +378,7 @@ export function BrainViewer({
         <ScreenSpacePan
           panRef={screenPanRef}
           enabled={settings.objectCentricRotation}
+          baseline={viewOffsetBaseline}
         />
         <CameraSync
           initialCamera={initialCamera ?? null}
@@ -381,6 +390,7 @@ export function BrainViewer({
           onAtDefaultChange={setAtDefault}
           lockTargetToCenter={settings.objectCentricRotation}
           volumeCenter={VOLUME_CENTER}
+          baseline={viewOffsetBaseline}
         />
         {settings.ambientOcclusion && activeProjectionMode === 'off' && (
           <AmbientOcclusion

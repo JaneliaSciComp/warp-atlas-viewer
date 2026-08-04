@@ -22,6 +22,8 @@ The largest panel on screen. Every visible cell is rendered as a point in [mapZe
 ::: tip Pan / orbit trade-off
 The default [Settings → 3D camera controls](/settings#3d-camera-controls) keep rotation object-centric: right-drag moves the volume within the viewport, but rotation still pivots around the volume center. Turn object-centric rotation off when you want trackball-style pan, where right-drag moves the orbit target and later rotations pivot around that new target.
 
+[Embedded mode](/settings#embedded-mode) inverts both of these defaults — object-centric rotation off, momentum 0 — to match how mapZebrain's own 3D view behaves.
+
 Refresh/share preserves the full camera state (position, orientation, orbit target, and screen-space pan). Use the **reset view** button in the 3D viewer to return to the default pose.
 :::
 

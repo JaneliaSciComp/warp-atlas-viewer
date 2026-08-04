@@ -313,6 +313,16 @@ site's own atlas page rather than a bolted-on panel:
   embedded default of on. The toggle works for the session; it just doesn't
   persist. Fibers and cell bodies are unaffected and stay off by default in
   both modes.
+- The [3D camera controls](#3d-camera-controls) open on mapZebrain's feel
+  rather than warp's: **object-centric rotation off** and **momentum 0**, so
+  the view orbits freely with no damped coast and right-drag uses native
+  trackball pan. Both are ordinary settings you can turn back on, and both
+  carry the same reload caveat as the outline above.
+- The volume is nudged **10px up** so the portrait brain sits centred in the
+  iframe rather than low in it. This is a fixed framing offset, not a pan: it
+  is kept out of the pan that share links record, so it does not make the
+  camera read as moved-from-default, and **reset view** and the orientation
+  presets return to it rather than undoing it.
 
 **`?embed=1` on the URL is the only way to turn it on**, which is what an
 embedding page's `src` attribute uses. There is deliberately no checkbox for
