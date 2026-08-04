@@ -583,6 +583,7 @@ export function UmapPanel({
       <div ref={containerRef} className="relative flex-1 min-h-0 min-w-0 overflow-hidden">
         <canvas
           ref={canvasRef}
+          data-testid="tsne-canvas"
           onPointerDown={onDown}
           onPointerMove={onMove}
           onPointerUp={onUp}

@@ -705,3 +705,87 @@ test('a pasted hash is not overwritten by a write already in flight', async ({ p
     expect(Math.round((await page.locator('aside').boundingBox())!.width)).toBe(600),
   ).toPass({ timeout: 10_000 });
 });
+
+test('embedded mode hides 3D ghosts by default, and the hash can put them back', async ({
+  page,
+}) => {
+  // `showGhosts` is the auto-sizing-compatible way to get ghostIntensity 0.
+  // Pixels are the only honest assertion here: the checkbox state says nothing
+  // about whether the out-of-filter cells actually stopped being drawn, and the
+  // hide happens in the 3D buffer upload (usePointCloudBufferUploads), not in
+  // the shared coloring the checkbox feeds.
+  //
+  // Isolating fish 0 ghosts two thirds of the mock population, and the brain
+  // outline is turned off in both runs so the only thing that can move the
+  // pixel count is the ghosts.
+  const view = (settings: Record<string, unknown>) =>
+    '/?mock=1&embed=1#!' +
+    encodeURIComponent(
+      JSON.stringify({
+        filter: { isolatedFish: 0 },
+        settings: { brainOutline: false, ...settings },
+      }),
+    );
+  // Embedded canvases are created with preserveDrawingBuffer, so the drawn
+  // frame survives long enough to copy into a 2D canvas and read back. The
+  // t-SNE canvas is 2D and always readable.
+  //
+  // The threshold is relative to the corner pixel: the t-SNE canvas paints a
+  // panel background (channel sum 30), so an absolute floor counts every pixel
+  // in it and the ghost assertion below becomes vacuous. +2 over background is
+  // what makes the faintest ghost tier countable.
+  const litPixels = async (selector = 'canvas') =>
+    page.evaluate((sel) => {
+      const canvases = Array.from(document.querySelectorAll<HTMLCanvasElement>(sel));
+      const src = canvases.sort((a, b) => b.width * b.height - a.width * a.height)[0];
+      const off = document.createElement('canvas');
+      off.width = src.width;
+      off.height = src.height;
+      const ctx = off.getContext('2d')!;
+      ctx.drawImage(src, 0, 0);
+      const px = ctx.getImageData(0, 0, off.width, off.height).data;
+      const background = px[0] + px[1] + px[2];
+      let lit = 0;
+      for (let i = 0; i < px.length; i += 4) {
+        if (px[i] + px[i + 1] + px[i + 2] > background + 2) lit++;
+      }
+      return lit;
+    }, selector);
+  // Reads the 3D view, then the t-SNE tab's scatter for the same state.
+  const bothViews = async () => {
+    await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+    await page.waitForTimeout(1500);
+    const brain = await litPixels();
+    await page.getByRole('button', { name: 't-SNE', exact: true }).click();
+    await expect(page.getByTestId('tsne-canvas')).toBeVisible();
+    await page.waitForTimeout(500);
+    return { brain, tsne: await litPixels('[data-testid="tsne-canvas"]') };
+  };
+
+  await page.goto(view({ showGhosts: true }));
+  const withGhosts = await bothViews();
+
+  await page.goto(view({}));
+  const embeddedDefault = await bothViews();
+
+  // Sanity: the in-filter third of the brain is still drawn either way.
+  expect(embeddedDefault.brain).toBeGreaterThan(1000);
+  // The ghost haze is the bulk of the lit area (measured ~14.0k lit with ghosts
+  // against ~5.8k without), so losing it has to show up as a large drop — not
+  // the few-percent wobble a no-op change would produce.
+  expect(embeddedDefault.brain).toBeLessThan(withGhosts.brain * 0.6);
+  // The t-SNE panel keeps its own umapGhostIntensity (docs/settings.md: the two
+  // ghost controls do not interact). That independence is exactly why the hide
+  // lives in the 3D buffer upload instead of applyColoring: zeroing the ghost
+  // alphas in the shared coloring instead measures 28.6k → 19.3k lit here,
+  // because the t-SNE panel derives its ghost alpha by scaling the 3D one.
+  expect(embeddedDefault.tsne).toBeGreaterThan(withGhosts.tsne * 0.98);
+
+  // Standalone keeps ghosts: same hash, no ?embed=1.
+  await page.goto('/?mock=1');
+  await expect(page.getByText('10,000 cells pooled from 3 fish (mock)')).toBeVisible({
+    timeout: 20_000,
+  });
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(page.getByLabel('show ghosts')).toBeChecked();
+});

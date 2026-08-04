@@ -102,6 +102,10 @@ const INITIAL_SETTINGS_STATE: SettingsState = {
         // trackball pan and free orbit target) and no momentum coast.
         objectCentricRotation: false,
         rotationMomentum: 0,
+        // mapZebrain's own view shows only the cells you asked for, so the
+        // embedded viewer opens without the ghost haze. Also a default, not
+        // an override — `showGhosts: true` in a share link still wins.
+        showGhosts: false,
       }
     : {}),
   ...(INITIAL_URL_STATE?.settings ?? {}),

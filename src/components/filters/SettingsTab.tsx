@@ -145,13 +145,28 @@ export function SettingsTab({
                 </div>
                 <p className="text-neutral-400 leading-snug">
                     Controls point size and ghost (out-of-filter cell)
-                    visibility in the 3D view. <Ctl>Auto point sizes</Ctl>{" "}
+                    visibility in the 3D view. <Ctl>Show ghosts</Ctl> off hides
+                    them entirely. <Ctl>Auto point sizes</Ctl>{" "}
                     derives both from the viewport height, hiding the manual
                     sliders. <Ctl>Scale by filter</Ctl> enlarges points when
                     fewer cells are visible; <Ctl>scale by depth</Ctl> applies
                     perspective, making closer points larger and farther ones
                     smaller.
                 </p>
+                <label
+                    className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
+                    title="draw out-of-filter cells (ghosts) in the 3D view"
+                >
+                    <input
+                        type="checkbox"
+                        checked={settings.showGhosts}
+                        onChange={(e) =>
+                            update({ showGhosts: e.target.checked })
+                        }
+                        className="accent-neutral-300"
+                    />
+                    show ghosts
+                </label>
                 <label
                     className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
                     title="derive point size and ghost visibility from 3D view height"
@@ -182,6 +197,12 @@ export function SettingsTab({
                             min={0}
                             max={1}
                             step={0.05}
+                            disabled={!settings.showGhosts}
+                            title={
+                                settings.showGhosts
+                                    ? undefined
+                                    : "ghosts are hidden — turn show ghosts back on to set their visibility"
+                            }
                             onChange={(v) =>
                                 update({
                                     ghostIntensity: Math.max(0, Math.min(1, v)),

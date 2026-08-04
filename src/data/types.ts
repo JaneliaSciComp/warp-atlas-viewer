@@ -391,6 +391,14 @@ export interface SettingsState {
      *  pickers re-enable above the midpoint so users only catch
      *  clicks on cells that are genuinely visible enough to aim at. */
     ghostIntensity: number;
+    /** Master switch for ghosts in the 3D viewer. When false the viewer
+     *  renders out-of-filter cells at alpha 0 — the same result as
+     *  `ghostIntensity: 0`, but reachable without turning `autoSizing`
+     *  off (auto mode derives its own ghost visibility and ignores the
+     *  slider). Applied when the 3D viewer copies the shared coloring
+     *  into its own buffers, so the t-SNE panel keeps its independent
+     *  `umapGhostIntensity`. Default true; embedded mode defaults it off. */
+    showGhosts: boolean;
     /** When true, the 3D viewer auto-derives base point size and
      *  ghost visibility from the canvas height instead of reading them
      *  from `pointSize` and `ghostIntensity`. The t-SNE panel has no
@@ -521,6 +529,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
     swimLo: 0.1,
     swimHi: 0.35,
     ghostIntensity: 0.6,
+    showGhosts: true,
     autoSizing: true,
     scaleByFilterCount: true,
     fadeWeakCorrelation: true,

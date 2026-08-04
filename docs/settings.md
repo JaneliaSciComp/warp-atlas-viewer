@@ -17,6 +17,7 @@ A **show descriptions** checkbox sits next to the reset button. When unchecked, 
 
 Controls how big the points are and how visible out-of-filter cells (ghosts) are in the 3D brain view.
 
+- **show ghosts** *(default on; off in [embedded mode](#embedded-mode))* — whether out-of-filter cells are drawn in the 3D view at all. Off leaves only the cells passing the filters, the same result as a **3D ghost visibility** of `0` — including the click pickers skipping them — but it works with `auto point sizes` left on, where ghost visibility is derived from the canvas height rather than read from the slider. While it is off the visibility slider is greyed out. The t-SNE panel keeps its own ghosts either way (see [t-SNE point density](#t-sne-point-density)).
 - **auto point sizes** *(default on)* — derives point size and ghost visibility from the live 3D canvas height, so the viewer self-adapts as you resize the window or expand/collapse the bottom panel. Manual sliders are hidden while auto is on.
 - **scale by filter** *(default on, nested under auto)* — additionally enlarges *active* (in-set) cells as the filter narrows, so a small selected cluster reads louder than the surrounding population. Ghost cells are not boosted.
 - **scale by depth** *(default on)* — shrinks cells the farther they sit from the camera (the familiar perspective look). Turn it off to drop that per-cell perspective falloff so every cell contributes equally regardless of depth — the "see through the volume" convention used by max-intensity projection. Flat-mode points are matched to the perspective size at the default zoom, so flipping the toggle doesn't change density, and they scale gently with camera zoom so on-screen density stays roughly constant as you zoom in and out. Independent of `auto point sizes` and of the projection mode, so any combination is valid.
@@ -24,7 +25,7 @@ Controls how big the points are and how visible out-of-filter cells (ghosts) are
 With auto **off**, the two sliders are exposed directly:
 
 - **3D point size (px)** — base size used for active cells. Range `1` – `40` px; default `10`.
-- **3D ghost visibility** (0..1) — `0` makes out-of-filter cells fully transparent and the click pickers skip them; `1` renders them at the standard dim alpha and keeps them fully pickable. Pickability flips off below the midpoint (slider < 0.5). Default `0.6`.
+- **3D ghost visibility** (0..1) — `0` makes out-of-filter cells fully transparent and the click pickers skip them; `1` renders them at the standard dim alpha and keeps them fully pickable. Pickability flips off below the midpoint (slider < 0.5). Default `0.6`. Greyed out while **show ghosts** is off, since there is then nothing to set the visibility of.
 
 The ghost setting also drives **render order**: out-of-filter cells render first and in-filter cells render last, so foreground (in-set) cells never get occluded by the dim background regardless of true 3D depth, even when ghosts are still visible.
 
@@ -289,6 +290,10 @@ site's own atlas page rather than a bolted-on panel:
   it is the anatomical context mapZebrain's own 3D view always shows. This
   is a default rather than an override, so a shared link that explicitly
   turns it off still opens with it off.
+- **Show ghosts** is **off by default**, matching mapZebrain's own view, which
+  shows only the cells you asked for. Also a default rather than an override, so
+  a link carrying `show ghosts` on still opens with the ghost haze. The t-SNE
+  tab is unaffected — it keeps its own ghost visibility.
 - The [3D camera controls](#3d-camera-controls) open on mapZebrain's feel
   rather than warp's: **object-centric rotation off** and **momentum 0**, so
   the view orbits freely with no damped coast and right-drag uses native
