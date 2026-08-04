@@ -255,9 +255,11 @@ until then the rows are disabled and say so. See
 The mesh toggles and their opacities travel in the URL hash, so a shared link
 reproduces them.
 
-### Embedded mode {#embedded-mode}
+## Embedded mode {#embedded-mode}
 
-Reworks the whole layout for running the viewer inside an iframe on
+Not a Settings-tab control — it is documented here because it changes what
+several of the settings above do. Reworks the whole layout for running the
+viewer inside an iframe on
 [mapzebrain.org](https://mapzebrain.org), so it reads as part of that
 site's own atlas page rather than a bolted-on panel:
 
@@ -312,20 +314,19 @@ site's own atlas page rather than a bolted-on panel:
   persist. Fibers and cell bodies are unaffected and stay off by default in
   both modes.
 
-Normally you set it with `?embed=1` on the URL, which is what an embedding
-page's `src` attribute uses. The checkbox here is for trying it by hand.
-Unlike the mesh toggles, embedded mode is **not** written to the URL hash —
-like [screenshot mode](#screenshot-mode) it is a presentation mode, not
-shareable view state, so a link you share won't drop the recipient into it.
+**`?embed=1` on the URL is the only way to turn it on**, which is what an
+embedding page's `src` attribute uses. There is deliberately no checkbox for
+it: it is a deployment mode rather than a preference, and several of the
+things it changes — the canvas's `preserveDrawingBuffer`, the grid layout,
+the palette, the camera default — are read once at page load, so a control
+that flipped it mid-session could only ever apply some of them and would
+misrepresent what it did.
 
-Toggling the checkbox mid-session shows or hides the icon bar and changes
-what "reset view" means, but deliberately does not jump the camera, reflow
-the sidebar layout, or repaint the palette — the layout and palette are
-fixed from the value read at page load, same as the camera default. For
-the same reason, the checkbox cannot enable the screenshot button either:
-the 3D canvas's `preserveDrawingBuffer` is fixed when the canvas is
-created, so capturing a screenshot requires loading with `?embed=1` rather
-than flipping the setting mid-session.
+Embedded mode is also **not** written to the URL hash — like
+[screenshot mode](#screenshot-mode) it is a presentation mode, not shareable
+view state, so a link you share won't drop the recipient into it. **Reset
+settings** leaves it alone for the same reason: inside an iframe there would
+be no way to get it back.
 
 ## Screenshot mode {#screenshot-mode}
 
@@ -351,6 +352,8 @@ The Settings tab governs thresholds, palette anchors, point density, projection,
 - Activity time and playback speed (use the [Colors card's Activity controls](/filters/colors#activity)),
 - selections (use [click or lasso](/selections)),
 - the current 3D camera pose (position, orientation, orbit target, and pan),
-- the t-SNE viewport (pan and zoom).
+- the t-SNE viewport (pan and zoom),
+- [embedded mode](#embedded-mode), which is a deployment mode set only by
+  `?embed=1` and has no toggle at all.
 
 These are also stored in the URL hash, but outside the Settings tab.

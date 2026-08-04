@@ -31,10 +31,10 @@ export function SettingsTab({
     const update = (patch: Partial<SettingsState>) =>
         setSettings({ ...settings, ...patch });
     // embeddedMode is exempt from reset. It is a deployment mode set by
-    // ?embed=1, not a user preference: inside a mapzebrain.org iframe,
-    // "reset settings" tearing out the orientation bar leaves no way to get it
-    // back short of reloading. Leaving it in also made the button read as
-    // dirty on a pristine ?embed=1 load, inviting exactly that click.
+    // ?embed=1 and by nothing else — there is deliberately no toggle for it —
+    // so a reset that cleared it would strip the whole embedded layout with no
+    // way back but a reload. Leaving it in the dirty check also made the button
+    // read as dirty on a pristine ?embed=1 load, inviting exactly that click.
     const reset = () =>
         setSettings({ ...DEFAULT_SETTINGS, embeddedMode: settings.embeddedMode });
     const dirty = (
@@ -838,20 +838,6 @@ export function SettingsTab({
                         />
                     </div>
                 ))}
-                <label
-                    className="flex items-center gap-2 text-xs cursor-pointer select-none ml-3 mt-2 text-neutral-300"
-                    title="adds the view-orientation icon bar and opens on mapZebrain's default orientation; used when the viewer is embedded in an iframe on mapzebrain.org"
-                >
-                    <input
-                        type="checkbox"
-                        checked={settings.embeddedMode}
-                        onChange={(e) =>
-                            update({ embeddedMode: e.target.checked })
-                        }
-                        className="accent-accent"
-                    />
-                    Embedded mode (orientation icons)
-                </label>
             </section>
 
             <section className="flex flex-col gap-2">

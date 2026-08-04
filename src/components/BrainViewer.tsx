@@ -178,9 +178,11 @@ export function BrainViewer({
   // state) can't yank the camera mid-interaction.
   const mountCameraRef = useRef(initialCamera);
   // Embedded mode at MOUNT. The Canvas reads its `gl` options once at
-  // creation, so preserveDrawingBuffer — and therefore whether a screenshot
-  // can be taken at all — is fixed here. Toggling the Settings checkbox
-  // later must not offer a button that would emit a blank PNG.
+  // creation, so preserveDrawingBuffer — and therefore whether a screenshot is
+  // possible at all — is fixed here. `?embed=1` is the only thing that sets the
+  // mode, so this equals the live value today; capturing it keeps the
+  // screenshot button and the buffer it depends on from ever disagreeing, which
+  // they would silently, by producing a blank PNG.
   const embeddedAtMountRef = useRef(settings.embeddedMode);
   const screenPanRef = useRef<ScreenPanState>({
     x: mountCameraRef.current?.pan?.[0] ?? 0,
@@ -323,10 +325,11 @@ export function BrainViewer({
       >
         <color
           attach="background"
-          // Mount-time value, not the live setting: everything else in
-          // embedded mode is fixed at page load (layout, palette, camera
-          // default, preserveDrawingBuffer above), and docs/settings.md
-          // promises a mid-session toggle does not repaint the palette.
+          // Mount-time value, not the live setting, matching everything else
+          // in embedded mode: layout, palette, camera default, and
+          // preserveDrawingBuffer above are all fixed at page load. Since
+          // ?embed=1 is the only thing that sets the mode, the two are equal
+          // today; this keeps them equal if that ever stops being true.
           args={[embeddedAtMountRef.current ? EMBEDDED_BACKGROUND : VIEWER_BACKGROUND]}
         />
         {settings.debugMode && <FpsMeter onSample={setFps} />}

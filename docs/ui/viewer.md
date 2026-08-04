@@ -72,12 +72,11 @@ remains the way to set up a clean full-viewport capture — via your OS or
 browser's own screenshot tool — that does include the legend and other
 on-screen overlays.
 
-The button only appears when the page was loaded with `?embed=1`. The 3D
-canvas's `preserveDrawingBuffer` option — required for the capture to see
-anything — is fixed when the canvas is created, so toggling **Embedded
-mode** in Settings mid-session cannot retroactively add it; the rest of
-the bar does appear on a live toggle, since it doesn't depend on canvas
-creation.
+The button only appears when the page was loaded with `?embed=1` — which is
+the only way to enter embedded mode at all. The 3D canvas's
+`preserveDrawingBuffer` option, required for the capture to see anything, is
+fixed when the canvas is created, so it has to be decided before the first
+frame rather than switched on later.
 
 ### Gear icon
 

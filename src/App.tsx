@@ -100,10 +100,13 @@ const INITIAL_SETTINGS_STATE: SettingsState = {
   ...(EMBED_REQUESTED ? { embeddedMode: true } : {}),
 };
 
-// Layout mode, fixed at module load. Read from INITIAL_SETTINGS_STATE rather
-// than live `settings` on purpose: toggling the Settings checkbox mid-session
-// must not re-shuffle the grid out from under a live camera — the same
-// reasoning the camera default already uses.
+// Layout mode, fixed at module load. `?embed=1` is the only thing that sets it
+// — there is deliberately no Settings toggle — so today this is equal to the
+// live `settings.embeddedMode` for the whole session. Reading the module-load
+// value anyway keeps that a property of this line rather than an assumption
+// spread across the layout, palette, camera default, and preserveDrawingBuffer:
+// if anything ever does make the mode mutable (a postMessage bridge is the
+// obvious candidate), none of them should reshuffle under a live camera.
 const EMBEDDED = INITIAL_SETTINGS_STATE.embeddedMode;
 
 /** mapZebrain's own collapse affordance: a full-height 35px arrow button
