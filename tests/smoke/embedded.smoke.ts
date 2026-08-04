@@ -415,6 +415,84 @@ test('the orientation bar renders at full size or not at all', async ({ page }) 
   expect((await bar.boundingBox())!.width).toBeGreaterThan(340);
 });
 
+test('the region select fits its card at the narrowest sidebar', async ({ page }) => {
+  // The trigger sizes itself to the longest option, not the selected one, so
+  // before this was capped it reserved 15rem and pushed the row out of the
+  // Anatomy card. Checked at the sidebar's 280px minimum, which is the worst
+  // case, and with a region actually selected rather than the default "all".
+  const sidebarWidth = 280;
+  const hash = '#!' + encodeURIComponent(JSON.stringify({ sidebarWidth }));
+  await page.goto(`/?mock=1&embed=1${hash}`);
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+
+  const row = page.locator('label:has(button[aria-label="next region"])').first();
+  const card = page.locator('div.rounded:has(button[aria-label="next region"])').first();
+  const trigger = row.locator('button[aria-haspopup="listbox"]');
+  await row.locator('button[aria-label="next region"]').click();
+
+  const rowBox = (await row.boundingBox())!;
+  const cardBox = (await card.boundingBox())!;
+  // Card padding is px-2.5, so content has to stop 10px inside its right edge.
+  // This is guarded by the max-w-full / min-w-0 chain in SearchSelect, which
+  // lets the trigger give way — NOT by truncateClass, which only decides how
+  // wide it tries to be when there is room.
+  expect(rowBox.x + rowBox.width).toBeLessThanOrEqual(cardBox.x + cardBox.width - 10 + 1);
+
+  // And it has to be compact, not merely non-overflowing: the trigger used to
+  // reserve 15rem for the longest option even when a short one was selected.
+  // This half is what truncateClass guards.
+  const triggerBox = (await trigger.boundingBox())!;
+  expect(triggerBox.width).toBeLessThan(160);
+
+  // The trigger shows the bare abbreviation; the full "Abbr — Full name" stays
+  // in the tooltip and the dropdown. Asserting on the em-dash separator rather
+  // than a specific region keeps this independent of the mock's region list.
+  const visible = (await trigger.locator('span.truncate').innerText()).trim();
+  expect(visible).not.toContain('—');
+  expect(await trigger.getAttribute('title')).toContain('—');
+  expect(visible.length).toBeGreaterThan(0);
+  // …and that abbreviation is the prefix of the full name, so the two agree.
+  expect(await trigger.getAttribute('title')).toContain(visible);
+
+  // The 112-region mapZebrain atlas is the case that actually stresses width:
+  // its names have no abbreviated form, so there is no shortLabel to fall back
+  // on and the trigger has to cap and truncate. Everything above passes on the
+  // manuscript atlas whether or not the cap works, because the abbreviations
+  // are short — so this half is where the cap and the shrink chain are
+  // load-bearing. The mock's atlas region 0 is deliberately as long as the
+  // longest real name.
+  await page.locator('button').filter({ hasText: /^mapZebrain$/ }).first().click();
+  await expect(row.locator('button[aria-label="next region"]')).toBeVisible();
+  await row.locator('button[aria-label="next region"]').click();
+
+  const atlasRow = (await row.boundingBox())!;
+  const atlasCard = (await card.boundingBox())!;
+  expect(atlasRow.x + atlasRow.width).toBeLessThanOrEqual(
+    atlasCard.x + atlasCard.width - 10 + 1,
+  );
+  // Long name present in full in the tooltip, ellipsised in the trigger.
+  const atlasVisible = trigger.locator('span.truncate');
+  expect(await atlasVisible.evaluate((el) => el.scrollWidth > el.clientWidth + 1)).toBe(true);
+  expect((await trigger.getAttribute('title'))!.length).toBeGreaterThan(20);
+
+  // Compactness has to be checked where nothing is squeezing the control,
+  // otherwise the shrink chain masks the cap: in the narrow sidebar each of the
+  // two mechanisms alone keeps the row inside the card, so neither shows up as
+  // load-bearing. The wide standalone bottom panel has room to spare, so the
+  // width here is the cap's doing and nothing else's.
+  await page.goto('/?mock=1');
+  await expect(page.getByText('10,000 cells pooled from 3 fish (mock)')).toBeVisible({
+    timeout: 20_000,
+  });
+  await page.locator('button').filter({ hasText: /^mapZebrain$/ }).first().click();
+  const wideTrigger = page
+    .locator('label:has(button[aria-label="next region"])')
+    .first()
+    .locator('button[aria-haspopup="listbox"]');
+  await expect(wideTrigger).toBeVisible();
+  expect((await wideTrigger.boundingBox())!.width).toBeLessThan(160);
+});
+
 test('the links dropdown opens inside the sidebar, not under the collapse rail', async ({
   page,
 }) => {

@@ -92,7 +92,11 @@ export function AnatomyCard({
             })),
           ]}
           arrows
-          truncateClass="max-w-[15rem]"
+          // The 112-region atlas names have no abbreviated form, so there is no
+          // shortLabel to fall back on and the trigger has to truncate. Tight
+          // enough for the narrowest sidebar; the dropdown and the hover
+          // tooltip both still carry the full name.
+          truncateClass="max-w-[7rem]"
         />
       ) : (
         <SearchSelect
@@ -104,11 +108,14 @@ export function AnatomyCard({
             ...regionOrder.map((i) => ({
               value: i,
               label: regionLabel(i),
+              // Trigger shows just the abbreviation; the dropdown keeps
+              // "Abbr — Full name" so the list is still self-explanatory.
+              shortLabel: data.regionNames[i],
               aside: regionCounts[i].toLocaleString(),
             })),
           ]}
           arrows
-          truncateClass="max-w-[15rem]"
+          truncateClass="max-w-[7rem]"
         />
       )}
       {uniqueFishIds.length > 1 && (
