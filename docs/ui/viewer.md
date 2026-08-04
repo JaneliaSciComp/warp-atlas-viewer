@@ -68,8 +68,8 @@ frame rather than switched on later.
 ### Export icon
 
 Opens the CSV [export](/export) dialog. In embedded mode this is the only way
-in: the sidebar strip carries just the **Links** menu, since there is no page
-header to hold an **Export** button.
+in: the sidebar strip carries just the **Links** hamburger, since there is no
+page header to hold an **Export** button.
 
 ### Gear icon
 

@@ -271,11 +271,11 @@ site's own atlas page rather than a bolted-on panel:
   and coming back lands you exactly where you left off. While the t-SNE
   tab is hidden, the **t-SNE selection card** on the Filters tab is how
   you see the lasso's cell count and clear it.
-- There is **no page header**. The title, cell count, and **Links** move into
-  a strip at the top of the sidebar, and the Janelia
-  logo becomes a corner overlay on the 3D view instead of sitting in a
-  header bar. **Export** moves further — onto the orientation bar as an icon
-  (see below) — since it opens a dialog rather than living in the strip.
+- There is **no page header**. The title and cell count move into a strip at
+  the top of the sidebar, with **Links** as a hamburger (☰) to their left, and
+  the Janelia logo becomes a corner overlay on the 3D view instead of sitting
+  in a header bar. **Export** moves further — onto the orientation bar as an
+  icon (see below) — since it opens a dialog rather than living in the strip.
   **Links** gains a first entry, **open full viewer**, which
   opens the standalone viewer in a new tab at the current view — it is the
   iframe's URL minus `?embed`, so the hash carries the view across.

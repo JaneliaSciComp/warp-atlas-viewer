@@ -18,6 +18,7 @@ const CLOSE_DELAY_MS = 100;
 
 export function LinksMenu({
   align = 'right',
+  variant = 'text',
 }: {
   /** Which edge of the button the dropdown is anchored to. The header places
    *  this button near the viewport's right edge, where a left-anchored menu
@@ -25,6 +26,12 @@ export function LinksMenu({
    *  of a ~360px column, where a right-anchored menu extends leftward out of
    *  the sidebar and under the collapse rail. Hence per-call-site. */
   align?: 'left' | 'right';
+  /** 'text' is the labelled "Links ⌄" button used in the standalone header.
+   *  'icon' is a hamburger, used in the embedded sidebar where the menu sits
+   *  left of the title rather than in a row of its own. Same menu either way;
+   *  the accessible name stays "Links" so both read the same to a screen
+   *  reader (and to the tests). */
+  variant?: 'text' | 'icon';
 } = {}) {
   const docsUrl = import.meta.env.VITE_WARP_DOCS_URL;
   const links = [
@@ -90,10 +97,22 @@ export function LinksMenu({
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex items-center gap-1 px-2 py-1 text-sm font-medium text-neutral-100"
+        aria-label={variant === 'icon' ? 'Links' : undefined}
+        title={variant === 'icon' ? 'Links' : undefined}
+        className={
+          variant === 'icon'
+            ? 'flex items-center p-1 rounded text-neutral-100 hover:bg-neutral-800'
+            : 'flex items-center gap-1 px-2 py-1 text-sm font-medium text-neutral-100'
+        }
       >
-        Links
-        <ChevronDownIcon />
+        {variant === 'icon' ? (
+          <HamburgerIcon />
+        ) : (
+          <>
+            Links
+            <ChevronDownIcon />
+          </>
+        )}
       </button>
       {open && (
         <div
@@ -129,6 +148,28 @@ function fullViewerHref(): string {
   const url = new URL(window.location.href);
   url.searchParams.delete('embed');
   return url.toString();
+}
+
+// Three horizontal lines, same 24×24 / 2px-stroke / round-cap geometry as the
+// chevron below so the two triggers read as one family. Sized to the two-line
+// title block it sits beside in the embedded sidebar.
+function HamburgerIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    >
+      <path d="M4 7h16" />
+      <path d="M4 12h16" />
+      <path d="M4 17h16" />
+    </svg>
+  );
 }
 
 // Mirrors VitePress's .vpi-chevron-down icon (24×24, round caps, 2px

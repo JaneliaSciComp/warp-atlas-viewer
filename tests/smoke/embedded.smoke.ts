@@ -119,7 +119,16 @@ test('embedded mode folds the header into the sidebar', async ({ page }) => {
   const header = page.getByTestId('sidebar-header');
   await expect(header.getByRole('heading', { name: 'WARP Atlas Viewer' })).toBeVisible();
   await expect(header.getByText('10,000 cells pooled from 3 fish (mock)')).toBeVisible();
-  await expect(header.getByRole('button', { name: /links/i })).toBeVisible();
+  const links = header.getByRole('button', { name: /^Links/ });
+  await expect(links).toBeVisible();
+  // Links is a hamburger left of the title block, the way a site nav carries
+  // one — not a labelled button in a row of its own beneath it. Its accessible
+  // name comes from aria-label, so it has no text of its own.
+  await expect(links).toHaveText('');
+  const linksBox = (await links.boundingBox())!;
+  const titleBox = (await header.getByRole('heading').boundingBox())!;
+  expect(linksBox.x + linksBox.width).toBeLessThanOrEqual(titleBox.x + 1);
+  expect(linksBox.y).toBeGreaterThan(titleBox.y - linksBox.height);
 
   // The Janelia logo moves onto the 3D view rather than disappearing.
   await expect(

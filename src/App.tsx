@@ -654,21 +654,22 @@ export default function App() {
   // sidebar, mirroring mapZebrain's own "All items" heading, and the Janelia
   // logo becomes a corner overlay on the 3D view.
   const sidebarHeader = (
-    <div data-testid="sidebar-header" className="flex-shrink-0 px-3 pt-2 pb-1.5">
-      <h1 className="text-sm font-semibold text-neutral-100 leading-tight">
-        WARP Atlas Viewer
-      </h1>
-      {cellCountLine}
-      {!settings.screenshotMode && (
-        <div className="flex items-center gap-3 mt-1.5">
-          {/* No Export here: embedded mode exports from the orientation bar's
-              icon instead, next to the screenshot and gear icons.
-              Left-anchored: the menu sits near the left edge of a ~360px
-              sidebar, so the header's default right-anchoring would run it out
-              of the sidebar and under the collapse rail. */}
-          <LinksMenu align="left" />
-        </div>
-      )}
+    <div
+      data-testid="sidebar-header"
+      className="flex-shrink-0 px-3 pt-2 pb-1.5 flex items-center gap-2"
+    >
+      {/* Hamburger left of the title, the way a site nav carries one. No Export
+          alongside it: embedded mode exports from the orientation bar's icon
+          instead. Left-anchored menu: this sits near the left edge of a ~360px
+          sidebar, so the header's default right-anchoring would run it out of
+          the sidebar and under the collapse rail. */}
+      {!settings.screenshotMode && <LinksMenu align="left" variant="icon" />}
+      <div className="min-w-0">
+        <h1 className="text-sm font-semibold text-neutral-100 leading-tight">
+          WARP Atlas Viewer
+        </h1>
+        {cellCountLine}
+      </div>
     </div>
   );
 
