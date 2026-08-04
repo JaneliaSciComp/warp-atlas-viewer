@@ -164,8 +164,8 @@ function ArrowGlyph({ pointsLeft }: { pointsLeft: boolean }) {
   return (
     <svg
       aria-hidden="true"
-      width="17"
-      height="17"
+      width="26"
+      height="26"
       viewBox="0 0 16 16"
       fill="currentColor"
     >

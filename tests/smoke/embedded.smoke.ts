@@ -26,6 +26,11 @@ test('embedded mode renders the left sidebar and both rails', async ({ page }) =
   expect(leftRail!.x).toBeLessThan(sidebar!.x);
   expect(Math.round(leftRail!.width)).toBe(35);
 
+  // 26px arrow to match mapZebrain's own rails, inside the 35px track.
+  const arrow = await page.getByTestId('rail-sidebar').locator('svg').boundingBox();
+  expect(Math.round(arrow!.width)).toBe(26);
+  expect(arrow!.width).toBeLessThan(leftRail!.width);
+
   await page.waitForTimeout(250);
   expect(pageErrors).toEqual([]);
 });
@@ -375,9 +380,9 @@ test('the orientation bar renders at full size or not at all', async ({ page }) 
   await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
   await expect(bar).toBeVisible();
   const shown = (await bar.boundingBox())!;
-  // Natural width is 345px; anything materially under it means the flex items
+  // Natural width is 331px; anything materially under it means the flex items
   // shrank and every icon is distorted.
-  expect(shown.width).toBeGreaterThan(340);
+  expect(shown.width).toBeGreaterThan(326);
   // Icons keep their own aspect ratio, so the row is NOT nine equal widths —
   // the two vertical-sagittal tiles are ~17px against the camera's 32px.
   const iconWidths = await bar.locator('img').evaluateAll((els) =>
@@ -395,7 +400,7 @@ test('the orientation bar renders at full size or not at all', async ({ page }) 
   // actually happen.
 
   // ~600px viewer: above the gate, but HALF of it (300px) is under the bar's
-  // 345px natural width. That band is the only place the shrink bug is
+  // 331px natural width. That band is the only place the shrink bug is
   // reachable, so it is what makes `w-max` load-bearing — at 1500 there is
   // already enough room and the width assertion above passes either way.
   // Viewer width is `vw - 70 - sidebarWidth - detailWidth` = `vw - 843` at the
@@ -404,7 +409,7 @@ test('the orientation bar renders at full size or not at all', async ({ page }) 
   // from 360 to 413 is exactly what pushed the previous 1390 below the gate.
   await page.setViewportSize({ width: 1450, height: 860 });
   await expect(bar).toBeVisible();
-  expect((await bar.boundingBox())!.width).toBeGreaterThan(340);
+  expect((await bar.boundingBox())!.width).toBeGreaterThan(326);
 
   // 1280 wide → ~490px viewer, below the gate: gone rather than squashed or
   // overlapping the legend. The bar was visible a moment ago, so this is a real
@@ -416,7 +421,7 @@ test('the orientation bar renders at full size or not at all', async ({ page }) 
   // gate tracks the viewer, not the window.
   await page.getByTestId('rail-detail').click();
   await expect(bar).toBeVisible();
-  expect((await bar.boundingBox())!.width).toBeGreaterThan(340);
+  expect((await bar.boundingBox())!.width).toBeGreaterThan(326);
 });
 
 test('the region select fits its card at the narrowest sidebar', async ({ page }) => {

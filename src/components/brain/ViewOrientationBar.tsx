@@ -23,28 +23,27 @@ const PRESET_ICONS: Record<ViewPresetKey, string> = {
 };
 
 // One class for all nine buttons: no border, since each icon's artwork carries
-// its own frame and a border around it reads as a double outline. mapZebrain
-// sizes the orientation icons at height=32 and the screenshot/gear pair at
-// height=25 with an extra gap between the groups
-// (three-dview.component.html:12-43); that asymmetry was copied here
-// originally but reads as an accident rather than a choice, so all nine are
-// uniform instead. Background and hover state stay, so they are still
-// identifiable as buttons.
+// its own frame and a border around it reads as a double outline. Background
+// and hover state stay, so they are still identifiable as buttons.
 const BUTTON_CLASS = 'p-0.5 rounded bg-neutral-900/85 hover:bg-neutral-800';
 // Height only — width comes from each icon's own aspect ratio, which is what
 // mapZebrain's `height="32"` markup does. The artwork is not square (the
 // dorsal tile is 51x64, the vertical-sagittal pair narrower still), so forcing
 // `w-8` stretched every orientation icon horizontally.
 const ICON_CLASS = 'h-8 w-auto';
+// mapZebrain draws the screenshot/gear pair at height=25 rather than the
+// orientation icons' 32 (three-dview.component.html:12-43), so they are sized
+// separately. Both tiles are square 64x64, so this is also their width.
+const TOOL_ICON_CLASS = 'h-[25px] w-auto';
 
 /** Width the row occupies, in px — measured in Chromium, not derived, because
  *  it depends on nine pieces of artwork with different aspect ratios (icon
- *  widths at 32px tall: 25.5, 25.5, 16.5, 17, 32, 32, 32, 32, 32) plus 4px
- *  padding per side and 8px gaps. A constant rather than a runtime measurement
- *  because the caller decides whether to render the bar *before* it exists.
- *  Re-measure if the artwork or the spacing changes;
- *  `MIN_VIEWER_WIDTH_FOR_BAR` in BrainViewer is derived from it. */
-export const BAR_NATURAL_WIDTH_PX = 345;
+ *  widths: 25.5, 25.5, 16.5, 17, 32, 32, 32 at 32px tall, then the 25px
+ *  screenshot/gear pair) plus 4px padding per side and 8px gaps. A constant
+ *  rather than a runtime measurement because the caller decides whether to
+ *  render the bar *before* it exists. Re-measure if the artwork or the spacing
+ *  changes; `MIN_VIEWER_WIDTH_FOR_BAR` in BrainViewer is derived from it. */
+export const BAR_NATURAL_WIDTH_PX = 331;
 
 /** The view-orientation icon row above the 3D view, mirroring mapZebrain's:
  *  seven orientations, then a screenshot icon and a gear. Only rendered in
@@ -99,7 +98,7 @@ export function ViewOrientationBar({
           }}
           className={BUTTON_CLASS}
         >
-          <img src={screenshotIcon} alt="" className={ICON_CLASS} />
+          <img src={screenshotIcon} alt="" className={TOOL_ICON_CLASS} />
         </button>
       )}
       <button
@@ -111,7 +110,7 @@ export function ViewOrientationBar({
         }}
         className={BUTTON_CLASS}
       >
-        <img src={settingsIcon} alt="" className={ICON_CLASS} />
+        <img src={settingsIcon} alt="" className={TOOL_ICON_CLASS} />
       </button>
     </div>
   );
