@@ -537,6 +537,33 @@ test('the links dropdown opens inside the sidebar, not under the collapse rail',
   expect(Math.abs(sm.x + sm.width - (sb.x + sb.width))).toBeLessThanOrEqual(1);
 });
 
+test('the embedded links menu leads back to the full viewer, carrying the view', async ({
+  page,
+}) => {
+  // A distinctive width so the hash cannot be mistaken for a default one.
+  await page.goto('/?mock=1&embed=1#!' + encodeURIComponent(JSON.stringify({ sidebarWidth: 420 })));
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+
+  await page.getByRole('button', { name: /^Links/ }).hover();
+  const first = page.getByRole('menu').locator('a').first();
+  await expect(first).toHaveText(/Open full viewer/);
+  const href = new URL((await first.getAttribute('href'))!);
+
+  expect(href.searchParams.has('embed')).toBe(false);
+  expect(href.searchParams.get('mock')).toBe('1');
+  // The view travels in the hash, so dropping it would land the new tab on a
+  // default view instead of this one.
+  expect(decodeURIComponent(href.hash)).toContain('"sidebarWidth":420');
+  expect(href.hash).toBe(new URL(page.url()).hash);
+  await expect(first).toHaveAttribute('target', '_blank');
+
+  // Standalone has no such entry — it IS the full viewer.
+  await page.goto('/?mock=1');
+  await page.getByRole('button', { name: /^Links/ }).hover();
+  await expect(page.getByRole('menu')).toBeVisible();
+  await expect(page.getByRole('menu').getByText(/Open full viewer/)).toHaveCount(0);
+});
+
 test('embedded mode opens with free rotation, no momentum, and a raised framing', async ({
   page,
 }) => {

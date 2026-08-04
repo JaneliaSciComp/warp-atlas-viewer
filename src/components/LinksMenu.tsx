@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { isEmbedRequested } from '../utils/urlState';
 
 // External resources surfaced from the viewer header. Mirrors the docs
 // site's nav "Links" dropdown so the two share the same out-of-app
@@ -26,9 +27,18 @@ export function LinksMenu({
   align?: 'left' | 'right';
 } = {}) {
   const docsUrl = import.meta.env.VITE_WARP_DOCS_URL;
-  const links = docsUrl
-    ? [{ text: 'Documentation', href: docsUrl }, ...STATIC_LINKS]
-    : STATIC_LINKS;
+  const links = [
+    // Embedded mode runs in an iframe on mapzebrain.org, so the first entry is
+    // an escape hatch to the standalone viewer: the live URL minus `?embed`, so
+    // the hash carries the current view over to the new tab. Read at render
+    // time, which for a menu that only renders while open is the hash as of
+    // opening it.
+    ...(isEmbedRequested(window.location.search)
+      ? [{ text: 'Open full viewer', href: fullViewerHref() }]
+      : []),
+    ...(docsUrl ? [{ text: 'Documentation', href: docsUrl }] : []),
+    ...STATIC_LINKS,
+  ];
 
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -111,6 +121,14 @@ export function LinksMenu({
       )}
     </div>
   );
+}
+
+// `?embed` present-but-empty also counts as on (see isEmbedRequested), so this
+// deletes the param rather than setting embed=0.
+function fullViewerHref(): string {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('embed');
+  return url.toString();
 }
 
 // Mirrors VitePress's .vpi-chevron-down icon (24×24, round caps, 2px

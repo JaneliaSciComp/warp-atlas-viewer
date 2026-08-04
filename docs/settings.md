@@ -273,7 +273,9 @@ site's own atlas page rather than a bolted-on panel:
 - There is **no page header**. The title, cell count, **Export**, and
   **Links** move into a strip at the top of the sidebar, and the Janelia
   logo becomes a corner overlay on the 3D view instead of sitting in a
-  header bar.
+  header bar. **Links** gains a first entry, **open full viewer**, which
+  opens the standalone viewer in a new tab at the current view — it is the
+  iframe's URL minus `?embed`, so the hash carries the view across.
 - To mimick and integrate with mapZebrain's UI, two **35px collapse rails** 
   are introduced at the left and right viewport edges, replacing the `⌄`/`⌃` 
   bottom-panel handle and the `›`/`‹` detail-panel handle. The left rail 
