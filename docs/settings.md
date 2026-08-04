@@ -289,6 +289,10 @@ site's own atlas page rather than a bolted-on panel:
   replacing the `⌄`/`⌃` bottom-panel handle and the `›`/`‹` detail-panel
   handle. The left rail toggles the sidebar; the right rail toggles the
   Detail panel.
+- The **Detail panel** opens wider — `413` px rather than the standalone
+  `360` — since its charts sit beside a much narrower 3D view here. Dragging
+  and double-click-to-reset both use whichever default applies, so an
+  embedded session left at `413` keeps that width out of the URL hash.
 - The view-orientation bar (see [3D viewer → Embedded
   mode](/ui/viewer#embedded-mode)) gains a **screenshot** icon and a
   **gear** icon after the seven orientation icons. The gear opens the
@@ -325,7 +329,10 @@ site's own atlas page rather than a bolted-on panel:
   presets return to it rather than undoing it.
 
 **`?embed=1` on the URL is the only way to turn it on**, which is what an
-embedding page's `src` attribute uses. There is deliberately no checkbox for
+embedding page's `src` attribute uses — `<iframe src=".../?embed=1">`, ideally
+**1400px** or wider so the [orientation bar](/ui/viewer#embedded-mode) fits. A
+bare `?embed` with no value counts as on as well; `?embed=0` is an explicit
+off, same as omitting it. There is deliberately no checkbox for
 it: it is a deployment mode rather than a preference, and several of the
 things it changes — the canvas's `preserveDrawingBuffer`, the grid layout,
 the palette, the camera default — are read once at page load, so a control

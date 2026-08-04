@@ -89,8 +89,8 @@ replaced too:
 - Two **35px collapse rails**, one at each viewport edge, replace the
   `⌄`/`⌃` bottom-panel handle and the `›`/`‹` detail-panel handle. The
   left rail collapses the sidebar; the right rail collapses the Detail
-  panel, which otherwise behaves exactly as in standalone mode — same
-  resize handle, same default width.
+  panel, which otherwise behaves as in standalone mode — same resize
+  handle, except that it opens at the wider `413` px default noted above.
 
 See [Settings → Embedded mode](/settings#embedded-mode) for the full
 rundown, including the palette change and the new 3D-view icons.

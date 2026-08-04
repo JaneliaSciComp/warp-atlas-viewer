@@ -36,8 +36,7 @@ Refresh/share preserves the full camera state (position, orientation, orbit targ
 
 ## Embedded mode {#embedded-mode}
 
-Enabled with `?embed=1` on the URL (or the checkbox in [Settings → Brain
-models](/settings#brain-models)). It reworks the whole layout for running
+Enabled with `?embed=1` on the URL. It reworks the whole layout for running
 the viewer inside an iframe on [mapzebrain.org](https://mapzebrain.org) —
 see [Settings → Embedded mode](/settings#embedded-mode) for the sidebar,
 rails, and palette changes. In the 3D view specifically, it adds:
