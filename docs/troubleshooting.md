@@ -51,7 +51,7 @@ If **Colors → Gene expression** is active and the brain appears uniformly dark
 
 If **Colors → Stim correlation** is active and almost every cell is dim:
 
-- If the Visual Stimuli mode is `+ correlated`, `- anti-correlated`, or `± either`, the **responsive floor (|r| ≥)** may be too high. The default is `0.13`; values much above that will hide increasingly many cells.
+- If the Visual Stimuli mode is `+ correlated`, `- anti-correlated`, or `± either`, the **responsive floor** may be too high. The default is `0.13`; values much above that will hide increasingly many cells.
 - The saturation anchor may be too high for the selected stimulus, compressing most correlations toward the neutral midpoint. Lower **saturation** or enable **split +/− saturation** if the sign you care about is washed out.
 - The selected stimulus may have few responsive cells.
 - The region in view may not encode the modality being queried.

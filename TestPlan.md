@@ -38,7 +38,7 @@ Validate each of the seven color schemes renders correctly with no other filters
 
 ### A5. Stim correlation
 - Setup: Colors=Stim correlation, all other filters "all".
-- Expected: divergent ramp by signed **max Pearson r across all 8 stimuli** for each cell. Legend labels span the configured r range and omit crowded optional anchors when needed. Cells inside Settings → "responsive floor (|r| ≥)" map to the neutral midpoint; cells at/above Settings → "saturation" hit the ramp endpoints.
+- Expected: divergent ramp by signed **max Pearson r across all 8 stimuli** for each cell. Legend labels span the configured r range and omit crowded optional anchors when needed. Cells inside Settings → "responsive floor" map to the neutral midpoint; cells at/above Settings → "saturation" hit the ramp endpoints.
 - Tweak the floor / saturation in Settings and confirm the legend tick scale and the dim/bright partition responds.
 - Toggle ON one stimulus in Visual Stimuli: the map should switch to that stim's r (a stricter, sparser response pattern). Toggle ON a second: now it's the max across the two selected stims.
 - Pass if the gradient tracks max-r when nothing's picked and the selected-subset's max when stims are picked.

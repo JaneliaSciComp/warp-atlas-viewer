@@ -590,7 +590,7 @@ export function SettingsTab({
                     saturation values for positive and negative correlations.
                 </p>
                 <NumberRow
-                    label="responsive floor (|r| ≥)"
+                    label="responsive floor"
                     value={settings.stimLo}
                     min={0}
                     max={settings.stimHi - 0.01}
@@ -632,7 +632,7 @@ export function SettingsTab({
                     </>
                 ) : (
                     <NumberRow
-                        label="saturation (|r| ≥)"
+                        label="saturation"
                         value={settings.stimHi}
                         min={settings.stimLo + 0.01}
                         max={1}
@@ -652,7 +652,7 @@ export function SettingsTab({
                     full intensity.
                 </p>
                 <NumberRow
-                    label="responsive floor (|r| ≥)"
+                    label="responsive floor"
                     value={settings.swimLo}
                     min={0}
                     max={settings.swimHi - 0.01}
@@ -660,7 +660,7 @@ export function SettingsTab({
                     onChange={(v) => update({ swimLo: v })}
                 />
                 <NumberRow
-                    label="saturation (|r| ≥)"
+                    label="saturation"
                     value={settings.swimHi}
                     min={settings.swimLo + 0.01}
                     max={1}

@@ -201,8 +201,8 @@ Switching to Global threshold currently only affects the *gene filter* and the *
 
 Anchors for the signed per-cell Pearson r between calcium activity and the stimulus regressor:
 
-- **responsive floor (|r| ≥)** — the magnitude floor for the stim filter (cells must clear `±stimLo` per the active mode on the [Visual Stimuli card](/filters/stimuli#mode-dropdown)) and the **deadband** boundary for the divergent [Stim correlation color ramp](/filters/colors#stim-correlation).
-- **saturation (|r| ≥)** — magnitude at which the divergent ramp reaches its endpoints. Does not affect the filter.
+- **responsive floor** — the magnitude floor for the stim filter (cells must clear `±stimLo` per the active mode on the [Visual Stimuli card](/filters/stimuli#mode-dropdown)) and the **deadband** boundary for the divergent [Stim correlation color ramp](/filters/colors#stim-correlation).
+- **saturation** — magnitude at which the divergent ramp reaches its endpoints. Does not affect the filter.
 - **split +/− saturation** — when enabled, exposes separate positive and negative saturation anchors. This is useful because the stimulus-correlation distribution is skewed positive; a single symmetric anchor can make one sign wash out.
 
 Defaults are floor `0.13` and saturation `0.30`. The floor matches the manuscript's full-vector responsive threshold (Methods: "Selecting positively and negatively correlated neurons"); the saturation is near the 99th percentile of the cycle-wide correlation distribution.
@@ -215,8 +215,8 @@ The sliders constrain the floor to stay below saturation and saturation to stay 
 
 Two anchors for the signed per-cell correlation between calcium activity and estimated swim power:
 
-- **responsive floor (|r| ≥)** — magnitude below which a cell is treated as unresponsive (neutral midpoint of the divergent color ramp; rejected by the swim filter unless `swimMode` is `off`).
-- **saturation (|r| ≥)** — magnitude at which the divergent ramp reaches its endpoints.
+- **responsive floor** — magnitude below which a cell is treated as unresponsive (neutral midpoint of the divergent color ramp; rejected by the swim filter unless `swimMode` is `off`).
+- **saturation** — magnitude at which the divergent ramp reaches its endpoints.
 
 Defaults are floor `0.10` and saturation `0.35`. The floor matches the manuscript's swim-correlation cutoff (Methods: "Correlation to swimming behavior"; R > 0.1 / R < −0.1 identifies the swim-related subtypes). Lower the floor to be more permissive in either direction.
 
