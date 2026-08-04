@@ -529,10 +529,14 @@ export default function App() {
             setSettings((s) => ({ ...s, projectionMode: mode }))
           }
           onOpenSettings={() => {
-            // Both, because the gear is reachable from either layout: the
-            // sidebar hosts the tabs in embedded mode, the bottom panel does
-            // in standalone (embeddedMode toggled on live). Opening only one
-            // leaves the gear dead in the other.
+            // Both, even though only the sidebar can host the tabs today.
+            // The gear is gated on the LIVE settings.embeddedMode (see
+            // BrainViewer) while the layout is gated on the module-load
+            // EMBEDDED, and those are only equal because ?embed=1 is the sole
+            // way in. If anything ever makes the mode mutable, the bar would
+            // appear over the standalone layout, where the tabs live in the
+            // bottom panel — opening one and not the other leaves the gear
+            // dead there. Opening a panel that does not exist is a no-op.
             setSidebarOpen(true);
             setBottomOpen(true);
             setPanelTab('settings');
