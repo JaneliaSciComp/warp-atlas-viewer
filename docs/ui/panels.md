@@ -6,8 +6,6 @@ description: Where each panel sits, and how to collapse or expand them.
 # Layout & panels
 
 The viewer occupies a single full-screen page divided into four regions.
-([Embedded mode](#embedded-mode) rearranges these into a left sidebar plus
-two edge rails instead — see below.)
 
 ![Conceptual layout of the WARP viewer: 3D viewer occupies the top-left, the filter strip the bottom-left, the t-SNE panel the bottom-right, and the detail panel the right edge.](/layout-overview.svg)
 
@@ -25,11 +23,7 @@ Drag the **left edge** of the t-SNE panel to widen or narrow it; the filter stri
 
 ## Detail panel
 
-Right edge. ([Embedded mode](#embedded-mode) collapses and expands it via
-the right edge rail instead of the `‹` handle, and opens it wider — `413` px
-rather than `360` — since its charts sit beside a much narrower 3D view
-there. The panel content and resizing are unchanged, and double-clicking the
-edge resets to whichever default applies.) Populates on click-focus, lasso selection, the current filter intersection, or — when neither filter nor selection narrows the view — a summary across all cells in the dataset. Displays a gene bar chart, the mean ΔF/F trace overlaid with stimulus on-windows, a per-stimulus correlation chart, and a swim-correlation histogram. See [Detail panel](/ui/detail).
+Collapsible panel along the right edge. Populates on click-focus, lasso selection, the current filter intersection, or — when neither filter nor selection narrows the view — a summary across all cells in the dataset. Displays a gene bar chart, the mean ΔF/F trace overlaid with stimulus on-windows, a per-stimulus correlation chart, and a swim-correlation histogram. See [Detail panel](/ui/detail).
 
 ::: tip Collapse & resize
 Click the **‹** handle on the right edge of the 3D viewer to toggle the Detail panel. Drag the panel's **left edge** (it highlights on hover) to resize it; **double-click** that edge to reset the width to its default. The width is remembered in the URL.
@@ -37,9 +31,7 @@ Click the **‹** handle on the right edge of the 3D viewer to toggle the Detail
 
 ## Filter strip (bottom panel)
 
-Bottom-left. ([Embedded mode](#embedded-mode) moves this to a left sidebar
-with a fourth, t-SNE tab, instead of the bottom-left placement described
-here.) A tab shell with three tabs:
+Collapsible panel in the bottom-left with three tabs:
 
 - **Filters** — five cards (Colors, Transcriptomics, Visual Stimuli, Swim, Anatomy) controlling visibility and coloring. See [filters overview](/filters/overview).
 - **Settings** — threshold cutoffs, ramp anchors, point density, projection, rendering, and camera behavior. See [Settings](/settings).
@@ -58,39 +50,3 @@ Top-right corner of the 3D viewer. The legend adapts to the active color scheme:
 - **Gene expression / Stim correlation / Activity** — plasma ramp with numeric anchors.
 
 See [Color legend](/ui/legend) for the details of each variant.
-
-## Embedded mode {#embedded-mode}
-
-Loading the viewer with `?embed=1` replaces the bottom filter strip with a
-resizable **left sidebar** holding four tabs — Filters, t-SNE, Settings,
-About — in place of the three-tab bottom panel described above. See
-[t-SNE panel → Embedded mode](/ui/tsne#embedded-mode) for how the t-SNE tab
-behaves.
-
-::: tip Resize
-Drag the sidebar's **right edge** to resize it (`280`–`700` px; the
-default is `360` px). **Double-click** the edge to reset it. The width is
-remembered in the URL, like every other panel size.
-
-In a narrow iframe the sidebar and detail panel are each capped at 40% of
-the width remaining after the two rails, so the 3D view always keeps a
-fifth of it. Below about 970 px the sidebar renders narrower than you
-dragged it; below about 770 px the drag has no visible effect at all,
-though the value is remembered. See
-[Embedded mode](/settings#embedded-mode).
-:::
-
-The page header and the bottom-panel/detail-panel show/hide handles are
-replaced too:
-
-- The header's title, cell count, **Export**, and **Links** move into a
-  strip at the top of the sidebar; the Janelia logo becomes a corner
-  overlay on the 3D view instead of sitting in a header bar.
-- Two **35px collapse rails**, one at each viewport edge, replace the
-  `⌄`/`⌃` bottom-panel handle and the `›`/`‹` detail-panel handle. The
-  left rail collapses the sidebar; the right rail collapses the Detail
-  panel, which otherwise behaves as in standalone mode — same resize
-  handle, except that it opens at the wider `413` px default noted above.
-
-See [Settings → Embedded mode](/settings#embedded-mode) for the full
-rundown, including the palette change and the new 3D-view icons.

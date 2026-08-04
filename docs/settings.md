@@ -264,19 +264,8 @@ viewer inside an iframe on
 site's own atlas page rather than a bolted-on panel:
 
 - The bottom panel moves to a resizable **left sidebar** with four tabs —
-  Filters, t-SNE, Settings, About. Drag the sidebar's right edge to
-  resize it (`280`–`700` px; double-click the handle to reset it to the
-  default `360` px). Collapse it with the left-edge rail.
-
-  In a narrow iframe the sidebar and the detail panel are each also capped
-  at 40% of the width left over after the two rails, so the 3D view always
-  keeps a fifth of it. Below roughly 970 px the sidebar therefore renders
-  narrower than you dragged it, and below roughly 770 px it renders at the
-  cap regardless of the dragged value — the drag has no visible effect
-  there, though the value you set is remembered and reappears once there is
-  room for it. Without the cap a small enough iframe would give the 3D view
-  zero width and push the detail panel's rail off-screen entirely.
-- The **t-SNE plot** is the second tab, immediately right of Filters. Its
+  Filters, t-SNE, Settings, About. 
+- The **t-SNE plot** moves to the second tab. Its
   pan/zoom and any lasso persist across a tab switch, so leaving the tab
   and coming back lands you exactly where you left off. While the t-SNE
   tab is hidden, the **t-SNE selection card** on the Filters tab is how
@@ -285,65 +274,30 @@ site's own atlas page rather than a bolted-on panel:
   **Links** move into a strip at the top of the sidebar, and the Janelia
   logo becomes a corner overlay on the 3D view instead of sitting in a
   header bar.
-- Two **35px collapse rails** sit at the left and right viewport edges,
-  replacing the `⌄`/`⌃` bottom-panel handle and the `›`/`‹` detail-panel
-  handle. The left rail toggles the sidebar; the right rail toggles the
-  Detail panel.
-- The **Detail panel** opens wider — `413` px rather than the standalone
-  `360` — since its charts sit beside a much narrower 3D view here. Dragging
-  and double-click-to-reset both use whichever default applies, so an
-  embedded session left at `413` keeps that width out of the URL hash.
+- To mimick and integrate with mapZebrain's UI, two **35px collapse rails** 
+  are introduced at the left and right viewport edges, replacing the `⌄`/`⌃` 
+  bottom-panel handle and the `›`/`‹` detail-panel handle. The left rail 
+  toggles the sidebar; the right rail toggles the Detail panel.
 - The view-orientation bar (see [3D viewer → Embedded
   mode](/ui/viewer#embedded-mode)) gains a **screenshot** icon and a
-  **gear** icon after the seven orientation icons. The gear opens the
-  sidebar — if it's collapsed — and switches it to the Settings tab.
-- The accent color and panel background switch to mapZebrain's own
-  palette (its `#ff1493` tab-underline pink, `#111` panels), and the 3D
-  canvas clears to pure black (`#000000`) instead of the standalone
-  `#0a0a0a`, so the sidebar, tabs, and viewer read as continuous with the
-  host page. **Links** get their own color — mapZebrain's brand orange
-  `#fcac45` — rather than the accent pink, which works on a tab underline
-  but reads poorly as body text against `#111`. The standalone viewer's
-  yellow accent, link color, panel color, and canvas background are all
-  unaffected.
+  **gear** icon after the seven orientation icons, again mimicking the 
+  mapZebrain UI. The gear opens the sidebar and switches it to the Settings tab.
+- The accent and links colors are updated to use mapZebrain's color scheme.
 - The [whole-brain outline mesh](#brain-models) is **on by default**, since
   it is the anatomical context mapZebrain's own 3D view always shows. This
   is a default rather than an override, so a shared link that explicitly
   turns it off still opens with it off.
-
-  One wrinkle worth knowing: because the URL hash records only what differs
-  from the *standalone* defaults, switching the outline off in embedded mode
-  leaves nothing in the hash to record it — so a reload returns to the
-  embedded default of on. The toggle works for the session; it just doesn't
-  persist. Fibers and cell bodies are unaffected and stay off by default in
-  both modes.
 - The [3D camera controls](#3d-camera-controls) open on mapZebrain's feel
   rather than warp's: **object-centric rotation off** and **momentum 0**, so
   the view orbits freely with no damped coast and right-drag uses native
-  trackball pan. Both are ordinary settings you can turn back on, and both
-  carry the same reload caveat as the outline above.
+  trackball pan. Both are ordinary settings you can turn back on.
 - The volume is nudged **10px up** so the portrait brain sits centred in the
   iframe rather than low in it. This is a fixed framing offset, not a pan: it
   is kept out of the pan that share links record, so it does not make the
   camera read as moved-from-default, and **reset view** and the orientation
   presets return to it rather than undoing it.
 
-**`?embed=1` on the URL is the only way to turn it on**, which is what an
-embedding page's `src` attribute uses — `<iframe src=".../?embed=1">`, ideally
-**1400px** or wider so the [orientation bar](/ui/viewer#embedded-mode) fits. A
-bare `?embed` with no value counts as on as well; `?embed=0` is an explicit
-off, same as omitting it. There is deliberately no checkbox for
-it: it is a deployment mode rather than a preference, and several of the
-things it changes — the canvas's `preserveDrawingBuffer`, the grid layout,
-the palette, the camera default — are read once at page load, so a control
-that flipped it mid-session could only ever apply some of them and would
-misrepresent what it did.
-
-Embedded mode is also **not** written to the URL hash — like
-[screenshot mode](#screenshot-mode) it is a presentation mode, not shareable
-view state, so a link you share won't drop the recipient into it. **Reset
-settings** leaves it alone for the same reason: inside an iframe there would
-be no way to get it back.
+Embedded mode is activated via the `?embed=1` parameter in the URL and it is not persisted in the URL hash.
 
 ## Screenshot mode {#screenshot-mode}
 

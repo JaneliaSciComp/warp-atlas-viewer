@@ -17,7 +17,7 @@ Every meaningful piece of view state is encoded in the URL hash (the `#…` port
 | **t-SNE viewport** | Pan and zoom. |
 | **Selection** | Focused-cell id; lasso polygon (when present). |
 | **Activity time** | When Colors is set to Activity, the current sample index and playback speed. |
-| **Panel visibility** | Whether the Detail panel, bottom panel, or (in [embedded mode](/settings#embedded-mode)) the left sidebar is collapsed, and the dragged size of each — bottom-panel height, Detail-panel width, t-SNE panel width, sidebar width. Embedded mode itself is not part of this: like [screenshot mode](/settings#screenshot-mode), it is set by `?embed=1` and is never written to the hash. |
+| **Panel visibility** | Whether the Detail panel, bottom panel, or the left sidebar is collapsed, and the dragged size of each — bottom-panel height, Detail-panel width, t-SNE panel width, sidebar width. |
 
 ## Sharing
 
