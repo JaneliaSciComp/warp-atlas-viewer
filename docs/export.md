@@ -5,7 +5,7 @@ description: Download the cells you're currently looking at as a CSV file.
 
 # Exporting cells
 
-The viewer's header includes an **Export** button next to *Links*. It opens a dialog that summarises what's about to be saved and triggers a CSV download.
+The viewer's header includes an **Export** button next to *Links*. It opens a dialog that summarises what's about to be saved and triggers a CSV download. In [embedded mode](/ui/viewer#embedded-mode) there is no header: the same dialog opens from the **export** icon on the orientation bar above the 3D view.
 
 ## Scope: the Detail-panel population
 

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Export/download tile for the embedded orientation bar. Drawn to match
+       mapZebrain's own view_screenshot / view_settings artwork: a solid
+       #cacaca glyph on an opaque black 64x64 tile, glyph inset ~6px top and
+       bottom. Theirs are webp rasters; this one is vector because it is ours
+       to tune. -->
+  <rect width="64" height="64" fill="#000000"/>
+  <g fill="#cacaca">
+    <rect x="24" y="6" width="16" height="20"/>
+    <path d="M11 24h42L32 46Z"/>
+    <rect x="7" y="50" width="50" height="9" rx="2"/>
+  </g>
+</svg>

@@ -41,12 +41,12 @@ the viewer inside an iframe on [mapzebrain.org](https://mapzebrain.org) —
 see [Settings → Embedded mode](/settings#embedded-mode) for the sidebar,
 rails, and palette changes. In the 3D view specifically, it adds:
 
-- **A nine-icon bar** above the 3D view, using mapZebrain's own artwork:
+- **A ten-icon bar** above the 3D view, using mapZebrain's own artwork:
   the seven view-orientation icons — dorsal, ventral, sagittal vertical
   left/right, sagittal horizontal left/right, and coronal — plus a
-  **screenshot** icon and a **gear** icon. Clicking an orientation icon
-  snaps the camera to that view and clears any pan. "Vertical" means
-  rostral-up; "horizontal" means dorsal-up.
+  **screenshot** icon, an **export** icon, and a **gear** icon. Clicking an
+  orientation icon snaps the camera to that view and clears any pan.
+  "Vertical" means rostral-up; "horizontal" means dorsal-up.
 
 ### Screenshot icon
 
@@ -65,11 +65,17 @@ the only way to enter embedded mode at all. The 3D canvas's
 fixed when the canvas is created, so it has to be decided before the first
 frame rather than switched on later.
 
+### Export icon
+
+Opens the CSV [export](/export) dialog. In embedded mode this is the only way
+in: the sidebar strip carries just the **Links** menu, since there is no page
+header to hold an **Export** button.
+
 ### Gear icon
 
 Opens the sidebar (if it's collapsed) and switches it to the Settings tab.
 
-The bar, including both icons above, is suppressed in [screenshot
+The bar, including all three icons above, is suppressed in [screenshot
 mode](/settings#screenshot-mode).
 
 ::: tip Axis convention

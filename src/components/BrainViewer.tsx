@@ -83,6 +83,10 @@ interface Props {
   onProjectionModeChange?: (mode: ProjectionMode) => void;
   /** Fired when the gear icon in the embedded orientation bar is clicked. */
   onOpenSettings?: () => void;
+  /** Fired when the export icon in the embedded orientation bar is clicked.
+   *  The dialog itself lives in App, which owns the effective selection it
+   *  exports. */
+  onOpenExport?: () => void;
 }
 
 const VOLUME_CENTER: [number, number, number] = [0, 0, 0];
@@ -102,6 +106,7 @@ export function BrainViewer({
   onCameraChange,
   onProjectionModeChange,
   onOpenSettings,
+  onOpenExport,
 }: Props) {
   const [hover, setHover] = useState<{ i: number; x: number; y: number } | null>(null);
   const [projMenuOpen, setProjMenuOpen] = useState(false);
@@ -430,6 +435,7 @@ export function BrainViewer({
           distance={presetDistance}
           applyView={(position, up) => applyViewRef.current?.(position, up)}
           onCapture={embeddedAtMountRef.current ? onCapture : null}
+          onOpenExport={() => onOpenExport?.()}
           onOpenSettings={() => onOpenSettings?.()}
         />
       )}

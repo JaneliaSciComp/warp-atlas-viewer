@@ -17,7 +17,7 @@ import { useUrlSync } from './hooks/useUrlSync';
 import { useUniqueFishIds } from './hooks/useUniqueFishIds';
 import { FilterControls, type Tab } from './components/FilterControls';
 import { LinksMenu } from './components/LinksMenu';
-import { ExportButton } from './components/ExportButton';
+import { ExportButton, ExportDialog } from './components/ExportButton';
 import { ColorLegend } from './components/ColorLegend';
 import { anyFilterActive, cellInSet } from './utils/coloring';
 import {
@@ -245,6 +245,9 @@ export default function App() {
   // Sidebar/bottom-panel active tab. Lifted out of FilterControls so the
   // 3D view's gear icon (embedded mode) can select the Settings tab.
   const [panelTab, setPanelTab] = useState<Tab>('filters');
+  // Export dialog, opened by the orientation bar's export icon (embedded
+  // mode). Standalone mode's header ExportButton keeps its own state.
+  const [exportOpen, setExportOpen] = useState(false);
   // Single-neuron focus is independent of the group selection so a
   // t-SNE drag can persist while the user clicks through individual
   // neurons. Click on a neuron → focus it (DetailPanel shows just that
@@ -544,6 +547,7 @@ export default function App() {
           onProjectionModeChange={(mode) =>
             setSettings((s) => ({ ...s, projectionMode: mode }))
           }
+          onOpenExport={() => setExportOpen(true)}
           onOpenSettings={() => {
             // Both, even though only the sidebar can host the tabs today.
             // The gear is gated on the LIVE settings.embeddedMode (see
@@ -565,6 +569,17 @@ export default function App() {
         settings={settings}
         uniqueFishIds={uniqueFishIds}
       />
+      {/* Opened by the orientation bar's export icon (embedded mode only).
+          The dialog lives here rather than in the bar because the scope it
+          exports is App's effective selection. */}
+      {exportOpen && (
+        <ExportDialog
+          data={data}
+          effectiveSelection={effectiveSelection}
+          focusedNeuron={effectiveFocusedNeuron}
+          onClose={() => setExportOpen(false)}
+        />
+      )}
     </>
   );
 
@@ -646,14 +661,11 @@ export default function App() {
       {cellCountLine}
       {!settings.screenshotMode && (
         <div className="flex items-center gap-3 mt-1.5">
-          <ExportButton
-            data={data}
-            effectiveSelection={effectiveSelection}
-            focusedNeuron={effectiveFocusedNeuron}
-          />
-          {/* Left-anchored here: the button sits near the left edge of a
-              ~360px sidebar, so the header's default right-anchoring would
-              run the menu out of the sidebar and under the collapse rail. */}
+          {/* No Export here: embedded mode exports from the orientation bar's
+              icon instead, next to the screenshot and gear icons.
+              Left-anchored: the menu sits near the left edge of a ~360px
+              sidebar, so the header's default right-anchoring would run it out
+              of the sidebar and under the collapse rail. */}
           <LinksMenu align="left" />
         </div>
       )}

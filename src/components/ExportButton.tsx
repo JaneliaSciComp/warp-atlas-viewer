@@ -8,21 +8,45 @@ import {
   estimateCsvBytes,
 } from '../utils/exportCsv';
 
-/** Header button + modal dialog for exporting the cells currently
- *  described by the Detail panel: focused cell first, then lasso, then
- *  the filter intersection, else every cell. The mean ΔF/F trace is
- *  opt-in via the dialog — see docs/export.md for rationale and the
- *  column list. */
-export function ExportButton({
-  data,
-  effectiveSelection,
-  focusedNeuron,
-}: {
+/** Header button that opens the export dialog. Standalone mode's entry
+ *  point; embedded mode instead opens `ExportDialog` from the orientation
+ *  bar's export icon. */
+export function ExportButton(props: {
   data: NeuronDataset;
   effectiveSelection: SelectionState;
   focusedNeuron: number | null;
 }) {
   const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-1 px-2 py-1 text-sm font-medium text-neutral-100 hover:text-link"
+      >
+        Export
+      </button>
+      {open && <ExportDialog {...props} onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+/** Modal dialog for exporting the cells currently described by the Detail
+ *  panel: focused cell first, then lasso, then the filter intersection, else
+ *  every cell. The mean ΔF/F trace is opt-in here — see docs/export.md for
+ *  rationale and the column list. Rendered only while open; the caller owns
+ *  that state. */
+export function ExportDialog({
+  data,
+  effectiveSelection,
+  focusedNeuron,
+  onClose,
+}: {
+  data: NeuronDataset;
+  effectiveSelection: SelectionState;
+  focusedNeuron: number | null;
+  onClose: () => void;
+}) {
   const [includeTrace, setIncludeTrace] = useState(false);
 
   // Materialise the index list the dialog is about to operate on.
@@ -63,142 +87,129 @@ export function ExportButton({
   }, [data, effectiveSelection, focusedNeuron]);
 
   const sizeBytes = useMemo(
-    () => (open ? estimateCsvBytes(data, rowCount, { includeActivityTrace: includeTrace }) : 0),
-    [open, data, rowCount, includeTrace],
+    () => estimateCsvBytes(data, rowCount, { includeActivityTrace: includeTrace }),
+    [data, rowCount, includeTrace],
   );
 
   // Close on Escape so the dialog has keyboard parity with the Links
   // menu and the SearchSelect popovers.
   useEffect(() => {
-    if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'Escape') onClose();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [open]);
+  }, [onClose]);
 
   const onDownload = () => {
     if (rowCount === 0) return;
     const content = buildCsv(data, indices, { includeActivityTrace: includeTrace });
     downloadCsv(buildFilename(rowCount), content);
-    setOpen(false);
+    onClose();
   };
 
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-1 px-2 py-1 text-sm font-medium text-neutral-100 hover:text-link"
-      >
-        Export
-      </button>
-      {open &&
-        createPortal(
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="export-dialog-title"
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-            onPointerDown={(e) => {
-              // Click on the backdrop (not on the inner dialog) closes.
-              if (e.target === e.currentTarget) setOpen(false);
-            }}
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="export-dialog-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onPointerDown={(e) => {
+        // Click on the backdrop (not on the inner dialog) closes.
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="w-full max-w-lg bg-neutral-900 border border-neutral-700 rounded-lg shadow-xl p-5 text-neutral-200">
+        <h2
+          id="export-dialog-title"
+          className="text-base font-semibold text-neutral-100 mb-3"
+        >
+          Export cells to CSV
+        </h2>
+        <p className="text-sm text-neutral-300 mb-2">
+          Exporting <strong>{rowCount.toLocaleString()}</strong> cell
+          {rowCount === 1 ? '' : 's'}
+          {' '}(~{formatBytes(sizeBytes)}) — {scopeLabel}.
+        </p>
+        <p className="text-xs text-neutral-400 mb-3">
+          Each row is one cell. Columns (in order):
+        </p>
+        <ul className="text-xs font-mono text-neutral-300 mb-3 space-y-0.5 pl-3 list-disc marker:text-neutral-600">
+          <li>
+            <code>cell_id</code>, <code>x</code>, <code>y</code>,{' '}
+            <code>z</code> (viewer coordinates in mapZebrain frame,
+            centered + AP-flipped)
+          </li>
+          <li>
+            <code>tsne_x</code>, <code>tsne_y</code>
+          </li>
+          <li>
+            <code>fish</code> (1, 2, or 3)
+          </li>
+          <li>
+            <code>manuscript_region</code> (paper&apos;s 16-region name)
+          </li>
+          <li>
+            <code>mapzebrain_regions</code> (semicolon-separated list,
+            may be empty)
+          </li>
+          <li>
+            <code>cluster</code> (transcriptomic subtype name)
+          </li>
+          <li>
+            <code>gene_*</code> &times; {data.geneNames.length} (raw FISH
+            spot counts)
+          </li>
+          <li>
+            <code>corr_*</code> &times; {data.stimulusNames.length}{' '}
+            (signed Pearson r vs stimulus regressors)
+          </li>
+          <li>
+            <code>swim_corr</code> (signed Pearson r vs swim power)
+          </li>
+        </ul>
+        <label className="flex items-start gap-2 text-xs text-neutral-300 mb-4 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={includeTrace}
+            onChange={(e) => setIncludeTrace(e.target.checked)}
+            className="mt-0.5 accent-yellow-400"
+          />
+          <span>
+            Include the {data.traceLength}-sample mean ΔF/F activity
+            trace (<code className="font-mono">dff_t0</code> …
+            {' '}<code className="font-mono">dff_t{data.traceLength - 1}</code>).
+            <span className="text-neutral-500">
+              {' '}Substantially increases file size and adds {data.traceLength}{' '}
+              columns.
+            </span>
+          </span>
+        </label>
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-3 py-1.5 text-sm rounded bg-neutral-800 border border-neutral-700 text-neutral-200 hover:bg-neutral-700"
           >
-            <div className="w-full max-w-lg bg-neutral-900 border border-neutral-700 rounded-lg shadow-xl p-5 text-neutral-200">
-              <h2
-                id="export-dialog-title"
-                className="text-base font-semibold text-neutral-100 mb-3"
-              >
-                Export cells to CSV
-              </h2>
-              <p className="text-sm text-neutral-300 mb-2">
-                Exporting <strong>{rowCount.toLocaleString()}</strong> cell
-                {rowCount === 1 ? '' : 's'}
-                {' '}(~{formatBytes(sizeBytes)}) — {scopeLabel}.
-              </p>
-              <p className="text-xs text-neutral-400 mb-3">
-                Each row is one cell. Columns (in order):
-              </p>
-              <ul className="text-xs font-mono text-neutral-300 mb-3 space-y-0.5 pl-3 list-disc marker:text-neutral-600">
-                <li>
-                  <code>cell_id</code>, <code>x</code>, <code>y</code>,{' '}
-                  <code>z</code> (viewer coordinates in mapZebrain frame,
-                  centered + AP-flipped)
-                </li>
-                <li>
-                  <code>tsne_x</code>, <code>tsne_y</code>
-                </li>
-                <li>
-                  <code>fish</code> (1, 2, or 3)
-                </li>
-                <li>
-                  <code>manuscript_region</code> (paper&apos;s 16-region name)
-                </li>
-                <li>
-                  <code>mapzebrain_regions</code> (semicolon-separated list,
-                  may be empty)
-                </li>
-                <li>
-                  <code>cluster</code> (transcriptomic subtype name)
-                </li>
-                <li>
-                  <code>gene_*</code> &times; {data.geneNames.length} (raw FISH
-                  spot counts)
-                </li>
-                <li>
-                  <code>corr_*</code> &times; {data.stimulusNames.length}{' '}
-                  (signed Pearson r vs stimulus regressors)
-                </li>
-                <li>
-                  <code>swim_corr</code> (signed Pearson r vs swim power)
-                </li>
-              </ul>
-              <label className="flex items-start gap-2 text-xs text-neutral-300 mb-4 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={includeTrace}
-                  onChange={(e) => setIncludeTrace(e.target.checked)}
-                  className="mt-0.5 accent-yellow-400"
-                />
-                <span>
-                  Include the {data.traceLength}-sample mean ΔF/F activity
-                  trace (<code className="font-mono">dff_t0</code> …
-                  {' '}<code className="font-mono">dff_t{data.traceLength - 1}</code>).
-                  <span className="text-neutral-500">
-                    {' '}Substantially increases file size and adds {data.traceLength}{' '}
-                    columns.
-                  </span>
-                </span>
-              </label>
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  className="px-3 py-1.5 text-sm rounded bg-neutral-800 border border-neutral-700 text-neutral-200 hover:bg-neutral-700"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={onDownload}
-                  disabled={rowCount === 0}
-                  className={
-                    'px-3 py-1.5 text-sm rounded font-medium ' +
-                    (rowCount === 0
-                      ? 'bg-neutral-800 border border-neutral-700 text-neutral-600 cursor-not-allowed'
-                      : 'bg-yellow-400 text-neutral-900 hover:bg-yellow-300')
-                  }
-                >
-                  {rowCount === 0 ? 'No cells to export' : 'Download CSV'}
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
-    </>
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onDownload}
+            disabled={rowCount === 0}
+            className={
+              'px-3 py-1.5 text-sm rounded font-medium ' +
+              (rowCount === 0
+                ? 'bg-neutral-800 border border-neutral-700 text-neutral-600 cursor-not-allowed'
+                : 'bg-yellow-400 text-neutral-900 hover:bg-yellow-300')
+            }
+          >
+            {rowCount === 0 ? 'No cells to export' : 'Download CSV'}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
 

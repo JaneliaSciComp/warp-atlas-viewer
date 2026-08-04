@@ -114,11 +114,12 @@ test('embedded mode folds the header into the sidebar', async ({ page }) => {
   // No page-level header row: the host page supplies one.
   await expect(page.locator('header')).toHaveCount(0);
 
-  // Title, cell count, Export, and Links all live in the sidebar instead.
+  // Title, cell count, and Links all live in the sidebar instead. (Export is
+  // the exception — it moved onto the orientation bar; see the export test.)
   const header = page.getByTestId('sidebar-header');
   await expect(header.getByRole('heading', { name: 'WARP Atlas Viewer' })).toBeVisible();
   await expect(header.getByText('10,000 cells pooled from 3 fish (mock)')).toBeVisible();
-  await expect(header.getByRole('button', { name: /export/i })).toBeVisible();
+  await expect(header.getByRole('button', { name: /links/i })).toBeVisible();
 
   // The Janelia logo moves onto the 3D view rather than disappearing.
   await expect(
@@ -380,15 +381,15 @@ test('the orientation bar renders at full size or not at all', async ({ page }) 
   await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
   await expect(bar).toBeVisible();
   const shown = (await bar.boundingBox())!;
-  // Natural width is 331px; anything materially under it means the flex items
-  // shrank and every icon is distorted.
-  expect(shown.width).toBeGreaterThan(326);
-  // Icons keep their own aspect ratio, so the row is NOT nine equal widths —
+  // Natural width is 367.5px (BAR_NATURAL_WIDTH_PX rounds it to 368); anything
+  // materially under it means the flex items shrank and every icon is distorted.
+  expect(shown.width).toBeGreaterThan(363);
+  // Icons keep their own aspect ratio, so the row is NOT ten equal widths —
   // the two vertical-sagittal tiles are ~17px against the camera's 32px.
   const iconWidths = await bar.locator('img').evaluateAll((els) =>
     els.map((el) => Math.round(el.getBoundingClientRect().width)),
   );
-  expect(iconWidths).toHaveLength(9);
+  expect(iconWidths).toHaveLength(10);
   expect(Math.min(...iconWidths)).toBeLessThan(20);
   expect(Math.max(...iconWidths)).toBe(32);
 
@@ -400,7 +401,7 @@ test('the orientation bar renders at full size or not at all', async ({ page }) 
   // actually happen.
 
   // ~600px viewer: above the gate, but HALF of it (300px) is under the bar's
-  // 331px natural width. That band is the only place the shrink bug is
+  // 368px natural width. That band is the only place the shrink bug is
   // reachable, so it is what makes `w-max` load-bearing — at 1500 there is
   // already enough room and the width assertion above passes either way.
   // Viewer width is `vw - 70 - sidebarWidth - detailWidth` = `vw - 843` at the
@@ -409,7 +410,7 @@ test('the orientation bar renders at full size or not at all', async ({ page }) 
   // from 360 to 413 is exactly what pushed the previous 1390 below the gate.
   await page.setViewportSize({ width: 1450, height: 860 });
   await expect(bar).toBeVisible();
-  expect((await bar.boundingBox())!.width).toBeGreaterThan(326);
+  expect((await bar.boundingBox())!.width).toBeGreaterThan(363);
 
   // 1280 wide → ~490px viewer, below the gate: gone rather than squashed or
   // overlapping the legend. The bar was visible a moment ago, so this is a real
@@ -421,7 +422,7 @@ test('the orientation bar renders at full size or not at all', async ({ page }) 
   // gate tracks the viewer, not the window.
   await page.getByTestId('rail-detail').click();
   await expect(bar).toBeVisible();
-  expect((await bar.boundingBox())!.width).toBeGreaterThan(326);
+  expect((await bar.boundingBox())!.width).toBeGreaterThan(363);
 });
 
 test('the region select fits its card at the narrowest sidebar', async ({ page }) => {
@@ -788,4 +789,45 @@ test('embedded mode hides 3D ghosts by default, and the hash can put them back',
   });
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(page.getByLabel('show ghosts')).toBeChecked();
+});
+
+test('embedded mode exports from the orientation bar, not the sidebar', async ({ page }) => {
+  // Wide enough for the bar to clear its width gate — at the default 1280 the
+  // viewer column is ~437px and the bar is hidden entirely.
+  await page.setViewportSize({ width: 1500, height: 860 });
+  await page.goto('/?mock=1&embed=1');
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+
+  // The sidebar strip keeps Links only; Export is an icon on the bar now, so
+  // an export path that still lived here would be a second entry point.
+  const header = page.getByTestId('sidebar-header');
+  await expect(header.getByRole('button', { name: /export/i })).toHaveCount(0);
+  await expect(header.getByRole('button', { name: /links/i })).toBeVisible();
+
+  const bar = page.getByTestId('view-orientation-bar');
+  await expect(bar).toBeVisible();
+  // Between the screenshot icon and the gear, per mapZebrain's ordering of the
+  // trailing tool icons.
+  const labels = await bar
+    .locator('button')
+    .evaluateAll((els) => els.map((el) => el.getAttribute('aria-label')));
+  expect(labels.slice(-3)).toEqual(['3D view screenshot', 'Export cells', '3D view settings']);
+
+  // Every tile is opaque black artwork, so the buttons carry no resting
+  // background: a grey one shows as a thin ring in the 2px of padding around
+  // each icon, which is what it looked like before. Measured with the pointer
+  // parked off the bar, since hover deliberately does paint a background.
+  await page.mouse.move(0, 0);
+  const backgrounds = await bar
+    .locator('button')
+    .evaluateAll((els) => els.map((el) => getComputedStyle(el).backgroundColor));
+  expect([...new Set(backgrounds)]).toEqual(['rgba(0, 0, 0, 0)']);
+
+  await bar.getByRole('button', { name: 'Export cells' }).click();
+  await expect(page.getByRole('heading', { name: 'Export cells to CSV' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Download CSV' })).toBeVisible();
+  // Escape still closes it. The dialog no longer owns the state that opens it,
+  // so its close path runs through the caller's callback.
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 });
