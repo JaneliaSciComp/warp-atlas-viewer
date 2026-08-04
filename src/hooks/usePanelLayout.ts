@@ -10,6 +10,17 @@ export const BOTTOM_HEIGHT_DEFAULT = 352;
 const BOTTOM_HEIGHT_MIN = 120;
 const BOTTOM_HEIGHT_MAX = 1200;
 export const DETAIL_WIDTH_DEFAULT = 360;
+/** Embedded mode opens the detail panel wider. Its charts and region lists sit
+ *  next to a much narrower 3D view there, and 360 leaves them cramped. Within
+ *  the same DETAIL_WIDTH_MIN/MAX drag bounds as the standalone default. */
+export const EMBEDDED_DETAIL_WIDTH_DEFAULT = 413;
+/** The default width for a mode. Used for the initial value, for
+ *  double-click-to-reset, and by the URL writer to decide when the width is at
+ *  its default and can be dropped from the hash — those three must agree, or a
+ *  reset lands somewhere the hash then records as a deviation. */
+export function detailWidthDefaultFor(embedded: boolean): number {
+  return embedded ? EMBEDDED_DETAIL_WIDTH_DEFAULT : DETAIL_WIDTH_DEFAULT;
+}
 const DETAIL_WIDTH_MIN = 240;
 const DETAIL_WIDTH_MAX = 800;
 // Width of the t-SNE panel (bottom-right of the bottom row). The grid
@@ -169,8 +180,9 @@ export function usePanelLayout(
   const [bottomHeight, setBottomHeight] = useState(
     initial.bottomHeight ?? BOTTOM_HEIGHT_DEFAULT,
   );
+  const detailDefault = detailWidthDefaultFor(embedded);
   const [detailWidth, setDetailWidth] = useState(
-    initial.detailWidth ?? DETAIL_WIDTH_DEFAULT,
+    initial.detailWidth ?? detailDefault,
   );
   const [umapWidth, setUmapWidth] = useState(
     initial.umapWidth ?? UMAP_WIDTH_DEFAULT,
@@ -336,7 +348,10 @@ export function usePanelLayout(
   // A click carries no pointer movement, so the drag handlers leave the
   // size untouched and only this fires.
   const onResizeDoubleClick = useCallback(() => setBottomHeight(BOTTOM_HEIGHT_DEFAULT), []);
-  const onDetailResizeDoubleClick = useCallback(() => setDetailWidth(DETAIL_WIDTH_DEFAULT), []);
+  const onDetailResizeDoubleClick = useCallback(
+    () => setDetailWidth(detailDefault),
+    [detailDefault],
+  );
   const onUmapResizeDoubleClick = useCallback(() => setUmapWidth(UMAP_WIDTH_DEFAULT), []);
   const onSidebarResizeDoubleClick = useCallback(
     () => setSidebarWidth(SIDEBAR_WIDTH_DEFAULT),

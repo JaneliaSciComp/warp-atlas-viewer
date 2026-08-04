@@ -26,8 +26,10 @@ Drag the **left edge** of the t-SNE panel to widen or narrow it; the filter stri
 ## Detail panel
 
 Right edge. ([Embedded mode](#embedded-mode) collapses and expands it via
-the right edge rail instead of the `‹` handle; the panel content, resizing,
-and default width are unchanged.) Populates on click-focus, lasso selection, the current filter intersection, or — when neither filter nor selection narrows the view — a summary across all cells in the dataset. Displays a gene bar chart, the mean ΔF/F trace overlaid with stimulus on-windows, a per-stimulus correlation chart, and a swim-correlation histogram. See [Detail panel](/ui/detail).
+the right edge rail instead of the `‹` handle, and opens it wider — `413` px
+rather than `360` — since its charts sit beside a much narrower 3D view
+there. The panel content and resizing are unchanged, and double-clicking the
+edge resets to whichever default applies.) Populates on click-focus, lasso selection, the current filter intersection, or — when neither filter nor selection narrows the view — a summary across all cells in the dataset. Displays a gene bar chart, the mean ΔF/F trace overlaid with stimulus on-windows, a per-stimulus correlation chart, and a swim-correlation histogram. See [Detail panel](/ui/detail).
 
 ::: tip Collapse & resize
 Click the **‹** handle on the right edge of the 3D viewer to toggle the Detail panel. Drag the panel's **left edge** (it highlights on hover) to resize it; **double-click** that edge to reset the width to its default. The width is remembered in the URL.

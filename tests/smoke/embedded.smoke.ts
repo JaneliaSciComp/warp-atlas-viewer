@@ -394,11 +394,15 @@ test('the orientation bar renders at full size or not at all', async ({ page }) 
   // from a state where the opposite was just true, so a transition has to
   // actually happen.
 
-  // 1390 wide → ~600px viewer: above the gate, but HALF of it (300px) is under
-  // the bar's 345px natural width. That band is the only place the shrink bug
-  // is reachable, so it is what makes `w-max` load-bearing — at 1500 there is
+  // ~600px viewer: above the gate, but HALF of it (300px) is under the bar's
+  // 345px natural width. That band is the only place the shrink bug is
+  // reachable, so it is what makes `w-max` load-bearing — at 1500 there is
   // already enough room and the width assertion above passes either way.
-  await page.setViewportSize({ width: 1390, height: 860 });
+  // Viewer width is `vw - 70 - sidebarWidth - detailWidth` = `vw - 843` at the
+  // embedded defaults (35px rails ×2, sidebar 360, detail 413), so 1450 gives
+  // ~607. Recompute if either panel default moves: widening the detail panel
+  // from 360 to 413 is exactly what pushed the previous 1390 below the gate.
+  await page.setViewportSize({ width: 1450, height: 860 });
   await expect(bar).toBeVisible();
   expect((await bar.boundingBox())!.width).toBeGreaterThan(340);
 
@@ -590,4 +594,49 @@ test('embedded mode opens with free rotation, no momentum, and a raised framing'
   await page.waitForTimeout(1200);
   const after = await topLitRow();
   expect(Math.abs(after - before)).toBeLessThanOrEqual(1);
+});
+
+test('embedded mode opens the detail panel wider, and agrees with the URL writer', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  const width = async () => Math.round((await page.locator('aside').boundingBox())!.width);
+
+  await page.goto('/?mock=1&embed=1');
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+  expect(await width()).toBe(413);
+
+  // The hook's default, the double-click reset, and the URL writer's
+  // default-drop all have to be the same number. If the writer still thought
+  // 360 was the default, every embedded URL would carry detailWidth=413 as
+  // though the user had dragged it, and dragging to 360 would not persist.
+  await page.getByRole('button', { name: 'About', exact: true }).click();
+  await page.waitForTimeout(600);
+  const hash = decodeURIComponent(await page.evaluate(() => location.hash));
+  expect(hash).not.toContain('detailWidth');
+
+  // Double-click resets to the embedded default, not the standalone one. On a
+  // FRESH page: navigating this page to a different hash would be a
+  // same-document navigation, and the outgoing page's pending debounced hash
+  // write can land on top of the new hash before App reloads to read it — so
+  // the panel intermittently comes back at 413 instead of 600. A full document
+  // load has no such window.
+  const fresh = await page.context().newPage();
+  await fresh.setViewportSize({ width: 1600, height: 900 });
+  await fresh.goto(
+    '/?mock=1&embed=1#!' + encodeURIComponent(JSON.stringify({ detailWidth: 600 })),
+  );
+  await expect(fresh.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+  const freshWidth = async () =>
+    Math.round((await fresh.locator('aside').boundingBox())!.width);
+  expect(await freshWidth()).toBe(600); // an explicit hash width still wins
+  await fresh.locator('[aria-label="Resize detail panel"]').dblclick();
+  await expect(async () => expect(await freshWidth()).toBe(413)).toPass({ timeout: 5_000 });
+  await fresh.close();
+
+  await page.goto('/?mock=1');
+  await expect(page.getByText('10,000 cells pooled from 3 fish (mock)')).toBeVisible({
+    timeout: 20_000,
+  });
+  expect(await width()).toBe(360);
 });

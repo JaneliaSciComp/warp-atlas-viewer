@@ -53,9 +53,11 @@ rails, and palette changes. In the 3D view specifically, it adds:
   sagittal-vertical tiles are noticeably narrower than the rest.
 
   The bar needs about **560px of 3D view** to sit clear of the color legend,
-  and it is hidden entirely below that rather than shrunk or overlapped. In a
-  1280px-wide embed with both the sidebar and the detail panel open the view
-  is only ~490px, so the bar — including the screenshot and gear icons — does
+  and it is hidden entirely below that rather than shrunk or overlapped. With
+  both panels open at their embedded defaults the 3D view is the window width
+  less about 843px (two 35px rails, a 360px sidebar, a 413px detail panel), so
+  the bar needs a window around **1400px** or wider. In a 1280px embed the view
+  is only ~437px and the bar — including the screenshot and gear icons — does
   not appear; collapsing either panel with its edge rail brings it back, as
   does a wider iframe. Everything the bar does is also reachable from the
   Settings tab and the **reset view** button.

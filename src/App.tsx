@@ -8,7 +8,7 @@ import { useEffectiveSelection } from './hooks/useEffectiveSelection';
 import {
   usePanelLayout,
   BOTTOM_HEIGHT_DEFAULT,
-  DETAIL_WIDTH_DEFAULT,
+  detailWidthDefaultFor,
   UMAP_WIDTH_DEFAULT,
   SIDEBAR_WIDTH_DEFAULT,
 } from './hooks/usePanelLayout';
@@ -404,7 +404,10 @@ export default function App() {
     {
       defaultFilter: INITIAL_FILTER,
       bottomHeightDefault: BOTTOM_HEIGHT_DEFAULT,
-      detailWidthDefault: DETAIL_WIDTH_DEFAULT,
+      // Mode-aware so an embedded session at its own 413 default keeps the key
+      // out of the hash, and so dragging to the standalone 360 there IS
+      // recorded — the writer's notion of "default" has to match the hook's.
+      detailWidthDefault: detailWidthDefaultFor(EMBEDDED),
       umapWidthDefault: UMAP_WIDTH_DEFAULT,
       sidebarWidthDefault: SIDEBAR_WIDTH_DEFAULT,
       initialCamera: INITIAL_URL_STATE?.camera ?? null,
