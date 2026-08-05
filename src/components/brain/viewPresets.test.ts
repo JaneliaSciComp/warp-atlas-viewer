@@ -5,6 +5,7 @@ import {
   VIEWER_FOV_DEG,
   VIEW_PRESETS,
   boundsMaxAbs,
+  embeddedFramingPan,
   fitDistance,
   isAtDefaultCamera,
   presetPosition,
@@ -180,6 +181,43 @@ describe('fitDistance', () => {
 
   it('honours an explicit margin', () => {
     expect(fitDistance(500, VIEWER_FOV_DEG, 1)).toBeLessThan(fitDistance(500));
+  });
+});
+
+describe('embeddedFramingPan', () => {
+  // Where the outline mesh actually lands on a 900px canvas at the embedded
+  // framing distance, with no nudge applied: measured off the rendered canvas
+  // and reproduced by projecting every outline vertex. These are PROJECTED
+  // rows, not bounds — perspective magnifies the caudal tip, which is why the
+  // extent runs past the bottom edge even though fitDistance's linear margin
+  // says it fits.
+  const TOP_ROW_AT_900 = 127.2;
+  const BOTTOM_ROW_AT_900 = 913.4;
+
+  it('centres the brain vertically, at any canvas height', () => {
+    for (const height of [600, 900, 1800]) {
+      const scale = height / 900;
+      // Negative y moves the volume up, so it adds to both projected rows.
+      const { y } = embeddedFramingPan(height);
+      const top = TOP_ROW_AT_900 * scale + y;
+      const bottom = BOTTOM_ROW_AT_900 * scale + y;
+      // Equal gaps top and bottom. The wrong-but-plausible constants miss by
+      // far more than this tolerance: the 10px it replaces leaves ~55px of
+      // asymmetry at 900px and ~90px at 1800px, and the outline's bounds
+      // midpoint (4.5%, ignoring perspective) leaves ~30px.
+      expect(Math.abs(top - (height - bottom))).toBeLessThan(2);
+      // And nothing clipped, which the old framing could not claim: the
+      // spinal stub ran 13px past the bottom of a 900px canvas.
+      expect(top).toBeGreaterThan(0);
+      expect(bottom).toBeLessThan(height);
+    }
+  });
+
+  it('moves the volume up, in proportion to the height', () => {
+    // Sign, because down is the one thing that would look like no fix at all.
+    expect(embeddedFramingPan(900).y).toBeLessThan(0);
+    expect(embeddedFramingPan(1800).y).toBeCloseTo(embeddedFramingPan(900).y * 2, 6);
+    expect(embeddedFramingPan(0).y).toBeCloseTo(0, 10);
   });
 });
 

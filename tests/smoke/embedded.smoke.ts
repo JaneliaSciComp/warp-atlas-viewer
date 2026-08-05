@@ -579,7 +579,7 @@ test('the embedded links menu leads back to the full viewer, carrying the view',
   await expect(page.getByRole('menu').getByText(/Open full viewer/)).toHaveCount(0);
 });
 
-test('embedded mode opens with free rotation, no momentum, and a raised framing', async ({
+test('embedded mode opens with free rotation, no momentum, and a centred framing', async ({
   page,
 }) => {
   // Wide enough for the orientation bar, since the preset click below needs it.
@@ -595,13 +595,13 @@ test('embedded mode opens with free rotation, no momentum, and a raised framing'
   const momentum = page.locator('label').filter({ hasText: /momentum/i }).first();
   expect(await momentum.locator('input').last().inputValue()).toBe('0');
 
-  // The 10px upward framing nudge is a projection offset held outside the
-  // user's pan, so that a reset-to-default restores it instead of undoing it.
-  // Measured as the topmost lit row of the rendered canvas: reading the offset
-  // off the camera is not possible from the page, and pixels are the thing that
-  // actually matters anyway. Embedded mode sets preserveDrawingBuffer, so the
-  // canvas can be read back.
-  const topLitRow = () =>
+  // The upward framing nudge is a projection offset held outside the user's
+  // pan, so that a reset-to-default restores it instead of undoing it.
+  // Measured as the empty margin above and below the rendered brain: reading
+  // the offset off the camera is not possible from the page, and pixels are the
+  // thing that actually matters anyway. Embedded mode sets
+  // preserveDrawingBuffer, so the canvas can be read back.
+  const litMargins = () =>
     page.evaluate(async () => {
       const cv = document.querySelector('canvas') as HTMLCanvasElement;
       const img = new Image();
@@ -617,25 +617,45 @@ test('embedded mode opens with free rotation, no momentum, and a raised framing'
       ctx.drawImage(img, 0, 0);
       const d = ctx.getImageData(0, 0, oc.width, oc.height).data;
       const dpr = oc.height / cv.clientHeight;
+      let top = -1;
+      let bottom = -1;
       for (let y = 0; y < oc.height; y++) {
         for (let x = 0; x < oc.width; x++) {
           const i = (y * oc.width + x) * 4;
-          if (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2] > 18) return y / dpr;
+          if (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2] > 18) {
+            if (top < 0) top = y;
+            bottom = y;
+            break;
+          }
         }
       }
-      return -1;
+      return { top: top / dpr, bottom: cv.clientHeight - bottom / dpr, height: cv.clientHeight };
     });
 
-  const before = await topLitRow();
-  expect(before).toBeGreaterThan(0);
+  // The framing is centred, and stays centred as the iframe grows. Both are the
+  // bug this replaces: the nudge used to be a flat 10px, so the brain rested on
+  // the bottom edge (a 1px margin against 112px of sky) and drifted further
+  // off-centre the taller the viewport got — 233px against 1px at 1800.
+  // Tolerance is 12px against a defect of >100px at either height.
+  for (const height of [900, 1800]) {
+    await page.setViewportSize({ width: 1500, height });
+    await page.waitForTimeout(1500);
+    const m = await litMargins();
+    expect(m.top).toBeGreaterThan(10);
+    expect(Math.abs(m.top - m.bottom)).toBeLessThanOrEqual(12);
+  }
+
+  await page.setViewportSize({ width: 1500, height: 900 });
+  await page.waitForTimeout(1500);
+  const before = await litMargins();
 
   // A preset click runs applyView, which zeroes the user pan. If it also zeroed
   // the baseline — as it did before the baseline existed — the volume would
-  // drop back down by 10px here.
+  // drop back down to the bottom edge here.
   await page.getByRole('button', { name: 'Dorsal' }).click();
   await page.waitForTimeout(1200);
-  const after = await topLitRow();
-  expect(Math.abs(after - before)).toBeLessThanOrEqual(1);
+  const after = await litMargins();
+  expect(Math.abs(after.top - before.top)).toBeLessThanOrEqual(1);
 });
 
 test('embedded mode opens the detail panel wider, and agrees with the URL writer', async ({

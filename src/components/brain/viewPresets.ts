@@ -39,6 +39,12 @@ export function boundsMaxAbs(bounds: { min: number[]; max: number[] }): number {
  *  includes the spinal-cord stub the recording does not cover. Framing to the
  *  cells alone would cut the reference brain's tail off whenever the outline
  *  is on.
+ *
+ *  That margin is a linear bound, though: it compares world extents against the
+ *  frustum half-height at the target plane and so ignores perspective. The
+ *  stub is dorsal of the target plane, hence nearer the camera and magnified,
+ *  and it still projects a few pixels past the bottom edge. What actually keeps
+ *  it on screen is EMBEDDED_VERTICAL_CENTERING below.
  */
 export function fitDistance(
   halfExtent: number,
@@ -46,6 +52,36 @@ export function fitDistance(
   margin = 1.25,
 ): number {
   return (halfExtent / Math.tan(((fovDeg / 2) * Math.PI) / 180)) * margin;
+}
+
+/** Fraction of the canvas height by which the embedded framing sits too LOW,
+ *  and therefore how far up it has to be nudged.
+ *
+ *  The camera targets the world origin, but nothing in the scene is centred on
+ *  it. In the embedded portrait framing the outline mesh — on by default, and
+ *  the tallest thing drawn — projects to rows 127 … 913 of a 900px canvas: the
+ *  spinal stub is clipped off the bottom edge while 127px of empty sky sits
+ *  above the snout. Its midpoint is 7.8% of the height below centre.
+ *
+ *  A fraction rather than a pixel count, because the projection is what scales
+ *  with the canvas: every gap above grows in proportion to the height, so the
+ *  fixed 10px this replaces corrected 1.1% of a 900px canvas and less of every
+ *  taller one — the taller the iframe, the further off-centre the brain looked.
+ *
+ *  Perspective is why this is not simply the outline's bounds midpoint (46.6
+ *  world units, 4.5% of the height). The caudal tip sits dorsal of the rostral
+ *  tip, hence nearer the camera and magnified more, so it reaches further from
+ *  centre than its coordinates suggest. Ignoring that leaves the tail ~27px
+ *  from the edge against ~87px at the snout. The value here is the projected
+ *  midpoint of the real atlas geometry at the default framing distance, checked
+ *  against the rendered canvas.
+ */
+export const EMBEDDED_VERTICAL_CENTERING = 0.078;
+
+/** The embedded framing nudge for a canvas of `height` CSS pixels, in
+ *  ScreenPanState's convention — negative y moves the volume up. */
+export function embeddedFramingPan(height: number): { x: number; y: number } {
+  return { x: 0, y: -EMBEDDED_VERTICAL_CENTERING * height };
 }
 
 export type ViewPresetKey =
