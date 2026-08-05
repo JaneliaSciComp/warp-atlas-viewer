@@ -86,7 +86,11 @@ const INITIAL_FILTER_STATE: FilterState = {
   ...(INITIAL_URL_STATE?.filter ?? {}),
 };
 const EMBED_REQUESTED = isEmbedRequested(window.location.search);
-const INITIAL_SETTINGS_STATE: SettingsState = {
+// Defaults for the deployment mode, before a shared URL applies its explicit
+// settings. Keep this separate from INITIAL_SETTINGS_STATE: the latter may
+// contain URL overrides and therefore is not a valid target for "reset
+// settings".
+const MODE_DEFAULT_SETTINGS: SettingsState = {
   ...DEFAULT_SETTINGS,
   // Embedded DEFAULT (not an override): the whole-brain outline is the
   // anatomical context mapZebrain's own 3D view always shows, so an embedded
@@ -108,6 +112,12 @@ const INITIAL_SETTINGS_STATE: SettingsState = {
         showGhosts: false,
       }
     : {}),
+  // ?embed=1 is the only entry point to this mode. It is intentionally not
+  // supplied by URL-hash state.
+  ...(EMBED_REQUESTED ? { embeddedMode: true } : {}),
+};
+const INITIAL_SETTINGS_STATE: SettingsState = {
+  ...MODE_DEFAULT_SETTINGS,
   ...(INITIAL_URL_STATE?.settings ?? {}),
   // ?embed=1 wins: the hash never carries embeddedMode.
   ...(EMBED_REQUESTED ? { embeddedMode: true } : {}),
@@ -613,6 +623,7 @@ export default function App() {
       setFilter={setFilter}
       settings={settings}
       setSettings={setSettings}
+      defaultSettings={MODE_DEFAULT_SETTINGS}
       uniqueFishIds={uniqueFishIds}
       onReset={handleResetFilters}
       visibleCount={visibleCount}

@@ -16,6 +16,10 @@ interface Props {
   setFilter: (f: FilterState) => void;
   settings: SettingsState;
   setSettings: (s: SettingsState) => void;
+  /** Defaults for the current deployment mode. Embedded mode has deliberately
+   *  different presentation defaults, so Settings' reset action cannot always
+   *  use the standalone DEFAULT_SETTINGS table. */
+  defaultSettings: SettingsState;
   /** Sorted unique fish ids in the dataset; lifted to a shared memo in
    *  App so the header, anatomy dropdown, and the legend agree. */
   uniqueFishIds: Uint8Array;
@@ -69,7 +73,7 @@ export function tabsFor(hasTsne: boolean): Array<{ id: Tab; label: string }> {
   ];
 }
 
-export function FilterControls({ data, filter, setFilter, settings, setSettings, uniqueFishIds, onReset, visibleCount, applyView, activityPlaying, setActivityPlaying, activitySpeed, setActivitySpeed, selection, onClearSelection, tab, onTabChange, tsneTab }: Props) {
+export function FilterControls({ data, filter, setFilter, settings, setSettings, defaultSettings, uniqueFishIds, onReset, visibleCount, applyView, activityPlaying, setActivityPlaying, activitySpeed, setActivitySpeed, selection, onClearSelection, tab, onTabChange, tsneTab }: Props) {
   const update = (patch: Partial<FilterState>) => setFilter({ ...filter, ...patch });
   const sidebar = tsneTab != null;
   const tabs = tabsFor(sidebar);
@@ -169,7 +173,12 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
             </div>
           )}
           {tab === 'settings' && (
-            <SettingsTab filter={filter} settings={settings} setSettings={setSettings} />
+            <SettingsTab
+              filter={filter}
+              settings={settings}
+              setSettings={setSettings}
+              defaultSettings={defaultSettings}
+            />
           )}
           {tab === 'about' && <AboutTab data={data} applyView={applyView} />}
         </div>

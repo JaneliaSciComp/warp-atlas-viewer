@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import type { FilterState, SettingsState } from "../../data/types";
-import { DEFAULT_SETTINGS } from "../../data/types";
 import { BRAIN_MESH_CONTROLS, loadMeshManifest } from "../../data/meshLoader";
 import { KindToggle } from "./shared";
 
@@ -23,24 +22,24 @@ export function SettingsTab({
     filter,
     settings,
     setSettings,
+    defaultSettings,
 }: {
     filter: FilterState;
     settings: SettingsState;
     setSettings: (s: SettingsState) => void;
+    /** Deployment-mode defaults supplied by App. */
+    defaultSettings: SettingsState;
 }) {
     const update = (patch: Partial<SettingsState>) =>
         setSettings({ ...settings, ...patch });
-    // embeddedMode is exempt from reset. It is a deployment mode set by
-    // ?embed=1 and by nothing else — there is deliberately no toggle for it —
-    // so a reset that cleared it would strip the whole embedded layout with no
-    // way back but a reload. Leaving it in the dirty check also made the button
-    // read as dirty on a pristine ?embed=1 load, inviting exactly that click.
-    const reset = () =>
-        setSettings({ ...DEFAULT_SETTINGS, embeddedMode: settings.embeddedMode });
+    // App supplies the defaults for the active deployment mode. In particular,
+    // reset in an embed must retain its outline/ghost/camera defaults rather
+    // than silently switching the viewer to standalone presentation defaults.
+    const reset = () => setSettings(defaultSettings);
     const dirty = (
-        Object.keys(DEFAULT_SETTINGS) as Array<keyof typeof DEFAULT_SETTINGS>
+        Object.keys(defaultSettings) as Array<keyof typeof defaultSettings>
     ).some(
-        (k) => k !== "embeddedMode" && settings[k] !== DEFAULT_SETTINGS[k],
+        (k) => settings[k] !== defaultSettings[k],
     );
     const [showDescriptions, setShowDescriptions] = useState<boolean>(() => {
         if (typeof window === "undefined") return true;
