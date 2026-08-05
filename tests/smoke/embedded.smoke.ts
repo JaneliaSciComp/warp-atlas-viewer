@@ -377,12 +377,14 @@ test('embedded mode enables the brain outline by default, and the hash can still
   await expect(outline(page)).not.toBeChecked();
 });
 
-test('the orientation bar renders at full size or not at all', async ({ page }) => {
+test('the orientation bar renders at full size or collapses to a menu', async ({ page }) => {
   // The bar is a centred overlay in a column the sidebar and detail panel
-  // squeeze. Two failure modes it must avoid: flex-shrinking its own icons to
-  // half width (what `w-max` prevents), and running under the colour legend at
-  // top-right (what the width gate prevents). So: full width, or absent.
+  // squeeze. The failure mode it must avoid is flex-shrinking its own icons to
+  // half width (what `w-max` prevents), so: full width, or the collapsed
+  // hamburger. Running under the colour legend is now allowed — see the
+  // stacking check below — which is what lets the row survive down to 384px.
   const bar = page.getByTestId('view-orientation-bar');
+  const menu = page.getByTestId('view-orientation-menu');
 
   // 1500 wide → ~710px viewer, above the gate.
   await page.setViewportSize({ width: 1500, height: 860 });
@@ -421,16 +423,76 @@ test('the orientation bar renders at full size or not at all', async ({ page }) 
   await expect(bar).toBeVisible();
   expect((await bar.boundingBox())!.width).toBeGreaterThan(363);
 
-  // 1280 wide → ~490px viewer, below the gate: gone rather than squashed or
-  // overlapping the legend. The bar was visible a moment ago, so this is a real
-  // disappearance.
-  await page.setViewportSize({ width: 1280, height: 800 });
-  await expect(bar).toHaveCount(0);
+  // ~397px viewer: the row's right end now runs under the colour legend, and
+  // stays. This is the band the old `barWidth + 215` gate blanked out, so a
+  // regression to it fails here rather than somewhere cosmetic.
+  await page.setViewportSize({ width: 1240, height: 800 });
+  await expect(bar).toBeVisible();
+  await expect(menu).toHaveCount(0);
+  const tucked = (await bar.boundingBox())!;
+  expect(tucked.width).toBeGreaterThan(363);
 
-  // Collapsing a panel widens the viewer past the gate, so it comes back — the
-  // gate tracks the viewer, not the window.
+  // Tucked BEHIND, not over: at a point inside the row's right end, the topmost
+  // element is the legend, not one of the row's buttons. Both halves matter —
+  // the overlap assertion keeps the stacking assertion from passing vacuously
+  // on a row that never reached the legend at all.
+  const legend = page.getByText('Brain region', { exact: true });
+  const legendBox = (await legend.boundingBox())!;
+  const probe = { x: tucked.x + tucked.width - 6, y: tucked.y + tucked.height / 2 };
+  expect(probe.x).toBeGreaterThan(legendBox.x);
+  const topmostIsBar = await page.evaluate(
+    (p) => !!document.elementFromPoint(p.x, p.y)?.closest('[data-testid="view-orientation-bar"]'),
+    probe,
+  );
+  expect(topmostIsBar).toBe(false);
+
+  // ~307px viewer: too narrow for the row, so it becomes one hamburger. The row
+  // was visible a moment ago, so this is a real transition.
+  await page.setViewportSize({ width: 1150, height: 800 });
+  await expect(bar).toHaveCount(0);
+  await expect(menu).toBeVisible();
+
+  // Hover reveals the same ten icons as a vertical list, and a pick closes it.
+  const popup = page.getByTestId('view-orientation-popup');
+  await expect(popup).toHaveCount(0);
+  await menu.hover();
+  await expect(popup).toBeVisible();
+  const popupBox = (await popup.boundingBox())!;
+  expect(await popup.locator('img').count()).toBe(10);
+  // Vertical, not a wrapped row: ten 32px-tall icons cannot stack in anything
+  // like the row's 368px width.
+  expect(popupBox.height).toBeGreaterThan(popupBox.width * 3);
+
+  // A pick has to APPLY, not just dismiss. Asserting only that the menu closed
+  // is what let a version ship where every icon in it did nothing: the close
+  // came from an ancestor's capture handler, which ran and looked right while
+  // unmounting the button before its own onClick could fire. So this reads the
+  // camera the click is supposed to move — the default view sits on +Z and
+  // coronal on +X, so which axis dominates is the whole assertion.
+  const camDominantAxis = () =>
+    page.evaluate(() => {
+      const raw = decodeURIComponent(location.hash).replace(/^#!?/, '');
+      try {
+        const pos = JSON.parse(raw).camera?.pos as number[] | undefined;
+        if (!pos) return null;
+        return Math.abs(pos[0]) > Math.abs(pos[2]) ? 'x' : 'z';
+      } catch {
+        return null;
+      }
+    });
+  expect(await camDominantAxis()).toBe('z');
+  await popup.getByTitle('Coronal').click();
+  await expect(popup).toHaveCount(0);
+  // Polled, not read once: the hash write is debounced behind the camera settle.
+  await expect
+    .poll(camDominantAxis, { timeout: 5_000 })
+    .toBe('x');
+
+  // Collapsing a panel widens the viewer past the gate, so the row comes back —
+  // the gate tracks the viewer, not the window.
   await page.getByTestId('rail-detail').click();
   await expect(bar).toBeVisible();
+  await expect(menu).toHaveCount(0);
   expect((await bar.boundingBox())!.width).toBeGreaterThan(363);
 });
 

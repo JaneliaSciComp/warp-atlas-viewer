@@ -33,18 +33,13 @@ const VIEWER_BACKGROUND = '#0a0a0a';
 // mapZebrain's own clear colour (web-gl.service.ts:47), so the embedded
 // canvas and the host page's canvas match exactly.
 const EMBEDDED_BACKGROUND = '#000000';
-// Below this viewer width the orientation bar is hidden rather than squashed or
-// left to run under the colour legend.
-//
-// The bar is centred on the viewer, so its right edge sits at
-// `width/2 + barWidth/2`. The legend is right-anchored 104px in from the
-// viewer's right edge (96px wide plus its 8px offset, measured for the default
-// region legend). Clearing it needs `width/2 + barWidth/2 < width - 104`, i.e.
-// `width > barWidth + 208` = 553. Rounded up for slack. A gradient legend is
-// wider than the region one, so just above this threshold the bar can still
-// meet a gradient legend — cosmetic, and only on a non-default colour scheme,
-// which is not worth a second breakpoint.
-const MIN_VIEWER_WIDTH_FOR_BAR = BAR_NATURAL_WIDTH_PX + 215;
+// Below this viewer width the orientation bar collapses to a hamburger. Just
+// the row's own natural width plus the 8px inset the other overlays use on each
+// side: the row tucks under the colour legend rather than avoiding it, so the
+// only thing that ends the full row is running out of column to draw it in.
+// (It used to clear the legend too, at barWidth + 215, which hid the bar
+// through a 200px band where it was perfectly usable.)
+const MIN_VIEWER_WIDTH_FOR_BAR = BAR_NATURAL_WIDTH_PX + 16;
 
 interface Props {
   data: NeuronDataset;
@@ -425,16 +420,15 @@ export function BrainViewer({
           {tooltip}
         </div>
       )}
-      {/* The bar is an overlay centred on the viewer, so in a narrow embed it
-          would either crush its own icons or run under the colour legend at
-          top-right. Hide it instead: the orientation presets are a
-          convenience, and the Settings tab still reaches everything they do.
-          canvasSize.w starts at 0 and is filled by the ResizeObserver above,
-          so the bar simply appears once the first measurement lands. */}
-      {settings.embeddedMode &&
-        !settings.screenshotMode &&
-        canvasSize.w >= MIN_VIEWER_WIDTH_FOR_BAR && (
+      {/* The bar is an overlay centred on the viewer, so in a narrow embed its
+          row would crush its own icons; below the width it needs it collapses
+          to a hamburger instead. canvasSize.w starts at 0 and is filled by the
+          ResizeObserver above, so nothing is rendered until the first
+          measurement lands — otherwise every embed would flash the collapsed
+          form on mount. */}
+      {settings.embeddedMode && !settings.screenshotMode && canvasSize.w > 0 && (
         <ViewOrientationBar
+          collapsed={canvasSize.w < MIN_VIEWER_WIDTH_FOR_BAR}
           distance={presetDistance}
           applyView={(position, up) => applyViewRef.current?.(position, up)}
           onCapture={embeddedAtMountRef.current ? onCapture : null}

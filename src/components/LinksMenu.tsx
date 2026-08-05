@@ -152,8 +152,11 @@ function fullViewerHref(): string {
 
 // Three horizontal lines, same 24×24 / 2px-stroke / round-cap geometry as the
 // chevron below so the two triggers read as one family. Sized to the two-line
-// title block it sits beside in the embedded sidebar.
-function HamburgerIcon() {
+// title block it sits beside in the embedded sidebar. Exported because the
+// collapsed orientation bar uses the same glyph for the same job — "the
+// controls that no longer fit are in here" — and two hamburgers that don't
+// match would read as two different affordances.
+export function HamburgerIcon() {
   return (
     <svg
       aria-hidden="true"
