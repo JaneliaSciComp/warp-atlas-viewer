@@ -17,6 +17,26 @@ export interface SearchOption {
   shortLabel?: string;
 }
 
+/** Pick the side of the trigger the popover opens on, plus how tall it
+ *  may be. Prefers opening upward — the filter panel sits at the bottom
+ *  of the window, so a drop-up keeps the rest of the card visible — but
+ *  flips down when there is more room below. Without the flip, a trigger
+ *  near the top of the viewport (transcriptomics in embed mode) puts the
+ *  search input off-screen. Exported for the unit test. */
+export function placePopover(triggerTop: number, triggerBottom: number, viewportHeight: number) {
+  const above = triggerTop - GAP - MARGIN;
+  const below = viewportHeight - triggerBottom - GAP - MARGIN;
+  const maxHeight = Math.max(Math.min(Math.max(above, below), MAX_POPOVER_HEIGHT), MIN_POPOVER_HEIGHT);
+  return above >= below
+    ? { bottom: viewportHeight - triggerTop + GAP, maxHeight }
+    : { top: triggerBottom + GAP, maxHeight };
+}
+
+const GAP = 4; // trigger-to-popover offset
+const MARGIN = 8; // keep off the viewport edge
+const MAX_POPOVER_HEIGHT = 320;
+const MIN_POPOVER_HEIGHT = 120; // scroll rather than collapse in a very short viewport
+
 /** Searchable combobox built on cmdk. Used for dropdowns where the
  *  native `<select>`'s first-letter type-ahead isn't enough: the
  *  112-region mapZebrain atlas, the 333 transcriptomic subtypes, and
@@ -58,7 +78,9 @@ export function SearchSelect({
   };
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const [pos, setPos] = useState<{ left: number; bottom: number; width: number } | null>(null);
+  const [pos, setPos] = useState<
+    { left: number; width: number; maxHeight: number; top?: number; bottom?: number } | null
+  >(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -111,11 +133,12 @@ export function SearchSelect({
     };
   }, [open]);
 
-  // Position the portaled popover *above* the trigger, in viewport
-  // coordinates. The popover is short-lived (close on outside-click /
-  // selection), so we recompute on open + on window resize but skip
-  // tracking ancestor scrolls — opening + dismissing covers the
-  // realistic interaction window.
+  // Position the portaled popover next to the trigger, in viewport
+  // coordinates, on whichever side has more room (see placePopover). The
+  // popover is short-lived (close on outside-click / selection), so we
+  // recompute on open + on window resize but skip tracking ancestor
+  // scrolls — opening + dismissing covers the realistic interaction
+  // window.
   useLayoutEffect(() => {
     if (!open) {
       setPos(null);
@@ -126,8 +149,8 @@ export function SearchSelect({
       if (!el) return;
       const rect = el.getBoundingClientRect();
       setPos({
+        ...placePopover(rect.top, rect.bottom, window.innerHeight),
         left: rect.left,
-        bottom: window.innerHeight - rect.top + 4,
         width: Math.max(rect.width, 240),
       });
     }
@@ -156,7 +179,13 @@ export function SearchSelect({
           style={{
             position: 'fixed',
             left: pos.left,
+            top: pos.top,
             bottom: pos.bottom,
+            // Column layout so the input keeps its height and the list
+            // takes the remaining space of maxHeight.
+            display: 'flex',
+            flexDirection: 'column',
+            maxHeight: pos.maxHeight,
             // Let the popover size to its widest item (so atlas region
             // names don't wrap to two lines), but never narrower than
             // the trigger nor wider than the viewport.
@@ -170,9 +199,9 @@ export function SearchSelect({
             value={search}
             onValueChange={setSearch}
             placeholder={placeholder}
-            className="w-full bg-neutral-900 border-b border-neutral-700 px-2 py-1.5 text-xs font-mono text-neutral-200 placeholder-neutral-500 outline-none"
+            className="w-full shrink-0 bg-neutral-900 border-b border-neutral-700 px-2 py-1.5 text-xs font-mono text-neutral-200 placeholder-neutral-500 outline-none"
           />
-          <Command.List className="max-h-72 overflow-y-auto py-1">
+          <Command.List className="min-h-0 flex-1 overflow-y-auto py-1">
             <Command.Empty className="px-2 py-2 text-xs font-mono text-neutral-500">
               no matches
             </Command.Empty>
