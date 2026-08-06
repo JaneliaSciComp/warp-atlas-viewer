@@ -62,9 +62,6 @@ jobs:
       - name: Build bundle
         run: bash scripts/bundle.sh
 
-      - name: Write CNAME for custom domain
-        run: echo "warp.janelia.org" > dist/CNAME
-
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
