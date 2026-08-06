@@ -190,15 +190,25 @@ def main():
     print(f'[preprocess] stimulus windows (seconds): {stim_windows}')
 
     # Convert (z, x, y) → (x, y, z) and center on origin.
-    # Then negate the AP axis so the rendered orientation matches the paper:
-    # anterior (telencephalon) at +y → top of screen, posterior (medulla)
-    # at -y → bottom. Without this flip, Three.js's default Y-up shows the
-    # brain upside-down on AP.
+    # Then negate the AP axis so rostral (telencephalon) is +y and caudal
+    # (medulla) is -y in preprocessed space.
+    #
+    # NOTE: +y is not "top of screen". The viewer renders the point cloud
+    # inside a group that maps preprocessed (x, y, z) to world (y, x, z),
+    # laying the rostro-caudal axis horizontally across the wide 3D panel —
+    # so rostral is at screen-RIGHT in the default view. See
+    # src/components/brain/volumeTransform.ts.
     z = coords[:, 0].astype(np.float32)
     x = coords[:, 1].astype(np.float32)
     y = coords[:, 2].astype(np.float32)
     pos = np.stack([x, y, z], axis=1)
-    pos -= pos.mean(axis=0, keepdims=True)
+    # Mean in raw mapZebrain voxel units, ordered (LR, AP, DV). Emitted in
+    # the manifest as voxelCenter so scripts/fetch_meshes.py can put the
+    # mapZebrain brain meshes through this identical transform instead of
+    # keeping a second copy of the number. pos.mean(axis=0) is the same
+    # float32 value the previous keepdims=True form subtracted.
+    voxel_center = pos.mean(axis=0)
+    pos -= voxel_center[None, :]
     pos[:, 1] = -pos[:, 1]
 
     bounds_min = pos.min(axis=0).tolist()
@@ -307,6 +317,10 @@ def main():
         'stimulusNames': STIMULUS_NAMES,
         'clusterNames': cluster_names,
         'bounds': {'min': bounds_min, 'max': bounds_max},
+        # Raw mapZebrain voxel-space mean subtracted from cell positions
+        # above, ordered (LR, AP, DV). scripts/fetch_meshes.py reads this to
+        # place the mapZebrain brain meshes in the same space.
+        'voxelCenter': [float(v) for v in voxel_center],
         'files': {k: name + '.gz' for k, (name, _) in files.items()},
         'note': (
             'Real WARP dataset (manuscript revision). Cells filtered to drop '

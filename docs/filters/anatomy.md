@@ -18,6 +18,8 @@ Three controls:
 
 One of 16 focal anatomical regions plus *Unassigned*, plus an "all" option. Selecting a region restricts visibility to cells in that region. Each entry shows the cell count in parentheses, in the same format as the mapZebrain dropdown.
 
+The dropdown lists entries as `Abbr — Full name`, but once one is selected the closed control shows only the abbreviation, with the full name on hover. The mapZebrain atlas has no abbreviated forms, so its names are truncated with an ellipsis instead — again with the full name on hover, and in full in the open dropdown, which is free to be wider than the control.
+
 The list is ordered anterior → posterior, matching the paper's figure legends:
 
 | Abbr | Full name |

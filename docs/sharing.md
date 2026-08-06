@@ -12,12 +12,12 @@ Every meaningful piece of view state is encoded in the URL hash (the `#…` port
 | Group | Examples |
 |---|---|
 | **Filter cards** | Color scheme, region palette, pinned gene indices, gene OR/AND, subtype index, selected stimuli, stim mode, swim mode, anatomy atlas (Manuscript or [mapZebrain](https://mapzebrain.org)), region, specimen, show-unassigned-region toggle. |
-| **Settings** | 3D point density (auto, scale by filter, scale by depth, manual point size + ghost visibility), 3D camera controls (object-centric rotation, momentum), t-SNE point density (size + ghost visibility), rendering options (3D ambient occlusion, AO strength/radius, opaque active cells, active brightness), projection mode/threshold/sum exposure, fade-weak-correlation toggle, stim cutoffs including split +/− saturation, swim cutoffs, activity anchors, gene-spot ceiling, multi-gene mode, gene predicate, debug-overlay toggle. |
+| **Settings** | 3D point density (show ghosts, auto, scale by filter, scale by depth, manual point size + ghost visibility), 3D camera controls (object-centric rotation, momentum), t-SNE point density (size + ghost visibility), rendering options (3D ambient occlusion, AO strength/radius, opaque active cells, active brightness), projection mode/threshold/sum exposure, fade-weak-correlation toggle, stim cutoffs including split +/− saturation, swim cutoffs, activity anchors, gene-spot ceiling, multi-gene mode, gene predicate, brain-model toggles and their per-mesh opacity, debug-overlay toggle. |
 | **3D camera** | Position, orientation (as a quaternion), orbit target/pivot, and optional screen-space pan. |
 | **t-SNE viewport** | Pan and zoom. |
 | **Selection** | Focused-cell id; lasso polygon (when present). |
 | **Activity time** | When Colors is set to Activity, the current sample index and playback speed. |
-| **Panel visibility** | Whether the Detail panel or bottom panel is collapsed, and the dragged size of each (bottom-panel height, Detail-panel width, t-SNE panel width). |
+| **Panel visibility** | Whether the Detail panel, bottom panel, or the left sidebar is collapsed, and the dragged size of each — bottom-panel height, Detail-panel width, t-SNE panel width, sidebar width. |
 
 ## Sharing
 
@@ -28,6 +28,10 @@ Every meaningful piece of view state is encoded in the URL hash (the `#…` port
 ::: tip Bookmarks reproduce views as well
 Browser bookmarks store the full URL and can therefore be used to maintain a set of favorite views.
 :::
+
+Pasting a link into a tab that already has the viewer open works too: the
+viewer notices the change and reloads so the pasted state is what loads. It
+does not matter whether the two URLs differ only after the `#`.
 
 ## Limitations
 

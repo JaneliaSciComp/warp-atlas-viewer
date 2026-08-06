@@ -8,6 +8,13 @@ export interface SearchOption {
   /** Optional right-aligned secondary text (e.g. a cell count). Rendered
    *  in a dimmer color, not included in the searchable value. */
   aside?: string;
+  /** Shown on the closed trigger in place of `label`, which the dropdown
+   *  keeps in full. For labels of the form "Abbr — Full name" this lets the
+   *  trigger show just "Abbr": the full text is both too wide for a narrow
+   *  panel and mostly redundant once you have chosen it. Also shrinks the
+   *  width sizer below, since that budgets for the longest *displayed* label.
+   *  Falls back to `label` when unset. */
+  shortLabel?: string;
 }
 
 /** Searchable combobox built on cmdk. Used for dropdowns where the
@@ -58,16 +65,20 @@ export function SearchSelect({
   const listboxId = useId();
 
   const selected = options.find((o) => o.value === value);
-  const selectedLabel = selected?.label ?? '';
+  // What the trigger shows vs. what the tooltip and dropdown show.
+  const selectedLabel = selected?.shortLabel ?? selected?.label ?? '';
+  const selectedFullLabel = selected?.label ?? '';
   const selectedAside = selected?.aside;
   // Reserve enough width for the longest option's label so the trigger
   // (and the arrow buttons next to it) don't reflow as the user cycles
   // through values. The widget uses a monospace font, so character
   // count is a faithful proxy for rendered width without measuring DOM.
-  const longestLabel = options.reduce(
-    (a, o) => (o.label.length > a.length ? o.label : a),
-    '',
-  );
+  // Budgets for the longest *displayed* label, so a list with shortLabels
+  // sizes to those rather than to the full names.
+  const longestLabel = options.reduce((a, o) => {
+    const shown = o.shortLabel ?? o.label;
+    return shown.length > a.length ? shown : a;
+  }, '');
   const widestAside = options.reduce(
     (a, o) => ((o.aside?.length ?? 0) > a.length ? (o.aside ?? '') : a),
     '',
@@ -192,7 +203,12 @@ export function SearchSelect({
     : null;
 
   return (
-    <label className="flex items-center gap-1 text-xs">
+    // max-w-full + the min-w-0 chain below let the trigger shrink to whatever
+    // the panel actually has, instead of relying on truncateClass being tuned
+    // for one particular width. In the wide bottom panel nothing pushes on it
+    // and the sizer's intrinsic width still wins; in a 280px sidebar it gives
+    // way rather than overflowing the card.
+    <label className="flex items-center gap-1 text-xs max-w-full min-w-0">
       {label && <span className="text-neutral-400">{label}</span>}
       {arrows && (
         <button
@@ -211,15 +227,15 @@ export function SearchSelect({
         aria-expanded={open}
         aria-controls={listboxId}
         onClick={() => setOpen((o) => !o)}
-        title={selectedLabel}
-        className="flex items-center justify-between gap-1 bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-neutral-200 font-mono text-left"
+        title={selectedFullLabel}
+        className="flex items-center justify-between gap-1 min-w-0 bg-neutral-900 border border-neutral-700 rounded px-2 py-1 text-neutral-200 font-mono text-left"
       >
         {/* Sizer + selected label overlay. The invisible sizer reserves
          *  width for the longest option (capped by truncateClass), and
          *  the visible label is absolutely positioned on top. Keeps the
          *  trigger width fixed so the arrow buttons stay put while
          *  cycling. */}
-        <span className="relative inline-block">
+        <span className="relative inline-block min-w-0 overflow-hidden">
           <span
             aria-hidden
             className={

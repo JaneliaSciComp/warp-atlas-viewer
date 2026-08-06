@@ -162,7 +162,7 @@ function ActivityTimeRow({
           step={1}
           value={sample}
           onChange={(e) => update({ activitySample: parseInt(e.target.value, 10) })}
-          className="w-32 accent-yellow-300"
+          className="w-32 accent-accent"
         />
         <button
           type="button"

@@ -2,6 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Accent + panel colours. The defaults are warp's own (yellow-300 /
+   neutral-800); `.embedded` re-points them at mapZebrain's, so the viewer
+   running in their iframe matches the host page. Channel triples rather than
+   hex so Tailwind's opacity modifiers work. */
+:root {
+  --accent-rgb: 253 224 71; /* yellow-300 #fde047 */
+  --link-rgb: 253 224 71; /* same as accent outside embedded mode */
+  --panel-rgb: 38 38 38; /* neutral-800 #262626 */
+}
+
+/* Applied to App's root element. Anything portaled to document.body is
+   OUTSIDE this scope and silently gets the :root palette instead —
+   ExportButton's dialog (ExportButton.tsx) and SearchSelect's dropdown
+   (SearchSelect.tsx) are the two existing portals. Neither uses `accent` or
+   `panel` today, so there is no bug; if one ever does, move these two
+   variables to :root and swap them with a body-level class. */
+.embedded {
+  --accent-rgb: 255 20 147; /* mapZebrain .mat-ink-bar #ff1493 */
+  /* mapZebrain's own brand orange (welcome-page/style.css, contact-us and
+     credits headings). Split from --accent because pink reads as a UI accent
+     on tab underlines and selected borders but poorly as body-text link
+     colour against #111. */
+  --link-rgb: 252 172 69; /* #fcac45 */
+  --panel-rgb: 17 17 17; /* mapZebrain .side-menu #111 */
+}
+
 html,
 body,
 #root {

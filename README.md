@@ -22,6 +22,8 @@ Four filter cards (**Transcriptomics × Visual Stimuli × Swim × Anatomy**) com
 - **Visual Stimuli**: scope Stim-correlation coloring or keep cells responsive to one or more of 8 stimuli; a mode dropdown picks the direction (`no filter` / `+ correlated` / `- anti-correlated` / `± either`) and multi-stim selections combine with OR / AND. Icons render the stimulus identity. Responsiveness threshold is tunable in Settings.
 - **Swim**: keep cells correlated (+ swim-driven) or anti-correlated (− anti-swim) with estimated swim power; magnitude threshold tunable in Settings.
 - **Anatomy**: an atlas toggle picks between the 16 paper-focal regions and the 112-region [mapZebrain](https://mapzebrain.org) atlas (the two are alternatives, not stacked) feeding a single region dropdown, plus an independent control to restrict to one of 3 fish specimens.
+- **Brain models**: optional translucent mapZebrain reference meshes (brain outline, fibers, cell bodies) drawn as anatomical context around the cells, each with its own visibility toggle and opacity. Off by default; requires the one-time `scripts/fetch_meshes.py` step.
+- **Embedded mode** (`?embed=1`): for running the viewer in an iframe on [mapzebrain.org](https://mapzebrain.org). Moves the filter panel to a resizable left sidebar with the t-SNE plot as a tab, drops the page header into that sidebar, adds mapZebrain's nine-icon 3D toolbar (seven orientations plus screenshot and settings), its edge collapse rails, and its accent palette, and opens on mapZebrain's own default orientation (dorsal, brain vertical, rostral up). The standalone layout is unaffected.
 
 Selections are independent of filters:
 
@@ -34,6 +36,13 @@ URL hash mirrors the full app state so any view you arrive at is shareable by co
 The **Settings** tab includes scalar projection modes for Gene, Activity, Stim, and Swim views, plus point-density, rendering, threshold, and camera controls.
 
 An **About** tab in the bottom panel includes one-click presets that reproduce specific findings from the paper.
+
+## Credits
+
+The whole-brain reference meshes and the view-orientation icons are from
+[mapZebrain](https://mapzebrain.org) (*Kunst et al., 2019*), the shared
+reference brain this dataset is registered into. The 112-region atlas is
+likewise *modified from Kunst et al., 2019*.
 
 ## Tech stack
 
@@ -84,7 +93,7 @@ python3 scripts/preprocess.py
 What it does:
 
 - Filters to the 274,455 cells with valid coordinates and zero-fills any remaining NaN in the activity-trace and stim-correlation arrays.
-- Reorders coords (z, x, y) → (x, y, z), centers on origin, and flips the AP axis so anterior renders at the top of the screen.
+- Reorders coords (z, x, y) → (x, y, z), centers on origin, and flips the AP axis so rostral is +y in preprocessed space. (Not "top of screen": the viewer then rotates the volume 90° to lay the rostro-caudal axis across the wide 3D panel, so rostral renders at screen-right — see `src/components/brain/volumeTransform.ts`.) Also emits that centering offset as `voxelCenter` in the manifest, so `scripts/fetch_meshes.py` can put the mapZebrain brain meshes through the identical transform.
 - Affine-quantizes the activity trace to uint16 over an auto-fit range, halving the trace file size and pushing it below browser per-resource HTTP-cache caps so it persists across reloads. The quantization step (~1e-4) is ~1000× below per-sample measurement noise, so it is effectively lossless. Traces ship at the published 2 Hz sampling rate (268 timepoints per cell over the 134 s mean stimulus cycle).
 - Remaps source fish IDs (59 / 63 / 71) to a dense 0 / 1 / 2; fails loudly on any unknown ID rather than silently aliasing it to 0.
 - Centers and scales the t-SNE embedding to roughly the [-50, 50] box so the panel's pixel projection doesn't depend on the upstream scale.
@@ -95,6 +104,24 @@ What it does:
 - Gzips every `.bin` to `.bin.gz` so static hosts (GitHub Pages, S3) ship a smaller payload without any server-side compression config. The viewer decompresses each blob in the browser via `DecompressionStream('gzip')`.
 
 Output: `preprocessed/neurons.json` (manifest) plus 12 `.bin.gz` files (~125 MB total).
+
+### 2b. Brain meshes (optional)
+
+```bash
+python3 scripts/fetch_meshes.py
+```
+
+Downloads mapZebrain's three whole-brain reference meshes (outline, fibers,
+cell bodies), converts them into viewer coordinates, and writes
+`preprocessed/mesh*.bin.gz` plus `preprocessed/meshes.json` (~0.8 MB total).
+Needs network access, and must run after `preprocess.py` — it reads the
+`voxelCenter` from `neurons.json` so the meshes land in exactly the same space
+as the cells.
+
+Entirely optional: the viewer works without it, and the **Settings → Brain
+models** controls simply stay disabled. See
+[docs/preprocess.md](docs/preprocess.md) for the coordinate details and the
+containment self-check.
 
 ### 3. Run the dev server
 

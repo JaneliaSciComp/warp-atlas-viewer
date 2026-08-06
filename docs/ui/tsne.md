@@ -5,7 +5,11 @@ description: The 2D transcriptomic projection, lasso selection, and its link to 
 
 # t-SNE panel
 
-The 2D scatter plot at the bottom-right of the screen. Every point corresponds to the same cell as in the 3D viewer, projected into the t-SNE embedding so that transcriptomically similar cells appear nearby regardless of their anatomical position.
+The 2D scatter plot at the bottom-right of the screen. ([Embedded
+mode](#embedded-mode) instead renders it as a tab in the left sidebar.)
+Every point corresponds to the same cell as in the 3D viewer, projected
+into the t-SNE embedding so that transcriptomically similar cells appear
+nearby regardless of their anatomical position.
 
 ## Uses
 

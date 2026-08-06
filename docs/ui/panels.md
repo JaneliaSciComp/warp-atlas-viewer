@@ -5,7 +5,7 @@ description: Where each panel sits, and how to collapse or expand them.
 
 # Layout & panels
 
-The viewer occupies a single full-screen page divided into four regions:
+The viewer occupies a single full-screen page divided into four regions.
 
 ![Conceptual layout of the WARP viewer: 3D viewer occupies the top-left, the filter strip the bottom-left, the t-SNE panel the bottom-right, and the detail panel the right edge.](/layout-overview.svg)
 
@@ -23,7 +23,7 @@ Drag the **left edge** of the t-SNE panel to widen or narrow it; the filter stri
 
 ## Detail panel
 
-Right edge. Populates on click-focus, lasso selection, the current filter intersection, or — when neither filter nor selection narrows the view — a summary across all cells in the dataset. Displays a gene bar chart, the mean ΔF/F trace overlaid with stimulus on-windows, a per-stimulus correlation chart, and a swim-correlation histogram. See [Detail panel](/ui/detail).
+Collapsible panel along the right edge. Populates on click-focus, lasso selection, the current filter intersection, or — when neither filter nor selection narrows the view — a summary across all cells in the dataset. Displays a gene bar chart, the mean ΔF/F trace overlaid with stimulus on-windows, a per-stimulus correlation chart, and a swim-correlation histogram. See [Detail panel](/ui/detail).
 
 ::: tip Collapse & resize
 Click the **‹** handle on the right edge of the 3D viewer to toggle the Detail panel. Drag the panel's **left edge** (it highlights on hover) to resize it; **double-click** that edge to reset the width to its default. The width is remembered in the URL.
@@ -31,7 +31,7 @@ Click the **‹** handle on the right edge of the 3D viewer to toggle the Detail
 
 ## Filter strip (bottom panel)
 
-Bottom-left. A tab shell with three tabs:
+Collapsible panel in the bottom-left with three tabs:
 
 - **Filters** — five cards (Colors, Transcriptomics, Visual Stimuli, Swim, Anatomy) controlling visibility and coloring. See [filters overview](/filters/overview).
 - **Settings** — threshold cutoffs, ramp anchors, point density, projection, rendering, and camera behavior. See [Settings](/settings).

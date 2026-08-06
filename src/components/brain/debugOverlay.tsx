@@ -78,7 +78,7 @@ export function DebugOverlay({
       {row('inSetBoost', fx(inSetBoost, 3) + '×')}
       {row('base pointSize', fx(basePointSize, 2))}
       {row('eff. pointSize', fx(effPointSize, 2))}
-      {row('eff. ghost', fx(effGhost, 3))}
+      {row('eff. ghost', settings.showGhosts ? fx(effGhost, 3) : 'hidden')}
     </div>
   );
 }

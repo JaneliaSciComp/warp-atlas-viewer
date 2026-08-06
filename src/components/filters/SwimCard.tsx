@@ -62,7 +62,7 @@ function ToggleButton({
       className={
         'px-2 py-1 text-xs font-mono rounded border transition-[border-color,box-shadow,opacity,background-color] ' +
         (pressed
-          ? 'border-yellow-300 ring-1 ring-yellow-300/60 bg-neutral-900 text-neutral-100'
+          ? 'border-accent ring-1 ring-accent/60 bg-neutral-900 text-neutral-100'
           : 'border-neutral-700 bg-neutral-900/60 text-neutral-400 hover:text-neutral-200 hover:border-neutral-500')
       }
     >

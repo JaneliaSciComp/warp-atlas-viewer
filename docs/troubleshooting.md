@@ -29,6 +29,10 @@ Adjust **Settings → 3D point density**. With **auto** mode on *(default)* the 
 
 For the t-SNE panel, use **Settings → t-SNE point density**. It has its own size and ghost-visibility sliders since its point field is much denser and there is no perspective falloff.
 
+## Out-of-filter cells clutter the 3D view
+
+Uncheck **Settings → 3D point density → show ghosts** to drop them entirely; the filtered population is then the only thing drawn, and clicks can only land on it. This works with **auto point sizes** left on, which the **3D ghost visibility** slider does not — auto derives its own visibility from the canvas height and hides the slider. To thin the haze rather than remove it, turn auto off and lower that slider instead. The t-SNE panel is separate either way.
+
 ## Camera orientation feels lost after panning
 
 With default **Settings → 3D camera controls → object-centric rotation**, **right-drag** shifts the volume within the viewport (screen-space pan), but rotation still pivots around the volume center. If the view is far off-center, click the **reset view** button at the top-left of the 3D viewer to snap the camera, orbit target, and screen pan back to defaults.
@@ -51,7 +55,7 @@ If **Colors → Gene expression** is active and the brain appears uniformly dark
 
 If **Colors → Stim correlation** is active and almost every cell is dim:
 
-- If the Visual Stimuli mode is `+ correlated`, `- anti-correlated`, or `± either`, the **responsive floor (|r| ≥)** may be too high. The default is `0.13`; values much above that will hide increasingly many cells.
+- If the Visual Stimuli mode is `+ correlated`, `- anti-correlated`, or `± either`, the **responsive floor** may be too high. The default is `0.13`; values much above that will hide increasingly many cells.
 - The saturation anchor may be too high for the selected stimulus, compressing most correlations toward the neutral midpoint. Lower **saturation** or enable **split +/− saturation** if the sign you care about is washed out.
 - The selected stimulus may have few responsive cells.
 - The region in view may not encode the modality being queried.

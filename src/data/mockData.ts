@@ -182,7 +182,16 @@ export function generateMockData(n: number = 10000): NeuronDataset {
     }),
     regressors,
     atlasRegionMask,
-    atlasRegionNames: Array.from({ length: N_ATLAS }, (_, i) => `atlas region ${i + 1}`),
+    // Index 0 mimics the longest real mapZebrain region name ("anterior
+    // (dorsal) trigeminal motor nucleus" and friends). The real atlas has no
+    // abbreviated form for these, so they are what forces the region select to
+    // truncate — a mock of uniformly short names understates the widest label
+    // and lets width regressions through.
+    atlasRegionNames: Array.from({ length: N_ATLAS }, (_, i) =>
+      i === 0
+        ? 'anterior (dorsal) trigeminal motor nucleus'
+        : `atlas region ${i + 1}`,
+    ),
     geneNames: [...GENE_NAMES],
     regionNames: [...REGION_NAMES],
     stimulusNames: [...STIMULUS_NAMES],

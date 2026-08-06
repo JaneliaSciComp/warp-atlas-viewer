@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { CameraState } from '../../utils/urlState';
+import { isAtDefaultCamera } from './viewPresets';
 
 export interface ScreenPanState {
   /** CSS-pixel offset applied in projection space. Positive values move
@@ -17,22 +18,66 @@ function supportsViewOffset(
   return camera instanceof THREE.PerspectiveCamera || camera instanceof THREE.OrthographicCamera;
 }
 
+/** No baseline offset — the standalone default. A module constant so it is
+ *  referentially stable in effect dependency arrays. */
+export const NO_PAN: ScreenPanState = { x: 0, y: 0 };
+
+/** The projection offset for a given pan and baseline. Negated because
+ *  `setViewOffset`'s x/y move the *viewing window*, so a positive offset moves
+ *  the rendered volume up/left — the opposite of ScreenPanState's convention,
+ *  where positive moves the volume right/down. Exported for its own unit test:
+ *  this sign is the easiest thing in the file to get backwards, and getting it
+ *  backwards shifts the brain the wrong way by exactly the amount asked for,
+ *  which is hard to notice. */
+export function viewOffsetFor(
+  pan: ScreenPanState,
+  baseline: ScreenPanState,
+): { x: number; y: number } {
+  // `v === 0 ? 0 : -v` rather than plain `-v`: negating zero yields -0, which
+  // is a surprising value to hand a camera API and compares unequal to 0 under
+  // Object.is (so it trips naive equality checks and test matchers alike).
+  const flip = (v: number) => (v === 0 ? 0 : -v);
+  return { x: flip(pan.x + baseline.x), y: flip(pan.y + baseline.y) };
+}
+
+/** Applies `baseline + pan` as a projection offset. Returns false when the
+ *  camera or canvas cannot take an offset yet. */
+function setPanViewOffset(
+  camera: THREE.Camera,
+  size: { width: number; height: number },
+  pan: ScreenPanState,
+  baseline: ScreenPanState,
+): boolean {
+  if (!supportsViewOffset(camera)) return false;
+  if (size.width <= 0 || size.height <= 0) return false;
+  const { x, y } = viewOffsetFor(pan, baseline);
+  camera.setViewOffset(size.width, size.height, x, y, size.width, size.height);
+  return true;
+}
+
 /** Screen-space panning is implemented as a projection offset, not as a
  *  camera/target translation. TrackballControls therefore keeps a stable
  *  orbit target at the volume center, while right-drag simply shifts where
  *  that centered view lands inside the canvas.
  *
- *  When `enabled` is false (the user toggled off object-centric rotation),
- *  this component clears any active view offset and detaches its pointer
- *  listeners so TrackballControls' native pan can take over the right
- *  mouse button. The cached `panRef` is preserved so toggling the mode
- *  back on restores the previous screen-space pan. */
+ *  When `enabled` is false (object-centric rotation is off), this component
+ *  detaches its pointer listeners so TrackballControls' native pan can take
+ *  over the right mouse button, and drops the user's pan so that native pan
+ *  sees a centered frustum. The cached `panRef` is preserved so toggling the
+ *  mode back on restores the previous screen-space pan.
+ *
+ *  `baseline` is a fixed framing nudge that is NOT part of the user's pan: it
+ *  stays applied whether or not this component is enabled, survives a
+ *  reset-to-default view, and is deliberately kept out of `panRef` so it never
+ *  reaches the share URL or makes the camera read as moved-from-default. */
 export function ScreenSpacePan({
   panRef,
   enabled,
+  baseline = NO_PAN,
 }: {
   panRef: React.MutableRefObject<ScreenPanState>;
   enabled: boolean;
+  baseline?: ScreenPanState;
 }) {
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
@@ -41,25 +86,19 @@ export function ScreenSpacePan({
   const dragRef = useRef<{ pointerId: number; lastX: number; lastY: number } | null>(null);
 
   const applyViewOffset = useCallback(() => {
-    if (!supportsViewOffset(camera)) return;
-    if (size.width <= 0 || size.height <= 0) return;
-    const pan = panRef.current;
-    camera.setViewOffset(size.width, size.height, -pan.x, -pan.y, size.width, size.height);
-    invalidate();
-  }, [camera, invalidate, panRef, size.height, size.width]);
+    if (setPanViewOffset(camera, size, panRef.current, baseline)) invalidate();
+  }, [baseline, camera, invalidate, panRef, size]);
 
   useEffect(() => {
     if (!enabled) {
-      // Drop any active projection offset so the native trackball pan
-      // sees a centered frustum to work against.
-      if (supportsViewOffset(camera) && size.width > 0 && size.height > 0) {
-        camera.setViewOffset(size.width, size.height, 0, 0, size.width, size.height);
-        invalidate();
-      }
+      // Drop the user's pan so the native trackball pan sees a centered
+      // frustum, but keep the baseline framing nudge — it is not the user's
+      // pan and does not belong to this mode.
+      if (setPanViewOffset(camera, size, NO_PAN, baseline)) invalidate();
       return;
     }
     applyViewOffset();
-  }, [applyViewOffset, camera, enabled, invalidate, size.height, size.width]);
+  }, [applyViewOffset, baseline, camera, enabled, invalidate, size]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -127,16 +166,31 @@ export function CameraSync({
   onCameraChange,
   panRef,
   defaultCamPosition,
-  resetRef,
+  defaultCamUp,
+  applyViewRef,
   onAtDefaultChange,
   lockTargetToCenter,
   volumeCenter,
+  baseline = NO_PAN,
 }: {
   initialCamera: CameraState | null;
   onCameraChange?: (cam: CameraState) => void;
   panRef: React.MutableRefObject<ScreenPanState>;
+  /** Fixed framing nudge kept outside the user's pan — see ScreenSpacePan.
+   *  A reset restores this rather than a dead-centred frustum. */
+  baseline?: ScreenPanState;
   defaultCamPosition: [number, number, number];
-  resetRef: React.MutableRefObject<(() => void) | null>;
+  /** Camera up vector for the default view. Landscape (0,1,0) normally,
+   *  portrait (1,0,0) in embedded mode, where the viewer opens on
+   *  mapZebrain's orientation. */
+  defaultCamUp: [number, number, number];
+  /** Imperative "snap the camera to this view" handle. Called by the
+   *  reset-view button with the defaults, and by the orientation icon bar
+   *  with a preset. Also clears the screen pan and projection view offset,
+   *  since a canonical view should not stay panned. */
+  applyViewRef: React.MutableRefObject<
+    ((position: [number, number, number], up: [number, number, number]) => void) | null
+  >;
   onAtDefaultChange: (atDefault: boolean) => void;
   /** When true, the orbit target is forced back to volumeCenter each
    *  frame so rotation always pivots around the volume. When false, the
@@ -162,25 +216,26 @@ export function CameraSync({
   const atDefaultRef = useRef<boolean | null>(null);
 
   useEffect(() => {
-    resetRef.current = () => {
-      camera.position.set(...defaultCamPosition);
+    applyViewRef.current = (position, up) => {
+      camera.position.set(...position);
       // TrackballControls rotates camera.up during orbit, so position
-      // + target alone leaves the view rolled. Restore the canonical
-      // up vector so the volume returns to its original orientation.
-      camera.up.set(0, 1, 0);
+      // + target alone leaves the view rolled. Set up explicitly so the
+      // volume lands in the intended orientation.
+      camera.up.set(...up);
       controls?.target.set(...volumeCenter);
       controls?.update();
       panRef.current.x = 0;
       panRef.current.y = 0;
-      if (supportsViewOffset(camera) && size.width > 0 && size.height > 0) {
-        camera.setViewOffset(size.width, size.height, 0, 0, size.width, size.height);
-      }
+      // Back to the baseline framing, not to a dead-centred frustum: the
+      // baseline is how the view is meant to sit by default, so a reset should
+      // land on it rather than undo it.
+      setPanViewOffset(camera, size, NO_PAN, baseline);
       invalidate();
     };
     return () => {
-      resetRef.current = null;
+      applyViewRef.current = null;
     };
-  }, [camera, controls, defaultCamPosition, invalidate, panRef, resetRef, size.height, size.width, volumeCenter]);
+  }, [baseline, camera, controls, invalidate, panRef, applyViewRef, size, volumeCenter]);
 
   useEffect(() => {
     if (!controls || restoredRef.current) return;
@@ -209,9 +264,17 @@ export function CameraSync({
       }
       controls.target.set(...target);
       controls.update();
+    } else {
+      // No camera in the URL. Previously this relied on three's default
+      // camera.up already being (0, 1, 0); with a mode-dependent default up
+      // (embedded mode opens portrait) it has to be set explicitly.
+      camera.position.set(...defaultCamPosition);
+      camera.up.set(...defaultCamUp);
+      controls.target.set(...volumeCenter);
+      controls.update();
     }
     restoredRef.current = true;
-  }, [controls, camera, initialCamera, volumeCenter]);
+  }, [controls, camera, initialCamera, volumeCenter, defaultCamPosition, defaultCamUp]);
 
   useFrame(() => {
     if (!controls) return;
@@ -224,20 +287,16 @@ export function CameraSync({
       controls.target.set(...volumeCenter);
       controls.update();
     }
-    const targetAtCenter =
-      Math.abs(controls.target.x - volumeCenter[0]) < POS_EPS &&
-      Math.abs(controls.target.y - volumeCenter[1]) < POS_EPS &&
-      Math.abs(controls.target.z - volumeCenter[2]) < POS_EPS;
-    const isAtDefault =
-      Math.abs(camera.position.x - defaultCamPosition[0]) < POS_EPS &&
-      Math.abs(camera.position.y - defaultCamPosition[1]) < POS_EPS &&
-      Math.abs(camera.position.z - defaultCamPosition[2]) < POS_EPS &&
-      Math.abs(camera.up.x) < 1e-3 &&
-      Math.abs(camera.up.y - 1) < 1e-3 &&
-      Math.abs(camera.up.z) < 1e-3 &&
-      panRef.current.x === 0 &&
-      panRef.current.y === 0 &&
-      targetAtCenter;
+    const isAtDefault = isAtDefaultCamera({
+      position: [camera.position.x, camera.position.y, camera.position.z],
+      up: [camera.up.x, camera.up.y, camera.up.z],
+      target: [controls.target.x, controls.target.y, controls.target.z],
+      defaultPosition: defaultCamPosition,
+      defaultUp: defaultCamUp,
+      volumeCenter,
+      pan: panRef.current,
+      posEps: POS_EPS,
+    });
     if (atDefaultRef.current !== isAtDefault) {
       atDefaultRef.current = isAtDefault;
       onAtDefaultChange(isAtDefault);

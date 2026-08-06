@@ -5,7 +5,7 @@ description: Download the cells you're currently looking at as a CSV file.
 
 # Exporting cells
 
-The viewer's header includes an **Export** button next to *Links*. It opens a dialog that summarises what's about to be saved and triggers a CSV download.
+The viewer's header includes an **Export** button next to *Links*. It opens a dialog that summarises what's about to be saved and triggers a CSV download. In [embedded mode](/ui/viewer#embedded-mode) there is no header: the same dialog opens from the **export** icon on the orientation bar above the 3D view.
 
 ## Scope: the Detail-panel population
 
@@ -25,7 +25,7 @@ Each row is one cell. Columns appear in this order:
 | # | Column | Notes |
 |---:|---|---|
 | 1 | `cell_id` | 0-based index into the in-memory arrays. |
-| 2–4 | `x`, `y`, `z` | Viewer coordinates in the [mapZebrain](https://mapzebrain.org) frame: axis-reordered, centered on the population mean, AP axis flipped. Matches what you see on screen. Two decimal places. |
+| 2–4 | `x`, `y`, `z` | Viewer coordinates in the [mapZebrain](https://mapzebrain.org) frame: axis-reordered, centered on the population mean, AP axis flipped. These are *preprocessed* coordinates: the viewer additionally rotates the volume 90° for display, so they don't map one-to-one onto screen axes. Two decimal places. |
 | 5–6 | `tsne_x`, `tsne_y` | 2D t-SNE embedding, scaled to roughly the `[-50, 50]` box. Two decimal places. |
 | 7 | `fish` | Source specimen as 1, 2, or 3 (user-facing labels). |
 | 8 | `manuscript_region` | The paper's 16-region abbreviation (or `Unassigned`). |

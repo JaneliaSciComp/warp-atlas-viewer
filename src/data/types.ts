@@ -391,6 +391,14 @@ export interface SettingsState {
      *  pickers re-enable above the midpoint so users only catch
      *  clicks on cells that are genuinely visible enough to aim at. */
     ghostIntensity: number;
+    /** Master switch for ghosts in the 3D viewer. When false the viewer
+     *  renders out-of-filter cells at alpha 0 — the same result as
+     *  `ghostIntensity: 0`, but reachable without turning `autoSizing`
+     *  off (auto mode derives its own ghost visibility and ignores the
+     *  slider). Applied when the 3D viewer copies the shared coloring
+     *  into its own buffers, so the t-SNE panel keeps its independent
+     *  `umapGhostIntensity`. Default true; embedded mode defaults it off. */
+    showGhosts: boolean;
     /** When true, the 3D viewer auto-derives base point size and
      *  ghost visibility from the canvas height instead of reading them
      *  from `pointSize` and `ghostIntensity`. The t-SNE panel has no
@@ -478,6 +486,24 @@ export interface SettingsState {
      *  handles, and the projection dropdown's caret — so the viewer
      *  captures cleanly in a screenshot. Does not change what is rendered. */
     screenshotMode: boolean;
+    /** Deployment/presentation mode for running the viewer inside an iframe
+     *  on mapzebrain.org. Adds the view-orientation icon bar above the 3D
+     *  view and opens on mapZebrain's default orientation (dorsal, brain
+     *  vertical, rostral up) instead of warp's landscape default. Purely
+     *  additive — no panel or layout change. Set by `?embed=1`; like
+     *  screenshotMode it is never written to the URL hash. */
+    embeddedMode: boolean;
+    /** mapZebrain whole-brain reference meshes drawn as translucent
+     *  anatomical context, independent of embeddedMode. All default off so
+     *  the standard view is unchanged. Require
+     *  `python3 scripts/fetch_meshes.py` to have been run. */
+    brainOutline: boolean;
+    brainFibers: boolean;
+    brainCellBodies: boolean;
+    /** Per-mesh opacity, 0..1. 0.2 matches mapZebrain's own default. */
+    brainOutlineOpacity: number;
+    brainFibersOpacity: number;
+    brainCellBodiesOpacity: number;
 }
 
 export const DEFAULT_SETTINGS: SettingsState = {
@@ -503,6 +529,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
     swimLo: 0.1,
     swimHi: 0.35,
     ghostIntensity: 0.6,
+    showGhosts: true,
     autoSizing: true,
     scaleByFilterCount: true,
     fadeWeakCorrelation: true,
@@ -514,6 +541,13 @@ export const DEFAULT_SETTINGS: SettingsState = {
     projectionSumExposure: 1.0,
     debugMode: false,
     screenshotMode: false,
+    embeddedMode: false,
+    brainOutline: false,
+    brainFibers: false,
+    brainCellBodies: false,
+    brainOutlineOpacity: 0.2,
+    brainFibersOpacity: 0.2,
+    brainCellBodiesOpacity: 0.2,
 };
 
 export interface SelectionState {

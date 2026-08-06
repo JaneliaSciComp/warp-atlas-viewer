@@ -10,6 +10,7 @@ import {
 } from '../../utils/coloring';
 import type { SharedColoring } from '../../hooks/useColoring';
 import { screenPointToRenderTargetPixel } from './projectionPicking';
+import { BRAIN_MESH_GROUP_NAME } from './sceneObjectNames';
 
 export interface PickState {
   /** Mouse position in canvas pixel coords, or null if mouse outside. */
@@ -91,12 +92,20 @@ export function usePointCloudPicking({
       const prevCtxVisible = ctx ? ctx.visible : true;
       const marker = markerPointsRef.current;
       const prevMarkerVisible = marker ? marker.visible : true;
+      // The ID pass renders the whole scene with an override material, so the
+      // translucent brain shells would be drawn into the ID target and
+      // depth-occlude the cells behind them — hovering through the shell would
+      // report the wrong cell. (Normal-mode picking is CPU-geometric and never
+      // sees them; this is the only ID-buffer pass.)
+      const brainMeshes = scene.getObjectByName(BRAIN_MESH_GROUP_NAME);
+      const prevBrainVisible = brainMeshes ? brainMeshes.visible : true;
       try {
         // Exclude the ghost/context underlay so its cells (which share the
         // geometry, hence the same scalar attributes) don't win ID pixels
         // over the projection cells the user actually sees.
         if (ctx) ctx.visible = false;
         if (marker) marker.visible = false;
+        if (brainMeshes) brainMeshes.visible = false;
         scene.overrideMaterial = idMaterial;
         // The viewer scene has an opaque background color for the normal
         // backbuffer render. Suppress it for the ID target so empty pixels
@@ -109,6 +118,7 @@ export function usePointCloudPicking({
       } finally {
         if (ctx) ctx.visible = prevCtxVisible;
         if (marker) marker.visible = prevMarkerVisible;
+        if (brainMeshes) brainMeshes.visible = prevBrainVisible;
         scene.overrideMaterial = prevOverride;
         scene.background = prevBackground;
         gl.setRenderTarget(prevTarget);

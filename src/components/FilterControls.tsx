@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import type { NeuronDataset, FilterState, SelectionState, SettingsState } from '../data/types';
 import { ActivityCard } from './filters/ActivityCard';
 import { AnatomyCard } from './filters/AnatomyCard';
@@ -16,6 +16,10 @@ interface Props {
   setFilter: (f: FilterState) => void;
   settings: SettingsState;
   setSettings: (s: SettingsState) => void;
+  /** Defaults for the current deployment mode. Embedded mode has deliberately
+   *  different presentation defaults, so Settings' reset action cannot always
+   *  use the standalone DEFAULT_SETTINGS table. */
+  defaultSettings: SettingsState;
   /** Sorted unique fish ids in the dataset; lifted to a shared memo in
    *  App so the header, anatomy dropdown, and the legend agree. */
   uniqueFishIds: Uint8Array;
@@ -40,29 +44,47 @@ interface Props {
    *  filter cards with a button to clear it. */
   selection: SelectionState;
   onClearSelection: () => void;
+  /** Active tab. Lifted to App so the 3D view's gear icon can select the
+   *  Settings tab. */
+  tab: Tab;
+  onTabChange: (t: Tab) => void;
+  /** When provided, a t-SNE tab is rendered second (right of Filters) with
+   *  this node as its body, and the filter cards stack in a single column
+   *  for a narrow sidebar.
+   *
+   *  ponytail: the presence of this prop *is* the sidebar-layout flag. A
+   *  separate `layout` prop would be a second source of truth for the same
+   *  fact. Split them if a narrow layout ever needs to exist without the
+   *  t-SNE tab. */
+  tsneTab?: ReactNode;
 }
 
-type Tab = 'filters' | 'settings' | 'about';
-const TABS: Array<{ id: Tab; label: string }> = [
-  { id: 'filters', label: 'Filters' },
-  { id: 'settings', label: 'Settings' },
-  { id: 'about', label: 'About' },
-];
+export type Tab = 'filters' | 'tsne' | 'settings' | 'about';
 
-export function FilterControls({ data, filter, setFilter, settings, setSettings, uniqueFishIds, onReset, visibleCount, applyView, activityPlaying, setActivityPlaying, activitySpeed, setActivitySpeed, selection, onClearSelection }: Props) {
+/** Tab table for the panel. The t-SNE tab exists only when the caller
+ *  supplies a node for it (embedded mode), and sits immediately right of
+ *  Filters — the two are used together, so they belong adjacent. */
+export function tabsFor(hasTsne: boolean): Array<{ id: Tab; label: string }> {
+  return [
+    { id: 'filters' as Tab, label: 'Filters' },
+    ...(hasTsne ? [{ id: 'tsne' as Tab, label: 't-SNE' }] : []),
+    { id: 'settings' as Tab, label: 'Settings' },
+    { id: 'about' as Tab, label: 'About' },
+  ];
+}
+
+export function FilterControls({ data, filter, setFilter, settings, setSettings, defaultSettings, uniqueFishIds, onReset, visibleCount, applyView, activityPlaying, setActivityPlaying, activitySpeed, setActivitySpeed, selection, onClearSelection, tab, onTabChange, tsneTab }: Props) {
   const update = (patch: Partial<FilterState>) => setFilter({ ...filter, ...patch });
-  const [tab, setTab] = useState<Tab>('filters');
+  const sidebar = tsneTab != null;
+  const tabs = tabsFor(sidebar);
 
-  // Per-tab scroll memory. The conditional rendering below unmounts the
-  // outgoing tab's content, so without this the scroll container resets
-  // (or clamps to a shorter tab's max scrollHeight) on every switch.
-  // We capture the outgoing scrollTop synchronously in the click handler
-  // — useLayoutEffect runs *after* the DOM swap, when scrollTop has
-  // already been clamped to the new tab's height — and restore the
-  // incoming scrollTop before paint so there's no flicker.
+  // Per-tab scroll memory — see the original comment; unchanged except that
+  // the map is now keyed by every Tab, including 'tsne' (which never
+  // scrolls, but a partial Record would not type-check).
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollByTab = useRef<Record<Tab, number>>({
     filters: 0,
+    tsne: 0,
     settings: 0,
     about: 0,
   });
@@ -71,7 +93,7 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
     if (scrollRef.current) {
       scrollByTab.current[tab] = scrollRef.current.scrollTop;
     }
-    setTab(next);
+    onTabChange(next);
   };
   useLayoutEffect(() => {
     if (scrollRef.current) {
@@ -80,9 +102,9 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
   }, [tab]);
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-neutral-800 border-t border-neutral-700">
+    <div className="flex flex-col h-full min-h-0 bg-panel border-t border-neutral-700">
       <div className="flex-shrink-0 flex border-b border-neutral-700 px-2 pt-1">
-        {TABS.map((t) => {
+        {tabs.map((t) => {
           const active = tab === t.id;
           return (
             <button
@@ -91,7 +113,7 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
               className={
                 'px-3 py-1.5 text-xs uppercase tracking-wider font-mono -mb-px border-b-2 ' +
                 (active
-                  ? 'text-neutral-100 border-yellow-300'
+                  ? 'text-neutral-100 border-accent'
                   : 'text-neutral-500 border-transparent hover:text-neutral-300')
               }
             >
@@ -100,52 +122,67 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
           );
         })}
       </div>
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-3">
-        {tab === 'filters' && (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-3">
-              <ResetButton onReset={onReset} />
-              <span className="text-xs font-mono text-neutral-400">
-                {visibleCount.toLocaleString()} cells visible
-              </span>
+      {tab === 'tsne' ? (
+        <div className="flex-1 min-h-0 min-w-0">{tsneTab}</div>
+      ) : (
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-3">
+          {tab === 'filters' && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-3">
+                <ResetButton onReset={onReset} />
+                <span className="text-xs font-mono text-neutral-400">
+                  {visibleCount.toLocaleString()} cells visible
+                </span>
+              </div>
+              <div
+                className={
+                  sidebar
+                    ? 'flex flex-col gap-2'
+                    : 'flex flex-wrap items-stretch gap-x-2 gap-y-2'
+                }
+              >
+                <ColorsCard
+                  data={data}
+                  filter={filter}
+                  update={update}
+                  activityPlaying={activityPlaying}
+                  setActivityPlaying={setActivityPlaying}
+                  activitySpeed={activitySpeed}
+                  setActivitySpeed={setActivitySpeed}
+                />
+                {!sidebar && <CrossSep />}
+                <TranscriptomicsCard data={data} filter={filter} update={update} />
+                {!sidebar && <CrossSep />}
+                <ActivityCard data={data} filter={filter} update={update} />
+                {!sidebar && <CrossSep />}
+                <SwimCard filter={filter} update={update} />
+                {!sidebar && <CrossSep />}
+                <AnatomyCard
+                  data={data}
+                  filter={filter}
+                  update={update}
+                  uniqueFishIds={uniqueFishIds}
+                />
+                {selection.source === 'umap' && selection.indices.length > 0 && (
+                  <>
+                    {!sidebar && <CrossSep />}
+                    <SelectionCard selection={selection} onClear={onClearSelection} />
+                  </>
+                )}
+              </div>
             </div>
-            <div className="flex flex-wrap items-stretch gap-x-2 gap-y-2">
-              <ColorsCard
-                data={data}
-                filter={filter}
-                update={update}
-                activityPlaying={activityPlaying}
-                setActivityPlaying={setActivityPlaying}
-                activitySpeed={activitySpeed}
-                setActivitySpeed={setActivitySpeed}
-              />
-              <CrossSep />
-              <TranscriptomicsCard data={data} filter={filter} update={update} />
-              <CrossSep />
-              <ActivityCard data={data} filter={filter} update={update} />
-              <CrossSep />
-              <SwimCard filter={filter} update={update} />
-              <CrossSep />
-              <AnatomyCard
-                data={data}
-                filter={filter}
-                update={update}
-                uniqueFishIds={uniqueFishIds}
-              />
-              {selection.source === 'umap' && selection.indices.length > 0 && (
-                <>
-                  <CrossSep />
-                  <SelectionCard selection={selection} onClear={onClearSelection} />
-                </>
-              )}
-            </div>
-          </div>
-        )}
-        {tab === 'settings' && (
-          <SettingsTab filter={filter} settings={settings} setSettings={setSettings} />
-        )}
-        {tab === 'about' && <AboutTab data={data} applyView={applyView} />}
-      </div>
+          )}
+          {tab === 'settings' && (
+            <SettingsTab
+              filter={filter}
+              settings={settings}
+              setSettings={setSettings}
+              defaultSettings={defaultSettings}
+            />
+          )}
+          {tab === 'about' && <AboutTab data={data} applyView={applyView} />}
+        </div>
+      )}
     </div>
   );
 }

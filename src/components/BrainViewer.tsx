@@ -16,11 +16,30 @@ import {
 } from './brain/projectionModel';
 import { buildTooltip } from './brain/tooltip';
 import { DebugOverlay, FpsMeter } from './brain/debugOverlay';
-import { CameraSync, ScreenSpacePan, type ScreenPanState } from './brain/cameraControls';
+import { CameraSync, NO_PAN, ScreenSpacePan, type ScreenPanState } from './brain/cameraControls';
 import { ProjectionRenderPass } from './brain/ProjectionRenderPass';
 import { PointCloud, type PickState } from './brain/PointCloud';
+import { BrainMeshes } from './brain/BrainMeshes';
+import {
+  EMBEDDED_DEFAULT_PRESET,
+  VIEWER_FOV_DEG,
+  boundsMaxAbs,
+  embeddedFramingPan,
+  fitDistance,
+} from './brain/viewPresets';
+import { BAR_NATURAL_WIDTH_PX, ViewOrientationBar } from './brain/ViewOrientationBar';
 
 const VIEWER_BACKGROUND = '#0a0a0a';
+// mapZebrain's own clear colour (web-gl.service.ts:47), so the embedded
+// canvas and the host page's canvas match exactly.
+const EMBEDDED_BACKGROUND = '#000000';
+// Below this viewer width the orientation bar collapses to a hamburger. Just
+// the row's own natural width plus the 8px inset the other overlays use on each
+// side: the row tucks under the colour legend rather than avoiding it, so the
+// only thing that ends the full row is running out of column to draw it in.
+// (It used to clear the legend too, at barWidth + 215, which hid the bar
+// through a 200px band where it was perfectly usable.)
+const MIN_VIEWER_WIDTH_FOR_BAR = BAR_NATURAL_WIDTH_PX + 16;
 
 interface Props {
   data: NeuronDataset;
@@ -53,6 +72,12 @@ interface Props {
    *  status pill. Wired to the same settings.projectionMode the
    *  Settings tab drives, so the two controls stay in sync. */
   onProjectionModeChange?: (mode: ProjectionMode) => void;
+  /** Fired when the gear icon in the embedded orientation bar is clicked. */
+  onOpenSettings?: () => void;
+  /** Fired when the export icon in the embedded orientation bar is clicked.
+   *  The dialog itself lives in App, which owns the effective selection it
+   *  exports. */
+  onOpenExport?: () => void;
 }
 
 const VOLUME_CENTER: [number, number, number] = [0, 0, 0];
@@ -71,6 +96,8 @@ export function BrainViewer({
   initialCamera,
   onCameraChange,
   onProjectionModeChange,
+  onOpenSettings,
+  onOpenExport,
 }: Props) {
   const [hover, setHover] = useState<{ i: number; x: number; y: number } | null>(null);
   const [projMenuOpen, setProjMenuOpen] = useState(false);
@@ -105,14 +132,35 @@ export function BrainViewer({
     onCanvasSizeChange(canvasSize);
   }, [canvasSize, onCanvasSizeChange]);
 
-  // Default camera position derived from the data bounds — straight-on
-  // dorsal view with the brain comfortably filling the landscape panel.
-  // span doubles as the basis for the zoom limits below.
-  const { defaultCamPosition, minDistance, maxDistance } = useMemo(() => {
+  // Default camera derived from the data bounds. Normal mode keeps the
+  // original landscape framing verbatim — the brain's long rostro-caudal axis
+  // runs horizontally across the wide panel, with the volume group transform
+  // putting rostral at screen-right. span doubles as the basis for the zoom
+  // limits below.
+  const { defaultCamPosition, defaultCamUp, presetDistance, minDistance, maxDistance } = useMemo(() => {
     const { min, max } = data.bounds;
     const span = Math.max(max[0] - min[0], max[1] - min[1], max[2] - min[2]);
+    // Embedded mode opens on mapZebrain's own default: dorsal, brain vertical,
+    // rostral up. That rolls the 784-unit rostro-caudal extent from horizontal
+    // to vertical, and three's fov is the VERTICAL fov, so the landscape
+    // distance below would clip the rostral and caudal tips — hence
+    // fitDistance. It takes the largest arm from the origin rather than half
+    // the span, because the cloud is centered on its mean and so sits
+    // off-centre; and its default margin also clears the outline mesh, which
+    // reaches further caudally than the cells. presetDistance is the orbit
+    // distance the icon bar uses too, so no preset can clip either.
+    const presetDistance = fitDistance(boundsMaxAbs(data.bounds));
+    const embedded = settings.embeddedMode;
     return {
-      defaultCamPosition: [0, 0, span * 0.95] as [number, number, number],
+      defaultCamPosition: (embedded
+        ? [0, 0, presetDistance]
+        : [0, 0, span * 0.95]) as [number, number, number],
+      defaultCamUp: (embedded ? EMBEDDED_DEFAULT_PRESET.up : [0, 1, 0]) as [
+        number,
+        number,
+        number,
+      ],
+      presetDistance,
       // Hard zoom-in floor. Without it, TrackballControls' default
       // minDistance=0 lets the wheel keep shrinking the camera-to-
       // target offset asymptotically: the view stops changing once
@@ -125,11 +173,28 @@ export function BrainViewer({
       minDistance: span * 0.15,
       maxDistance: span * 5,
     };
-  }, [data]);
+  }, [data, settings.embeddedMode]);
   // initialCamera is the URL-restored seed. Capture it once at mount in
   // a ref so a later prop update (e.g. a parent re-emitting the URL
   // state) can't yank the camera mid-interaction.
   const mountCameraRef = useRef(initialCamera);
+  // Embedded mode at MOUNT. The Canvas reads its `gl` options once at
+  // creation, so preserveDrawingBuffer — and therefore whether a screenshot is
+  // possible at all — is fixed here. `?embed=1` is the only thing that sets the
+  // mode, so this equals the live value today; capturing it keeps the
+  // screenshot button and the buffer it depends on from ever disagreeing, which
+  // they would silently, by producing a blank PNG.
+  const embeddedAtMountRef = useRef(settings.embeddedMode);
+  // Embedded mode nudges the volume up so the portrait brain sits centred in
+  // the iframe rather than resting on its bottom edge. Same sign convention as
+  // a screen-space pan (negative y = up), but held apart from the user's pan:
+  // see ScreenSpacePan's `baseline`. Proportional to the canvas height, so it
+  // is recomputed on resize — memoised because it lands in the effect
+  // dependency arrays inside ScreenSpacePan / CameraSync.
+  const viewOffsetBaseline = useMemo<ScreenPanState>(
+    () => (embeddedAtMountRef.current ? embeddedFramingPan(canvasSize.h) : NO_PAN),
+    [canvasSize.h],
+  );
   const screenPanRef = useRef<ScreenPanState>({
     x: mountCameraRef.current?.pan?.[0] ?? 0,
     y: mountCameraRef.current?.pan?.[1] ?? 0,
@@ -142,7 +207,9 @@ export function BrainViewer({
   // Imperative handle into CameraSync so the overlay button can snap
   // the camera back to its default position/pan without lifting the
   // r3f controls instance out of the Canvas.
-  const resetRef = useRef<(() => void) | null>(null);
+  const applyViewRef = useRef<
+    ((position: [number, number, number], up: [number, number, number]) => void) | null
+  >(null);
   const initiallyAtDefault = !mountCameraRef.current;
   const [atDefault, setAtDefault] = useState(initiallyAtDefault);
 
@@ -220,6 +287,19 @@ export function BrainViewer({
     setHover({ i, x: pos.x, y: pos.y });
   }, []);
 
+  // Reads the composited back buffer, so the PNG matches what is on screen
+  // in every mode — including the projection modes, where the image is built
+  // across several passes per frame and re-rendering the raw scene here
+  // would produce a different picture.
+  const onCapture = useCallback(() => {
+    const canvas = containerRef.current?.querySelector('canvas');
+    if (!canvas) return;
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = 'warp-atlas.png';
+    a.click();
+  }, []);
+
   const projectionConfig = useMemo(
     () => scalarProjectionConfig(data, filter, settings),
     [data, filter, settings],
@@ -244,11 +324,25 @@ export function BrainViewer({
       onClick={onClickDiv}
     >
       <Canvas
-        camera={{ position: camPosition, fov: 45, near: 0.1, far: 10000 }}
-        gl={{ antialias: false, powerPreference: 'high-performance' }}
+        camera={{ position: camPosition, fov: VIEWER_FOV_DEG, near: 0.1, far: 10000 }}
+        gl={{
+          antialias: false,
+          powerPreference: 'high-performance',
+          // Needed for toDataURL to see anything. Embedded-only: it costs a
+          // full-canvas copy per frame.
+          preserveDrawingBuffer: embeddedAtMountRef.current,
+        }}
         dpr={[1, 2]}
       >
-        <color attach="background" args={[VIEWER_BACKGROUND]} />
+        <color
+          attach="background"
+          // Mount-time value, not the live setting, matching everything else
+          // in embedded mode: layout, palette, camera default, and
+          // preserveDrawingBuffer above are all fixed at page load. Since
+          // ?embed=1 is the only thing that sets the mode, the two are equal
+          // today; this keeps them equal if that ever stops being true.
+          args={[embeddedAtMountRef.current ? EMBEDDED_BACKGROUND : VIEWER_BACKGROUND]}
+        />
         {settings.debugMode && <FpsMeter onSample={setFps} />}
         <PointCloud
           data={data}
@@ -265,6 +359,7 @@ export function BrainViewer({
           defaultCamDistance={defaultCamPosition[2]}
           volumeCenter={VOLUME_CENTER_VEC}
         />
+        <BrainMeshes settings={settings} />
         <TrackballControls
           makeDefault
           // rotationMomentum maps inversely to TrackballControls' damping:
@@ -286,16 +381,19 @@ export function BrainViewer({
         <ScreenSpacePan
           panRef={screenPanRef}
           enabled={settings.objectCentricRotation}
+          baseline={viewOffsetBaseline}
         />
         <CameraSync
           initialCamera={initialCamera ?? null}
           onCameraChange={onCameraChange}
           panRef={screenPanRef}
           defaultCamPosition={defaultCamPosition}
-          resetRef={resetRef}
+          defaultCamUp={defaultCamUp}
+          applyViewRef={applyViewRef}
           onAtDefaultChange={setAtDefault}
           lockTargetToCenter={settings.objectCentricRotation}
           volumeCenter={VOLUME_CENTER}
+          baseline={viewOffsetBaseline}
         />
         {settings.ambientOcclusion && activeProjectionMode === 'off' && (
           <AmbientOcclusion
@@ -321,6 +419,22 @@ export function BrainViewer({
         <div className="neuron-tooltip" style={{ left: hover.x + 14, top: hover.y + 14 }}>
           {tooltip}
         </div>
+      )}
+      {/* The bar is an overlay centred on the viewer, so in a narrow embed its
+          row would crush its own icons; below the width it needs it collapses
+          to a hamburger instead. canvasSize.w starts at 0 and is filled by the
+          ResizeObserver above, so nothing is rendered until the first
+          measurement lands — otherwise every embed would flash the collapsed
+          form on mount. */}
+      {settings.embeddedMode && !settings.screenshotMode && canvasSize.w > 0 && (
+        <ViewOrientationBar
+          collapsed={canvasSize.w < MIN_VIEWER_WIDTH_FOR_BAR}
+          distance={presetDistance}
+          applyView={(position, up) => applyViewRef.current?.(position, up)}
+          onCapture={embeddedAtMountRef.current ? onCapture : null}
+          onOpenExport={() => onOpenExport?.()}
+          onOpenSettings={() => onOpenSettings?.()}
+        />
       )}
       <div className="absolute top-2 left-2 flex flex-col items-start gap-1.5 pointer-events-none">
         {supportsScalarProjection(filter.colorMode) && (
@@ -380,7 +494,7 @@ export function BrainViewer({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              resetRef.current?.();
+              applyViewRef.current?.(defaultCamPosition, defaultCamUp);
             }}
             className="pointer-events-auto font-mono text-[10px] bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-1.5 py-0.5 rounded hover:bg-neutral-800"
           >

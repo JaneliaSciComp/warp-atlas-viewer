@@ -108,6 +108,77 @@ The manifest is a small JSON file that records:
 
 The viewer fetches the manifest first, then issues the remaining requests for the binary blobs in parallel.
 
+## Brain meshes (mapZebrain) {#brain-meshes}
+
+`scripts/fetch_meshes.py` downloads mapZebrain's three whole-brain reference
+meshes and converts them into the viewer's coordinate space. It is optional —
+the viewer runs without it, and the **Brain models** controls in Settings stay
+disabled until it has been run. It needs network access and must run *after*
+`scripts/preprocess.py`, which emits the `voxelCenter` it reads.
+
+```bash
+python3 scripts/fetch_meshes.py
+```
+
+| mesh | source | triangles |
+|---|---|---|
+| outline | `api.mapzebrain.org/media/Brains/Outline/Outline_new.stl` | 54,874 |
+| fibers | `api.mapzebrain.org/media/Brains/Fibers/Fibers.stl` | 9,758 |
+| cell bodies | `api.mapzebrain.org/media/Brains/Cell_bodies/Cell bodies.stl` | 9,756 |
+
+The meshes are generated on mapZebrain's side from the reference-brain TIFF
+masks by ImageJ's 3D Viewer, so their vertices are in **reference-volume voxel
+indices** (597 × 974 × 359 = LR × AP × DV) — the same space as the WARP
+dataset's `Coords_All.npy`. Converting them is therefore exactly the transform
+preprocessing already applies to cell positions:
+
+```
+out_x =   stl_x - voxelCenter[0]     # LR
+out_y = -(stl_y - voxelCenter[1])    # AP, negated so rostral is +y
+out_z =   stl_z - voxelCenter[2]     # DV
+```
+
+`voxelCenter` is read from `neurons.json` rather than hardcoded, so the mesh
+center cannot drift from the cell center.
+
+### Three coordinate spaces {#coordinate-spaces}
+
+Worth keeping straight, because two of them look alike:
+
+| space | x | y | z |
+|---|---|---|---|
+| mapZebrain voxel / WARP raw | LR column | AP row (caudal +) | DV slice (dorsal +) |
+| preprocessed (`positions.bin`) | lateral, centered | rostral + | dorsal + |
+| world (what the camera sees) | rostral + | lateral | dorsal + |
+
+The last hop is a group transform in the viewer, not in preprocessing — see
+`src/components/brain/volumeTransform.ts`. It rotates the volume 90° so the
+brain's long axis lies across the wide 3D panel, which is why the default view
+shows the fish pointing screen-right. It is also a mirror (determinant −1), so
+anatomical left/right in world space cannot be derived from the voxel axes.
+
+### Output
+
+Blobs are non-indexed float32 vertex positions, 9 floats per triangle, gzipped
+like every other binary. They get their **own** manifest rather than entries in
+`neurons.json`, which keeps the primary load path untouched and lets the viewer
+fetch a mesh lazily, only when a toggle turns it on.
+
+```
+preprocessed/meshOutline.bin.gz      0.59 MB gz  (1.98 MB raw)
+preprocessed/meshFibers.bin.gz       0.10 MB gz  (0.35 MB raw)
+preprocessed/meshCellBodies.bin.gz   0.10 MB gz  (0.35 MB raw)
+preprocessed/meshes.json
+```
+
+### Self-check
+
+The script asserts each mesh's triangle count matches its STL header and that
+the transformed outline mesh encloses the cell bounds from `neurons.json` on all
+six faces, exiting non-zero and naming the offending axis otherwise. That
+containment is what catches a coordinate-transform regression; without it a
+wrong flip produces a brain drawn confidently in the wrong place.
+
 ## Mock data
 
 Appending `?mock=1` to the viewer URL bypasses the preprocessed bundle and synthesizes a 10,000-cell dataset with plausible gene, cluster, and stimulus distributions. Mock data is intended for UI demonstration only; none of the numerical values are meaningful.

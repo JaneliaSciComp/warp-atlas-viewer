@@ -91,15 +91,30 @@ export function usePointCloudBufferUploads({
     // basePointSize (the un-boosted size) keeps the in-set boost from
     // scale-by-filter confined to active cells — the helper sizes
     // ghosts as basePointSize × ghostFactor.
+    // `showGhosts` off hides every 3D ghost — both the lasso-demoted cells the
+    // helper below produces and the out-of-filter ones the loop after it
+    // clears out of the copied buffer. Alpha 0 is the
+    // same recipe ghostIntensity 0 gives (invisible in the normal, projection,
+    // and picking passes), but applied here rather than in applyColoring so
+    // the shared buffer keeps its ghost alphas for UmapPanel, which divides
+    // them back out against its own umapGhostIntensity.
+    const ghostVisibility = settings.showGhosts ? coloring.effectiveGhostIntensity : 0;
     applySelectionAsFilterGhost(
       buffers,
       data.count,
       coloring.drawOrder,
       coloring.filterSelection,
       coloring.basePointSize,
-      coloring.effectiveGhostIntensity,
+      ghostVisibility,
       selection,
     );
+    if (!settings.showGhosts && coloring.drawOrder) {
+      // drawOrder is [out-of-filter…, in-filter…]; the in-filter tail is
+      // filterSelection, so everything before it is a ghost.
+      const order = coloring.drawOrder;
+      const ghostEnd = data.count - (coloring.filterSelection?.length ?? 0);
+      for (let k = 0; k < ghostEnd; k++) buffers.alphas[order[k]] = 0;
+    }
     // Stamp the focused neuron on top of whatever group coloring chose
     // for it: full alpha, brightened, so it stays visible inside a
     // dimmed group. The ring marker handles the actual focus indicator

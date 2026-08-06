@@ -4,6 +4,7 @@ import {
   diffFilter,
   diffSettings,
   encodeHash,
+  isEmbedRequested,
   roundCamera,
   roundLasso,
   roundViewport,
@@ -427,5 +428,78 @@ describe('sanitizeFocusedNeuron', () => {
 
   it('drops a negative index', () => {
     expect(sanitizeFocusedNeuron(-1, data)).toBeNull();
+  });
+});
+
+describe('isEmbedRequested', () => {
+  it('detects ?embed=1', () => {
+    expect(isEmbedRequested('?embed=1')).toBe(true);
+    expect(isEmbedRequested('?mock=1&embed=1')).toBe(true);
+  });
+
+  it('accepts a bare ?embed', () => {
+    expect(isEmbedRequested('?embed')).toBe(true);
+  });
+
+  it('is false when absent or explicitly disabled', () => {
+    expect(isEmbedRequested('')).toBe(false);
+    expect(isEmbedRequested('?mock=1')).toBe(false);
+    expect(isEmbedRequested('?embed=0')).toBe(false);
+  });
+});
+
+describe('validateSettings brain-mesh fields', () => {
+  it('round-trips the mesh toggles', () => {
+    const hash = encodeHash({
+      settings: { brainOutline: true, brainFibers: false, brainCellBodies: true },
+    });
+    const out = decodeHash(hash);
+    expect(out?.settings?.brainOutline).toBe(true);
+    expect(out?.settings?.brainCellBodies).toBe(true);
+  });
+
+  it('clamps mesh opacities into 0..1', () => {
+    const out = decodeHash(
+      encodeHash({
+        settings: {
+          brainOutlineOpacity: 5,
+          brainFibersOpacity: -2,
+          brainCellBodiesOpacity: 0.35,
+        },
+      }),
+    );
+    expect(out?.settings?.brainOutlineOpacity).toBe(1);
+    expect(out?.settings?.brainFibersOpacity).toBe(0);
+    expect(out?.settings?.brainCellBodiesOpacity).toBeCloseTo(0.35, 6);
+  });
+
+  it('never restores embeddedMode from the hash', () => {
+    const out = decodeHash(encodeHash({ settings: { embeddedMode: true } }));
+    expect(out?.settings?.embeddedMode).toBeUndefined();
+  });
+});
+
+describe('sidebar layout persistence', () => {
+  it('round-trips sidebarWidth and sidebarOpen', () => {
+    const out = decodeHash(encodeHash({ sidebarWidth: 480, sidebarOpen: false }));
+    expect(out?.sidebarWidth).toBe(480);
+    expect(out?.sidebarOpen).toBe(false);
+  });
+
+  it('clamps a hostile sidebarWidth to the drag bounds', () => {
+    expect(decodeHash(encodeHash({ sidebarWidth: 5 }))?.sidebarWidth).toBe(280);
+    expect(decodeHash(encodeHash({ sidebarWidth: 99999 }))?.sidebarWidth).toBe(700);
+  });
+
+  it('drops a non-numeric sidebarWidth', () => {
+    // Hand-edited hash: the field is present but unusable, so it must be
+    // absent from the decoded state rather than poisoning the layout.
+    const hash = '#!' + encodeURIComponent(JSON.stringify({ sidebarWidth: 'wide' }));
+    expect(decodeHash(hash)?.sidebarWidth).toBeUndefined();
+  });
+
+  it('drops a non-boolean sidebarOpen', () => {
+    const hash = '#!' + encodeURIComponent(JSON.stringify({ sidebarOpen: 'yes' }));
+    expect(decodeHash(hash)?.sidebarOpen).toBeUndefined();
   });
 });

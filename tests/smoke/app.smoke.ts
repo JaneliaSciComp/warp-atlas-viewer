@@ -39,6 +39,14 @@ test('loads the mock atlas and core panels without client errors', async ({ page
   await page.getByRole('button', { name: 'Filters' }).click();
   await expect(page.getByText('10,000 cells visible')).toBeVisible();
 
+  // The header Export button still opens (and Escape still closes) the dialog
+  // it shares with embedded mode's export icon, which owns the open state
+  // itself — see ExportDialog.
+  await page.getByRole('button', { name: 'Export' }).click();
+  await expect(page.getByRole('heading', { name: 'Export cells to CSV' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+
   await page.waitForTimeout(250);
   expect(pageErrors).toEqual([]);
   expect(consoleErrors).toEqual([]);

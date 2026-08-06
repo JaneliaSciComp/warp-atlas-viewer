@@ -10,6 +10,17 @@ export const BOTTOM_HEIGHT_DEFAULT = 352;
 const BOTTOM_HEIGHT_MIN = 120;
 const BOTTOM_HEIGHT_MAX = 1200;
 export const DETAIL_WIDTH_DEFAULT = 360;
+/** Embedded mode opens the detail panel wider. Its charts and region lists sit
+ *  next to a much narrower 3D view there, and 360 leaves them cramped. Within
+ *  the same DETAIL_WIDTH_MIN/MAX drag bounds as the standalone default. */
+export const EMBEDDED_DETAIL_WIDTH_DEFAULT = 413;
+/** The default width for a mode. Used for the initial value, for
+ *  double-click-to-reset, and by the URL writer to decide when the width is at
+ *  its default and can be dropped from the hash — those three must agree, or a
+ *  reset lands somewhere the hash then records as a deviation. */
+export function detailWidthDefaultFor(embedded: boolean): number {
+  return embedded ? EMBEDDED_DETAIL_WIDTH_DEFAULT : DETAIL_WIDTH_DEFAULT;
+}
 const DETAIL_WIDTH_MIN = 240;
 const DETAIL_WIDTH_MAX = 800;
 // Width of the t-SNE panel (bottom-right of the bottom row). The grid
@@ -19,12 +30,89 @@ export const UMAP_WIDTH_DEFAULT = 320;
 const UMAP_WIDTH_MIN = 200;
 const UMAP_WIDTH_MAX = 760;
 
+// Left sidebar (embedded mode only) — the bottom panel relocated to the side.
+// 360 rather than mapZebrain's own 440 because embedded mode also shows the
+// detail panel: at a 1280px iframe, 440 would leave only 410px for the 3D view.
+// mapZebrain's width is one drag away for anyone who wants it.
+export const SIDEBAR_WIDTH_DEFAULT = 360;
+const SIDEBAR_WIDTH_MIN = 280;
+const SIDEBAR_WIDTH_MAX = 700;
+// Width of the edge collapse rails, matching mapZebrain's `.side-menu-btn`
+// (assets/css/sideMenu.css:36).
+export const RAIL_WIDTH = 35;
+
+/**
+ * Next sidebar width for a drag that began at `startWidth` and has moved `dx`
+ * CSS pixels horizontally.
+ *
+ * The sign matters: the sidebar's resize strip is on its RIGHT edge, so
+ * dragging right (positive dx) grows it. The detail panel's strip is on its
+ * LEFT edge and therefore negates its delta — do not copy that here.
+ */
+export function nextSidebarWidth(startWidth: number, dx: number): number {
+  return Math.max(SIDEBAR_WIDTH_MIN, Math.min(SIDEBAR_WIDTH_MAX, startWidth + dx));
+}
+
+// Share of the post-rail width a single embedded panel track may take. Two
+// panels at 0.4 leave 0.2 of it for the viewer, at ANY container width — the
+// `- 28px` below is 0.4 of the 70px the two rails consume, so the percentage
+// is really 40% of (container − rails). Without this cap the fixed tracks
+// could out-total the container: the `minmax(0, 1fr)` viewer would resolve to
+// 0px and the right rail — the detail panel's only toggle in embedded mode —
+// would be pushed outside the root `overflow-hidden` and become unclickable.
+// Reached at 500x700 with the *default* 360/360, not just hostile values.
+const PANEL_TRACK_SHARE = 0.4;
+function panelTrack(width: number): string {
+  return `min(${width}px, calc(${PANEL_TRACK_SHARE * 100}% - ${PANEL_TRACK_SHARE * 2 * RAIL_WIDTH}px))`;
+}
+
+/**
+ * Inline `grid-template-columns` for the outer app grid.
+ *
+ * Standalone is the original two-track layout, unchanged. Embedded is five
+ * tracks — rail, sidebar, viewer, detail, rail — with a collapsed panel
+ * dropping its track entirely (the element is not rendered either, so grid
+ * auto-placement still lines up). The rails are always present so there is
+ * always something to click, except in screenshot mode where they are not
+ * rendered at all and so must not get tracks either (a track with no child
+ * would shift every later child one column left; a dummy child to fill it
+ * would paint a 35px gutter into the one mode meant for clean capture).
+ */
+export function outerGridTemplate({
+  embedded,
+  sidebarOpen,
+  sidebarWidth,
+  detailOpen,
+  detailWidth,
+  screenshotMode = false,
+}: {
+  embedded: boolean;
+  sidebarOpen: boolean;
+  sidebarWidth: number;
+  detailOpen: boolean;
+  detailWidth: number;
+  screenshotMode?: boolean;
+}): string {
+  if (!embedded) {
+    return detailOpen ? `minmax(0, 1fr) ${detailWidth}px` : 'minmax(0, 1fr)';
+  }
+  const rails = !screenshotMode;
+  const tracks = rails ? [`${RAIL_WIDTH}px`] : [];
+  if (sidebarOpen) tracks.push(panelTrack(sidebarWidth));
+  tracks.push('minmax(0, 1fr)');
+  if (detailOpen) tracks.push(panelTrack(detailWidth));
+  if (rails) tracks.push(`${RAIL_WIDTH}px`);
+  return tracks.join(' ');
+}
+
 export interface PanelLayoutInitial {
   detailOpen?: boolean;
   bottomOpen?: boolean;
   bottomHeight?: number;
   detailWidth?: number;
   umapWidth?: number;
+  sidebarOpen?: boolean;
+  sidebarWidth?: number;
 }
 
 export interface PanelLayout {
@@ -59,6 +147,15 @@ export interface PanelLayout {
   onResizeDoubleClick: () => void;
   onDetailResizeDoubleClick: () => void;
   onUmapResizeDoubleClick: () => void;
+  /** Left-sidebar open state (embedded mode only). */
+  sidebarOpen: boolean;
+  setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  /** Persisted left-sidebar width (embedded mode only). */
+  sidebarWidth: number;
+  onSidebarResizeDown: (e: React.PointerEvent<HTMLDivElement>) => void;
+  onSidebarResizeMove: (e: React.PointerEvent<HTMLDivElement>) => void;
+  onSidebarResizeUp: (e: React.PointerEvent<HTMLDivElement>) => void;
+  onSidebarResizeDoubleClick: () => void;
 }
 
 /**
@@ -68,7 +165,13 @@ export interface PanelLayout {
  * strips. Pure layout plumbing lifted out of App so the component reads
  * as composition.
  */
-export function usePanelLayout(initial: PanelLayoutInitial = {}): PanelLayout {
+export function usePanelLayout(
+  initial: PanelLayoutInitial = {},
+  embedded = false,
+  // Live, unlike `embedded`: screenshot mode drops the rails (and their
+  // tracks) mid-session, and the grid has to follow on the same render.
+  screenshotMode = false,
+): PanelLayout {
   const [detailOpen, setDetailOpen] = useState(initial.detailOpen ?? true);
   const [bottomOpen, setBottomOpen] = useState(initial.bottomOpen ?? true);
   // Bottom-row height in pixels. Persisted so a share link reproduces
@@ -77,11 +180,16 @@ export function usePanelLayout(initial: PanelLayoutInitial = {}): PanelLayout {
   const [bottomHeight, setBottomHeight] = useState(
     initial.bottomHeight ?? BOTTOM_HEIGHT_DEFAULT,
   );
+  const detailDefault = detailWidthDefaultFor(embedded);
   const [detailWidth, setDetailWidth] = useState(
-    initial.detailWidth ?? DETAIL_WIDTH_DEFAULT,
+    initial.detailWidth ?? detailDefault,
   );
   const [umapWidth, setUmapWidth] = useState(
     initial.umapWidth ?? UMAP_WIDTH_DEFAULT,
+  );
+  const [sidebarOpen, setSidebarOpen] = useState(initial.sidebarOpen ?? true);
+  const [sidebarWidth, setSidebarWidth] = useState(
+    initial.sidebarWidth ?? SIDEBAR_WIDTH_DEFAULT,
   );
 
   // Height available to the main viewer area after the header. The bottom
@@ -120,11 +228,16 @@ export function usePanelLayout(initial: PanelLayoutInitial = {}): PanelLayout {
   // below the initial width.
   const outerLayout = useMemo(
     () => ({
-      gridTemplateColumns: detailOpen
-        ? `minmax(0, 1fr) ${detailWidth}px`
-        : 'minmax(0, 1fr)',
+      gridTemplateColumns: outerGridTemplate({
+        embedded,
+        sidebarOpen,
+        sidebarWidth,
+        detailOpen,
+        detailWidth,
+        screenshotMode,
+      }),
     }),
-    [detailOpen, detailWidth],
+    [embedded, sidebarOpen, sidebarWidth, detailOpen, detailWidth, screenshotMode],
   );
   const liveBottomHeightMax = mainAreaHeight > 0
     ? Math.max(BOTTOM_HEIGHT_MIN, Math.min(BOTTOM_HEIGHT_MAX, mainAreaHeight))
@@ -210,12 +323,40 @@ export function usePanelLayout(initial: PanelLayoutInitial = {}): PanelLayout {
     }
   }, []);
 
+  // Sidebar resize: a strip on the sidebar's RIGHT edge. Same
+  // setPointerCapture pattern as the other two, but the delta is NOT
+  // negated — dragging right grows the sidebar. See nextSidebarWidth.
+  const sidebarDragRef = useRef<{ x: number; w: number } | null>(null);
+  const onSidebarResizeDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    sidebarDragRef.current = { x: e.clientX, w: sidebarWidth };
+    e.preventDefault();
+  }, [sidebarWidth]);
+  const onSidebarResizeMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const d = sidebarDragRef.current;
+    if (!d) return;
+    setSidebarWidth(nextSidebarWidth(d.w, e.clientX - d.x));
+  }, []);
+  const onSidebarResizeUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    sidebarDragRef.current = null;
+    if ((e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    }
+  }, []);
+
   // Double-click any handle to snap that panel back to its default size.
   // A click carries no pointer movement, so the drag handlers leave the
   // size untouched and only this fires.
   const onResizeDoubleClick = useCallback(() => setBottomHeight(BOTTOM_HEIGHT_DEFAULT), []);
-  const onDetailResizeDoubleClick = useCallback(() => setDetailWidth(DETAIL_WIDTH_DEFAULT), []);
+  const onDetailResizeDoubleClick = useCallback(
+    () => setDetailWidth(detailDefault),
+    [detailDefault],
+  );
   const onUmapResizeDoubleClick = useCallback(() => setUmapWidth(UMAP_WIDTH_DEFAULT), []);
+  const onSidebarResizeDoubleClick = useCallback(
+    () => setSidebarWidth(SIDEBAR_WIDTH_DEFAULT),
+    [],
+  );
 
   // Inside the main column, two rows: brain viewer + bottom bar
   // (filters + t-SNE). When the bottom bar is hidden the second row
@@ -253,5 +394,12 @@ export function usePanelLayout(initial: PanelLayoutInitial = {}): PanelLayout {
     onResizeDoubleClick,
     onDetailResizeDoubleClick,
     onUmapResizeDoubleClick,
+    sidebarOpen,
+    setSidebarOpen,
+    sidebarWidth,
+    onSidebarResizeDown,
+    onSidebarResizeMove,
+    onSidebarResizeUp,
+    onSidebarResizeDoubleClick,
   };
 }

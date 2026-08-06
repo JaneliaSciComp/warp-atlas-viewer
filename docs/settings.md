@@ -17,6 +17,7 @@ A **show descriptions** checkbox sits next to the reset button. When unchecked, 
 
 Controls how big the points are and how visible out-of-filter cells (ghosts) are in the 3D brain view.
 
+- **show ghosts** *(default on; off in [embedded mode](#embedded-mode))* — whether out-of-filter cells are drawn in the 3D view at all. Off leaves only the cells passing the filters, the same result as a **3D ghost visibility** of `0` — including the click pickers skipping them — but it works with `auto point sizes` left on, where ghost visibility is derived from the canvas height rather than read from the slider. While it is off the visibility slider is greyed out. The t-SNE panel keeps its own ghosts either way (see [t-SNE point density](#t-sne-point-density)).
 - **auto point sizes** *(default on)* — derives point size and ghost visibility from the live 3D canvas height, so the viewer self-adapts as you resize the window or expand/collapse the bottom panel. Manual sliders are hidden while auto is on.
 - **scale by filter** *(default on, nested under auto)* — additionally enlarges *active* (in-set) cells as the filter narrows, so a small selected cluster reads louder than the surrounding population. Ghost cells are not boosted.
 - **scale by depth** *(default on)* — shrinks cells the farther they sit from the camera (the familiar perspective look). Turn it off to drop that per-cell perspective falloff so every cell contributes equally regardless of depth — the "see through the volume" convention used by max-intensity projection. Flat-mode points are matched to the perspective size at the default zoom, so flipping the toggle doesn't change density, and they scale gently with camera zoom so on-screen density stays roughly constant as you zoom in and out. Independent of `auto point sizes` and of the projection mode, so any combination is valid.
@@ -24,7 +25,7 @@ Controls how big the points are and how visible out-of-filter cells (ghosts) are
 With auto **off**, the two sliders are exposed directly:
 
 - **3D point size (px)** — base size used for active cells. Range `1` – `40` px; default `10`.
-- **3D ghost visibility** (0..1) — `0` makes out-of-filter cells fully transparent and the click pickers skip them; `1` renders them at the standard dim alpha and keeps them fully pickable. Pickability flips off below the midpoint (slider < 0.5). Default `0.6`.
+- **3D ghost visibility** (0..1) — `0` makes out-of-filter cells fully transparent and the click pickers skip them; `1` renders them at the standard dim alpha and keeps them fully pickable. Pickability flips off below the midpoint (slider < 0.5). Default `0.6`. Greyed out while **show ghosts** is off, since there is then nothing to set the visibility of.
 
 The ghost setting also drives **render order**: out-of-filter cells render first and in-filter cells render last, so foreground (in-set) cells never get occluded by the dim background regardless of true 3D depth, even when ghosts are still visible.
 
@@ -201,8 +202,8 @@ Switching to Global threshold currently only affects the *gene filter* and the *
 
 Anchors for the signed per-cell Pearson r between calcium activity and the stimulus regressor:
 
-- **responsive floor (|r| ≥)** — the magnitude floor for the stim filter (cells must clear `±stimLo` per the active mode on the [Visual Stimuli card](/filters/stimuli#mode-dropdown)) and the **deadband** boundary for the divergent [Stim correlation color ramp](/filters/colors#stim-correlation).
-- **saturation (|r| ≥)** — magnitude at which the divergent ramp reaches its endpoints. Does not affect the filter.
+- **responsive floor** — the magnitude floor for the stim filter (cells must clear `±stimLo` per the active mode on the [Visual Stimuli card](/filters/stimuli#mode-dropdown)) and the **deadband** boundary for the divergent [Stim correlation color ramp](/filters/colors#stim-correlation).
+- **saturation** — magnitude at which the divergent ramp reaches its endpoints. Does not affect the filter.
 - **split +/− saturation** — when enabled, exposes separate positive and negative saturation anchors. This is useful because the stimulus-correlation distribution is skewed positive; a single symmetric anchor can make one sign wash out.
 
 Defaults are floor `0.13` and saturation `0.30`. The floor matches the manuscript's full-vector responsive threshold (Methods: "Selecting positively and negatively correlated neurons"); the saturation is near the 99th percentile of the cycle-wide correlation distribution.
@@ -215,8 +216,8 @@ The sliders constrain the floor to stay below saturation and saturation to stay 
 
 Two anchors for the signed per-cell correlation between calcium activity and estimated swim power:
 
-- **responsive floor (|r| ≥)** — magnitude below which a cell is treated as unresponsive (neutral midpoint of the divergent color ramp; rejected by the swim filter unless `swimMode` is `off`).
-- **saturation (|r| ≥)** — magnitude at which the divergent ramp reaches its endpoints.
+- **responsive floor** — magnitude below which a cell is treated as unresponsive (neutral midpoint of the divergent color ramp; rejected by the swim filter unless `swimMode` is `off`).
+- **saturation** — magnitude at which the divergent ramp reaches its endpoints.
 
 Defaults are floor `0.10` and saturation `0.35`. The floor matches the manuscript's swim-correlation cutoff (Methods: "Correlation to swimming behavior"; R > 0.1 / R < −0.1 identifies the swim-related subtypes). Lower the floor to be more permissive in either direction.
 
@@ -238,6 +239,81 @@ Two anchors for the [Activity color scheme](/filters/colors#activity):
 - **ceiling (ΔF/F)** — cells at or above this value saturate at the bright end. Range just above the floor up to `5`; default `1.5`.
 
 Tune these to match the practical dynamic range of the dataset's calcium traces.
+
+## Brain models {#brain-models}
+
+Draws mapZebrain's whole-brain reference meshes as translucent anatomical
+context around the cells: **Brain outline** (the whole-brain surface),
+**Brain fibers** (neuropil) and **Brain cell bodies** (soma-rich
+compartments). Each has its own checkbox and opacity slider, and all three are
+off by default, so the standard view is unchanged.
+
+The meshes ship separately from the cell data and are fetched only when you
+turn one on. They require `python3 scripts/fetch_meshes.py` to have been run —
+until then the rows are disabled and say so. See
+[Preprocessing → Brain meshes](/preprocess#brain-meshes).
+
+The mesh toggles and their opacities travel in the URL hash, so a shared link
+reproduces them.
+
+## Embedded mode {#embedded-mode}
+
+Not a Settings-tab control — it is documented here because it changes what
+several of the settings above do. Reworks the whole layout for running the
+viewer inside an iframe on
+[mapzebrain.org](https://mapzebrain.org), so it reads as part of that
+site's own atlas page rather than a bolted-on panel:
+
+- The bottom panel moves to a resizable **left sidebar** with four tabs —
+  Filters, t-SNE, Settings, About. 
+- The **t-SNE plot** moves to the second tab. Its
+  pan/zoom and any lasso persist across a tab switch, so leaving the tab
+  and coming back lands you exactly where you left off. While the t-SNE
+  tab is hidden, the **t-SNE selection card** on the Filters tab is how
+  you see the lasso's cell count and clear it.
+- There is **no page header**. The title and cell count move into a strip at
+  the top of the sidebar, with **Links** as a hamburger (☰) to their left, and
+  the Janelia logo becomes a corner overlay on the 3D view instead of sitting
+  in a header bar. **Export** moves further — onto the orientation bar as an
+  icon (see below) — since it opens a dialog rather than living in the strip.
+  **Links** gains a first entry, **open full viewer**, which
+  opens the standalone viewer in a new tab at the current view — it is the
+  iframe's URL minus `?embed`, so the hash carries the view across.
+- To mimick and integrate with mapZebrain's UI, two **35px collapse rails** 
+  are introduced at the left and right viewport edges, replacing the `⌄`/`⌃` 
+  bottom-panel handle and the `›`/`‹` detail-panel handle. The left rail 
+  toggles the sidebar; the right rail toggles the Detail panel.
+- The view-orientation bar (see [3D viewer → Embedded
+  mode](/ui/viewer#embedded-mode)) gains a **screenshot** icon, an **export**
+  icon, and a **gear** icon after the seven orientation icons, again mimicking
+  the mapZebrain UI. The gear opens the sidebar and switches it to the Settings
+  tab; the export icon opens the CSV [export](/export) dialog.
+- The accent and links colors are updated to use mapZebrain's color scheme.
+- The [whole-brain outline mesh](#brain-models) is **on by default**, since
+  it is the anatomical context mapZebrain's own 3D view always shows. This
+  is a default rather than an override, so a shared link that explicitly
+  turns it off still opens with it off.
+- **Show ghosts** is **off by default**, matching mapZebrain's own view, which
+  shows only the cells you asked for. Also a default rather than an override, so
+  a link carrying `show ghosts` on still opens with the ghost haze. The t-SNE
+  tab is unaffected — it keeps its own ghost visibility.
+- The [3D camera controls](#3d-camera-controls) open on mapZebrain's feel
+  rather than warp's: **object-centric rotation off** and **momentum 0**, so
+  the view orbits freely with no damped coast and right-drag uses native
+  trackball pan. Both are ordinary settings you can turn back on.
+- The volume is nudged **up by 7.8% of the viewer height** so the portrait brain
+  sits vertically centred in the iframe. The camera targets the volume origin,
+  but the brain outline is not centred on it — it runs further caudally (the
+  spinal-cord stub) than rostrally, and perspective magnifies that end further
+  still — so a view framed symmetrically about the origin rests the tail on the
+  bottom edge with a large gap above the snout. Both gaps scale with the
+  viewer, which is why the correction is a fraction of the height rather than a
+  fixed pixel count. This is a framing offset, not a pan: it
+  is kept out of the pan that share links record, so it does not make the
+  camera read as moved-from-default, and **reset view** and the orientation
+  presets return to it rather than undoing it.
+
+Embedded mode is activated via the `?embed=1` parameter in the URL and it is not persisted in the URL hash.
 
 ## Screenshot mode {#screenshot-mode}
 
@@ -263,6 +339,8 @@ The Settings tab governs thresholds, palette anchors, point density, projection,
 - Activity time and playback speed (use the [Colors card's Activity controls](/filters/colors#activity)),
 - selections (use [click or lasso](/selections)),
 - the current 3D camera pose (position, orientation, orbit target, and pan),
-- the t-SNE viewport (pan and zoom).
+- the t-SNE viewport (pan and zoom),
+- [embedded mode](#embedded-mode), which is a deployment mode set only by
+  `?embed=1` and has no toggle at all.
 
 These are also stored in the URL hash, but outside the Settings tab.

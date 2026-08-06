@@ -6,6 +6,7 @@ import projectionCompositeVertSrc from '../../shaders/projection_composite.vert.
 import projectionCompositeFragSrc from '../../shaders/projection_composite.frag.glsl?raw';
 import type { ScalarProjectionConfig } from './projectionModel';
 import {
+  BRAIN_MESH_GROUP_NAME,
   FOCUS_MARKER_NAME,
   PROJECTION_CONTEXT_NAME,
   PROJECTION_POINTS_NAME,
@@ -162,6 +163,14 @@ export function ProjectionRenderPass({
     const ctx = scene.getObjectByName(PROJECTION_CONTEXT_NAME);
     const proj = scene.getObjectByName(PROJECTION_POINTS_NAME);
     const marker = scene.getObjectByName(FOCUS_MARKER_NAME);
+    // The brain shells belong in the step-1 context underlay and NOWHERE else.
+    // Step 2b renders into an off-screen float target with additive blending,
+    // where the composite shader reconstructs the reduced scalar from
+    // accumulated (positiveSum, negativeSum, denominator) channels — a shell
+    // rendered into that buffer adds its colour into those channels across the
+    // whole brain silhouette and biases every mean/sum projection. Steps 2a
+    // and 4 would merely composite the shell two or three times over.
+    const brain = scene.getObjectByName(BRAIN_MESH_GROUP_NAME);
     const prevTarget = gl.getRenderTarget();
     const prevBackground = scene.background;
     const prevClearColor = gl.getClearColor(new THREE.Color());
@@ -170,6 +179,7 @@ export function ProjectionRenderPass({
     const prevCtxVisible = ctx ? ctx.visible : true;
     const prevProjVisible = proj ? proj.visible : true;
     const prevMarkerVisible = marker ? marker.visible : true;
+    const prevBrainVisible = brain ? brain.visible : true;
     try {
       // 1. Ghost-only context pass → back buffer. Keep the scene's opaque
       //    background and let autoClear paint it (and reset depth), then
@@ -191,6 +201,7 @@ export function ProjectionRenderPass({
         if (ctx) ctx.visible = false;
         if (proj) proj.visible = true;
         if (marker) marker.visible = false;
+        if (brain) brain.visible = false;
         scene.background = null;
         gl.autoClear = false;
         gl.render(scene, camera);
@@ -202,6 +213,7 @@ export function ProjectionRenderPass({
         if (ctx) ctx.visible = false;
         if (proj) proj.visible = true;
         if (marker) marker.visible = false;
+        if (brain) brain.visible = false;
         scene.background = null;
         gl.setRenderTarget(rt);
         gl.setClearColor(0x000000, 0);
@@ -220,6 +232,7 @@ export function ProjectionRenderPass({
         if (ctx) ctx.visible = false;
         if (proj) proj.visible = false;
         marker.visible = true;
+        if (brain) brain.visible = false;
         scene.background = null;
         gl.setRenderTarget(null);
         gl.autoClear = false;
@@ -233,6 +246,7 @@ export function ProjectionRenderPass({
       if (ctx) ctx.visible = prevCtxVisible;
       if (proj) proj.visible = prevProjVisible;
       if (marker) marker.visible = prevMarkerVisible;
+      if (brain) brain.visible = prevBrainVisible;
     }
   }, 1);
 

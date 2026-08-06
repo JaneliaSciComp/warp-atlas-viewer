@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  DATA_BASE_URL: https://s3.janelia.org/ahrens-lab/warp/v2
+  DATA_BASE_URL: https://s3.janelia.org/ahrens-lab/warp/v3
   PREPROCESSED_FILES: >-
     neurons.json
     activityTrace.bin.gz
@@ -31,6 +31,10 @@ env:
     stimulusCorr.bin.gz
     swimCorr.bin.gz
     umap.bin.gz
+    meshes.json
+    meshOutline.bin.gz
+    meshFibers.bin.gz
+    meshCellBodies.bin.gz
 
 jobs:
   build:

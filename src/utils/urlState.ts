@@ -84,6 +84,12 @@ export interface PersistedState {
   /** Width of the t-SNE (bottom-right) panel in pixels. Same persistence
    *  reasoning as detailWidth. */
   umapWidth?: number;
+  /** Left-sidebar open state (embedded mode only). Same persistence
+   *  reasoning as `bottom`. */
+  sidebarOpen?: boolean;
+  /** Width of the embedded-mode left sidebar in pixels. Same persistence
+   *  reasoning as detailWidth. */
+  sidebarWidth?: number;
   camera?: CameraState;
   umap?: UmapViewport;
   /** Activity playback speed multiplier (1, 2, 10, 50, 100). The
@@ -316,6 +322,7 @@ function validateSettings(raw: unknown): Partial<SettingsState> {
   if (isFiniteNum(s.swimLo)) out.swimLo = clamp(s.swimLo, 0, 1);
   if (isFiniteNum(s.swimHi)) out.swimHi = clamp(s.swimHi, 0, 1);
   if (isFiniteNum(s.ghostIntensity)) out.ghostIntensity = clamp(s.ghostIntensity, 0, 1);
+  if (typeof s.showGhosts === 'boolean') out.showGhosts = s.showGhosts;
   if (typeof s.autoSizing === 'boolean') out.autoSizing = s.autoSizing;
   if (typeof s.scaleByFilterCount === 'boolean') out.scaleByFilterCount = s.scaleByFilterCount;
   if (typeof s.debugMode === 'boolean') out.debugMode = s.debugMode;
@@ -332,7 +339,31 @@ function validateSettings(raw: unknown): Partial<SettingsState> {
   if (isFiniteNum(s.projectionSumExposure)) {
     out.projectionSumExposure = clamp(s.projectionSumExposure, 0.01, 10);
   }
+  // embeddedMode is deliberately absent: like screenshotMode it is a
+  // deployment/presentation mode, set by ?embed=1, not shareable view state.
+  if (typeof s.brainOutline === 'boolean') out.brainOutline = s.brainOutline;
+  if (typeof s.brainFibers === 'boolean') out.brainFibers = s.brainFibers;
+  if (typeof s.brainCellBodies === 'boolean') out.brainCellBodies = s.brainCellBodies;
+  if (isFiniteNum(s.brainOutlineOpacity)) {
+    out.brainOutlineOpacity = clamp(s.brainOutlineOpacity, 0, 1);
+  }
+  if (isFiniteNum(s.brainFibersOpacity)) {
+    out.brainFibersOpacity = clamp(s.brainFibersOpacity, 0, 1);
+  }
+  if (isFiniteNum(s.brainCellBodiesOpacity)) {
+    out.brainCellBodiesOpacity = clamp(s.brainCellBodiesOpacity, 0, 1);
+  }
   return out;
+}
+
+/** True when the viewer was loaded with `?embed=1` — the iframe entry point
+ *  for embedding in mapzebrain.org. A query param rather than hash state,
+ *  matching the existing `?mock=1` convention, because it is how the
+ *  embedding page's `src` attribute selects the mode. */
+export function isEmbedRequested(locationSearch: string): boolean {
+  const value = new URLSearchParams(locationSearch).get('embed');
+  // Present-but-empty (`?embed`) counts as on; `?embed=0` is an explicit off.
+  return value !== null && value !== '0';
 }
 
 function validateCamera(raw: unknown): CameraState | undefined {
@@ -407,6 +438,14 @@ function validatePersisted(raw: Record<string, unknown>): PersistedState {
   // Matches the UMAP_WIDTH_MIN/MAX drag bounds in usePanelLayout.
   if (isFiniteNum(raw.umapWidth)) {
     out.umapWidth = clamp(raw.umapWidth, 200, 760);
+  }
+  if (typeof raw.sidebarOpen === 'boolean') out.sidebarOpen = raw.sidebarOpen;
+  // Matches the SIDEBAR_WIDTH_MIN/MAX drag bounds in usePanelLayout. The
+  // bounds are duplicated as literals here exactly as the three above are:
+  // urlState must stay a pure, DOM-free module, so it does not import from
+  // the layout hook.
+  if (isFiniteNum(raw.sidebarWidth)) {
+    out.sidebarWidth = clamp(raw.sidebarWidth, 280, 700);
   }
   const cam = validateCamera(raw.camera);
   if (cam) out.camera = cam;

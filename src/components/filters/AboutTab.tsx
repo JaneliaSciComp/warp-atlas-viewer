@@ -157,7 +157,7 @@ export function AboutTab({
                         href="https://www.biorxiv.org/content/10.64898/2026.02.07.704095v1"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-yellow-300 hover:underline"
+                        className="text-link hover:underline"
                     >
                         paper
                     </a>
@@ -188,7 +188,7 @@ export function AboutTab({
                                 href={docsUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-yellow-300 hover:underline"
+                                className="text-link hover:underline"
                             >
                                 Open the docs →
                             </a>
@@ -208,7 +208,7 @@ export function AboutTab({
                         href="https://www.biorxiv.org/content/10.64898/2026.02.07.704095v1"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-yellow-300 hover:underline"
+                        className="text-link hover:underline"
                     >
                         WARP paper
                     </a>
@@ -250,6 +250,27 @@ export function AboutTab({
 
             <section className="flex flex-col gap-1">
                 <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+                    Brain models
+                </div>
+                <p className="text-neutral-400 leading-snug">
+                    The whole-brain reference meshes (outline, fibers, cell
+                    bodies) and the view-orientation icons come from{" "}
+                    <a
+                        href="https://mapzebrain.org"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-link hover:underline"
+                    >
+                        mapZebrain
+                    </a>{" "}
+                    (<em>Kunst et al., 2019</em>), the shared reference brain
+                    this dataset is registered into. Enable them under Settings
+                    → Brain models.
+                </p>
+            </section>
+
+            <section className="flex flex-col gap-1">
+                <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
                     Code
                 </div>
                 <p className="text-neutral-400 leading-snug">
@@ -258,7 +279,7 @@ export function AboutTab({
                         href="https://github.com/JaneliaSciComp/warp-atlas-viewer"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-yellow-300 hover:underline"
+                        className="text-link hover:underline"
                     >
                         github.com/JaneliaSciComp/warp-atlas-viewer
                     </a>

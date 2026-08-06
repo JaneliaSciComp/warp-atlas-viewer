@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import type { FilterState, SettingsState } from "../../data/types";
-import { DEFAULT_SETTINGS } from "../../data/types";
+import { BRAIN_MESH_CONTROLS, loadMeshManifest } from "../../data/meshLoader";
 import { KindToggle } from "./shared";
 
 // Bolds a control's name inside a section description so the prose maps
@@ -22,17 +22,25 @@ export function SettingsTab({
     filter,
     settings,
     setSettings,
+    defaultSettings,
 }: {
     filter: FilterState;
     settings: SettingsState;
     setSettings: (s: SettingsState) => void;
+    /** Deployment-mode defaults supplied by App. */
+    defaultSettings: SettingsState;
 }) {
     const update = (patch: Partial<SettingsState>) =>
         setSettings({ ...settings, ...patch });
-    const reset = () => setSettings(DEFAULT_SETTINGS);
+    // App supplies the defaults for the active deployment mode. In particular,
+    // reset in an embed must retain its outline/ghost/camera defaults rather
+    // than silently switching the viewer to standalone presentation defaults.
+    const reset = () => setSettings(defaultSettings);
     const dirty = (
-        Object.keys(DEFAULT_SETTINGS) as Array<keyof typeof DEFAULT_SETTINGS>
-    ).some((k) => settings[k] !== DEFAULT_SETTINGS[k]);
+        Object.keys(defaultSettings) as Array<keyof typeof defaultSettings>
+    ).some(
+        (k) => settings[k] !== defaultSettings[k],
+    );
     const [showDescriptions, setShowDescriptions] = useState<boolean>(() => {
         if (typeof window === "undefined") return true;
         const v = window.localStorage.getItem(SHOW_DESC_KEY);
@@ -46,6 +54,17 @@ export function SettingsTab({
             );
         }
     }, [showDescriptions]);
+    // null = still checking, false = meshes not generated, true = available.
+    const [meshesAvailable, setMeshesAvailable] = useState<boolean | null>(null);
+    useEffect(() => {
+        let live = true;
+        loadMeshManifest().then((m) => {
+            if (live) setMeshesAvailable(m !== null);
+        });
+        return () => {
+            live = false;
+        };
+    }, []);
     const projectionSupported =
         filter.colorMode === "gene" ||
         filter.colorMode === "activity" ||
@@ -125,13 +144,28 @@ export function SettingsTab({
                 </div>
                 <p className="text-neutral-400 leading-snug">
                     Controls point size and ghost (out-of-filter cell)
-                    visibility in the 3D view. <Ctl>Auto point sizes</Ctl>{" "}
+                    visibility in the 3D view. <Ctl>Show ghosts</Ctl> off hides
+                    them entirely. <Ctl>Auto point sizes</Ctl>{" "}
                     derives both from the viewport height, hiding the manual
                     sliders. <Ctl>Scale by filter</Ctl> enlarges points when
                     fewer cells are visible; <Ctl>scale by depth</Ctl> applies
                     perspective, making closer points larger and farther ones
                     smaller.
                 </p>
+                <label
+                    className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
+                    title="draw out-of-filter cells (ghosts) in the 3D view"
+                >
+                    <input
+                        type="checkbox"
+                        checked={settings.showGhosts}
+                        onChange={(e) =>
+                            update({ showGhosts: e.target.checked })
+                        }
+                        className="accent-neutral-300"
+                    />
+                    show ghosts
+                </label>
                 <label
                     className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer select-none ml-3"
                     title="derive point size and ghost visibility from 3D view height"
@@ -162,6 +196,12 @@ export function SettingsTab({
                             min={0}
                             max={1}
                             step={0.05}
+                            disabled={!settings.showGhosts}
+                            title={
+                                settings.showGhosts
+                                    ? undefined
+                                    : "ghosts are hidden — turn show ghosts back on to set their visibility"
+                            }
                             onChange={(v) =>
                                 update({
                                     ghostIntensity: Math.max(0, Math.min(1, v)),
@@ -570,7 +610,7 @@ export function SettingsTab({
                     saturation values for positive and negative correlations.
                 </p>
                 <NumberRow
-                    label="responsive floor (|r| ≥)"
+                    label="responsive floor"
                     value={settings.stimLo}
                     min={0}
                     max={settings.stimHi - 0.01}
@@ -612,7 +652,7 @@ export function SettingsTab({
                     </>
                 ) : (
                     <NumberRow
-                        label="saturation (|r| ≥)"
+                        label="saturation"
                         value={settings.stimHi}
                         min={settings.stimLo + 0.01}
                         max={1}
@@ -632,7 +672,7 @@ export function SettingsTab({
                     full intensity.
                 </p>
                 <NumberRow
-                    label="responsive floor (|r| ≥)"
+                    label="responsive floor"
                     value={settings.swimLo}
                     min={0}
                     max={settings.swimHi - 0.01}
@@ -640,7 +680,7 @@ export function SettingsTab({
                     onChange={(v) => update({ swimLo: v })}
                 />
                 <NumberRow
-                    label="saturation (|r| ≥)"
+                    label="saturation"
                     value={settings.swimHi}
                     min={settings.swimLo + 0.01}
                     max={1}
@@ -748,6 +788,80 @@ export function SettingsTab({
 
             <section className="flex flex-col gap-2">
                 <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
+                    Brain models
+                </div>
+                <p className="text-neutral-400 leading-snug">
+                    Translucent whole-brain reference meshes from{" "}
+                    <a
+                        href="https://mapzebrain.org"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-link hover:underline"
+                    >
+                        mapZebrain
+                    </a>{" "}
+                    drawn as anatomical context around the cells.{" "}
+                    <Ctl>Brain outline</Ctl> is the whole-brain surface;{" "}
+                    <Ctl>fibers</Ctl> and <Ctl>cell bodies</Ctl> are the
+                    neuropil and soma-rich compartments. All off by default.
+                </p>
+                {meshesAvailable === false && (
+                    <p className="text-neutral-500 text-[11px] leading-snug ml-3">
+                        Meshes not found — run{" "}
+                        <code className="text-neutral-400">
+                            python3 scripts/fetch_meshes.py
+                        </code>{" "}
+                        to download and convert them.
+                    </p>
+                )}
+                {BRAIN_MESH_CONTROLS.map((control) => (
+                    <div key={control.key} className="flex flex-col gap-1">
+                        <label
+                            className={
+                                "flex items-center gap-2 text-xs cursor-pointer select-none ml-3 " +
+                                (meshesAvailable === false
+                                    ? "text-neutral-500 cursor-not-allowed"
+                                    : "text-neutral-300")
+                            }
+                        >
+                            <input
+                                type="checkbox"
+                                checked={settings[control.enabledKey]}
+                                disabled={meshesAvailable === false}
+                                onChange={(e) =>
+                                    // Cast: a computed key from a union of
+                                    // string literals widens to string, which
+                                    // isn't assignable to Partial<SettingsState>.
+                                    update({
+                                        [control.enabledKey]: e.target.checked,
+                                    } as Partial<SettingsState>)
+                                }
+                                className="accent-accent"
+                            />
+                            {control.label}
+                        </label>
+                        <NumberRow
+                            label="opacity"
+                            value={settings[control.opacityKey]}
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            disabled={
+                                meshesAvailable === false ||
+                                !settings[control.enabledKey]
+                            }
+                            onChange={(v) =>
+                                update({
+                                    [control.opacityKey]: v,
+                                } as Partial<SettingsState>)
+                            }
+                        />
+                    </div>
+                ))}
+            </section>
+
+            <section className="flex flex-col gap-2">
+                <div className="text-neutral-500 uppercase tracking-wider text-[10px]">
                     Debug
                 </div>
                 <p className="text-neutral-400 leading-snug">
@@ -809,7 +923,7 @@ function NumberRow({
                     value={value}
                     disabled={disabled}
                     onChange={(e) => onChange(parseFloat(e.target.value))}
-                    className="w-32 accent-yellow-300"
+                    className="w-32 accent-accent"
                 />
                 <input
                     type="number"

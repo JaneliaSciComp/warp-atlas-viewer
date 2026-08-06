@@ -240,7 +240,7 @@ export function validateBuffer(
  * checking for `1f 8b` distinguishes the two without trusting either
  * the URL suffix or browser-specific header visibility.
  */
-async function streamBin(
+export async function streamBin(
   response: Response,
   onChunk: (deltaBytes: number) => void,
 ): Promise<ArrayBuffer> {
