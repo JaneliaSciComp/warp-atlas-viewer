@@ -170,7 +170,15 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
                     `source === 'umap'` check was redundant: 'umap' is the only
                     source setIndices is ever called with. */}
                 {!sidebar && <CrossSep />}
-                <SelectionCard selection={selection} onClear={onClearSelection} />
+                <SelectionCard
+                  selection={selection}
+                  onClear={onClearSelection}
+                  // `sidebar` is `tsneTab != null` — i.e. exactly the layout
+                  // that HAS a t-SNE tab, so it is the right flag rather than a
+                  // second embedded-mode signal. Via switchTab, not onTabChange,
+                  // so per-tab scroll memory is preserved.
+                  onViewTsne={sidebar ? () => switchTab('tsne') : undefined}
+                />
               </div>
             </div>
           )}

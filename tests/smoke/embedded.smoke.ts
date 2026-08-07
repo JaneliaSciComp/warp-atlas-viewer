@@ -144,15 +144,17 @@ test('the t-SNE tab holds the plot and survives a tab round-trip', async ({ page
   await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
 
   const sidebar = page.getByTestId('embedded-sidebar');
-  // Four tabs, t-SNE second.
-  await expect(sidebar.getByRole('button', { name: 't-SNE' })).toBeVisible();
+  // Four tabs, t-SNE second. `exact` because getByRole matches the accessible
+  // name as a SUBSTRING: the Filters tab's selection card carries a "View t-SNE"
+  // button, so the loose form is ambiguous here.
+  await expect(sidebar.getByRole('button', { name: 't-SNE', exact: true })).toBeVisible();
 
   // On the Filters tab there is exactly one canvas — the 3D view. The t-SNE
   // canvas is unmounted, which is the behaviour the viewport-reseed below
   // exists to make safe.
   await expect(page.locator('canvas')).toHaveCount(1);
 
-  await sidebar.getByRole('button', { name: 't-SNE' }).click();
+  await sidebar.getByRole('button', { name: 't-SNE', exact: true }).click();
   await expect(page.locator('canvas')).toHaveCount(2);
 
   // The t-SNE canvas must fill the tab body, not sit in a padded scroller.
@@ -196,7 +198,7 @@ test('the t-SNE tab holds the plot and survives a tab round-trip', async ({ page
 
   await sidebar.getByRole('button', { name: 'Filters' }).click();
   await expect(page.locator('canvas')).toHaveCount(1);
-  await sidebar.getByRole('button', { name: 't-SNE' }).click();
+  await sidebar.getByRole('button', { name: 't-SNE', exact: true }).click();
   await expect(page.locator('canvas')).toHaveCount(2);
   // The panel just remounted. If it reseeded from the frozen page-load
   // URL value instead of the live viewport ref, `viewport` would be back
@@ -212,7 +214,10 @@ test('standalone keeps the t-SNE panel docked, with no t-SNE tab', async ({ page
   await expect(page.getByText('10,000 cells pooled from 3 fish (mock)')).toBeVisible({
     timeout: 20_000,
   });
-  // Both canvases visible at once, and no tab button for t-SNE.
+  // Both canvases visible at once, and no tab button for t-SNE. Deliberately
+  // NOT `exact` here, unlike the embedded lookups above: as a substring match
+  // this asserts standalone has no t-SNE *button of any kind*, which covers the
+  // embedded-only "View t-SNE" leaking in as well as the tab itself.
   await expect(page.locator('canvas')).toHaveCount(2);
   await expect(page.getByRole('button', { name: 't-SNE' })).toHaveCount(0);
 
@@ -924,4 +929,27 @@ test('the t-SNE selection card is always present, empty or populated', async ({ 
   await cardClear.click();
   await expect(readout).toHaveText('none');
   await expect(cardClear).toHaveCount(0);
+});
+
+test('View t-SNE opens the t-SNE tab, and exists only in embedded mode', async ({ page }) => {
+  const viewTsne = page.getByRole('button', { name: 'View t-SNE' });
+
+  await page.goto('/?mock=1&embed=1');
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+  await expect(viewTsne).toBeVisible();
+  // Embedded mounts the t-SNE panel only while its tab is active, so count 0
+  // here is what makes the click below a real state change rather than a
+  // no-op that would pass either way.
+  await expect(page.getByTestId('tsne-canvas')).toHaveCount(0);
+  await viewTsne.click();
+  await expect(page.getByTestId('tsne-canvas')).toBeVisible();
+
+  // Standalone has no t-SNE tab to navigate to — the plot is always on screen —
+  // so the button must not appear there.
+  await page.goto('/?mock=1');
+  await expect(page.getByText('10,000 cells pooled from 3 fish (mock)')).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.getByTestId('tsne-canvas')).toBeVisible();
+  await expect(viewTsne).toHaveCount(0);
 });
