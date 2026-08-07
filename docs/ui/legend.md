@@ -1,11 +1,13 @@
 ---
 title: Color legend
-description: The overlay in the top-right of the 3D viewer that describes the active color scheme.
+description: The overlay on the 3D viewer that describes the active color scheme.
 ---
 
 # Color legend
 
-The legend in the top-right of the 3D viewer adapts to the active **Colors** scheme. It is the authoritative description of what each color denotes at any moment.
+The legend on the 3D viewer adapts to the active **Colors** scheme. It is the authoritative description of what each color denotes at any moment.
+
+It sits in the **top-right** corner, except in [embedded mode](/settings#embedded-mode), where it moves to the **lower left** so it does not cover the right end of mapZebrain's icon bar.
 
 | Active scheme | Legend content |
 |---|---|

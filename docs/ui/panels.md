@@ -11,7 +11,7 @@ The viewer occupies a single full-screen page divided into four regions.
 
 ## 3D viewer
 
-The large area filling most of the screen. Every visible cell is rendered as a GPU point in [mapZebrain](https://mapzebrain.org) coordinates. The [color legend](/ui/legend) appears in the top-right corner for color schemes that need a mapping. See [3D viewer](/ui/viewer) for controls.
+The large area filling most of the screen. Every visible cell is rendered as a GPU point in [mapZebrain](https://mapzebrain.org) coordinates. The [color legend](/ui/legend) appears in the top-right corner (lower left in embedded mode) for color schemes that need a mapping. See [3D viewer](/ui/viewer) for controls.
 
 ## t-SNE panel
 
@@ -43,7 +43,7 @@ Click the **⌄** handle at the bottom edge of the 3D viewer to hide the filter 
 
 ## Color legend
 
-Top-right corner of the 3D viewer. The legend adapts to the active color scheme:
+Top-right corner of the 3D viewer — lower left in [embedded mode](/settings#embedded-mode), where the top right belongs to the icon bar. The legend adapts to the active color scheme:
 
 - **Region / Specimen** — categorical swatches.
 - **Simple** — no legend; all visible cells use the same highlight color.
