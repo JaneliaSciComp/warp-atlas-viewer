@@ -220,7 +220,10 @@ function GradientLegend({
 }
 
 export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
-  // Embedded mode anchors the legend to the lower left: mapZebrain's own
+  // Embedded mode drops out of absolute positioning (the inline `position`
+  // beats the `absolute` class on every branch below) and lets App's
+  // lower-left stack place it, so the projection pill can sit directly on
+  // top of it. The lower left because mapZebrain's own
   // orientation bar sits top-centre and its right end (screenshot / export /
   // gear) ran under a top-right legend. The lower left is the only free corner
   // there — BrainViewer's projection pill and `reset view` own the top left, and
@@ -228,7 +231,7 @@ export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
   // module-load EMBEDDED: this is a pure overlay with no persisted geometry, so
   // it can reflow safely, and it matches how BrainViewer gates the bar itself.
   const positionStyle = settings.embeddedMode
-    ? ({ bottom: 8, left: 8 } as const)
+    ? ({ position: 'static' } as const)
     : ({ top: 8, right: 8 } as const);
   // Active-brightness lift mirrors the per-cell math in coloring.ts so
   // the legend stays visually in sync with the rendered scatter.

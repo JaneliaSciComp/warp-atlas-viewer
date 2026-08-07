@@ -19,6 +19,8 @@ import { FilterControls, type Tab } from './components/FilterControls';
 import { LinksMenu } from './components/LinksMenu';
 import { ExportButton, ExportDialog } from './components/ExportButton';
 import { ColorLegend } from './components/ColorLegend';
+import { ProjectionPill } from './components/brain/ProjectionPill';
+import { effectiveProjectionMode, supportsScalarProjection } from './components/brain/projectionModel';
 import { anyFilterActive, cellInSet } from './utils/coloring';
 import {
   decodeHash,
@@ -573,12 +575,33 @@ export default function App() {
           }}
         />
       </Suspense>
-      <ColorLegend
-        data={data}
-        filter={effectiveFilter}
-        settings={settings}
-        uniqueFishIds={uniqueFishIds}
-      />
+      {/* Embedded: the projection pill rides on top of the legend in the
+          lower-left stack (BrainViewer keeps it in its top-left group in the
+          standalone layout). `contents` when not embedded so the legend keeps
+          positioning against the viewer, not this wrapper. Gated on the live
+          settings.embeddedMode because ColorLegend's own positioning is. */}
+      <div
+        className={
+          settings.embeddedMode
+            ? 'absolute bottom-2 left-2 flex flex-col items-start gap-1.5'
+            : 'contents'
+        }
+      >
+        {settings.embeddedMode && supportsScalarProjection(effectiveFilter.colorMode) && (
+          <ProjectionPill
+            mode={effectiveProjectionMode(effectiveFilter.colorMode, settings.projectionMode)}
+            screenshotMode={settings.screenshotMode}
+            onChange={(mode) => setSettings((s) => ({ ...s, projectionMode: mode }))}
+            menuUp
+          />
+        )}
+        <ColorLegend
+          data={data}
+          filter={effectiveFilter}
+          settings={settings}
+          uniqueFishIds={uniqueFishIds}
+        />
+      </div>
       {/* Opened by the orientation bar's export icon (embedded mode only).
           The dialog lives here rather than in the bar because the scope it
           exports is App's effective selection. */}
