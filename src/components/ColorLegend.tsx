@@ -220,7 +220,16 @@ function GradientLegend({
 }
 
 export function ColorLegend({ data, filter, settings, uniqueFishIds }: Props) {
-  const positionStyle = { top: 8, right: 8 } as const;
+  // Embedded mode anchors the legend to the lower left: mapZebrain's own
+  // orientation bar sits top-centre and its right end (screenshot / export /
+  // gear) ran under a top-right legend. The lower left is the only free corner
+  // there — BrainViewer's projection pill and `reset view` own the top left, and
+  // the Janelia logo the bottom right. Live `settings.embeddedMode`, not App's
+  // module-load EMBEDDED: this is a pure overlay with no persisted geometry, so
+  // it can reflow safely, and it matches how BrainViewer gates the bar itself.
+  const positionStyle = settings.embeddedMode
+    ? ({ bottom: 8, left: 8 } as const)
+    : ({ top: 8, right: 8 } as const);
   // Active-brightness lift mirrors the per-cell math in coloring.ts so
   // the legend stays visually in sync with the rendered scatter.
   const brightness = Math.max(0, Math.min(1, settings.activeBrightness));

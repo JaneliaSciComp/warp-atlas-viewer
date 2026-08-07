@@ -423,28 +423,31 @@ test('the orientation bar renders at full size or collapses to a menu', async ({
   await expect(bar).toBeVisible();
   expect((await bar.boundingBox())!.width).toBeGreaterThan(363);
 
-  // ~397px viewer: the row's right end now runs under the colour legend, and
-  // stays. This is the band the old `barWidth + 215` gate blanked out, so a
-  // regression to it fails here rather than somewhere cosmetic.
+  // ~397px viewer: the band where the row's right end reaches into the
+  // top-right corner the colour legend used to occupy. This is the band the old
+  // `barWidth + 215` gate blanked out, so a regression to it fails here rather
+  // than somewhere cosmetic.
   await page.setViewportSize({ width: 1240, height: 800 });
   await expect(bar).toBeVisible();
   await expect(menu).toHaveCount(0);
   const tucked = (await bar.boundingBox())!;
   expect(tucked.width).toBeGreaterThan(363);
 
-  // Tucked BEHIND, not over: at a point inside the row's right end, the topmost
-  // element is the legend, not one of the row's buttons. Both halves matter —
-  // the overlap assertion keeps the stacking assertion from passing vacuously
-  // on a row that never reached the legend at all.
-  const legend = page.getByText('Brain region', { exact: true });
-  const legendBox = (await legend.boundingBox())!;
+  // Nothing covers the row: at a point inside its right end, the topmost element
+  // IS one of the row's buttons. This test used to assert the opposite — the
+  // legend sat here and won the paint, which is what let the row survive down to
+  // this width instead of being hidden. Embedded mode now anchors the legend
+  // lower-left, so the screenshot / export / gear trio is clickable again. The
+  // overlap assertion below keeps the stacking assertion from passing vacuously
+  // on a row that never reached that corner at all.
   const probe = { x: tucked.x + tucked.width - 6, y: tucked.y + tucked.height / 2 };
-  expect(probe.x).toBeGreaterThan(legendBox.x);
+  const viewerBox = (await page.locator('canvas').first().boundingBox())!;
+  expect(probe.x).toBeGreaterThan(viewerBox.x + viewerBox.width - 215);
   const topmostIsBar = await page.evaluate(
     (p) => !!document.elementFromPoint(p.x, p.y)?.closest('[data-testid="view-orientation-bar"]'),
     probe,
   );
-  expect(topmostIsBar).toBe(false);
+  expect(topmostIsBar).toBe(true);
 
   // ~307px viewer: too narrow for the row, so it becomes one hamburger. The row
   // was visible a moment ago, so this is a real transition.
@@ -842,4 +845,36 @@ test('embedded mode exports from the orientation bar, not the sidebar', async ({
   // so its close path runs through the caller's callback.
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+test('the colour legend sits lower-left embedded and top-right standalone', async ({ page }) => {
+  // The legend's own box, not the title text's: `getByText` returns the title
+  // div, whose bottom edge is near the TOP of the legend, so a bottom-edge
+  // assertion against it would be measuring the wrong rectangle. The parent is
+  // the legend root (see ColorLegend's region branch).
+  const legendBox = async () =>
+    (await page.getByText('Brain region', { exact: true }).locator('..').boundingBox())!;
+  // BrainViewer fills the viewer column and the legend is anchored to that same
+  // column, so the canvas box is the box the offsets are measured against.
+  const viewerBox = async () => (await page.locator('canvas').first().boundingBox())!;
+
+  await page.goto('/?mock=1&embed=1');
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+  let legend = await legendBox();
+  let viewer = await viewerBox();
+  // Anchored bottom-8px / left-8px. The tolerances absorb sub-pixel layout and
+  // the canvas's own border, not a corner's worth of slack — 24 and 40 are far
+  // tighter than the ~200px either offset would show if the anchor were wrong.
+  expect(legend.x - viewer.x).toBeLessThan(24);
+  expect(viewer.y + viewer.height - (legend.y + legend.height)).toBeLessThan(40);
+
+  // Standalone is untouched: still the top-right corner.
+  await page.goto('/?mock=1');
+  await expect(page.getByText('10,000 cells pooled from 3 fish (mock)')).toBeVisible({
+    timeout: 20_000,
+  });
+  legend = await legendBox();
+  viewer = await viewerBox();
+  expect(legend.y - viewer.y).toBeLessThan(24);
+  expect(viewer.x + viewer.width - (legend.x + legend.width)).toBeLessThan(24);
 });
