@@ -25,7 +25,7 @@ nearby regardless of their anatomical position.
 | **Click a cell** | Focus that cell, as in the 3D viewer. |
 | **Right-drag** or **Shift+drag** | Pan the t-SNE viewport. |
 | **Mouse wheel** | Zoom in or out. |
-| **Clear-selection button** | Top of the panel when a lasso is active; clears the lasso selection. (The filter row also shows a **t-SNE selection** card with its own clear button while a lasso is active.) |
+| **Clear-selection button** | Top of the panel when a lasso is active; clears the lasso selection. (The filter row's always-present **t-SNE selection** card grows a clear button of its own while a lasso is active.) |
 
 ## Linked behavior
 

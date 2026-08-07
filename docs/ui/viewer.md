@@ -48,9 +48,10 @@ rails, and palette changes. In the 3D view specifically, it adds:
   orientation icon snaps the camera to that view and clears any pan.
   "Vertical" means rostral-up; "horizontal" means dorsal-up.
 
-  The bar is centred on the 3D view, and in a narrow iframe its right end
-  passes **under the colour legend** rather than being hidden — the legend
-  stays readable and the bar stays put. Narrower still, once the 3D column
+  The bar is centred on the 3D view. Embedded mode moves the colour legend
+  to the lower left precisely so the bar's right end — the screenshot,
+  export, and gear icons — stays clear of it even in a narrow iframe.
+  Narrower still, once the 3D column
   is under 384px and the row genuinely has nowhere to go, the bar collapses
   to a single **hamburger** (☰); hovering it (or tapping, on a touch screen)
   drops the same ten icons down as a vertical list.

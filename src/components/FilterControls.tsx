@@ -39,9 +39,9 @@ interface Props {
   setActivityPlaying: (playing: boolean) => void;
   activitySpeed: number;
   setActivitySpeed: (speed: number) => void;
-  /** Active user selection (t-SNE lasso). When non-empty and sourced
-   *  from the t-SNE panel, a Selection card is rendered alongside the
-   *  filter cards with a button to clear it. */
+  /** Active user selection (t-SNE lasso). A Selection card is always rendered
+   *  alongside the filter cards; it reads `none` until a lasso exists, and
+   *  grows a button to clear it once one does. */
   selection: SelectionState;
   onClearSelection: () => void;
   /** Active tab. Lifted to App so the 3D view's gear icon can select the
@@ -163,12 +163,22 @@ export function FilterControls({ data, filter, setFilter, settings, setSettings,
                   update={update}
                   uniqueFishIds={uniqueFishIds}
                 />
-                {selection.source === 'umap' && selection.indices.length > 0 && (
-                  <>
-                    {!sidebar && <CrossSep />}
-                    <SelectionCard selection={selection} onClear={onClearSelection} />
-                  </>
-                )}
+                {/* Always rendered, so the selection feature is discoverable
+                    before a lasso exists; SelectionCard owns the empty state.
+                    The × stays unconditional too, so standalone's card row does
+                    not reflow as selections come and go. The dropped
+                    `source === 'umap'` check was redundant: 'umap' is the only
+                    source setIndices is ever called with. */}
+                {!sidebar && <CrossSep />}
+                <SelectionCard
+                  selection={selection}
+                  onClear={onClearSelection}
+                  // `sidebar` is `tsneTab != null` — i.e. exactly the layout
+                  // that HAS a t-SNE tab, so it is the right flag rather than a
+                  // second embedded-mode signal. Via switchTab, not onTabChange,
+                  // so per-tab scroll memory is preserved.
+                  onViewTsne={sidebar ? () => switchTab('tsne') : undefined}
+                />
               </div>
             </div>
           )}

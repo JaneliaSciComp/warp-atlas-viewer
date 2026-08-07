@@ -6,6 +6,10 @@ playwright-report/
 test-results/
 
 .claude
+# Git worktrees checked out inside the repo. Untracked, they get staged as
+# embedded gitlinks by `git add -A`; ignored, `vitest` still collects each
+# copy's test files, so scope runs with `--dir src`.
+/.worktrees/
 /data/
 /preprocessed/
 scripts/.env.download

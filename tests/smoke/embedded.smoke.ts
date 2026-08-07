@@ -144,15 +144,17 @@ test('the t-SNE tab holds the plot and survives a tab round-trip', async ({ page
   await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
 
   const sidebar = page.getByTestId('embedded-sidebar');
-  // Four tabs, t-SNE second.
-  await expect(sidebar.getByRole('button', { name: 't-SNE' })).toBeVisible();
+  // Four tabs, t-SNE second. `exact` because getByRole matches the accessible
+  // name as a SUBSTRING: the Filters tab's selection card carries a "View t-SNE"
+  // button, so the loose form is ambiguous here.
+  await expect(sidebar.getByRole('button', { name: 't-SNE', exact: true })).toBeVisible();
 
   // On the Filters tab there is exactly one canvas — the 3D view. The t-SNE
   // canvas is unmounted, which is the behaviour the viewport-reseed below
   // exists to make safe.
   await expect(page.locator('canvas')).toHaveCount(1);
 
-  await sidebar.getByRole('button', { name: 't-SNE' }).click();
+  await sidebar.getByRole('button', { name: 't-SNE', exact: true }).click();
   await expect(page.locator('canvas')).toHaveCount(2);
 
   // The t-SNE canvas must fill the tab body, not sit in a padded scroller.
@@ -196,7 +198,7 @@ test('the t-SNE tab holds the plot and survives a tab round-trip', async ({ page
 
   await sidebar.getByRole('button', { name: 'Filters' }).click();
   await expect(page.locator('canvas')).toHaveCount(1);
-  await sidebar.getByRole('button', { name: 't-SNE' }).click();
+  await sidebar.getByRole('button', { name: 't-SNE', exact: true }).click();
   await expect(page.locator('canvas')).toHaveCount(2);
   // The panel just remounted. If it reseeded from the frozen page-load
   // URL value instead of the live viewport ref, `viewport` would be back
@@ -212,7 +214,10 @@ test('standalone keeps the t-SNE panel docked, with no t-SNE tab', async ({ page
   await expect(page.getByText('10,000 cells pooled from 3 fish (mock)')).toBeVisible({
     timeout: 20_000,
   });
-  // Both canvases visible at once, and no tab button for t-SNE.
+  // Both canvases visible at once, and no tab button for t-SNE. Deliberately
+  // NOT `exact` here, unlike the embedded lookups above: as a substring match
+  // this asserts standalone has no t-SNE *button of any kind*, which covers the
+  // embedded-only "View t-SNE" leaking in as well as the tab itself.
   await expect(page.locator('canvas')).toHaveCount(2);
   await expect(page.getByRole('button', { name: 't-SNE' })).toHaveCount(0);
 
@@ -423,28 +428,31 @@ test('the orientation bar renders at full size or collapses to a menu', async ({
   await expect(bar).toBeVisible();
   expect((await bar.boundingBox())!.width).toBeGreaterThan(363);
 
-  // ~397px viewer: the row's right end now runs under the colour legend, and
-  // stays. This is the band the old `barWidth + 215` gate blanked out, so a
-  // regression to it fails here rather than somewhere cosmetic.
+  // ~397px viewer: the band where the row's right end reaches into the
+  // top-right corner the colour legend used to occupy. This is the band the old
+  // `barWidth + 215` gate blanked out, so a regression to it fails here rather
+  // than somewhere cosmetic.
   await page.setViewportSize({ width: 1240, height: 800 });
   await expect(bar).toBeVisible();
   await expect(menu).toHaveCount(0);
   const tucked = (await bar.boundingBox())!;
   expect(tucked.width).toBeGreaterThan(363);
 
-  // Tucked BEHIND, not over: at a point inside the row's right end, the topmost
-  // element is the legend, not one of the row's buttons. Both halves matter —
-  // the overlap assertion keeps the stacking assertion from passing vacuously
-  // on a row that never reached the legend at all.
-  const legend = page.getByText('Brain region', { exact: true });
-  const legendBox = (await legend.boundingBox())!;
+  // Nothing covers the row: at a point inside its right end, the topmost element
+  // IS one of the row's buttons. This test used to assert the opposite — the
+  // legend sat here and won the paint, which is what let the row survive down to
+  // this width instead of being hidden. Embedded mode now anchors the legend
+  // lower-left, so the screenshot / export / gear trio is clickable again. The
+  // overlap assertion below keeps the stacking assertion from passing vacuously
+  // on a row that never reached that corner at all.
   const probe = { x: tucked.x + tucked.width - 6, y: tucked.y + tucked.height / 2 };
-  expect(probe.x).toBeGreaterThan(legendBox.x);
+  const viewerBox = (await page.locator('canvas').first().boundingBox())!;
+  expect(probe.x).toBeGreaterThan(viewerBox.x + viewerBox.width - 215);
   const topmostIsBar = await page.evaluate(
     (p) => !!document.elementFromPoint(p.x, p.y)?.closest('[data-testid="view-orientation-bar"]'),
     probe,
   );
-  expect(topmostIsBar).toBe(false);
+  expect(topmostIsBar).toBe(true);
 
   // ~307px viewer: too narrow for the row, so it becomes one hamburger. The row
   // was visible a moment ago, so this is a real transition.
@@ -842,4 +850,106 @@ test('embedded mode exports from the orientation bar, not the sidebar', async ({
   // so its close path runs through the caller's callback.
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+test('the colour legend sits lower-left embedded and top-right standalone', async ({ page }) => {
+  // The legend's own box, not the title text's: `getByText` returns the title
+  // div, whose bottom edge is near the TOP of the legend, so a bottom-edge
+  // assertion against it would be measuring the wrong rectangle. The parent is
+  // the legend root (see ColorLegend's region branch).
+  const legendBox = async () =>
+    (await page.getByText('Brain region', { exact: true }).locator('..').boundingBox())!;
+  // BrainViewer fills the viewer column and the legend is anchored to that same
+  // column, so the canvas box is the box the offsets are measured against.
+  const viewerBox = async () => (await page.locator('canvas').first().boundingBox())!;
+
+  await page.goto('/?mock=1&embed=1');
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+  let legend = await legendBox();
+  let viewer = await viewerBox();
+  // Anchored bottom-8px / left-8px. The tolerances absorb sub-pixel layout and
+  // the canvas's own border, not a corner's worth of slack — 24 and 40 are far
+  // tighter than the ~200px either offset would show if the anchor were wrong.
+  expect(legend.x - viewer.x).toBeLessThan(24);
+  expect(viewer.y + viewer.height - (legend.y + legend.height)).toBeLessThan(40);
+
+  // Standalone is untouched: still the top-right corner.
+  await page.goto('/?mock=1');
+  await expect(page.getByText('10,000 cells pooled from 3 fish (mock)')).toBeVisible({
+    timeout: 20_000,
+  });
+  legend = await legendBox();
+  viewer = await viewerBox();
+  expect(legend.y - viewer.y).toBeLessThan(24);
+  expect(viewer.x + viewer.width - (legend.x + legend.width)).toBeLessThan(24);
+});
+
+test('the t-SNE selection card is always present, empty or populated', async ({ page }) => {
+  // The card used to render only while a lasso existed, which made the whole
+  // selection feature invisible until you found the lasso by accident. `none` is
+  // located by testid, not by text: it is far too generic a string to match on.
+  const readout = page.getByTestId('tsne-selection-readout');
+
+  await page.goto('/?mock=1&embed=1');
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+  await expect(readout).toHaveText('none');
+  // Nothing to clear, so no button offering to: a live-looking no-op is worse
+  // than an absent control.
+  await expect(page.getByRole('button', { name: 'clear selection' })).toHaveCount(0);
+
+  await page.goto('/?mock=1');
+  await expect(page.getByText('10,000 cells pooled from 3 fish (mock)')).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(readout).toHaveText('none');
+  await expect(page.getByRole('button', { name: 'clear selection' })).toHaveCount(0);
+
+  // And the populated branch still works — asserting only the empty state would
+  // pass just as well against a card hard-wired to say `none`. Standalone,
+  // because its t-SNE panel is on screen without a tab switch. Plain drag =
+  // lasso (the pan gesture is shift+drag), swept wide enough to enclose cells
+  // wherever the mock scatter happens to sit.
+  const tsne = (await page.getByTestId('tsne-canvas').boundingBox())!;
+  const at = (fx: number, fy: number) =>
+    [tsne.x + tsne.width * fx, tsne.y + tsne.height * fy] as const;
+  await page.mouse.move(...at(0.1, 0.1));
+  await page.mouse.down();
+  await page.mouse.move(...at(0.9, 0.1), { steps: 5 });
+  await page.mouse.move(...at(0.9, 0.9), { steps: 5 });
+  await page.mouse.move(...at(0.1, 0.9), { steps: 5 });
+  await page.mouse.up();
+  await expect(readout).toHaveText(/^[\d,]+ cells$/);
+  // Two clear affordances, and this is the card's own — the t-SNE panel header
+  // carries a second one with the same accessible name.
+  const cardClear = page
+    .locator('div.rounded')
+    .filter({ has: page.getByText('t-SNE selection', { exact: true }) })
+    .getByRole('button', { name: 'clear selection' });
+  await expect(cardClear).toBeVisible();
+  await cardClear.click();
+  await expect(readout).toHaveText('none');
+  await expect(cardClear).toHaveCount(0);
+});
+
+test('View t-SNE opens the t-SNE tab, and exists only in embedded mode', async ({ page }) => {
+  const viewTsne = page.getByRole('button', { name: 'View t-SNE' });
+
+  await page.goto('/?mock=1&embed=1');
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+  await expect(viewTsne).toBeVisible();
+  // Embedded mounts the t-SNE panel only while its tab is active, so count 0
+  // here is what makes the click below a real state change rather than a
+  // no-op that would pass either way.
+  await expect(page.getByTestId('tsne-canvas')).toHaveCount(0);
+  await viewTsne.click();
+  await expect(page.getByTestId('tsne-canvas')).toBeVisible();
+
+  // Standalone has no t-SNE tab to navigate to — the plot is always on screen —
+  // so the button must not appear there.
+  await page.goto('/?mock=1');
+  await expect(page.getByText('10,000 cells pooled from 3 fish (mock)')).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.getByTestId('tsne-canvas')).toBeVisible();
+  await expect(viewTsne).toHaveCount(0);
 });

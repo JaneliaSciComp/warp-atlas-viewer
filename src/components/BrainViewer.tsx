@@ -9,11 +9,10 @@ import { AmbientOcclusion } from './AmbientOcclusion';
 import {
   createProjectionColorMapTexture,
   effectiveProjectionMode,
-  PROJECTION_MODE_LABELS,
-  PROJECTION_MODE_ORDER,
   scalarProjectionConfig,
   supportsScalarProjection,
 } from './brain/projectionModel';
+import { ProjectionPill } from './brain/ProjectionPill';
 import { buildTooltip } from './brain/tooltip';
 import { DebugOverlay, FpsMeter } from './brain/debugOverlay';
 import { CameraSync, NO_PAN, ScreenSpacePan, type ScreenPanState } from './brain/cameraControls';
@@ -100,7 +99,6 @@ export function BrainViewer({
   onOpenExport,
 }: Props) {
   const [hover, setHover] = useState<{ i: number; x: number; y: number } | null>(null);
-  const [projMenuOpen, setProjMenuOpen] = useState(false);
   const pickRef = useRef<PickState>({ pos: null, hovered: -1 });
   // Wrapping-div size — the R3F Canvas fills its parent so this is
   // also the rendered canvas size. Tracked unconditionally because the
@@ -437,58 +435,14 @@ export function BrainViewer({
         />
       )}
       <div className="absolute top-2 left-2 flex flex-col items-start gap-1.5 pointer-events-none">
-        {supportsScalarProjection(filter.colorMode) && (
-          // Status pill: a per-pixel projection through the point cloud
-          // is a non-default render, so it gets a persistent control at
-          // the top of the overlay. Click to switch projection mode (or
-          // turn it off) without leaving the 3D view — mirrors the
-          // Settings tab's projection control. Shares the reset button's
-          // neutral grey so the two read as one control group.
-          <div className="relative pointer-events-auto">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setProjMenuOpen((v) => !v);
-              }}
-              className="font-mono text-[10px] bg-neutral-900/85 border border-neutral-700 text-neutral-200 px-1.5 py-0.5 rounded hover:bg-neutral-800"
-              title="per-pixel projection through the point cloud — click to change"
-            >
-              projection: {PROJECTION_MODE_LABELS[activeProjectionMode]}{settings.screenshotMode ? '' : ' ▾'}
-            </button>
-            {projMenuOpen && (
-              <>
-                {/* Click-away backdrop. Sits under the menu but over the
-                    canvas so an outside click closes without selecting. */}
-                <div
-                  className="fixed inset-0 z-10"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setProjMenuOpen(false);
-                  }}
-                />
-                <div className="absolute top-full left-0 mt-1 z-20 flex flex-col bg-neutral-900/95 border border-neutral-700 rounded overflow-hidden min-w-[88px]">
-                  {PROJECTION_MODE_ORDER.map((m) => (
-                    <button
-                      key={m}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onProjectionModeChange?.(m);
-                        setProjMenuOpen(false);
-                      }}
-                      className={
-                        'font-mono text-[10px] text-left px-2 py-1 hover:bg-neutral-700 ' +
-                        (m === activeProjectionMode
-                          ? 'bg-neutral-700 text-white'
-                          : 'text-neutral-200')
-                      }
-                    >
-                      {PROJECTION_MODE_LABELS[m]}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+        {/* Embedded mode renders the pill in App instead, stacked on top of
+            the lower-left colour legend. */}
+        {!settings.embeddedMode && supportsScalarProjection(filter.colorMode) && (
+          <ProjectionPill
+            mode={activeProjectionMode}
+            screenshotMode={settings.screenshotMode}
+            onChange={onProjectionModeChange}
+          />
         )}
         {!atDefault && !settings.screenshotMode && (
           <button

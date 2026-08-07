@@ -144,7 +144,7 @@ Projection renders the 3D point cloud as a per-pixel scalar reduction along the 
 The same control appears in two places:
 
 - **Settings → Projection**, with the full set of projection parameters.
-- A small **projection:** pill in the 3D viewer's top-left overlay, for quick mode changes without leaving the view.
+- A small **projection:** pill in the 3D viewer's top-left overlay, for quick mode changes without leaving the view. In [embedded mode](#embedded-mode) it moves to the lower left, directly above the colour legend.
 
 Modes:
 
