@@ -878,3 +878,50 @@ test('the colour legend sits lower-left embedded and top-right standalone', asyn
   expect(legend.y - viewer.y).toBeLessThan(24);
   expect(viewer.x + viewer.width - (legend.x + legend.width)).toBeLessThan(24);
 });
+
+test('the t-SNE selection card is always present, empty or populated', async ({ page }) => {
+  // The card used to render only while a lasso existed, which made the whole
+  // selection feature invisible until you found the lasso by accident. `none` is
+  // located by testid, not by text: it is far too generic a string to match on.
+  const readout = page.getByTestId('tsne-selection-readout');
+
+  await page.goto('/?mock=1&embed=1');
+  await expect(page.getByTestId('embedded-sidebar')).toBeVisible({ timeout: 20_000 });
+  await expect(readout).toHaveText('none');
+  // Nothing to clear, so no button offering to: a live-looking no-op is worse
+  // than an absent control.
+  await expect(page.getByRole('button', { name: 'clear selection' })).toHaveCount(0);
+
+  await page.goto('/?mock=1');
+  await expect(page.getByText('10,000 cells pooled from 3 fish (mock)')).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(readout).toHaveText('none');
+  await expect(page.getByRole('button', { name: 'clear selection' })).toHaveCount(0);
+
+  // And the populated branch still works — asserting only the empty state would
+  // pass just as well against a card hard-wired to say `none`. Standalone,
+  // because its t-SNE panel is on screen without a tab switch. Plain drag =
+  // lasso (the pan gesture is shift+drag), swept wide enough to enclose cells
+  // wherever the mock scatter happens to sit.
+  const tsne = (await page.getByTestId('tsne-canvas').boundingBox())!;
+  const at = (fx: number, fy: number) =>
+    [tsne.x + tsne.width * fx, tsne.y + tsne.height * fy] as const;
+  await page.mouse.move(...at(0.1, 0.1));
+  await page.mouse.down();
+  await page.mouse.move(...at(0.9, 0.1), { steps: 5 });
+  await page.mouse.move(...at(0.9, 0.9), { steps: 5 });
+  await page.mouse.move(...at(0.1, 0.9), { steps: 5 });
+  await page.mouse.up();
+  await expect(readout).toHaveText(/^[\d,]+ cells$/);
+  // Two clear affordances, and this is the card's own — the t-SNE panel header
+  // carries a second one with the same accessible name.
+  const cardClear = page
+    .locator('div.rounded')
+    .filter({ has: page.getByText('t-SNE selection', { exact: true }) })
+    .getByRole('button', { name: 'clear selection' });
+  await expect(cardClear).toBeVisible();
+  await cardClear.click();
+  await expect(readout).toHaveText('none');
+  await expect(cardClear).toHaveCount(0);
+});

@@ -24,7 +24,11 @@ test('loads the mock atlas and core panels without client errors', async ({ page
   // These assertions force the lazy chunks for the 3D viewer, t-SNE panel,
   // and detail panel to load. The previous Vite client regression surfaced
   // here as a pageerror before the app could finish mounting.
-  await expect(page.getByText('t-SNE')).toBeVisible();
+  // Exact, for the same strict-mode reason as the Settings lookups below: the
+  // filter row's always-present "t-SNE selection" card also contains "t-SNE".
+  // The exact match is the UmapPanel header, which exists only once that lazy
+  // chunk has mounted — which is what this assertion is here to force.
+  await expect(page.getByText('t-SNE', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: /All neurons \(10,000 neurons\)/ })).toBeVisible();
   await expect(page.locator('canvas')).toHaveCount(2);
 
