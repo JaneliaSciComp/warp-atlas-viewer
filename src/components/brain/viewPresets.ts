@@ -96,9 +96,35 @@ export interface ViewPreset {
   label: string;
   /** Unit direction from the volume center to the camera, world space. */
   dir: [number, number, number];
-  /** Camera up vector, world space. */
+  /** Camera up vector, world space. Need not be perpendicular to `dir` —
+   *  three's lookAt projects out the parallel component — which is how the
+   *  tilted ventral view keeps rostral-up without a second hand-set vector. */
   up: [number, number, number];
+  /** Multiplier on the framing distance, for the views mapZebrain itself
+   *  parks further back. Omitted means 1. */
+  distanceScale?: number;
 }
+
+/** How much further back the four rostral-up ("portrait") views sit.
+ *
+ *  mapZebrain's own saved cameras are 800 units out for the dorsal-up views
+ *  and 905-923 for the vertical sagittal pair, i.e. it backs off when the
+ *  brain's long axis runs up the screen. Matched here by eye against its 3D
+ *  view rather than by porting those numbers, because the two fields of view
+ *  differ — see the note below — so equal distances do not mean equal framing.
+ */
+const PORTRAIT_DISTANCE_SCALE = 1.08;
+
+// WHY THESE CANNOT BE PIXEL-IDENTICAL TO mapZEBRAIN'S. Its camera is a 75°
+// vertical fov; ours is 45° (VIEWER_FOV_DEG). Silhouette scale can always be
+// matched by moving the camera — that is what PORTRAIT_DISTANCE_SCALE and the
+// framing distance do — but foreshortening cannot: at 75° you see further
+// "around" the near face of the brain at the same framing. The tilt on the
+// ventral preset below is the visible consequence. Matching exactly would mean
+// rendering embedded mode at 75°, which also needs the point-size attenuation
+// constant in zoomSizing.ts rescaled by tan(22.5°)/tan(37.5°) — the shaders
+// size points from camera distance alone, with no fov term, so every point
+// would otherwise jump ~1.5× the moment the fov changed.
 
 /** In mapZebrain's icon-bar order.
  *
@@ -117,19 +143,38 @@ export interface ViewPreset {
  *  artwork is mirror-symmetric and cannot show which side faces the camera.
  */
 export const VIEW_PRESETS: ViewPreset[] = [
-  { key: 'dorsal', label: 'Dorsal', dir: [0, 0, 1], up: [1, 0, 0] },
-  { key: 'ventral', label: 'Ventral', dir: [0, 0, -1], up: [1, 0, 0] },
+  {
+    key: 'dorsal',
+    label: 'Dorsal',
+    dir: [0, 0, 1],
+    up: [1, 0, 0],
+    distanceScale: PORTRAIT_DISTANCE_SCALE,
+  },
+  {
+    key: 'ventral',
+    label: 'Ventral',
+    // Tilted 18.9° caudally rather than straight up the ventral axis, so the
+    // caudal face is visible the way mapZebrain's ventral button shows it (its
+    // own camera carries an 11.6° tilt, which reads as a deeper one through its
+    // wider fov). up stays rostral; lookAt orthogonalises it to (0.946, 0,
+    // -0.324), matching mapZebrain's saved up vector for this view.
+    dir: [-0.3239174, 0, -0.9460854],
+    up: [1, 0, 0],
+    distanceScale: PORTRAIT_DISTANCE_SCALE,
+  },
   {
     key: 'sagittalVerticalLeft',
     label: 'Sagittal (vertical-left)',
     dir: [0, -1, 0],
     up: [1, 0, 0],
+    distanceScale: PORTRAIT_DISTANCE_SCALE,
   },
   {
     key: 'sagittalVerticalRight',
     label: 'Sagittal (vertical-right)',
     dir: [0, 1, 0],
     up: [1, 0, 0],
+    distanceScale: PORTRAIT_DISTANCE_SCALE,
   },
   {
     key: 'sagittalHorizontalLeft',
@@ -150,19 +195,20 @@ export const VIEW_PRESETS: ViewPreset[] = [
  *  rostral up. */
 export const EMBEDDED_DEFAULT_PRESET: ViewPreset = VIEW_PRESETS[0];
 
-/** Camera position for a preset: `distance` out from `center` along the
- *  preset's direction. `center` is the orbit target, which embedded mode moves
- *  to MZ_REFERENCE_CENTER — pass the same value the camera targets or the view
- *  lands off-axis. */
+/** Camera position for a preset: `distance` (times the preset's own scale) out
+ *  from `center` along its direction. `center` is the orbit target, which
+ *  embedded mode moves to MZ_REFERENCE_CENTER — pass the same value the camera
+ *  targets or the view lands off-axis. */
 export function presetPosition(
   preset: ViewPreset,
   distance: number,
   center: [number, number, number] = [0, 0, 0],
 ): [number, number, number] {
+  const d = distance * (preset.distanceScale ?? 1);
   return [
-    center[0] + preset.dir[0] * distance,
-    center[1] + preset.dir[1] * distance,
-    center[2] + preset.dir[2] * distance,
+    center[0] + preset.dir[0] * d,
+    center[1] + preset.dir[1] * d,
+    center[2] + preset.dir[2] * d,
   ];
 }
 

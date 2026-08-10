@@ -309,7 +309,11 @@ site's own atlas page rather than a bolted-on panel:
   keeps every orientation preset centred, since the offset between the two
   points shows up vertically in some views, horizontally in others, and as
   zoom in the coronal view. The framing distance is set from the outline as
-  well, so no preset clips it.
+  well, so no preset clips it. The four rostral-up views (dorsal, ventral, and
+  the two vertical sagittals) sit a further 8% back, as mapZebrain's own
+  cameras do when the brain's long axis runs up the screen, and **ventral** is
+  tilted ~19° onto the caudal face rather than looking straight up the
+  dorsoventral axis, again following mapZebrain's own view.
 
 Embedded mode is activated via the `?embed=1` parameter in the URL and it is not persisted in the URL hash.
 

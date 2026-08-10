@@ -77,11 +77,29 @@ describe('VIEW_PRESETS', () => {
     expect(screenUp.x).toBeCloseTo(1, 5);
   });
 
-  it('shows ventral from below, also rostral up', () => {
+  it('shows ventral from below, rostral up, tilted onto the caudal face', () => {
     const ventral = VIEW_PRESETS[1];
     const { view, screenUp } = basis(ventral.dir, ventral.up);
-    expect(view.z).toBeCloseTo(1, 5);
-    expect(screenUp.x).toBeCloseTo(1, 5);
+    // Mostly straight up the ventral axis...
+    expect(view.z).toBeGreaterThan(0.9);
+    // ...but tilted caudally, which is the whole point of this preset: dead-on
+    // ventral hides the caudal face that mapZebrain's own ventral view shows.
+    const tilt = (Math.atan2(-ventral.dir[0], -ventral.dir[2]) * 180) / Math.PI;
+    expect(tilt).toBeCloseTo(18.9, 1);
+    // up is not perpendicular to dir here; lookAt orthogonalises it to the
+    // vector mapZebrain saved for this view, rostral tilted ventrally.
+    expect(screenUp.x).toBeCloseTo(0.946, 3);
+    expect(screenUp.z).toBeCloseTo(-0.324, 3);
+  });
+
+  it('parks the four rostral-up views further back than the dorsal-up ones', () => {
+    // mapZebrain backs its camera off when the brain's long axis runs up the
+    // screen (800 units for the dorsal-up views, 905-923 for the vertical
+    // sagittal pair). Keyed to `up` because that is what makes a view portrait.
+    for (const p of VIEW_PRESETS) {
+      const portrait = p.up[0] === 1;
+      expect(portrait ? p.distanceScale : (p.distanceScale ?? 1)).toBe(portrait ? 1.08 : 1);
+    }
   });
 
   it('shows coronal along the rostral axis with dorsal up', () => {
@@ -127,11 +145,20 @@ describe('VIEW_PRESETS', () => {
 
 describe('presetPosition', () => {
   it('scales the unit direction to the requested distance', () => {
-    expect(presetPosition(VIEW_PRESETS[0], 900)).toEqual([0, 0, 900]);
     expect(presetPosition(VIEW_PRESETS[6], 900)).toEqual([900, 0, 0]);
     expect(
-      new THREE.Vector3(...presetPosition(VIEW_PRESETS[2], 900)).length(),
+      new THREE.Vector3(...presetPosition(VIEW_PRESETS[6], 900)).length(),
     ).toBeCloseTo(900, 6);
+  });
+
+  it("applies the preset's own distance scale", () => {
+    // Dorsal is a portrait view, so it sits 8% further out than the framing
+    // distance it is handed. Forgetting this is how the default camera and the
+    // dorsal button would end up at different zooms.
+    expect(presetPosition(VIEW_PRESETS[0], 900)[2]).toBeCloseTo(972, 6);
+    expect(
+      new THREE.Vector3(...presetPosition(VIEW_PRESETS[2], 900)).length(),
+    ).toBeCloseTo(972, 6);
   });
 
   it('offsets from the orbit target, keeping the distance to it', () => {
@@ -141,7 +168,7 @@ describe('presetPosition', () => {
     for (const preset of VIEW_PRESETS) {
       const pos = presetPosition(preset, 900, MZ_REFERENCE_CENTER);
       const offset = new THREE.Vector3(...pos).sub(new THREE.Vector3(...MZ_REFERENCE_CENTER));
-      expect(offset.length()).toBeCloseTo(900, 6);
+      expect(offset.length()).toBeCloseTo(900 * (preset.distanceScale ?? 1), 3);
       expect(offset.normalize().dot(new THREE.Vector3(...preset.dir))).toBeCloseTo(1, 6);
     }
   });
