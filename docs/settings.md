@@ -301,17 +301,15 @@ site's own atlas page rather than a bolted-on panel:
   rather than warp's: **object-centric rotation off** and **momentum 0**, so
   the view orbits freely with no damped coast and right-drag uses native
   trackball pan. Both are ordinary settings you can turn back on.
-- The volume is nudged **up by 7.8% of the viewer height** so the portrait brain
-  sits vertically centred in the iframe. The camera targets the volume origin,
-  but the brain outline is not centred on it — it runs further caudally (the
-  spinal-cord stub) than rostrally, and perspective magnifies that end further
-  still — so a view framed symmetrically about the origin rests the tail on the
-  bottom edge with a large gap above the snout. Both gaps scale with the
-  viewer, which is why the correction is a fraction of the height rather than a
-  fixed pixel count. This is a framing offset, not a pan: it
-  is kept out of the pan that share links record, so it does not make the
-  camera read as moved-from-default, and **reset view** and the orientation
-  presets return to it rather than undoing it.
+- The camera targets — and orbits — **the centre of the whole-brain outline**
+  rather than the centre of the cell cloud, which is the point mapZebrain's own
+  3D view is built around. The two differ by about 47 units rostrally: the
+  outline runs further caudally than the cells because it includes the
+  spinal-cord stub the recording does not cover. Framing on the outline is what
+  keeps every orientation preset centred, since the offset between the two
+  points shows up vertically in some views, horizontally in others, and as
+  zoom in the coronal view. The framing distance is set from the outline as
+  well, so no preset clips it.
 
 Embedded mode is activated via the `?embed=1` parameter in the URL and it is not persisted in the URL hash.
 

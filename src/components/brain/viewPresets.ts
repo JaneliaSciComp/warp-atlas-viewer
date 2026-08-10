@@ -3,28 +3,64 @@
  *  All vectors are in WORLD space, whose axes volumeTransform.ts derives:
  *  +X is rostral, ±Y are the lateral axes, +Z is dorsal.
  *
- *  mapZebrain's own presets are hardcoded quaternions in its camera frame
- *  (up = (0,-1,0), AP sign opposite to ours, and no equivalent of our volume
- *  group transform). Porting those numbers would be both wrong and opaque, so
- *  these are derived from the axis convention instead.
+ *  mapZebrain's own presets are hardcoded camera positions in its voxel frame
+ *  (x = LR, y = AP caudal-positive, z = DV), which our world frame is a pure
+ *  90° rotation of: world = (−y, x, z). Both spaces are mapZebrain voxel
+ *  units, so their distances transfer directly. The directions below are the
+ *  rotated form of web-gl.service.ts:696-781, axis-snapped — several of theirs
+ *  carry a few degrees of tilt and roll from having been saved off a hand-
+ *  positioned camera.
  */
 
 /** Vertical field of view of the 3D viewer's camera, in degrees. Also the
  *  Canvas `fov` prop — keep them from drifting by importing this. */
 export const VIEWER_FOV_DEG = 45;
 
-/** Largest distance from the origin reached by a bounding box, over every
- *  axis and both corners.
+/** Where mapZebrain frames its 3D view, in our world coordinates: the
+ *  bounding-box centre of the whole-brain outline mesh.
  *
- *  Not half the span: the cell cloud is centered on its *mean*, not its
- *  bounding-box middle, so it sits off-centre by ~24 units rostro-caudally
- *  (preprocessed bounds run −415.8 … +368.4). Since the camera always targets
- *  the origin, the half-extent it has to cover is the larger arm, not the
- *  average of the two. Using span / 2 here clipped the caudal tail.
+ *  mapZebrain subtracts this point from every mesh it draws and then always
+ *  targets the world origin (brain.service.ts:137-147, web-gl.service.ts:403),
+ *  so it is the point every one of its seven orientation buttons orbits and
+ *  centres. We instead centre our data on the cell cloud's *mean*, which is
+ *  46.6 units rostral, 6.9 lateral and 40.7 dorsal of it — the discrepancy the
+ *  embedded view used to paper over with a fixed upward screen nudge. A screen
+ *  nudge could only ever be right for the views where the discrepancy happens
+ *  to be vertical; in the horizontal-sagittal pair it is sideways and in the
+ *  coronal view it is depth. Moving the orbit target is right in all seven.
+ *
+ *  Emitted by scripts/fetch_meshes.py as the outline's `worldCenter` in
+ *  meshes.json (a literal here rather than a manifest read because the camera
+ *  default is needed at mount, and the meshes load lazily).
+ *
+ *  Deliberately NOT included: mapZebrain also shifts its meshes another 100
+ *  units caudally ("without an additional 100 pixels ... the lower part of the
+ *  brain would become hidden"). That compensates for its canvas being sized to
+ *  the whole window while sitting ~115px down the page under a header and its
+ *  icon row, so the bottom of the render is cropped by the viewport. Ours is
+ *  sized to its container, so copying the number would just push the brain
+ *  8% of the frame height too high.
  */
-export function boundsMaxAbs(bounds: { min: number[]; max: number[] }): number {
-  return Math.max(...bounds.min.map(Math.abs), ...bounds.max.map(Math.abs));
-}
+export const MZ_REFERENCE_CENTER: [number, number, number] = [-46.64, -6.94, -40.73];
+
+/** Half of the outline mesh's largest span (the rostro-caudal one), about
+ *  MZ_REFERENCE_CENTER. The framing basis for embedded mode, replacing the
+ *  cell bounds: the outline is on by default there and is the larger object,
+ *  reaching ~499 units caudally against the cells' ~416, because it includes
+ *  the spinal-cord stub the recording does not cover. Same provenance as
+ *  MZ_REFERENCE_CENTER. */
+export const MZ_REFERENCE_HALF_SPAN = 452.56;
+
+/** Margin on the embedded framing distance.
+ *
+ *  fitDistance's bound is linear — it compares world extents against the
+ *  frustum half-height at the target plane — so it ignores that geometry
+ *  dorsal of that plane is nearer the camera and magnified. Projecting every
+ *  outline vertex through all seven presets, the binding case is the vertical
+ *  sagittal pair, which needs 1.118× the linear distance before the snout and
+ *  the spinal stub both stay inside the frame. This rounds that up.
+ */
+export const EMBEDDED_FIT_MARGIN = 1.15;
 
 /** Camera distance at which `halfExtent` exactly fills half the vertical
  *  field of view, times a margin.
@@ -34,54 +70,15 @@ export function boundsMaxAbs(bounds: { min: number[]; max: number[] }): number {
  *  horizontally across a wide panel. Embedded mode rolls that extent
  *  vertical, where span * 0.95 clips the rostral and caudal tips.
  *
- *  The default 1.25 margin is not cosmetic: the mapZebrain outline mesh
- *  reaches ~499 units caudally against the cell cloud's ~416, because it
- *  includes the spinal-cord stub the recording does not cover. Framing to the
- *  cells alone would cut the reference brain's tail off whenever the outline
- *  is on.
- *
- *  That margin is a linear bound, though: it compares world extents against the
- *  frustum half-height at the target plane and so ignores perspective. The
- *  stub is dorsal of the target plane, hence nearer the camera and magnified,
- *  and it still projects a few pixels past the bottom edge. What actually keeps
- *  it on screen is EMBEDDED_VERTICAL_CENTERING below.
+ *  This is a linear bound — see EMBEDDED_FIT_MARGIN for what it misses and
+ *  what the embedded caller passes to cover it.
  */
 export function fitDistance(
   halfExtent: number,
   fovDeg = VIEWER_FOV_DEG,
-  margin = 1.25,
+  margin = EMBEDDED_FIT_MARGIN,
 ): number {
   return (halfExtent / Math.tan(((fovDeg / 2) * Math.PI) / 180)) * margin;
-}
-
-/** Fraction of the canvas height by which the embedded framing sits too LOW,
- *  and therefore how far up it has to be nudged.
- *
- *  The camera targets the world origin, but nothing in the scene is centred on
- *  it. In the embedded portrait framing the outline mesh — on by default, and
- *  the tallest thing drawn — projects to rows 127 … 913 of a 900px canvas: the
- *  spinal stub is clipped off the bottom edge while 127px of empty sky sits
- *  above the snout. Its midpoint is 7.8% of the height below centre.
- *
- *  A fraction rather than a pixel count, because the projection is what scales
- *  with the canvas: every gap above grows in proportion to the height, so the
- *  fixed 10px this replaces corrected 1.1% of a 900px canvas and less of every
- *  taller one — the taller the iframe, the further off-centre the brain looked.
- *
- *  Perspective is why this is not simply the outline's bounds midpoint (46.6
- *  world units, 4.5% of the height). The caudal tip sits dorsal of the rostral
- *  tip, hence nearer the camera and magnified more, so it reaches further from
- *  centre than its coordinates suggest. Ignoring that leaves the tail ~27px
- *  from the edge against ~87px at the snout. The value here is the projected
- *  midpoint of the real atlas geometry at the default framing distance, checked
- *  against the rendered canvas.
- */
-export const EMBEDDED_VERTICAL_CENTERING = 0.078;
-
-/** The embedded framing nudge for a canvas of `height` CSS pixels, in
- *  ScreenPanState's convention — negative y moves the volume up. */
-export function embeddedFramingPan(height: number): { x: number; y: number } {
-  return { x: 0, y: -EMBEDDED_VERTICAL_CENTERING * height };
 }
 
 export type ViewPresetKey =
@@ -109,14 +106,15 @@ export interface ViewPreset {
  *  dorsal-up (up along world +Z) — mapZebrain's naming. Coronal views from
  *  the rostral side, as mapZebrain's does.
  *
- *  Which of ±Y is the animal's left is not derivable from the data — the
- *  brain is near bilaterally symmetric and the volume group transform is a
- *  mirror — so the sagittal sides are pinned to mapZebrain's icon artwork
- *  instead, which is the affordance the user actually clicks. Its
- *  left_sagittal glyph shows the fish with its snout pointing screen-left and
- *  right_sagittal shows it pointing screen-right, which puts the "left" views
- *  on world +Y. The tests assert that screen reading so it cannot silently
- *  flip back.
+ *  Which of ±Y each sagittal button views from is taken from mapZebrain's own
+ *  camera positions, rotated into our frame. Note that this makes its two
+ *  "left" buttons view the brain from OPPOSITE sides: vertical-left sits at
+ *  x = −905 and horizontal-left at x = +848 in its frame. That is mapZebrain's
+ *  inconsistency, not a transcription error, and it is reproduced deliberately
+ *  — a user clicking the same glyph in the host page and in the embedded
+ *  viewer should get the same picture. Nothing else can settle it: the brain is
+ *  near bilaterally symmetric, and the vertical glyphs are rostral-up, so their
+ *  artwork is mirror-symmetric and cannot show which side faces the camera.
  */
 export const VIEW_PRESETS: ViewPreset[] = [
   { key: 'dorsal', label: 'Dorsal', dir: [0, 0, 1], up: [1, 0, 0] },
@@ -124,13 +122,13 @@ export const VIEW_PRESETS: ViewPreset[] = [
   {
     key: 'sagittalVerticalLeft',
     label: 'Sagittal (vertical-left)',
-    dir: [0, 1, 0],
+    dir: [0, -1, 0],
     up: [1, 0, 0],
   },
   {
     key: 'sagittalVerticalRight',
     label: 'Sagittal (vertical-right)',
-    dir: [0, -1, 0],
+    dir: [0, 1, 0],
     up: [1, 0, 0],
   },
   {
@@ -152,11 +150,20 @@ export const VIEW_PRESETS: ViewPreset[] = [
  *  rostral up. */
 export const EMBEDDED_DEFAULT_PRESET: ViewPreset = VIEW_PRESETS[0];
 
+/** Camera position for a preset: `distance` out from `center` along the
+ *  preset's direction. `center` is the orbit target, which embedded mode moves
+ *  to MZ_REFERENCE_CENTER — pass the same value the camera targets or the view
+ *  lands off-axis. */
 export function presetPosition(
   preset: ViewPreset,
   distance: number,
+  center: [number, number, number] = [0, 0, 0],
 ): [number, number, number] {
-  return [preset.dir[0] * distance, preset.dir[1] * distance, preset.dir[2] * distance];
+  return [
+    center[0] + preset.dir[0] * distance,
+    center[1] + preset.dir[1] * distance,
+    center[2] + preset.dir[2] * distance,
+  ];
 }
 
 /** Whether the camera is sitting exactly on its default view.

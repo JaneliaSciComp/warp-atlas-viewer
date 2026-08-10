@@ -15,16 +15,17 @@ import {
 import { ProjectionPill } from './brain/ProjectionPill';
 import { buildTooltip } from './brain/tooltip';
 import { DebugOverlay, FpsMeter } from './brain/debugOverlay';
-import { CameraSync, NO_PAN, ScreenSpacePan, type ScreenPanState } from './brain/cameraControls';
+import { CameraSync, ScreenSpacePan, type ScreenPanState } from './brain/cameraControls';
 import { ProjectionRenderPass } from './brain/ProjectionRenderPass';
 import { PointCloud, type PickState } from './brain/PointCloud';
 import { BrainMeshes } from './brain/BrainMeshes';
 import {
   EMBEDDED_DEFAULT_PRESET,
+  MZ_REFERENCE_CENTER,
+  MZ_REFERENCE_HALF_SPAN,
   VIEWER_FOV_DEG,
-  boundsMaxAbs,
-  embeddedFramingPan,
   fitDistance,
+  presetPosition,
 } from './brain/viewPresets';
 import { BAR_NATURAL_WIDTH_PX, ViewOrientationBar } from './brain/ViewOrientationBar';
 
@@ -79,8 +80,12 @@ interface Props {
   onOpenExport?: () => void;
 }
 
+// What the camera targets and orbits. Standalone: the origin, which is the
+// cell cloud's mean — the cells are the whole subject there. Embedded: the
+// point mapZebrain frames its own 3D view on, so the two views line up.
 const VOLUME_CENTER: [number, number, number] = [0, 0, 0];
 const VOLUME_CENTER_VEC = new THREE.Vector3(...VOLUME_CENTER);
+const MZ_CENTER_VEC = new THREE.Vector3(...MZ_REFERENCE_CENTER);
 
 /** Renders the 3D brain viewer shell, including canvas controls, overlays, and projection UI. */
 export function BrainViewer({
@@ -135,23 +140,31 @@ export function BrainViewer({
   // runs horizontally across the wide panel, with the volume group transform
   // putting rostral at screen-right. span doubles as the basis for the zoom
   // limits below.
-  const { defaultCamPosition, defaultCamUp, presetDistance, minDistance, maxDistance } = useMemo(() => {
+  const {
+    defaultCamPosition,
+    defaultCamUp,
+    presetDistance,
+    volumeCenter,
+    volumeCenterVec,
+    minDistance,
+    maxDistance,
+  } = useMemo(() => {
     const { min, max } = data.bounds;
     const span = Math.max(max[0] - min[0], max[1] - min[1], max[2] - min[2]);
     // Embedded mode opens on mapZebrain's own default: dorsal, brain vertical,
-    // rostral up. That rolls the 784-unit rostro-caudal extent from horizontal
+    // rostral up. That rolls the ~905-unit rostro-caudal extent from horizontal
     // to vertical, and three's fov is the VERTICAL fov, so the landscape
     // distance below would clip the rostral and caudal tips — hence
-    // fitDistance. It takes the largest arm from the origin rather than half
-    // the span, because the cloud is centered on its mean and so sits
-    // off-centre; and its default margin also clears the outline mesh, which
-    // reaches further caudally than the cells. presetDistance is the orbit
-    // distance the icon bar uses too, so no preset can clip either.
-    const presetDistance = fitDistance(boundsMaxAbs(data.bounds));
+    // fitDistance. It is fed the outline mesh's half-span about the point the
+    // camera targets, not the cell bounds: embedded mode draws the outline by
+    // default and it is the larger object. presetDistance is the orbit distance
+    // the icon bar uses too, so no preset can clip either.
+    const presetDistance = fitDistance(MZ_REFERENCE_HALF_SPAN);
     const embedded = settings.embeddedMode;
+    const volumeCenter = embedded ? MZ_REFERENCE_CENTER : VOLUME_CENTER;
     return {
       defaultCamPosition: (embedded
-        ? [0, 0, presetDistance]
+        ? presetPosition(EMBEDDED_DEFAULT_PRESET, presetDistance, volumeCenter)
         : [0, 0, span * 0.95]) as [number, number, number],
       defaultCamUp: (embedded ? EMBEDDED_DEFAULT_PRESET.up : [0, 1, 0]) as [
         number,
@@ -159,6 +172,8 @@ export function BrainViewer({
         number,
       ],
       presetDistance,
+      volumeCenter,
+      volumeCenterVec: embedded ? MZ_CENTER_VEC : VOLUME_CENTER_VEC,
       // Hard zoom-in floor. Without it, TrackballControls' default
       // minDistance=0 lets the wheel keep shrinking the camera-to-
       // target offset asymptotically: the view stops changing once
@@ -183,16 +198,6 @@ export function BrainViewer({
   // screenshot button and the buffer it depends on from ever disagreeing, which
   // they would silently, by producing a blank PNG.
   const embeddedAtMountRef = useRef(settings.embeddedMode);
-  // Embedded mode nudges the volume up so the portrait brain sits centred in
-  // the iframe rather than resting on its bottom edge. Same sign convention as
-  // a screen-space pan (negative y = up), but held apart from the user's pan:
-  // see ScreenSpacePan's `baseline`. Proportional to the canvas height, so it
-  // is recomputed on resize — memoised because it lands in the effect
-  // dependency arrays inside ScreenSpacePan / CameraSync.
-  const viewOffsetBaseline = useMemo<ScreenPanState>(
-    () => (embeddedAtMountRef.current ? embeddedFramingPan(canvasSize.h) : NO_PAN),
-    [canvasSize.h],
-  );
   const screenPanRef = useRef<ScreenPanState>({
     x: mountCameraRef.current?.pan?.[0] ?? 0,
     y: mountCameraRef.current?.pan?.[1] ?? 0,
@@ -355,7 +360,7 @@ export function BrainViewer({
           pickRef={pickRef}
           onHoverChange={handleHoverChange}
           defaultCamDistance={defaultCamPosition[2]}
-          volumeCenter={VOLUME_CENTER_VEC}
+          volumeCenter={volumeCenterVec}
         />
         <BrainMeshes settings={settings} />
         <TrackballControls
@@ -376,11 +381,7 @@ export function BrainViewer({
           // the target, and rotation follows.
           noPan={settings.objectCentricRotation}
         />
-        <ScreenSpacePan
-          panRef={screenPanRef}
-          enabled={settings.objectCentricRotation}
-          baseline={viewOffsetBaseline}
-        />
+        <ScreenSpacePan panRef={screenPanRef} enabled={settings.objectCentricRotation} />
         <CameraSync
           initialCamera={initialCamera ?? null}
           onCameraChange={onCameraChange}
@@ -390,8 +391,7 @@ export function BrainViewer({
           applyViewRef={applyViewRef}
           onAtDefaultChange={setAtDefault}
           lockTargetToCenter={settings.objectCentricRotation}
-          volumeCenter={VOLUME_CENTER}
-          baseline={viewOffsetBaseline}
+          volumeCenter={volumeCenter}
         />
         {settings.ambientOcclusion && activeProjectionMode === 'off' && (
           <AmbientOcclusion
@@ -428,6 +428,7 @@ export function BrainViewer({
         <ViewOrientationBar
           collapsed={canvasSize.w < MIN_VIEWER_WIDTH_FOR_BAR}
           distance={presetDistance}
+          center={volumeCenter}
           applyView={(position, up) => applyViewRef.current?.(position, up)}
           onCapture={embeddedAtMountRef.current ? onCapture : null}
           onOpenExport={() => onOpenExport?.()}

@@ -2,10 +2,11 @@ import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import {
   EMBEDDED_DEFAULT_PRESET,
+  EMBEDDED_FIT_MARGIN,
+  MZ_REFERENCE_CENTER,
+  MZ_REFERENCE_HALF_SPAN,
   VIEWER_FOV_DEG,
   VIEW_PRESETS,
-  boundsMaxAbs,
-  embeddedFramingPan,
   fitDistance,
   isAtDefaultCamera,
   presetPosition,
@@ -100,24 +101,23 @@ describe('VIEW_PRESETS', () => {
     expect(hLeft.up).toEqual([0, 0, 1]);
   });
 
-  it('matches mapZebrain\'s sagittal glyphs: "left" points the snout screen-left', () => {
-    // Anatomical handedness is not derivable here (near-symmetric brain, and
-    // the volume group transform is a mirror), so the sides are pinned to the
-    // icon artwork the user clicks. left_sagittal.webp draws the fish facing
-    // screen-left, right_sagittal.webp facing screen-right. Screen-right is
-    // the camera basis' +X column, so rostral (world +X) must land on the
-    // negative side for "left" and the positive side for "right".
+  it("takes each sagittal button's side from mapZebrain's own camera", () => {
+    // web-gl.service.ts:732-766, rotated into our frame by world = (-y, x, z).
+    // Its vertical pair sits at x = -905 / +923 and its horizontal pair at
+    // x = +848 / -800, so "left" is world -Y for the vertical buttons and
+    // world +Y for the horizontal ones. Inconsistent, and deliberately copied:
+    // the same glyph must produce the same picture in both viewers.
     const [, , vLeft, vRight, hLeft, hRight] = VIEW_PRESETS;
+    expect(vLeft.dir).toEqual([0, -1, 0]);
+    expect(vRight.dir).toEqual([0, 1, 0]);
+    expect(hLeft.dir).toEqual([0, 1, 0]);
+    expect(hRight.dir).toEqual([0, -1, 0]);
+    // Each "left" therefore views from the opposite side of its counterpart.
+    expect(vLeft.dir[1]).toBe(-hLeft.dir[1]);
+    // The horizontal pair is dorsal-up, so the snout reads screen-left for
+    // hLeft and screen-right for hRight — matching their glyph artwork.
     expect(basis(hLeft.dir, hLeft.up).right.x).toBeCloseTo(-1, 5);
     expect(basis(hRight.dir, hRight.up).right.x).toBeCloseTo(1, 5);
-    // The vertical pair views from the same sides, rolled 90° so rostral is
-    // up; there screen-right carries the dorsoventral axis instead.
-    expect(basis(vLeft.dir, vLeft.up).screenUp.x).toBeCloseTo(1, 5);
-    expect(basis(vLeft.dir, vLeft.up).right.z).toBeCloseTo(1, 5);
-    expect(basis(vRight.dir, vRight.up).right.z).toBeCloseTo(-1, 5);
-    // Same side as its horizontal counterpart.
-    expect(vLeft.dir).toEqual(hLeft.dir);
-    expect(vRight.dir).toEqual(hRight.dir);
   });
 
   it('embedded default is the dorsal preset', () => {
@@ -133,46 +133,41 @@ describe('presetPosition', () => {
       new THREE.Vector3(...presetPosition(VIEW_PRESETS[2], 900)).length(),
     ).toBeCloseTo(900, 6);
   });
-});
 
-describe('boundsMaxAbs', () => {
-  it('takes the largest arm, not half the span', () => {
-    // The real dataset: centered on the population mean, so the bounding box
-    // is lopsided and the caudal arm is the one the camera has to cover.
-    const bounds = {
-      min: [-217.04, -415.79, -165.54],
-      max: [241.32, 368.36, 113.32],
-    };
-    expect(boundsMaxAbs(bounds)).toBeCloseTo(415.79, 2);
-    // Half the span would understate it, which is what clipped the tail.
-    const halfSpan = (368.36 + 415.79) / 2;
-    expect(boundsMaxAbs(bounds)).toBeGreaterThan(halfSpan);
+  it('offsets from the orbit target, keeping the distance to it', () => {
+    // The bug this guards: placing the camera at dir * distance from the ORIGIN
+    // while the controls target MZ_REFERENCE_CENTER tilts every preset off-axis
+    // and changes its zoom.
+    for (const preset of VIEW_PRESETS) {
+      const pos = presetPosition(preset, 900, MZ_REFERENCE_CENTER);
+      const offset = new THREE.Vector3(...pos).sub(new THREE.Vector3(...MZ_REFERENCE_CENTER));
+      expect(offset.length()).toBeCloseTo(900, 6);
+      expect(offset.normalize().dot(new THREE.Vector3(...preset.dir))).toBeCloseTo(1, 6);
+    }
   });
 });
 
 describe('fitDistance', () => {
-  const REAL_BOUNDS = {
-    min: [-217.04, -415.79, -165.54],
-    max: [241.32, 368.36, 113.32],
-  };
   const halfFov = ((VIEWER_FOV_DEG / 2) * Math.PI) / 180;
   /** World half-height visible at the target plane from distance d. */
   const visibleHalfExtent = (d: number) => d * Math.tan(halfFov);
 
-  it('frames the whole cell cloud in the vertical field of view', () => {
+  it('frames the whole outline mesh in the vertical field of view', () => {
     // The check that catches the portrait clipping bug: warp's landscape
     // distance is too close once the rostro-caudal extent is rolled vertical.
-    const d = fitDistance(boundsMaxAbs(REAL_BOUNDS));
-    expect(visibleHalfExtent(d)).toBeGreaterThan(415.79);
+    const d = fitDistance(MZ_REFERENCE_HALF_SPAN);
+    expect(visibleHalfExtent(d)).toBeGreaterThan(MZ_REFERENCE_HALF_SPAN);
     const span = 784.15;
     expect(d).toBeGreaterThan(span * 0.95);
   });
 
-  it('also frames the mapZebrain outline mesh, which is larger than the cells', () => {
-    // The outline reaches ~499 units caudally (it includes the spinal-cord
-    // stub); framing to the cells alone cut its tail off on screen.
-    const d = fitDistance(boundsMaxAbs(REAL_BOUNDS));
-    expect(visibleHalfExtent(d)).toBeGreaterThan(499.2);
+  it('clears the perspective magnification every preset can produce', () => {
+    // Projecting all 164k outline vertices through the seven presets, the
+    // vertical sagittal pair is the binding case at 1221 units; the linear
+    // bound alone gives 1093. Under-margining here clips the snout.
+    const d = fitDistance(MZ_REFERENCE_HALF_SPAN);
+    expect(EMBEDDED_FIT_MARGIN).toBeGreaterThan(1.118);
+    expect(d).toBeGreaterThan(1221.2);
   });
 
   it('scales linearly with the extent', () => {
@@ -184,40 +179,31 @@ describe('fitDistance', () => {
   });
 });
 
-describe('embeddedFramingPan', () => {
-  // Where the outline mesh actually lands on a 900px canvas at the embedded
-  // framing distance, with no nudge applied: measured off the rendered canvas
-  // and reproduced by projecting every outline vertex. These are PROJECTED
-  // rows, not bounds — perspective magnifies the caudal tip, which is why the
-  // extent runs past the bottom edge even though fitDistance's linear margin
-  // says it fits.
-  const TOP_ROW_AT_900 = 127.2;
-  const BOTTOM_ROW_AT_900 = 913.4;
+describe('MZ_REFERENCE_CENTER', () => {
+  // The outline mesh's world bounding box, from preprocessed/meshOutline.bin.gz
+  // (scripts/fetch_meshes.py prints these as `outline world centre / half-span`).
+  const OUTLINE_MIN = [-499.19, -283.5, -219.92];
+  const OUTLINE_MAX = [405.92, 269.61, 138.47];
 
-  it('centres the brain vertically, at any canvas height', () => {
-    for (const height of [600, 900, 1800]) {
-      const scale = height / 900;
-      // Negative y moves the volume up, so it adds to both projected rows.
-      const { y } = embeddedFramingPan(height);
-      const top = TOP_ROW_AT_900 * scale + y;
-      const bottom = BOTTOM_ROW_AT_900 * scale + y;
-      // Equal gaps top and bottom. The wrong-but-plausible constants miss by
-      // far more than this tolerance: the 10px it replaces leaves ~55px of
-      // asymmetry at 900px and ~90px at 1800px, and the outline's bounds
-      // midpoint (4.5%, ignoring perspective) leaves ~30px.
-      expect(Math.abs(top - (height - bottom))).toBeLessThan(2);
-      // And nothing clipped, which the old framing could not claim: the
-      // spinal stub ran 13px past the bottom of a 900px canvas.
-      expect(top).toBeGreaterThan(0);
-      expect(bottom).toBeLessThan(height);
+  it('is the outline mesh bounding-box centre, as mapZebrain uses', () => {
+    for (let i = 0; i < 3; i++) {
+      expect(MZ_REFERENCE_CENTER[i]).toBeCloseTo((OUTLINE_MIN[i] + OUTLINE_MAX[i]) / 2, 1);
     }
   });
 
-  it('moves the volume up, in proportion to the height', () => {
-    // Sign, because down is the one thing that would look like no fix at all.
-    expect(embeddedFramingPan(900).y).toBeLessThan(0);
-    expect(embeddedFramingPan(1800).y).toBeCloseTo(embeddedFramingPan(900).y * 2, 6);
-    expect(embeddedFramingPan(0).y).toBeCloseTo(0, 10);
+  it("does NOT carry mapZebrain's extra 100-unit caudal shift", () => {
+    // That shift compensates for its canvas being cropped by the page it sits
+    // in; ours is not, so copying it would push the brain 8% of the frame too
+    // high. Guard the sign and magnitude, since -146.6 would look plausible.
+    expect(MZ_REFERENCE_CENTER[0]).toBeGreaterThan(-100);
+  });
+
+  it('has the half-span the framing distance is derived from', () => {
+    const halfSpans = [0, 1, 2].map((i) => (OUTLINE_MAX[i] - OUTLINE_MIN[i]) / 2);
+    expect(MZ_REFERENCE_HALF_SPAN).toBeCloseTo(Math.max(...halfSpans), 1);
+    // The rostro-caudal axis is the largest, which is why it is the one that
+    // has to fit the VERTICAL fov in the embedded portrait framing.
+    expect(halfSpans.indexOf(Math.max(...halfSpans))).toBe(0);
   });
 });
 
