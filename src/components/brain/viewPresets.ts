@@ -153,12 +153,13 @@ export const VIEW_PRESETS: ViewPreset[] = [
   {
     key: 'ventral',
     label: 'Ventral',
-    // Tilted 18.9° caudally rather than straight up the ventral axis, so the
-    // caudal face is visible the way mapZebrain's ventral button shows it (its
-    // own camera carries an 11.6° tilt, which reads as a deeper one through its
-    // wider fov). up stays rostral; lookAt orthogonalises it to (0.946, 0,
-    // -0.324), matching mapZebrain's saved up vector for this view.
-    dir: [-0.3239174, 0, -0.9460854],
+    // Tilted 8° caudally rather than straight up the ventral axis, so the
+    // caudal face reads the way mapZebrain's ventral button shows it (its own
+    // camera carries 11.6°, which lands deeper through its wider fov). Shallow
+    // on purpose: any more and the body looks bent rather than straight once
+    // the view has been spun round from dorsal. up stays rostral; lookAt
+    // orthogonalises it to (0.990, 0, -0.139).
+    dir: [-0.1391731, 0, -0.9902681],
     up: [1, 0, 0],
     distanceScale: PORTRAIT_DISTANCE_SCALE,
   },

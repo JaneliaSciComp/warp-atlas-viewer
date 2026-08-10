@@ -85,11 +85,11 @@ describe('VIEW_PRESETS', () => {
     // ...but tilted caudally, which is the whole point of this preset: dead-on
     // ventral hides the caudal face that mapZebrain's own ventral view shows.
     const tilt = (Math.atan2(-ventral.dir[0], -ventral.dir[2]) * 180) / Math.PI;
-    expect(tilt).toBeCloseTo(18.9, 1);
+    expect(tilt).toBeCloseTo(8, 1);
     // up is not perpendicular to dir here; lookAt orthogonalises it to the
     // vector mapZebrain saved for this view, rostral tilted ventrally.
-    expect(screenUp.x).toBeCloseTo(0.946, 3);
-    expect(screenUp.z).toBeCloseTo(-0.324, 3);
+    expect(screenUp.x).toBeCloseTo(0.99, 2);
+    expect(screenUp.z).toBeCloseTo(-0.139, 3);
   });
 
   it('parks the four rostral-up views further back than the dorsal-up ones', () => {
