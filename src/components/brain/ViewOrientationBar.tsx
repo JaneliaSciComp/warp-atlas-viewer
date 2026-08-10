@@ -62,6 +62,7 @@ export const BAR_NATURAL_WIDTH_PX = 368;
 export function ViewOrientationBar({
   collapsed,
   distance,
+  center,
   applyView,
   onCapture,
   onOpenExport,
@@ -70,6 +71,8 @@ export function ViewOrientationBar({
   /** True when the viewer column is too narrow for the full row. */
   collapsed: boolean;
   distance: number;
+  /** The camera's orbit target — presets are placed `distance` out from it. */
+  center: [number, number, number];
   applyView: (position: [number, number, number], up: [number, number, number]) => void;
   /** null when the canvas was not created with preserveDrawingBuffer, in
    *  which case a capture would silently produce a blank PNG. */
@@ -112,7 +115,7 @@ export function ViewOrientationBar({
       <button
         key={preset.key}
         title={preset.label}
-        onClick={pick(() => applyView(presetPosition(preset, distance), preset.up))}
+        onClick={pick(() => applyView(presetPosition(preset, distance, center), preset.up))}
         className={BUTTON_CLASS}
       >
         <img src={PRESET_ICONS[preset.key]} alt={preset.label} className={ICON_CLASS} />

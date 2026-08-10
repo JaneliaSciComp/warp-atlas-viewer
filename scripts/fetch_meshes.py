@@ -165,11 +165,33 @@ def main():
             f.write(blob.tobytes())
 
         triangles = blob.shape[0] // 3
-        entries[key] = {'file': name + '.gz', 'triangles': triangles, 'color': color}
+        # Bounding box in WORLD coordinates (X rostral, Y lateral, Z dorsal),
+        # i.e. after volumeTransform's (pre_y, pre_x, pre_z) swap, because that
+        # is the frame the camera code works in. The outline's centre and
+        # half-span are what src/components/brain/viewPresets.ts hardcodes as
+        # MZ_REFERENCE_CENTER / MZ_REFERENCE_HALF_SPAN -- it needs them at mount
+        # and the meshes load lazily, so they cannot be read from here at
+        # runtime. Re-check them against this output if the meshes ever change.
+        lo, hi = verts.min(axis=0), verts.max(axis=0)
+        world_lo = [float(lo[1]), float(lo[0]), float(lo[2])]
+        world_hi = [float(hi[1]), float(hi[0]), float(hi[2])]
+        world_center = [(a + b) / 2 for a, b in zip(world_lo, world_hi)]
+        entries[key] = {
+            'file': name + '.gz',
+            'triangles': triangles,
+            'color': color,
+            'worldBounds': {'min': world_lo, 'max': world_hi},
+            'worldCenter': world_center,
+        }
         print(
             f'[fetch_meshes] {name + ".gz":22s} {triangles:6d} tris  '
             f'{path.stat().st_size / 1e6:6.2f} MB gz  '
             f'({blob.nbytes / 1e6:6.2f} MB raw)'
+        )
+        print(
+            f'[fetch_meshes] {key:>22s}  world centre '
+            f'{[round(v, 2) for v in world_center]}  half-span '
+            f'{[round((b - a) / 2, 2) for a, b in zip(world_lo, world_hi)]}'
         )
 
     manifest = {

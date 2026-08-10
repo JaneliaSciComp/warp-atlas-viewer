@@ -88,6 +88,10 @@ const INITIAL_FILTER_STATE: FilterState = {
   ...(INITIAL_URL_STATE?.filter ?? {}),
 };
 const EMBED_REQUESTED = isEmbedRequested(window.location.search);
+// `?header=1`: a black 60px placeholder standing in for mapZebrain's own site
+// header, so `?embed=1&header=1` reproduces the vertical space the real iframe
+// gets. Developer tool only — deliberately undocumented in the user docs.
+const HEADER_PLACEHOLDER = new URLSearchParams(window.location.search).has('header');
 // Defaults for the deployment mode, before a shared URL applies its explicit
 // settings. Keep this separate from INITIAL_SETTINGS_STATE: the latter may
 // contain URL overrides and therefore is not a valid target for "reset
@@ -736,6 +740,7 @@ export default function App() {
         (EMBEDDED ? ' embedded' : '')
       }
     >
+      {HEADER_PLACEHOLDER && <div className="flex-shrink-0 h-[60px] bg-black" />}
       {!EMBEDDED && (
         <header className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-neutral-900 border-b border-neutral-800">
           <div className="flex items-baseline gap-3">
